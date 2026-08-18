@@ -267,12 +267,17 @@ String _presetSummary(WorkspaceRecord preset) {
   final mode = preset.data['mode'] == FocusMode.stopwatch.name
       ? '正计时'
       : '倒计时 ${(preset.data['minutes'] as num?)?.toInt() ?? 25} 分钟';
+  final listMode = switch (preset.data['listMode']) {
+    'allow' => '白名单',
+    'block' => '黑名单',
+    _ => '不检测应用',
+  };
   final schedule = switch (preset.data['scheduleMode']) {
     'once' => '单次提醒',
     'weekly' => '每周提醒',
     _ => '手动启动',
   };
-  return '$mode · $schedule';
+  return '$mode · $listMode · $schedule';
 }
 
 Future<void> _startPreset(
@@ -314,12 +319,20 @@ Future<void> _showPresetEditor(
   final minutes = TextEditingController(
     text: '${(preset?.data['minutes'] as num?)?.toInt() ?? 25}',
   );
+  final applications = TextEditingController(
+    text: (preset?.data['applications'] as List<dynamic>? ?? const []).join(
+      ', ',
+    ),
+  );
   var mode = FocusMode.values.firstWhere(
     (value) => value.name == preset?.data['mode'],
     orElse: () => FocusMode.custom,
   );
+  var listMode = preset?.data['listMode']?.toString() ?? 'none';
+  var detection = preset?.data['detectionEnabled'] == true;
   var taskId = preset?.data['taskId']?.toString();
   var scheduleMode = preset?.data['scheduleMode']?.toString() ?? 'none';
+  var bringToFront = preset?.data['bringToFrontOnSchedule'] != false;
   var scheduledAt = DateTime.tryParse(
     preset?.data['scheduledAt']?.toString() ?? '',
   )?.toLocal();
@@ -379,6 +392,35 @@ Future<void> _showPresetEditor(
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
+                  initialValue: listMode,
+                  decoration: const InputDecoration(labelText: '应用检测模式'),
+                  items: const [
+                    DropdownMenuItem(value: 'none', child: Text('不使用名单')),
+                    DropdownMenuItem(value: 'allow', child: Text('白名单')),
+                    DropdownMenuItem(value: 'block', child: Text('黑名单')),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => listMode = value ?? 'none'),
+                ),
+                if (listMode != 'none') ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: applications,
+                    decoration: const InputDecoration(
+                      labelText: '应用进程名',
+                      hintText: 'chrome.exe, matlab.exe',
+                    ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: detection,
+                    title: const Text('此预设启用前台检测'),
+                    onChanged: (value) =>
+                        setDialogState(() => detection = value),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
                   initialValue: scheduleMode,
                   decoration: const InputDecoration(labelText: '定时启动提醒'),
                   items: const [
@@ -396,6 +438,15 @@ Future<void> _showPresetEditor(
                   }),
                 ),
                 if (scheduleMode != 'none') ...[
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: bringToFront,
+                    secondary: const Icon(Icons.open_in_new_outlined),
+                    title: const Text('到点时显示工作台'),
+                    subtitle: const Text('先发送系统提醒，再恢复窗口；仍需确认后才开始计时'),
+                    onChanged: (value) =>
+                        setDialogState(() => bringToFront = value),
+                  ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -512,11 +563,15 @@ Future<void> _showPresetEditor(
                   mode: mode,
                   minutes: int.tryParse(minutes.text) ?? 25,
                   taskId: taskId,
+                  listMode: listMode,
+                  applications: applications.text.split(','),
+                  detectionEnabled: detection,
                   scheduleMode: scheduleMode,
                   scheduledAt: scheduleMode == 'none' ? null : scheduledAt,
                   weekdays: scheduleMode == 'weekly'
                       ? (weekdays.toList()..sort())
                       : const [],
+                  bringToFrontOnSchedule: bringToFront,
                 );
                 if (context.mounted) Navigator.pop(context);
               } on FormatException catch (error) {
@@ -536,6 +591,7 @@ Future<void> _showPresetEditor(
   );
   title.dispose();
   minutes.dispose();
+  applications.dispose();
 }
 
 class FocusPage extends StatefulWidget {
@@ -562,6 +618,11 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
   Duration celebratedDuration = Duration.zero;
   bool targetPulse = false;
   late final String focusSessionId;
+  Timer? activityTimer;
+  StreamSubscription<String>? powerSubscription;
+  String? foregroundApplication;
+  DateTime? foregroundStartedAt;
+  String? lastWarnedApplication;
 
   FocusService get service => widget.controller.focusService;
 
@@ -581,12 +642,16 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
     }
     WidgetsBinding.instance.addObserver(this);
     service.addListener(_handleTargetReached);
+    powerSubscription = widget.controller.windowsActivityService.powerEvents
+        .listen(_handlePowerEvent);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     service.removeListener(_handleTargetReached);
+    activityTimer?.cancel();
+    powerSubscription?.cancel();
     super.dispose();
   }
 
@@ -915,11 +980,13 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
             )
           : null,
     );
+    _startActivityMonitoring();
     await _scheduleEndNotification();
   }
 
   Future<void> _pause() async {
     service.pause();
+    await _stopActivityMonitoring();
     await _cancelEndNotification();
     if (widget.task?.hasCtdpProtocol != true ||
         service.elapsed == Duration.zero) {
@@ -963,6 +1030,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
   }
 
   Future<void> _close() async {
+    await _stopActivityMonitoring();
     if (!mounted) return;
     if (service.elapsed == Duration.zero) {
       await _cancelEndNotification();
@@ -1059,6 +1127,109 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
       if (!mounted) return;
       Navigator.pop(context);
     }
+  }
+
+  Future<void> _handlePowerEvent(String event) async {
+    if (event == 'suspend' && service.running) {
+      service.pause();
+      await _stopActivityMonitoring();
+      await _cancelEndNotification();
+      return;
+    }
+    if (event != 'resume' || !mounted || service.elapsed == Duration.zero) {
+      return;
+    }
+    final action = await showWorkbenchDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('系统已从休眠恢复'),
+        content: const Text('休眠时长未计入专注。请选择继续或结束本次会话。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'finish'),
+            child: const Text('结束'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'continue'),
+            child: const Text('继续'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'continue') {
+      service.start(service.mode);
+      _startActivityMonitoring();
+      await _scheduleEndNotification();
+    } else if (action == 'finish') {
+      await _finish();
+    }
+  }
+
+  void _startActivityMonitoring() {
+    final preset = widget.preset;
+    if (preset?.data['detectionEnabled'] != true ||
+        !widget.controller.foregroundDetectionEnabled) {
+      return;
+    }
+    activityTimer?.cancel();
+    _pollForeground();
+    activityTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _pollForeground(),
+    );
+  }
+
+  Future<void> _pollForeground() async {
+    final application = await widget.controller.windowsActivityService
+        .foregroundProcess();
+    if (application == null || application == foregroundApplication) return;
+    await _flushForeground();
+    foregroundApplication = application;
+    foregroundStartedAt = widget.controller.currentTime();
+    await _warnIfNeeded(application);
+  }
+
+  Future<void> _warnIfNeeded(String application) async {
+    final preset = widget.preset;
+    if (preset == null || lastWarnedApplication == application) return;
+    final mode = preset.data['listMode']?.toString() ?? 'none';
+    final apps = (preset.data['applications'] as List<dynamic>? ?? const [])
+        .map((value) => value.toString().toLowerCase())
+        .toSet();
+    final normalized = application.toLowerCase();
+    final violates = mode == 'block'
+        ? apps.contains(normalized)
+        : mode == 'allow'
+        ? !apps.contains(normalized)
+        : false;
+    if (!violates) return;
+    lastWarnedApplication = application;
+    await widget.controller.notificationService.showNow(
+      id: stableNotificationId('focus-app:${preset.id}:$normalized'),
+      title: '专注应用提醒',
+      body: '$application 不在当前专注预设的允许范围内。',
+    );
+  }
+
+  Future<void> _flushForeground() async {
+    final application = foregroundApplication;
+    final startedAt = foregroundStartedAt;
+    foregroundApplication = null;
+    foregroundStartedAt = null;
+    if (application == null || startedAt == null) return;
+    await widget.controller.recordForegroundEvent(
+      applicationId: application,
+      startedAt: startedAt,
+      duration: widget.controller.currentTime().difference(startedAt),
+      presetId: widget.preset?.id,
+    );
+  }
+
+  Future<void> _stopActivityMonitoring() async {
+    activityTimer?.cancel();
+    activityTimer = null;
+    await _flushForeground();
   }
 
   Future<bool> _maybePlaceBet() async {

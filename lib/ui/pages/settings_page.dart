@@ -99,6 +99,37 @@ class SettingsPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               _Section(
+                title: '专注与检测',
+                children: [
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    secondary: const _SettingsIcon(Icons.visibility_outlined),
+                    title: const Text('前台应用检测'),
+                    subtitle: const Text('默认关闭；只保存应用标识、开始时间、持续时间和预设'),
+                    value: controller.foregroundDetectionEnabled,
+                    onChanged: controller.setForegroundDetectionEnabled,
+                  ),
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    secondary: const _SettingsIcon(Icons.open_in_new_outlined),
+                    title: const Text('定时专注显示工作台'),
+                    subtitle: const Text('到点先提醒并恢复窗口；Windows 拒绝置前时闪烁任务栏'),
+                    value: controller.bringToFrontOnFocusSchedule,
+                    onChanged: controller.setBringToFrontOnFocusSchedule,
+                  ),
+                  ListTile(
+                    leading: const _SettingsIcon(Icons.delete_sweep_outlined),
+                    title: const Text('前台日志'),
+                    subtitle: const Text('本地保留 30 天，不上传云端'),
+                    trailing: TextButton(
+                      onPressed: () => _clearForegroundHistory(context),
+                      child: const Text('立即清除'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _Section(
                 title: '回顾与提醒',
                 children: [
                   for (final type in activeReviewPeriodTypes)
@@ -128,12 +159,43 @@ class SettingsPage extends StatelessWidget {
               _Section(
                 title: '通知与后台',
                 children: [
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    secondary: const _SettingsIcon(Icons.minimize_outlined),
+                    title: const Text('关闭窗口时最小化到托盘'),
+                    subtitle: const Text('启用后请通过托盘菜单退出应用'),
+                    value: controller.closeToTray,
+                    onChanged: controller.windowsActivityService.supported
+                        ? controller.setCloseToTray
+                        : null,
+                  ),
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    secondary: const _SettingsIcon(Icons.power_settings_new_outlined),
+                    title: const Text('开机启动'),
+                    subtitle: const Text('默认关闭，仅当前 Windows 用户'),
+                    value: controller.startupEnabled,
+                    onChanged: controller.windowsActivityService.supported
+                        ? controller.setStartupEnabled
+                        : null,
+                  ),
+                  ListTile(
+                    leading: const _SettingsIcon(Icons.exit_to_app_outlined),
+                    title: const Text('真正退出'),
+                    subtitle: const Text('停止托盘、计时和后台提醒'),
+                    trailing: OutlinedButton(
+                      onPressed: controller.windowsActivityService.supported
+                          ? controller.windowsActivityService.exitApplication
+                          : null,
+                      child: const Text('退出'),
+                    ),
+                  ),
                   ListTile(
                     leading: const _SettingsIcon(Icons.notifications_outlined),
                     title: const Text('任务和休息提醒'),
                     subtitle: Text(
                       controller.notificationService.supportsSystemNotifications
-                          ? '由 Android 系统管理通知'
+                          ? '由 Android 或 Windows 系统管理通知'
                           : '当前平台仅显示应用内提示',
                     ),
                     trailing: OutlinedButton(
@@ -248,6 +310,11 @@ class SettingsPage extends StatelessWidget {
     } catch (error) {
       if (context.mounted) _message(context, '通知设置失败：$error');
     }
+  }
+
+  Future<void> _clearForegroundHistory(BuildContext context) async {
+    await controller.purgeForegroundEvents(all: true);
+    if (context.mounted) _message(context, '前台应用日志已清除');
   }
 
   Future<void> _editReviewReminder(
@@ -486,7 +553,7 @@ class _AppearanceSection extends StatelessWidget {
         SwitchListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           secondary: const _SettingsIcon(Icons.vertical_split_outlined),
-          title: const Text('默认折叠导航侧栏'),
+          title: const Text('默认折叠 Windows 侧栏'),
           subtitle: const Text('仅改变八栏导航宽度，不隐藏任何页面'),
           value: controller.navigationCollapsed,
           onChanged: controller.setNavigationCollapsed,

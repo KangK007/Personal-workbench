@@ -1,5 +1,9 @@
+import 'dart:io';
+
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hotkey_manager/hotkey_manager.dart';
 
 import '../core/models/workspace_record.dart';
 import '../core/theme/app_theme.dart';
@@ -59,6 +63,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   PlanTab planTab = PlanTab.all;
   ReviewTab reviewTab = ReviewTab.diary;
   ProtocolTab protocolTab = ProtocolTab.goals;
+  HotKey? captureHotKey;
   final Set<WorkbenchSection> _visitedSections = {WorkbenchSection.today};
   final List<WorkbenchSection> _mobileHistory = [];
   WorkbenchSection _lastMobilePrimary = WorkbenchSection.today;
@@ -67,6 +72,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Platform.isWindows) _registerHotKey();
       _showGameFeaturesPrompt();
     });
   }
@@ -98,6 +104,8 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
 
   @override
   void dispose() {
+    final hotKey = captureHotKey;
+    if (hotKey != null) hotKeyManager.unregister(hotKey);
     super.dispose();
   }
 
@@ -543,6 +551,26 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       initialStatus: today ? WorkStatus.todo : null,
     );
   }
+
+  Future<void> _registerHotKey() async {
+    final hotKey = HotKey(
+      key: PhysicalKeyboardKey.space,
+      modifiers: [HotKeyModifier.control, HotKeyModifier.shift],
+      scope: HotKeyScope.system,
+    );
+    try {
+      await hotKeyManager.register(
+        hotKey,
+        keyDownHandler: (_) {
+          if (mounted) showQuickCapture(context, widget.controller);
+        },
+      );
+      captureHotKey = hotKey;
+    } catch (error) {
+      // The app remains usable if another program owns the shortcut.
+      debugPrint('Unable to register quick capture shortcut: $error');
+    }
+  }
 }
 
 class _DesktopNavigation extends StatelessWidget {
@@ -565,6 +593,7 @@ class _DesktopNavigation extends StatelessWidget {
   final VoidCallback onSearch;
   final bool allowCollapseToggle;
   final VoidCallback onToggleCollapsed;
+  static final bool _isWindows = Platform.isWindows;
 
   @override
   Widget build(BuildContext context) {
@@ -638,7 +667,7 @@ class _DesktopNavigation extends StatelessWidget {
                         onPressed: onToggleCollapsed,
                         tooltip: '收起导航',
                         icon: const Icon(
-                          Icons.keyboard_double_arrow_left,
+                          FluentIcons.panel_left_contract_24_regular,
                         ),
                       ),
                   ],
@@ -660,14 +689,14 @@ class _DesktopNavigation extends StatelessWidget {
                             IconButton(
                               onPressed: onCapture,
                               tooltip: '快速新增',
-                              icon: const Icon(Icons.add),
+                              icon: const Icon(FluentIcons.add_24_regular),
                             ),
                             const SizedBox(height: 4),
                           ],
                           IconButton(
                             onPressed: onSearch,
                             tooltip: '全局搜索',
-                            icon: const Icon(Icons.search),
+                            icon: const Icon(FluentIcons.search_24_regular),
                           ),
                         ],
                       )
@@ -681,7 +710,7 @@ class _DesktopNavigation extends StatelessWidget {
                                   minimumSize: const Size.fromHeight(48),
                                 ),
                                 onPressed: onCapture,
-                                icon: const Icon(Icons.add),
+                                icon: const Icon(FluentIcons.add_24_regular),
                                 label: const Text('快速新增'),
                               ),
                             ),
@@ -694,7 +723,7 @@ class _DesktopNavigation extends StatelessWidget {
                                 minimumSize: const Size.fromHeight(48),
                               ),
                               onPressed: onSearch,
-                              icon: const Icon(Icons.search),
+                              icon: const Icon(FluentIcons.search_24_regular),
                               label: const Text('全局搜索'),
                             ),
                           ),
@@ -725,48 +754,56 @@ class _DesktopNavigation extends StatelessWidget {
                         context,
                         WorkbenchSection.today,
                         '今日',
+                        FluentIcons.home_24_regular,
                         Icons.today_outlined,
                       ),
                       _item(
                         context,
                         WorkbenchSection.tasks,
                         '任务',
+                        FluentIcons.calendar_work_week_24_regular,
                         Icons.checklist_outlined,
                       ),
                       _item(
                         context,
                         WorkbenchSection.projects,
                         '项目',
+                        FluentIcons.folder_24_regular,
                         Icons.folder_outlined,
                       ),
                       _item(
                         context,
                         WorkbenchSection.focus,
                         '专注',
+                        FluentIcons.timer_24_regular,
                         Icons.timer_outlined,
                       ),
                       _item(
                         context,
                         WorkbenchSection.notes,
                         '笔记',
+                        FluentIcons.notebook_24_regular,
                         Icons.note_alt_outlined,
                       ),
                       _item(
                         context,
                         WorkbenchSection.review,
                         '回顾',
+                        FluentIcons.notebook_24_regular,
                         Icons.insights_outlined,
                       ),
                       _item(
                         context,
                         WorkbenchSection.policies,
                         '国策',
+                        FluentIcons.tree_deciduous_24_regular,
                         Icons.account_tree_outlined,
                       ),
                       _item(
                         context,
                         WorkbenchSection.settings,
                         '设置',
+                        FluentIcons.settings_24_regular,
                         Icons.settings_outlined,
                       ),
                     ],
@@ -794,8 +831,8 @@ class _DesktopNavigation extends StatelessWidget {
                         message: controller.syncMessage,
                         child: Icon(
                           controller.cloudConfigured
-                              ? Icons.cloud_outlined
-                              : Icons.cloud_off_outlined,
+                              ? FluentIcons.cloud_24_regular
+                              : FluentIcons.cloud_off_24_regular,
                           size: 19,
                           color: context.tokens.mutedText,
                         ),
@@ -804,8 +841,8 @@ class _DesktopNavigation extends StatelessWidget {
                         children: [
                           Icon(
                             controller.cloudConfigured
-                                ? Icons.cloud_outlined
-                                : Icons.cloud_off_outlined,
+                                ? FluentIcons.cloud_24_regular
+                                : FluentIcons.cloud_off_24_regular,
                             size: 18,
                             color: context.tokens.mutedText,
                           ),
@@ -828,7 +865,7 @@ class _DesktopNavigation extends StatelessWidget {
                   child: IconButton(
                     onPressed: onToggleCollapsed,
                     tooltip: '展开导航',
-                    icon: const Icon(Icons.keyboard_double_arrow_right),
+                    icon: const Icon(FluentIcons.panel_left_expand_24_regular),
                   ),
                 ),
             ],
@@ -842,9 +879,11 @@ class _DesktopNavigation extends StatelessWidget {
     BuildContext context,
     WorkbenchSection value,
     String label,
-    IconData icon,
+    IconData windowsIcon,
+    IconData androidIcon,
   ) {
     final isSelected = selected == value;
+    final icon = _isWindows ? windowsIcon : androidIcon;
     final theme = Theme.of(context);
     final tile = DecoratedBox(
       decoration: BoxDecoration(

@@ -20,6 +20,7 @@ import '../services/notification_service.dart';
 import '../services/search_service.dart';
 import '../services/share_capture_service.dart';
 import '../services/supabase_sync_service.dart';
+import '../services/windows_activity_service.dart';
 
 enum SyncPhase { localOnly, signedOut, idle, syncing, success, error }
 
@@ -37,9 +38,12 @@ class WorkbenchController extends ChangeNotifier {
     this.growthService = const GrowthService(),
     this.gameService = const GameService(),
     AttachmentService? attachmentService,
+    WindowsActivityService? windowsActivityService,
     DateTime Function()? now,
   }) : attachmentService =
            attachmentService ?? AttachmentService(database: database),
+       windowsActivityService =
+           windowsActivityService ?? WindowsActivityService(),
        _clock = now ?? DateTime.now;
 
   final AppDatabase database;
@@ -52,6 +56,7 @@ class WorkbenchController extends ChangeNotifier {
   GrowthService growthService;
   final GameService gameService;
   final AttachmentService attachmentService;
+  final WindowsActivityService windowsActivityService;
   final DateTime Function() _clock;
 
   DateTime currentTime() => _clock();
@@ -67,6 +72,10 @@ class WorkbenchController extends ChangeNotifier {
   bool _rsipAllowMultiplePerDay = false;
   bool _rsipStrictMode = true;
   int _logicalDayBoundaryHour = 4;
+  bool _closeToTray = true;
+  bool _startupEnabled = false;
+  bool _foregroundDetectionEnabled = false;
+  bool _bringToFrontOnFocusSchedule = true;
   final Map<ReviewPeriodType, bool> _reviewReminderEnabled = {
     for (final type in ReviewPeriodType.values)
       type: type != ReviewPeriodType.yearly,
@@ -101,6 +110,10 @@ class WorkbenchController extends ChangeNotifier {
   bool get rsipAllowMultiplePerDay => _rsipAllowMultiplePerDay;
   bool get rsipStrictMode => _rsipStrictMode;
   int get logicalDayBoundaryHour => _logicalDayBoundaryHour;
+  bool get closeToTray => _closeToTray;
+  bool get startupEnabled => _startupEnabled;
+  bool get foregroundDetectionEnabled => _foregroundDetectionEnabled;
+  bool get bringToFrontOnFocusSchedule => _bringToFrontOnFocusSchedule;
   bool reviewReminderEnabled(ReviewPeriodType type) =>
       _reviewReminderEnabled[type] ?? true;
   String reviewReminderTime(ReviewPeriodType type) =>
@@ -223,6 +236,10 @@ class WorkbenchController extends ChangeNotifier {
       .where((record) => record.data['recordType'] == 'taskGroup')
       .toList(growable: false);
   List<WorkspaceRecord> get relations => recordsOf(RecordKind.relation);
+  List<WorkspaceRecord> get foregroundEvents =>
+      recordsOf(RecordKind.protocolEvent)
+          .where((record) => record.data['recordType'] == 'foregroundEvent')
+          .toList(growable: false);
   List<WorkspaceRecord> get growthEvents => recordsOf(RecordKind.growthEvent);
   WorkspaceRecord? get todayPlan =>
       growthService.planForDay(activeRecords, currentTime());
@@ -440,9 +457,25 @@ class WorkbenchController extends ChangeNotifier {
     _protocolSettlementTimer?.cancel();
     _protocolSettlementTimer = null;
     notifyListeners();
+    (String, String)? migrationBackupPaths;
+    var migrationPhaseComplete = false;
     try {
-      await database.pendingMigrationBackupPaths();
+      final migrationBackup = await database.pendingMigrationBackupPaths();
+      migrationBackupPaths =
+          migrationBackup ?? await database.migrationBackupPaths();
+      if (migrationBackup != null && windowsActivityService.supported) {
+        final protected = await windowsActivityService.protectFile(
+          sourcePath: migrationBackup.$1,
+          destinationPath: migrationBackup.$2,
+        );
+        if (protected == false) {
+          throw StateError('无法创建 Windows DPAPI 迁移备份，数据库未升级。');
+        }
+      }
       await database.database;
+      final domainMigrationComplete =
+          await database.readMetadata('domain_migration_v3') != null;
+      if (domainMigrationComplete) migrationPhaseComplete = true;
       _records
         ..clear()
         ..addAll(await database.loadRecords());
@@ -465,6 +498,7 @@ class WorkbenchController extends ChangeNotifier {
           ..clear()
           ..addAll(await database.loadRecords());
       }
+      migrationPhaseComplete = true;
       _projectIndex = null;
       final theme = await database.readMetadata('theme_mode');
       _themeMode = ThemeMode.values.firstWhere(
@@ -490,6 +524,18 @@ class WorkbenchController extends ChangeNotifier {
       growthService = GrowthService(
         logicalDayBoundaryHour: _logicalDayBoundaryHour,
       );
+      _closeToTray =
+          await database.readMetadata('windows_close_to_tray') != 'false';
+      _foregroundDetectionEnabled =
+          await database.readMetadata('foreground_detection_enabled') == 'true';
+      _bringToFrontOnFocusSchedule =
+          await database.readMetadata('focus_schedule_bring_to_front') !=
+          'false';
+      await purgeForegroundEvents();
+      if (windowsActivityService.supported) {
+        await windowsActivityService.setCloseToTray(_closeToTray);
+        _startupEnabled = await windowsActivityService.startupEnabled();
+      }
       for (final type in activeReviewPeriodTypes) {
         _reviewReminderEnabled[type] =
             await database.readMetadata(
@@ -571,7 +617,23 @@ class WorkbenchController extends ChangeNotifier {
           ? SyncPhase.signedOut
           : SyncPhase.idle;
     } catch (exception) {
-      _error = '初始化失败：$exception';
+      var restored = false;
+      final paths = migrationBackupPaths;
+      if (!migrationPhaseComplete &&
+          paths != null &&
+          windowsActivityService.supported &&
+          await File(paths.$2).exists()) {
+        await database.close();
+        restored =
+            await windowsActivityService.unprotectFile(
+              sourcePath: paths.$2,
+              destinationPath: paths.$1,
+            ) ==
+            true;
+      }
+      _error = restored
+          ? '数据库迁移失败，已从加密备份恢复。请重新启动应用。原始错误：$exception'
+          : '初始化失败：$exception';
     } finally {
       _loading = false;
       notifyListeners();
@@ -2751,18 +2813,44 @@ class WorkbenchController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setCloseToTray(bool value) async {
+    _closeToTray = value;
+    await database.writeMetadata('windows_close_to_tray', '$value');
+    await windowsActivityService.setCloseToTray(value);
+    notifyListeners();
+  }
+
+  Future<void> setStartupEnabled(bool value) async {
+    _startupEnabled = await windowsActivityService.setStartupEnabled(value);
+    await database.writeMetadata('windows_startup_enabled', '$_startupEnabled');
+    notifyListeners();
+  }
+
+  Future<void> setForegroundDetectionEnabled(bool value) async {
+    _foregroundDetectionEnabled = value;
+    await database.writeMetadata('foreground_detection_enabled', '$value');
+    notifyListeners();
+  }
+
   Future<WorkspaceRecord> saveFocusPreset({
     WorkspaceRecord? preset,
     required String title,
     required FocusMode mode,
     required int minutes,
     String? taskId,
+    String listMode = 'none',
+    List<String> applications = const [],
+    bool detectionEnabled = false,
     String scheduleMode = 'none',
     DateTime? scheduledAt,
     List<int> weekdays = const [],
+    bool bringToFrontOnSchedule = true,
   }) async {
     if (title.trim().isEmpty) {
       throw const FormatException('请填写专注预设名称。');
+    }
+    if (!const {'none', 'allow', 'block'}.contains(listMode)) {
+      throw const FormatException('未知的应用列表模式。');
     }
     if (!const {'none', 'once', 'weekly'}.contains(scheduleMode)) {
       throw const FormatException('未知的专注定时模式。');
@@ -2779,9 +2867,17 @@ class WorkbenchController extends ChangeNotifier {
       'mode': mode.name,
       'minutes': minutes.clamp(1, 720),
       'taskId': taskId,
+      'listMode': listMode,
+      'applications': applications
+          .map((value) => value.trim().toLowerCase())
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(),
+      'detectionEnabled': detectionEnabled,
       'scheduleMode': scheduleMode,
       'scheduledAt': scheduledAt?.toUtc().toIso8601String(),
       'weekdays': weekdays,
+      'bringToFrontOnSchedule': bringToFrontOnSchedule,
       if (scheduleMode == 'none') ...{
         'pendingScheduledStartAt': null,
         'scheduledLastTriggered': null,
@@ -2927,7 +3023,17 @@ class WorkbenchController extends ChangeNotifier {
       title: '专注计划待确认',
       body: '${updated.title} 已到计划时间，请选择“确认开始”或“跳过”。',
     );
+    if (_bringToFrontOnFocusSchedule &&
+        updated.data['bringToFrontOnSchedule'] != false) {
+      await windowsActivityService.showWindow();
+    }
     _scheduleMissedFocus(updated.id, at);
+  }
+
+  Future<void> setBringToFrontOnFocusSchedule(bool value) async {
+    _bringToFrontOnFocusSchedule = value;
+    await database.writeMetadata('focus_schedule_bring_to_front', '$value');
+    notifyListeners();
   }
 
   void _scheduleMissedFocus(String presetId, DateTime at) {
@@ -3393,6 +3499,38 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
+  }
+
+  Future<void> recordForegroundEvent({
+    required String applicationId,
+    required DateTime startedAt,
+    required Duration duration,
+    String? presetId,
+  }) async {
+    if (!_foregroundDetectionEnabled || duration.inSeconds < 1) return;
+    await addRecord(
+      WorkspaceRecord.create(
+        kind: RecordKind.protocolEvent,
+        title: applicationId,
+        scheduledFor: startedAt,
+        data: {
+          'recordType': 'foregroundEvent',
+          'applicationId': applicationId,
+          'startedAt': startedAt.toUtc().toIso8601String(),
+          'durationSeconds': duration.inSeconds,
+          'presetId': presetId,
+        },
+      ),
+    );
+  }
+
+  Future<void> purgeForegroundEvents({bool all = false}) async {
+    final cutoff = currentTime().subtract(const Duration(days: 30));
+    for (final event in foregroundEvents.where(
+      (record) => all || record.createdAt.isBefore(cutoff),
+    )) {
+      await permanentlyDelete(event);
+    }
   }
 
   Future<void> setReviewReminder({
@@ -5396,6 +5534,7 @@ class WorkbenchController extends ChangeNotifier {
     }
     shareCaptureService.dispose();
     focusService.dispose();
+    notificationService.dispose();
     database.close();
     super.dispose();
   }

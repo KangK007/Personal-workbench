@@ -214,6 +214,7 @@ class WorkbenchScrollBehavior extends MaterialScrollBehavior {
     switch (getPlatform(context)) {
       case TargetPlatform.linux:
       case TargetPlatform.macOS:
+      case TargetPlatform.windows:
         return Scrollbar(
           controller: PrimaryScrollController.maybeOf(context),
           thumbVisibility: MediaQuery.disableAnimationsOf(context)
@@ -224,7 +225,6 @@ class WorkbenchScrollBehavior extends MaterialScrollBehavior {
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.iOS:
-      case TargetPlatform.windows:
         return child;
     }
   }
