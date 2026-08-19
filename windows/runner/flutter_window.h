@@ -49,6 +49,7 @@ class FlutterWindow : public Win32Window {
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
   bool close_to_tray_ = true;
+  bool exit_guard_ = false;
   bool exiting_ = false;
 };
 

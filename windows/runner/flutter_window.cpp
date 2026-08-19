@@ -6,17 +6,23 @@
 #include <propvarutil.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <tlhelp32.h>
 #include <wincrypt.h>
 #include <winrt/Windows.Data.Xml.Dom.h>
 #include <winrt/Windows.UI.Notifications.h>
 #include <winrt/base.h>
 
+#include <algorithm>
+#include <cctype>
 #include <fstream>
+#include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "restriction_hosts.h"
 #include "resource.h"
 #include "utils.h"
 
@@ -27,6 +33,161 @@ constexpr UINT kTrayExit = 41002;
 constexpr wchar_t kStartupKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 constexpr wchar_t kStartupName[] = L"PersonalWorkbench";
 constexpr wchar_t kAppUserModelId[] = L"PersonalWorkbench.Desktop";
+
+std::wstring Lowercase(std::wstring value) {
+  std::transform(value.begin(), value.end(), value.begin(), towlower);
+  return value;
+}
+
+std::wstring BaseName(const std::wstring& path) {
+  const auto separator = path.find_last_of(L"\\/");
+  return separator == std::wstring::npos ? path : path.substr(separator + 1);
+}
+
+bool IsSystemProcess(const std::wstring& name, const std::wstring& path) {
+  static const std::set<std::wstring> names = {
+      L"system",          L"system idle process", L"registry",
+      L"wininit.exe",     L"winlogon.exe",        L"services.exe",
+      L"lsass.exe",       L"csrss.exe",           L"smss.exe",
+      L"svchost.exe",     L"dwm.exe",             L"explorer.exe",
+      L"taskhostw.exe",   L"sihost.exe",          L"runtimebroker.exe",
+      L"searchhost.exe",  L"textinputhost.exe",   L"msmpeng.exe",
+      L"personal_workbench.exe"};
+  const auto lower_name = Lowercase(name);
+  if (names.find(lower_name) != names.end()) return true;
+  const auto lower_path = Lowercase(path);
+  return lower_path.rfind(L"c:\\windows\\", 0) == 0 ||
+         lower_path.find(L"\\windows\\") != std::wstring::npos;
+}
+
+BOOL CALLBACK CollectWindowTitle(HWND window, LPARAM parameter) {
+  if (!IsWindowVisible(window)) return TRUE;
+  DWORD process_id = 0;
+  GetWindowThreadProcessId(window, &process_id);
+  if (process_id == 0) return TRUE;
+  const int length = GetWindowTextLengthW(window);
+  if (length <= 0 || length > 32767) return TRUE;
+  std::vector<wchar_t> title(static_cast<size_t>(length) + 1);
+  if (GetWindowTextW(window, title.data(), length + 1) <= 0) return TRUE;
+  auto* titles = reinterpret_cast<std::map<DWORD, std::vector<std::string>>*>(
+      parameter);
+  (*titles)[process_id].push_back(Utf8FromUtf16(title.data()));
+  return TRUE;
+}
+
+flutter::EncodableList ProcessSnapshot() {
+  std::map<DWORD, std::vector<std::string>> window_titles;
+  EnumWindows(CollectWindowTitle, reinterpret_cast<LPARAM>(&window_titles));
+  flutter::EncodableList values;
+  const HANDLE snapshot =
+      CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (snapshot == INVALID_HANDLE_VALUE) return values;
+  PROCESSENTRY32W entry{};
+  entry.dwSize = sizeof(entry);
+  if (Process32FirstW(snapshot, &entry)) {
+    do {
+      if (entry.th32ProcessID == 0 ||
+          entry.th32ProcessID == GetCurrentProcessId()) {
+        continue;
+      }
+      std::wstring path;
+      const HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,
+                                         FALSE, entry.th32ProcessID);
+      if (process) {
+        std::vector<wchar_t> buffer(32768);
+        DWORD length = static_cast<DWORD>(buffer.size());
+        if (QueryFullProcessImageNameW(process, 0, buffer.data(), &length)) {
+          path.assign(buffer.data(), length);
+        }
+        CloseHandle(process);
+      }
+      if (IsSystemProcess(entry.szExeFile, path)) continue;
+      flutter::EncodableList titles;
+      const auto found = window_titles.find(entry.th32ProcessID);
+      if (found != window_titles.end()) {
+        for (const auto& title : found->second) {
+          titles.emplace_back(title);
+        }
+      }
+      flutter::EncodableMap item;
+      item[flutter::EncodableValue("pid")] = flutter::EncodableValue(
+          static_cast<int64_t>(entry.th32ProcessID));
+      item[flutter::EncodableValue("name")] =
+          flutter::EncodableValue(Utf8FromUtf16(entry.szExeFile));
+      item[flutter::EncodableValue("executablePath")] =
+          flutter::EncodableValue(Utf8FromUtf16(path.c_str()));
+      item[flutter::EncodableValue("windowTitles")] =
+          flutter::EncodableValue(titles);
+      values.emplace_back(item);
+    } while (Process32NextW(snapshot, &entry));
+  }
+  CloseHandle(snapshot);
+  return values;
+}
+
+bool TerminateExpectedProcess(int64_t process_id,
+                              const std::string& expected_name) {
+  if (process_id <= 0 || process_id > MAXDWORD ||
+      static_cast<DWORD>(process_id) == GetCurrentProcessId()) {
+    return false;
+  }
+  const HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION |
+                                         PROCESS_TERMINATE,
+                                     FALSE, static_cast<DWORD>(process_id));
+  if (!process) return false;
+  std::vector<wchar_t> path(32768);
+  DWORD length = static_cast<DWORD>(path.size());
+  const bool queried =
+      QueryFullProcessImageNameW(process, 0, path.data(), &length) == TRUE;
+  const std::wstring actual = queried
+                                  ? Lowercase(BaseName(
+                                        std::wstring(path.data(), length)))
+                                  : std::wstring();
+  const bool matches =
+      queried && actual == Lowercase(Utf16FromUtf8(expected_name));
+  const bool protected_process = queried && IsSystemProcess(actual, path.data());
+  const bool terminated =
+      matches && !protected_process && TerminateProcess(process, 1) == TRUE;
+  CloseHandle(process);
+  return terminated;
+}
+
+std::vector<std::string> StringListArgument(
+    const flutter::EncodableMap& arguments, const std::string& key) {
+  const auto found = arguments.find(flutter::EncodableValue(key));
+  if (found == arguments.end()) return {};
+  const auto* values = std::get_if<flutter::EncodableList>(&found->second);
+  if (!values) return {};
+  std::vector<std::string> result;
+  for (const auto& value : *values) {
+    if (const auto* text = std::get_if<std::string>(&value)) {
+      result.push_back(*text);
+    }
+  }
+  return result;
+}
+
+flutter::EncodableValue HostsStatusValue(
+    const RestrictionHostsStatus& status) {
+  flutter::EncodableList missing;
+  for (const auto& entry : status.missing_entries) missing.emplace_back(entry);
+  flutter::EncodableMap value;
+  value[flutter::EncodableValue("supported")] =
+      flutter::EncodableValue(status.supported);
+  value[flutter::EncodableValue("administrator")] =
+      flutter::EncodableValue(status.administrator);
+  value[flutter::EncodableValue("active")] =
+      flutter::EncodableValue(status.active);
+  value[flutter::EncodableValue("markerPresent")] =
+      flutter::EncodableValue(status.marker_present);
+  value[flutter::EncodableValue("externallyModified")] =
+      flutter::EncodableValue(status.externally_modified);
+  value[flutter::EncodableValue("missingEntries")] =
+      flutter::EncodableValue(missing);
+  value[flutter::EncodableValue("error")] =
+      flutter::EncodableValue(status.error);
+  return flutter::EncodableValue(value);
+}
 }  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -60,6 +221,47 @@ bool FlutterWindow::OnCreate() {
           result->Success(flutter::EncodableValue(true));
         } else if (call.method_name() == "foregroundProcess") {
           result->Success(flutter::EncodableValue(ForegroundProcessName()));
+        } else if (call.method_name() == "processSnapshot") {
+          result->Success(flutter::EncodableValue(ProcessSnapshot()));
+        } else if (call.method_name() == "terminateProcess") {
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          if (!arguments) {
+            result->Success(flutter::EncodableValue(false));
+            return;
+          }
+          const auto pid = arguments->find(flutter::EncodableValue("pid"));
+          const auto name =
+              arguments->find(flutter::EncodableValue("expectedName"));
+          if (pid == arguments->end() || name == arguments->end()) {
+            result->Success(flutter::EncodableValue(false));
+            return;
+          }
+          const auto* process_id = std::get_if<int64_t>(&pid->second);
+          const auto* expected_name = std::get_if<std::string>(&name->second);
+          result->Success(flutter::EncodableValue(
+              process_id && expected_name &&
+              TerminateExpectedProcess(*process_id, *expected_name)));
+        } else if (call.method_name() == "hostsStatus") {
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          result->Success(HostsStatusValue(GetRestrictionHostsStatus(
+              arguments ? StringListArgument(*arguments, "domains")
+                        : std::vector<std::string>())));
+        } else if (call.method_name() == "applyHostsPolicy") {
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          result->Success(flutter::EncodableValue(
+              arguments && ApplyRestrictionHostsPolicy(
+                               StringListArgument(*arguments, "domains"))));
+        } else if (call.method_name() == "clearHostsPolicy") {
+          result->Success(
+              flutter::EncodableValue(ClearRestrictionHostsPolicy()));
+        } else if (call.method_name() == "isAdministrator") {
+          result->Success(flutter::EncodableValue(IsProcessAdministrator()));
+        } else if (call.method_name() == "setExitGuard") {
+          exit_guard_ = std::get<bool>(*call.arguments());
+          result->Success();
         } else if (call.method_name() == "setCloseToTray") {
           close_to_tray_ = std::get<bool>(*call.arguments());
           result->Success();
@@ -177,6 +379,16 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
       }
       return TRUE;
     case WM_CLOSE:
+      if (exit_guard_ && !exiting_) {
+        ShowWorkbench();
+        ShowNotification("\u81ea\u5f8b\u4fdd\u62a4\u6b63\u5728\u8fd0\u884c",
+                         "\u8bf7\u5728\u81ea\u5f8b\u9875\u9a8c\u8bc1\u540e\u9000\u51fa\u5e94\u7528\u3002");
+        if (channel_) {
+          channel_->InvokeMethod(
+              "exitRequested", std::make_unique<flutter::EncodableValue>());
+        }
+        return 0;
+      }
       if (close_to_tray_ && !exiting_) {
         ShowWindow(hwnd, SW_HIDE);
         return 0;
@@ -188,6 +400,16 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         return 0;
       }
       if (LOWORD(wparam) == kTrayExit) {
+        if (exit_guard_) {
+          ShowWorkbench();
+          ShowNotification("\u81ea\u5f8b\u4fdd\u62a4\u6b63\u5728\u8fd0\u884c",
+                           "\u8bf7\u5728\u81ea\u5f8b\u9875\u9a8c\u8bc1\u540e\u9000\u51fa\u5e94\u7528\u3002");
+          if (channel_) {
+            channel_->InvokeMethod(
+                "exitRequested", std::make_unique<flutter::EncodableValue>());
+          }
+          return 0;
+        }
         exiting_ = true;
         RemoveTrayIcon();
         DestroyWindow(hwnd);

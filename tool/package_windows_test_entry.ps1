@@ -75,6 +75,9 @@ if (-not (Test-Path -LiteralPath $packageExecutable)) {
     throw "Packaged executable not found: $packageExecutable"
 }
 
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\windows\emergency_recovery.ps1') -Destination $packageRoot -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\windows\emergency_recovery.cmd') -Destination $packageRoot -Force
+
 Write-Output "Windows software test entry: $packageExecutable"
 if ($null -ne $databasePath) {
     Write-Output "Test database: $databasePath"
