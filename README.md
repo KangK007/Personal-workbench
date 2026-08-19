@@ -1,6 +1,6 @@
 # 个人工作台
 
-个人工作台 0.1 是一款面向科研学习与个人项目的本地优先 Flutter 应用。它把“快速收集、项目规划、安排今天、专注执行、知识沉淀、日记记录、目标与习惯回顾”放在一条可验证的工作流中，当前提供 Android 应用。本轮界面采用“刻度日志”视觉体系：以日期刻度、状态字、时间轴和证据记录组织页面，适合长期使用，不把科研工作包装成游戏化仪表盘。
+个人工作台 0.1 是一款面向科研学习与个人项目的本地优先 Flutter 应用。它把“快速收集、项目规划、安排今天、专注执行、知识沉淀、日记记录、目标与习惯回顾”放在一条可验证的工作流中，并融合了 SelfControl 的 Windows 自律限制能力。本轮界面采用“刻度日志”视觉体系：以日期刻度、状态字、时间轴和证据记录组织页面，适合长期使用，不把科研工作包装成游戏化仪表盘。
 
 ## 详细使用指南
 
@@ -22,12 +22,14 @@ lib/
   core/theme/        浅色/深色主题和刻度日志颜色令牌
   core/utils/        日期、时间和时长格式化
   data/              SQLite 本地数据库与加密备份
-  services/          搜索、专注、成长规则、提醒、分享捕获、Supabase 同步
+  services/          搜索、专注、成长规则、自律策略/安全/导入、提醒、分享捕获、Supabase 同步
   state/             工作台控制器与业务操作
-  ui/pages/          今日、任务、项目、专注、笔记、回顾、国策、设置及 Android 兼容页面
+  ui/pages/          今日、任务、项目、专注、自律、笔记、回顾、国策、设置及 Android 兼容页面
   ui/widgets/        日期刻度带、日志表面、任务行、快速收集、记录编辑、全局搜索等通用界面
 assets/branding/     应用图标源文件和主图标
 android/             Android 应用清单和构建配置
+windows/             Windows 原生进程、托盘、通知、快捷方式和 hosts 受管能力
+packaging/windows/   Windows 安装与独立 hosts 恢复脚本
 supabase/            云端同步表及 RLS 迁移
   test/                数据、成长规则、备份兼容和 Golden 验收测试
 ```
@@ -57,6 +59,9 @@ flutter devices
 # Android 运行（连接设备或启动模拟器后）
 flutter run -d android
 
+# Windows Release 构建；完成后自动刷新桌面快捷方式
+powershell -ExecutionPolicy Bypass -File .\tool\build_windows.ps1 -Configuration release
+
 # Android 调试 APK（兼容中文工作区路径）
 powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration debug
 
@@ -83,6 +88,7 @@ keyPassword=<本地保存的密钥密码>
 Android 构建脚本会在 `%LOCALAPPDATA%\PersonalWorkbenchBuild\` 下创建指向当前源码的纯 ASCII 目录联接，再从该路径构建，规避中文工作区路径导致的 Gradle/MSBuild 编码问题。脚本还会把 Gradle 输出临时放到 ASCII 目录，并复制 APK 回 `build/app/outputs/flutter-apk/`；Release 仅在签名验证通过后复制。脚本不会复制、移动或覆盖源码；如需强制清理构建缓存，可增加 `-Clean` 参数。Android 脚本使用本机缓存的 Gradle 8.14 离线构建；首次使用前若缓存不存在，需要先在网络可用时运行一次 Gradle 下载。
 
 Android 使用 Material 3 底部导航，读取与桌面端一致的 v3 记录。全局“快速新增”可以写入任务、笔记、今日记录或链接；定时专注使用 Android 系统通知。
+Windows 侧栏和移动端“更多”菜单均提供“自律”页面。Android 可以查看、编辑和同步限制规则，但明确不会结束 Windows 进程或修改 hosts。
 
 ## 核心功能
 
@@ -91,9 +97,11 @@ Android 使用 Material 3 底部导航，读取与桌面端一致的 v3 记录�
 - 计划与工作周：计划页汇总周工作；工作周支持 06:00–02:00 的时间格、5 分钟吸附、跨日拖拽和冲突状态。
 - 项目：左侧项目列表、右侧概览/任务/任务群/里程碑/笔记与回顾详情，支持编辑、软删除和恢复。
 - 执行：正计时、自定义倒计时、预设、白名单/黑名单、定时确认启动、锁屏/休眠中断记录。
+- 自律：按星期和跨午夜时段限制应用、窗口标题和网站；支持提醒/强制结束、进程动作覆盖、PBKDF2 保护密码、一次性紧急恢复码、5 分钟冷静期、强保护活动快照、异常退出恢复、托盘退出保护、hosts 备份/UAC/诊断和拦截统计。规则以 `restrictionProfile` 同步，敏感密码和运行快照只保存在本机。
 - 协议：CTDP 主链/辅助链、预约缓冲、辅助信号、完成证据和审计统计；RSIP 八类节点、国策组容错、拆分批次、强化层、E0/E1/E2、违反预览、崩塌/恢复、轮次历史、规则启发式和任务双向联动。
 - 沉淀：笔记 Markdown 阅读器、链接/本地图片附件、最近 10 个正文版本、任务/项目多关联；回顾单页切换日/周/月、事实快照、正文版本和回顾库。
 - 数据：回收站、JSON/CSV/Markdown/TXT 导入、JSON 导出、AES-256-GCM 加密备份与恢复预览。
+- SelfControl 导入：在“自律 → 导入 SelfControl”选择来源目录，先预览规则、事件、习惯、打卡、专注和文本日志附件，再创建当前数据库备份并幂等导入；导入的规则默认停用。
 - 移动端：接收 Android 分享菜单中的文本或网页链接，首版仅保存链接和说明，不下载网页全文。
 
 ## 仿真参数说明
@@ -109,6 +117,7 @@ Android 使用 Material 3 底部导航，读取与桌面端一致的 v3 记录�
 - SQLite 数据库：由 `path_provider` 放在应用支持目录，文件名为 `personal_workbench.sqlite`。
 - 加密备份和 JSON 导出：应用文档目录下的 `PersonalWorkbench/` 文件夹。
 - Android APK：`build/app/outputs/flutter-apk/app-release.apk`；本项目的侧载副本会写入 `build/releases/`。
+- Windows Release：`build/windows/x64/runner/Release/`；`tool/build_windows.ps1` 会将桌面快捷方式更新到本次生成的可执行文件。
 
 ## 论文图像复现方法
 
@@ -136,8 +145,12 @@ flutter run -d android `
 flutter analyze
 flutter test
 flutter test test/visual_golden_test.dart
+# 自律页面和 Windows 监控专项测试
+flutter test test/restriction_policy_test.dart test/restriction_monitor_test.dart test/restriction_security_test.dart test/self_control_importer_test.dart test/restriction_page_test.dart
 # 配置 android/key.properties 后执行
 powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration release
+# 来源 SelfControl 隔离环境测试（进入来源 checkout 目录并先安装 requirements.txt）
+python -m unittest discover -v
 ```
 
 当前覆盖记录 JSON 往返、SQLite 软删除、AES 备份错误密码与 v1 外层兼容、04:00 边界、周期实例、任务结算、项目/笔记回收站、附件清理、CTDP/RSIP 状态机、RSIP 页面流程、回顾快照、Android 页面 Golden 和指南截图。Golden 使用独立临时数据库；真实数据库必须先手动完成旧版加密备份后再验收。发布前仍需要在真实 Android 设备上验收系统通知、休眠唤醒、离线同步去重、分享捕获、回收站和多尺寸文字布局。

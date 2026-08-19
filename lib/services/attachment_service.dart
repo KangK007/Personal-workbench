@@ -13,6 +13,7 @@ class AttachmentService {
   AttachmentService({required this.database, Directory? root}) : _root = root;
 
   static const maxImageBytes = 20 * 1024 * 1024;
+  static const maxTextBytes = 10 * 1024 * 1024;
   static const _mimeTypes = {
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
@@ -20,6 +21,7 @@ class AttachmentService {
     '.gif': 'image/gif',
     '.webp': 'image/webp',
     '.bmp': 'image/bmp',
+    '.txt': 'text/plain',
   };
 
   final AppDatabase database;
@@ -31,12 +33,34 @@ class AttachmentService {
   }) async {
     final extension = p.extension(source.path).toLowerCase();
     final mimeType = _mimeTypes[extension];
-    if (mimeType == null) {
+    if (mimeType == null || !mimeType.startsWith('image/')) {
       throw const FormatException('仅支持 PNG、JPEG、GIF、WebP 和 BMP 图片。');
     }
+    return _importFile(owner: owner, source: source, mimeType: mimeType);
+  }
+
+  Future<Attachment> importText({
+    required WorkspaceRecord owner,
+    required File source,
+  }) async {
+    final extension = p.extension(source.path).toLowerCase();
+    final mimeType = _mimeTypes[extension];
+    if (mimeType != 'text/plain') {
+      throw const FormatException('仅支持 TXT 文本附件。');
+    }
+    return _importFile(owner: owner, source: source, mimeType: mimeType!);
+  }
+
+  Future<Attachment> _importFile({
+    required WorkspaceRecord owner,
+    required File source,
+    required String mimeType,
+  }) async {
+    final extension = p.extension(source.path).toLowerCase();
     final size = await source.length();
-    if (size > maxImageBytes) {
-      throw const FormatException('单张图片不能超过 20 MB。');
+    final limit = mimeType == 'text/plain' ? maxTextBytes : maxImageBytes;
+    if (size > limit) {
+      throw FormatException('附件不能超过 ${limit ~/ (1024 * 1024)} MB。');
     }
 
     final root = _root ?? await getApplicationSupportDirectory();
@@ -123,7 +147,10 @@ class AttachmentService {
             !attachmentIds.add(source.id)) {
           throw FormatException('附件标识无效或重复：${source.fileName}');
         }
-        if (source.sizeBytes < 0 || source.sizeBytes > maxImageBytes) {
+        final limit = source.mimeType == 'text/plain'
+            ? maxTextBytes
+            : maxImageBytes;
+        if (source.sizeBytes < 0 || source.sizeBytes > limit) {
           throw FormatException('附件大小无效：${source.fileName}');
         }
         final bytes = entry.bytes;

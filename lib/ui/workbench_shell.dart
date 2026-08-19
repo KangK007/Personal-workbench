@@ -16,6 +16,7 @@ import 'pages/policies_page.dart';
 import 'pages/projects_page.dart';
 import 'pages/protocols_page.dart';
 import 'pages/review_page.dart';
+import 'pages/restriction_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/today_page.dart';
 import 'widgets/global_search_dialog.dart';
@@ -28,6 +29,7 @@ enum WorkbenchSection {
   tasks,
   projects,
   focus,
+  restrictions,
   notes,
   review,
   policies,
@@ -203,6 +205,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       WorkbenchSection.today => '今日',
       WorkbenchSection.plan => '计划',
       WorkbenchSection.focus => '专注',
+      WorkbenchSection.restrictions => '自律',
       WorkbenchSection.notes => '笔记',
       WorkbenchSection.protocols =>
         widget.controller.advancedFeaturesEnabled ? '协议' : '目标与习惯',
@@ -271,6 +274,14 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                   child: ListTile(
                     leading: const Icon(Icons.timer_outlined),
                     title: const Text('专注'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: WorkbenchSection.restrictions,
+                  child: ListTile(
+                    leading: const Icon(Icons.shield_outlined),
+                    title: const Text('自律'),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -463,6 +474,10 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
     ),
     WorkbenchSection.focus => FocusHubPage(
+      controller: widget.controller,
+      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+    ),
+    WorkbenchSection.restrictions => RestrictionPage(
       controller: widget.controller,
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
     ),
@@ -783,6 +798,13 @@ class _DesktopNavigation extends StatelessWidget {
                         '专注',
                         FluentIcons.timer_24_regular,
                         Icons.timer_outlined,
+                      ),
+                      _item(
+                        context,
+                        WorkbenchSection.restrictions,
+                        '自律',
+                        FluentIcons.shield_24_regular,
+                        Icons.shield_outlined,
                       ),
                       _item(
                         context,

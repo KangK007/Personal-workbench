@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include "flutter_window.h"
+#include "restriction_hosts.h"
 #include "utils.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
@@ -23,6 +24,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
+
+  const int worker_result = RunRestrictionHostsWorker(command_line_arguments);
+  if (worker_result >= 0) {
+    ::CoUninitialize();
+    return worker_result;
+  }
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
