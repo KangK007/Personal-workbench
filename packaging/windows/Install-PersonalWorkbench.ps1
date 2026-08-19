@@ -15,12 +15,18 @@ Copy-Item -Path (Join-Path $source '*') -Destination $installDirectory -Recurse 
 
 $shell = New-Object -ComObject WScript.Shell
 $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
-$shortcut = $shell.CreateShortcut((Join-Path $startMenu 'Personal Workbench.lnk'))
-$shortcut.TargetPath = $executable
-$shortcut.WorkingDirectory = $installDirectory
-$shortcut.IconLocation = "$executable,0"
-$shortcut.Save()
+$shortcutPaths = @(
+    (Join-Path $startMenu 'Personal Workbench.lnk'),
+    (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Personal Workbench.lnk')
+)
+foreach ($shortcutPath in $shortcutPaths) {
+    $shortcut = $shell.CreateShortcut($shortcutPath)
+    $shortcut.TargetPath = $executable
+    $shortcut.WorkingDirectory = $installDirectory
+    $shortcut.IconLocation = "$executable,0"
+    $shortcut.Description = 'Launch the latest Personal Workbench Windows build'
+    $shortcut.Save()
+}
 
 Write-Host "Personal Workbench was installed to: $installDirectory"
 Start-Process -FilePath $executable -WorkingDirectory $installDirectory
-

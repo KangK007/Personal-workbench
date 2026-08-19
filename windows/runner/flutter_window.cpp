@@ -285,10 +285,6 @@ bool FlutterWindow::EnsureToastShortcut() const {
   const std::wstring shortcut_path =
       std::wstring(programs_path) + L"\\\u4e2a\u4eba\u5de5\u4f5c\u53f0.lnk";
   CoTaskMemFree(programs_path);
-  if (GetFileAttributes(shortcut_path.c_str()) != INVALID_FILE_ATTRIBUTES) {
-    return true;
-  }
-
   std::vector<wchar_t> executable(32768);
   const DWORD length = GetModuleFileName(
       nullptr, executable.data(), static_cast<DWORD>(executable.size()));
