@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
@@ -42,9 +43,14 @@ enum WorkbenchSection {
 }
 
 class WorkbenchShell extends StatefulWidget {
-  const WorkbenchShell({super.key, required this.controller});
+  const WorkbenchShell({
+    super.key,
+    required this.controller,
+    this.enableSystemHotkey = true,
+  });
 
   final WorkbenchController controller;
+  final bool enableSystemHotkey;
 
   @override
   State<WorkbenchShell> createState() => _WorkbenchShellState();
@@ -72,7 +78,11 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Platform.isWindows) _registerHotKey();
+      if (widget.enableSystemHotkey &&
+          Platform.isWindows &&
+          defaultTargetPlatform == TargetPlatform.windows) {
+        _registerHotKey();
+      }
       _showGameFeaturesPrompt();
     });
   }
@@ -173,9 +183,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               ),
               const VerticalDivider(),
               Expanded(
-                child: SafeArea(
-                  child: WorkbenchBackdrop(child: _pageStack()),
-                ),
+                child: SafeArea(child: WorkbenchBackdrop(child: _pageStack())),
               ),
             ],
           ),
@@ -332,9 +340,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 color: tokens.panel,
-                border: Border(
-                  top: BorderSide(color: tokens.divider),
-                ),
+                border: Border(top: BorderSide(color: tokens.divider)),
               ),
               child: Stack(
                 children: [
@@ -636,46 +642,46 @@ class _DesktopNavigation extends StatelessWidget {
                   child: Row(
                     children: [
                       SealLogo(size: expanded ? 48 : 32),
-                    if (!collapsed) ...[
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '个人工作台',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontSize: expanded ? 20 : null),
-                            ),
-                            Text(
-                              controller.profileAlias.isEmpty
-                                  ? '个人工作空间'
-                                  : controller.profileAlias,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: context.tokens.mutedText),
-                            ),
-                          ],
+                      if (!collapsed) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '个人工作台',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontSize: expanded ? 20 : null),
+                              ),
+                              Text(
+                                controller.profileAlias.isEmpty
+                                    ? '个人工作空间'
+                                    : controller.profileAlias,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: context.tokens.mutedText),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
+                      if (!collapsed && allowCollapseToggle)
+                        IconButton(
+                          onPressed: onToggleCollapsed,
+                          tooltip: '收起导航',
+                          icon: const Icon(
+                            FluentIcons.panel_left_contract_24_regular,
+                          ),
+                        ),
                     ],
-                    if (!collapsed && allowCollapseToggle)
-                      IconButton(
-                        onPressed: onToggleCollapsed,
-                        tooltip: '收起导航',
-                        icon: const Icon(
-                          FluentIcons.panel_left_contract_24_regular,
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(
+              Padding(
+                padding: EdgeInsets.symmetric(
                   horizontal: collapsed
                       ? 10
                       : expanded
@@ -1020,9 +1026,7 @@ class _SectionTransitionState extends State<_SectionTransition>
     return FadeTransition(
       opacity: _curve,
       child: SlideTransition(
-        position: Tween<Offset>(begin: begin, end: Offset.zero).animate(
-          _curve,
-        ),
+        position: Tween<Offset>(begin: begin, end: Offset.zero).animate(_curve),
         child: widget.child,
       ),
     );

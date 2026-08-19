@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/utils/formatters.dart';
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
+import '../widgets/batch_task_toolbar.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/task_row.dart';
@@ -106,19 +109,38 @@ class PlanPage extends StatelessWidget {
   }
 }
 
-class _AllTasksPage extends StatelessWidget {
+class _AllTasksPage extends StatefulWidget {
   const _AllTasksPage({required this.controller});
 
   final WorkbenchController controller;
 
   @override
+  State<_AllTasksPage> createState() => _AllTasksPageState();
+}
+
+class _AllTasksPageState extends State<_AllTasksPage> {
+  final FocusNode _focusNode = FocusNode();
+  final Set<String> _selectedIds = <String>{};
+  bool _selectionMode = false;
+  String? _selectionAnchorId;
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final tasks = [...controller.tasks]
+    final tasks = [...widget.controller.tasks]
       ..sort(
         (a, b) => (a.scheduledFor ?? a.dueAt ?? a.createdAt).compareTo(
           b.scheduledFor ?? b.dueAt ?? b.createdAt,
         ),
       );
+    final selectedTasks = tasks
+        .where((task) => _selectedIds.contains(task.id))
+        .toList(growable: false);
     if (tasks.isEmpty) {
       return EmptyState(
         icon: Icons.checklist_outlined,
@@ -127,7 +149,7 @@ class _AllTasksPage extends StatelessWidget {
         action: FilledButton.icon(
           onPressed: () => showQuickCapture(
             context,
-            controller,
+            widget.controller,
             initialKind: RecordKind.task,
           ),
           icon: const Icon(Icons.add_task),
@@ -135,14 +157,114 @@ class _AllTasksPage extends StatelessWidget {
         ),
       );
     }
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
-      itemCount: tasks.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) =>
-          TaskRow(task: tasks[index], controller: controller),
+    return PopScope(
+      canPop: !_selectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _selectionMode) _exitSelection();
+      },
+      child: Focus(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          if (event.logicalKey == LogicalKeyboardKey.escape && _selectionMode) {
+            _exitSelection();
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.keyA &&
+              HardwareKeyboard.instance.isControlPressed) {
+            setState(() {
+              _selectionMode = true;
+              _selectedIds.addAll(tasks.map((task) => task.id));
+              _selectionAnchorId = tasks.lastOrNull?.id;
+            });
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Column(
+          children: [
+            if (_selectionMode)
+              BatchTaskToolbar(
+                controller: widget.controller,
+                visibleTasks: tasks,
+                selectedTasks: selectedTasks,
+                onSelectionChanged: (ids) => setState(() {
+                  _selectedIds
+                    ..clear()
+                    ..addAll(ids);
+                }),
+                onExit: _exitSelection,
+              )
+            else if (defaultTargetPlatform == TargetPlatform.windows)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: OutlinedButton.icon(
+                    onPressed: _enterSelection,
+                    icon: const Icon(Icons.library_add_check_outlined),
+                    label: const Text('选择任务'),
+                  ),
+                ),
+              ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+                itemCount: tasks.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) => TaskRow(
+                  task: tasks[index],
+                  controller: widget.controller,
+                  selectionMode: _selectionMode,
+                  selected: _selectedIds.contains(tasks[index].id),
+                  onSelectionChanged: (value) =>
+                      _toggleSelection(tasks[index].id, value, tasks),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
+
+  void _toggleSelection(
+    String id,
+    bool value,
+    List<WorkspaceRecord> visibleTasks,
+  ) {
+    setState(() {
+      final anchorIndex = _selectionAnchorId == null
+          ? -1
+          : visibleTasks.indexWhere((task) => task.id == _selectionAnchorId);
+      final currentIndex = visibleTasks.indexWhere((task) => task.id == id);
+      if (value &&
+          HardwareKeyboard.instance.isShiftPressed &&
+          anchorIndex >= 0 &&
+          currentIndex >= 0) {
+        final start = anchorIndex < currentIndex ? anchorIndex : currentIndex;
+        final end = anchorIndex < currentIndex ? currentIndex : anchorIndex;
+        _selectedIds.addAll(
+          visibleTasks.sublist(start, end + 1).map((task) => task.id),
+        );
+      } else if (value) {
+        _selectedIds.add(id);
+      } else {
+        _selectedIds.remove(id);
+      }
+      _selectionMode = true;
+      if (value) _selectionAnchorId = id;
+    });
+  }
+
+  void _enterSelection() => setState(() => _selectionMode = true);
+
+  void _exitSelection() => setState(() {
+    _selectionMode = false;
+    _selectionAnchorId = null;
+    _selectedIds.clear();
+  });
 }
 
 class _TaskGroupsPage extends StatefulWidget {
@@ -212,10 +334,38 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
       leading: Icon(sequential ? Icons.linear_scale : Icons.hub_outlined),
       title: Text(group.title),
       subtitle: Text('${sequential ? '顺序任务链' : '并行任务群'} · ${members.length} 项'),
-      trailing: IconButton(
-        onPressed: () => _addMember(group),
-        tooltip: '添加任务',
-        icon: const Icon(Icons.playlist_add),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: () => _addMember(group),
+            tooltip: '添加任务',
+            icon: const Icon(Icons.playlist_add),
+          ),
+          PopupMenuButton<String>(
+            tooltip: '任务群操作',
+            onSelected: (value) {
+              if (value == 'edit') _editGroup(group);
+              if (value == 'trash') _deleteGroup(group);
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'edit',
+                child: ListTile(
+                  leading: Icon(Icons.edit_outlined),
+                  title: Text('编辑任务群'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'trash',
+                child: ListTile(
+                  leading: Icon(Icons.delete_outline),
+                  title: Text('移入回收站'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       children: [
         if (members.isEmpty) const ListTile(title: Text('群内暂无任务')),
@@ -235,6 +385,12 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
                 ),
                 title: Text(task.title),
                 subtitle: Text(locked ? '前置任务尚未通过' : task.status),
+                onTap: () => showRecordEditor(
+                  context,
+                  widget.controller,
+                  kind: RecordKind.task,
+                  record: task,
+                ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -270,6 +426,21 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
                             widget.controller.skipTaskAndContinueChain(task),
                         child: const Text('跳过并继续'),
                       ),
+                    IconButton(
+                      tooltip: '编辑任务',
+                      onPressed: () => showRecordEditor(
+                        context,
+                        widget.controller,
+                        kind: RecordKind.task,
+                        record: task,
+                      ),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                    IconButton(
+                      tooltip: '移出任务群',
+                      onPressed: () => _removeMember(group, task),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
                   ],
                 ),
               );
@@ -330,7 +501,7 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
         await widget.controller.createTaskGroup(
           title: title.text,
           sequential: sequential,
-          timeLimitMinutes: int.tryParse(timeLimit.text.trim()),
+          timeLimitMinutes: _parseTimeLimit(timeLimit.text),
         );
       } on FormatException catch (error) {
         if (mounted) {
@@ -343,6 +514,170 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
     }
     title.dispose();
     timeLimit.dispose();
+  }
+
+  Future<void> _editGroup(WorkspaceRecord group) async {
+    final title = TextEditingController(text: group.title);
+    final timeLimit = TextEditingController(
+      text: (group.data['timeLimitMinutes'] as num?)?.toInt().toString() ?? '',
+    );
+    var sequential = group.data['mode'] == 'sequential';
+    final modeLocked = widget.controller.taskGroupModeLocked(group);
+    final confirmed = await showWorkbenchDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('编辑任务群'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: title,
+                decoration: const InputDecoration(labelText: '名称'),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: sequential,
+                title: const Text('顺序任务链'),
+                subtitle: Text(modeLocked ? '已有成员开始执行，模式已锁定' : '关闭时为并行任务群'),
+                onChanged: modeLocked
+                    ? null
+                    : (value) => setDialogState(() => sequential = value),
+              ),
+              TextField(
+                controller: timeLimit,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '总时限（分钟，可选）'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true) {
+      try {
+        await widget.controller.updateTaskGroup(
+          group: group,
+          title: title.text,
+          sequential: sequential,
+          timeLimitMinutes: _parseTimeLimit(timeLimit.text),
+        );
+      } on FormatException catch (error) {
+        if (mounted) {
+          showWorkbenchSnackBar(
+            context,
+            SnackBar(content: Text(error.message)),
+          );
+        }
+      }
+    }
+    title.dispose();
+    timeLimit.dispose();
+  }
+
+  Future<void> _deleteGroup(WorkspaceRecord group) async {
+    final confirmed = await showWorkbenchDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('移入回收站？'),
+        content: Text('任务群“${group.title}”及其成员关系会移入回收站，成员任务本身保留。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('移入回收站'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final result = await widget.controller.moveTaskGroupToTrash(group);
+      if (mounted && result.isSuccessful) {
+        showWorkbenchSnackBar(
+          context,
+          SnackBar(
+            content: Text('任务群已移入回收站（${result.succeeded} 项）'),
+            action: SnackBarAction(
+              label: '撤销',
+              onPressed: () async {
+                final restored = await widget.controller.restoreRecords([
+                  group,
+                ]);
+                if (!mounted || restored.failed == 0) return;
+                showWorkbenchSnackBar(
+                  context,
+                  SnackBar(content: Text(restored.failures.first.message)),
+                );
+              },
+            ),
+          ),
+        );
+      } else if (mounted) {
+        showWorkbenchSnackBar(
+          context,
+          SnackBar(content: Text('操作失败：${result.failures.first.message}')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        showWorkbenchSnackBar(context, SnackBar(content: Text('操作失败：$error')));
+      }
+    }
+  }
+
+  int? _parseTimeLimit(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    final minutes = int.tryParse(trimmed);
+    if (minutes == null) {
+      throw const FormatException('总时限必须填写整数分钟。');
+    }
+    return minutes;
+  }
+
+  Future<void> _removeMember(
+    WorkspaceRecord group,
+    WorkspaceRecord task,
+  ) async {
+    final confirmed = await showWorkbenchDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('移出任务群？'),
+        content: Text('“${task.title}”会保留，只解除与任务群的关系。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('移出'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await widget.controller.removeTaskFromGroup(task: task, group: group);
+    } on FormatException catch (error) {
+      if (mounted) {
+        showWorkbenchSnackBar(context, SnackBar(content: Text(error.message)));
+      }
+    }
   }
 
   Future<void> _moveMember(

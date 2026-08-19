@@ -147,6 +147,7 @@ class _DiaryPageState extends State<DiaryPage> {
   Widget _calendar() {
     return CalendarDatePicker(
       initialDate: selectedDay,
+      currentDate: widget.controller.currentTime(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       onDateChanged: (value) {

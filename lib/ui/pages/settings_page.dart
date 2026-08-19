@@ -134,7 +134,9 @@ class SettingsPage extends StatelessWidget {
                 children: [
                   for (final type in activeReviewPeriodTypes)
                     SwitchListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
                       secondary: _SettingsIcon(_reviewIcon(type)),
                       title: Text(_reviewName(type)),
                       subtitle: Text(_reviewSchedule(type, controller)),
@@ -171,7 +173,9 @@ class SettingsPage extends StatelessWidget {
                   ),
                   SwitchListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    secondary: const _SettingsIcon(Icons.power_settings_new_outlined),
+                    secondary: const _SettingsIcon(
+                      Icons.power_settings_new_outlined,
+                    ),
                     title: const Text('开机启动'),
                     subtitle: const Text('默认关闭，仅当前 Windows 用户'),
                     value: controller.startupEnabled,
@@ -271,7 +275,9 @@ class SettingsPage extends StatelessWidget {
                 title: '示例内容',
                 children: [
                   ListTile(
-                    leading: const _SettingsIcon(Icons.cleaning_services_outlined),
+                    leading: const _SettingsIcon(
+                      Icons.cleaning_services_outlined,
+                    ),
                     title: const Text('清除首次使用示例'),
                     subtitle: const Text('只移除带有示例标记的内容'),
                     trailing: TextButton(
@@ -806,14 +812,27 @@ class _CloudSectionState extends State<_CloudSection> {
   }
 }
 
-class _TrashSection extends StatelessWidget {
+class _TrashSection extends StatefulWidget {
   const _TrashSection({required this.controller});
 
   final WorkbenchController controller;
 
   @override
+  State<_TrashSection> createState() => _TrashSectionState();
+}
+
+class _TrashSectionState extends State<_TrashSection> {
+  final Set<String> _selectedKeys = <String>{};
+
+  String _key(WorkspaceRecord record) => '${record.kind.name}:${record.id}';
+
+  @override
   Widget build(BuildContext context) {
-    final records = controller.trashRecords;
+    final records = widget.controller.trashRecords;
+    final selected = records
+        .where((record) => _selectedKeys.contains(_key(record)))
+        .toList(growable: false);
+    final allSelected = records.isNotEmpty && selected.length == records.length;
     return _Section(
       title: '回收站（${records.length}）',
       children: records.isEmpty
@@ -823,33 +842,207 @@ class _TrashSection extends StatelessWidget {
                 title: Text('回收站为空'),
               ),
             ]
-          : records
-                .map(
-                  (record) => ListTile(
-                    leading: Icon(iconForKind(record.kind)),
-                    title: Text(record.title, maxLines: 1),
-                    subtitle: Text(
-                      '${record.kind.label} · ${formatDateTime(record.deletedAt!)}',
+          : [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: allSelected
+                          ? true
+                          : (selected.isEmpty ? false : null),
+                      tristate: true,
+                      onChanged: (value) => setState(() {
+                        _selectedKeys
+                          ..clear()
+                          ..addAll(
+                            value == true
+                                ? records.map(_key)
+                                : const <String>[],
+                          );
+                      }),
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: () => controller.restoreFromTrash(record),
-                          tooltip: '恢复',
-                          icon: const Icon(Icons.restore),
-                        ),
-                        IconButton(
-                          onPressed: () => _deleteForever(context, record),
-                          tooltip: '永久删除',
-                          icon: const Icon(Icons.delete_forever_outlined),
-                        ),
-                      ],
+                    Text('已选 ${selected.length} 项'),
+                    const Spacer(),
+                    if (selected.isNotEmpty) ...[
+                      IconButton(
+                        tooltip: '恢复所选',
+                        onPressed: () => _restoreSelected(selected),
+                        icon: const Icon(Icons.restore),
+                      ),
+                      IconButton(
+                        tooltip: '永久删除所选',
+                        onPressed: () => _deleteSelected(selected),
+                        icon: const Icon(Icons.delete_forever_outlined),
+                      ),
+                    ],
+                    IconButton(
+                      tooltip: '清空回收站',
+                      onPressed: () => _clearAll(records.length),
+                      icon: const Icon(Icons.delete_sweep_outlined),
                     ),
+                  ],
+                ),
+              ),
+              ...records.map(
+                (record) => ListTile(
+                  leading: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Checkbox(
+                        value: _selectedKeys.contains(_key(record)),
+                        onChanged: (value) => setState(() {
+                          if (value == true) {
+                            _selectedKeys.add(_key(record));
+                          } else {
+                            _selectedKeys.remove(_key(record));
+                          }
+                        }),
+                      ),
+                      Icon(iconForKind(record.kind)),
+                    ],
                   ),
-                )
-                .toList(),
+                  title: Text(record.title, maxLines: 1),
+                  subtitle: Text(
+                    '${record.kind.label} · ${formatDateTime(record.deletedAt!)}',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () => _restoreOne(record),
+                        tooltip: '恢复',
+                        icon: const Icon(Icons.restore),
+                      ),
+                      IconButton(
+                        onPressed: () => _deleteForever(context, record),
+                        tooltip: '永久删除',
+                        icon: const Icon(Icons.delete_forever_outlined),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
     );
+  }
+
+  Future<void> _restoreSelected(List<WorkspaceRecord> selected) async {
+    try {
+      final result = await widget.controller.restoreRecords(selected);
+      if (mounted) {
+        _retainFailedSelection(result);
+        _message(
+          context,
+          '已恢复 ${result.succeeded} 项${result.failed == 0 ? '' : '，失败 ${result.failed} 项'}',
+        );
+      }
+    } catch (error) {
+      if (mounted) _message(context, '恢复失败：$error');
+    }
+  }
+
+  Future<void> _deleteSelected(List<WorkspaceRecord> selected) async {
+    final confirmed =
+        await showWorkbenchDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('永久删除所选？'),
+            content: Text('将永久删除 ${selected.length} 项记录及其附件。此操作无法撤销。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('永久删除'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    try {
+      final result = await widget.controller.permanentlyDeleteRecords(selected);
+      if (mounted) {
+        _retainFailedSelection(result);
+        _message(
+          context,
+          '已永久删除 ${result.succeeded} 项${result.failed == 0 ? '' : '，失败 ${result.failed} 项'}',
+        );
+      }
+    } catch (error) {
+      if (mounted) _message(context, '永久删除失败：$error');
+    }
+  }
+
+  Future<void> _clearAll(int count) async {
+    if (count == 0) return;
+    late final int attachmentCount;
+    try {
+      attachmentCount = await widget.controller.attachmentCountForRecords(
+        widget.controller.trashRecords,
+      );
+    } catch (error) {
+      if (mounted) _message(context, '无法读取附件数量：$error');
+      return;
+    }
+    if (!mounted) return;
+    final first =
+        await showWorkbenchDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('清空回收站？'),
+            content: Text('回收站共有 $count 项记录和 $attachmentCount 个附件，将永久删除。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('继续'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!first || !mounted) return;
+    final second =
+        await showWorkbenchDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('最后确认'),
+            content: Text(
+              '将永久删除 $count 项记录和 $attachmentCount 个附件，清空后无法恢复。确定继续吗？',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('永久清空'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!second) return;
+    try {
+      final result = await widget.controller.clearTrash();
+      if (mounted) {
+        _retainFailedSelection(result);
+        _message(
+          context,
+          '已清空回收站（${result.succeeded} 项${result.failed == 0 ? '' : '，失败 ${result.failed} 项'}）',
+        );
+      }
+    } catch (error) {
+      if (mounted) _message(context, '清空失败：$error');
+    }
   }
 
   Future<void> _deleteForever(
@@ -877,11 +1070,40 @@ class _TrashSection extends StatelessWidget {
         false;
     if (!confirmed) return;
     try {
-      await controller.permanentlyDelete(record);
+      await widget.controller.permanentlyDelete(record);
       if (context.mounted) _message(context, '记录已从本地和云端永久删除');
     } catch (error) {
       if (context.mounted) _message(context, '永久删除失败，记录仍保留：$error');
     }
+  }
+
+  Future<void> _restoreOne(WorkspaceRecord record) async {
+    try {
+      final result = await widget.controller.restoreRecords([record]);
+      if (mounted) {
+        _message(
+          context,
+          '已恢复 ${result.succeeded} 项${result.failed == 0 ? '' : '，失败 ${result.failed} 项'}',
+        );
+      }
+    } catch (error) {
+      if (mounted) _message(context, '恢复失败：$error');
+    }
+  }
+
+  void _retainFailedSelection(BatchOperationResult result) {
+    final failedIds = result.failures
+        .map((failure) => failure.recordId)
+        .toSet();
+    setState(() {
+      _selectedKeys
+        ..clear()
+        ..addAll(
+          widget.controller.trashRecords
+              .where((record) => failedIds.contains(record.id))
+              .map(_key),
+        );
+    });
   }
 }
 

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/models/workspace_record.dart';
 import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
+import '../widgets/batch_task_toolbar.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/task_row.dart';
 
-class InboxPage extends StatelessWidget {
+class InboxPage extends StatefulWidget {
   const InboxPage({
     super.key,
     required this.controller,
@@ -19,56 +22,181 @@ class InboxPage extends StatelessWidget {
   final bool showHeader;
 
   @override
+  State<InboxPage> createState() => _InboxPageState();
+}
+
+class _InboxPageState extends State<InboxPage> {
+  final FocusNode _focusNode = FocusNode();
+  final Set<String> _selectedIds = <String>{};
+  bool _selectionMode = false;
+  String? _selectionAnchorId;
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final records = controller.inboxRecords;
-    return Column(
-      children: [
-        if (showHeader)
-          PageHeader(
-            title: '收集箱',
-            subtitle: '先记录，再决定它属于哪一天或哪个项目',
-            actions: [
-              FilledButton.icon(
-                onPressed: () => showQuickCapture(context, controller),
-                icon: const Icon(Icons.add),
-                label: const Text('快速收集'),
+    final records = widget.controller.inboxRecords;
+    final visibleTasks = records
+        .where((record) => record.kind == RecordKind.task)
+        .toList(growable: false);
+    final selectedTasks = visibleTasks
+        .where((task) => _selectedIds.contains(task.id))
+        .toList(growable: false);
+    return PopScope(
+      canPop: !_selectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _selectionMode) _exitSelection();
+      },
+      child: Focus(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          if (event.logicalKey == LogicalKeyboardKey.escape && _selectionMode) {
+            _exitSelection();
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.keyA &&
+              HardwareKeyboard.instance.isControlPressed) {
+            setState(() {
+              _selectionMode = true;
+              _selectedIds.addAll(visibleTasks.map((task) => task.id));
+              _selectionAnchorId = visibleTasks.lastOrNull?.id;
+            });
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Column(
+          children: [
+            if (widget.showHeader)
+              PageHeader(
+                title: '收集箱',
+                subtitle: '先记录，再决定它属于哪一天或哪个项目',
+                actions: [
+                  FilledButton.icon(
+                    onPressed: () =>
+                        showQuickCapture(context, widget.controller),
+                    icon: const Icon(Icons.add),
+                    label: const Text('快速收集'),
+                  ),
+                ],
               ),
-            ],
-          ),
-        if (showHeader) const Divider(),
-        Expanded(
-          child: records.isEmpty
-              ? EmptyState(
-                  icon: Icons.inbox_outlined,
-                  title: '收集箱已经清空',
-                  message: '新的任务、笔记和链接会先到这里，安排完成后自动离开。',
-                  action: showHeader
-                      ? FilledButton.icon(
-                          onPressed: () =>
-                              showQuickCapture(context, controller),
-                          icon: const Icon(Icons.add),
-                          label: const Text('记录一项'),
-                        )
-                      : null,
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
-                  itemCount: records.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final record = records[index];
-                    if (record.kind == RecordKind.task) {
-                      return Card(
-                        child: TaskRow(task: record, controller: controller),
-                      );
-                    }
-                    return _CaptureRow(record: record, controller: controller);
-                  },
+            if (widget.showHeader) const Divider(),
+            if (_selectionMode)
+              BatchTaskToolbar(
+                controller: widget.controller,
+                visibleTasks: visibleTasks,
+                selectedTasks: selectedTasks,
+                onSelectionChanged: (ids) => setState(() {
+                  _selectedIds
+                    ..clear()
+                    ..addAll(ids);
+                }),
+                onExit: _exitSelection,
+              )
+            else if (defaultTargetPlatform == TargetPlatform.windows &&
+                visibleTasks.isNotEmpty)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: OutlinedButton.icon(
+                    onPressed: _enterSelection,
+                    icon: const Icon(Icons.library_add_check_outlined),
+                    label: const Text('选择任务'),
+                  ),
                 ),
+              ),
+            Expanded(
+              child: records.isEmpty
+                  ? EmptyState(
+                      icon: Icons.inbox_outlined,
+                      title: '收集箱已经清空',
+                      message: '新的任务、笔记和链接会先到这里，安排完成后自动离开。',
+                      action: widget.showHeader
+                          ? FilledButton.icon(
+                              onPressed: () =>
+                                  showQuickCapture(context, widget.controller),
+                              icon: const Icon(Icons.add),
+                              label: const Text('记录一项'),
+                            )
+                          : null,
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
+                      itemCount: records.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final record = records[index];
+                        if (record.kind == RecordKind.task) {
+                          return Card(
+                            child: TaskRow(
+                              task: record,
+                              controller: widget.controller,
+                              selectionMode: _selectionMode,
+                              selected: _selectedIds.contains(record.id),
+                              onSelectionChanged: (value) => _toggleSelection(
+                                record.id,
+                                value,
+                                visibleTasks,
+                              ),
+                            ),
+                          );
+                        }
+                        return _CaptureRow(
+                          record: record,
+                          controller: widget.controller,
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
+
+  void _toggleSelection(
+    String id,
+    bool value,
+    List<WorkspaceRecord> visibleTasks,
+  ) {
+    setState(() {
+      final anchorIndex = _selectionAnchorId == null
+          ? -1
+          : visibleTasks.indexWhere((task) => task.id == _selectionAnchorId);
+      final currentIndex = visibleTasks.indexWhere((task) => task.id == id);
+      if (value &&
+          HardwareKeyboard.instance.isShiftPressed &&
+          anchorIndex >= 0 &&
+          currentIndex >= 0) {
+        final start = anchorIndex < currentIndex ? anchorIndex : currentIndex;
+        final end = anchorIndex < currentIndex ? currentIndex : anchorIndex;
+        _selectedIds.addAll(
+          visibleTasks.sublist(start, end + 1).map((task) => task.id),
+        );
+      } else if (value) {
+        _selectedIds.add(id);
+      } else {
+        _selectedIds.remove(id);
+      }
+      _selectionMode = true;
+      if (value) _selectionAnchorId = id;
+    });
+  }
+
+  void _enterSelection() => setState(() => _selectionMode = true);
+
+  void _exitSelection() => setState(() {
+    _selectionMode = false;
+    _selectionAnchorId = null;
+    _selectedIds.clear();
+  });
 }
 
 class _CaptureRow extends StatelessWidget {
@@ -107,6 +235,17 @@ class _CaptureRow extends StatelessWidget {
               );
             } else {
               await controller.moveToTrash(record);
+              if (!context.mounted) return;
+              showWorkbenchSnackBar(
+                context,
+                SnackBar(
+                  content: Text('${record.kind.label}已移入回收站'),
+                  action: SnackBarAction(
+                    label: '撤销',
+                    onPressed: () => controller.restoreFromTrash(record),
+                  ),
+                ),
+              );
             }
           },
           itemBuilder: (context) => const [

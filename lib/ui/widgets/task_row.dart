@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
@@ -18,6 +19,9 @@ class TaskRow extends StatelessWidget {
     this.onStartFocus,
     this.commitmentIndex,
     this.completionXp,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelectionChanged,
   });
 
   final WorkspaceRecord task;
@@ -27,6 +31,9 @@ class TaskRow extends StatelessWidget {
   final VoidCallback? onStartFocus;
   final int? commitmentIndex;
   final int? completionXp;
+  final bool selectionMode;
+  final bool selected;
+  final ValueChanged<bool>? onSelectionChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -42,12 +49,17 @@ class TaskRow extends StatelessWidget {
             ? theme.colorScheme.primary.withValues(alpha: 0.045)
             : Colors.transparent,
         child: InkWell(
-          onTap: () => showRecordEditor(
-            context,
-            controller,
-            kind: RecordKind.task,
-            record: task,
-          ),
+          onTap: selectionMode
+              ? () => onSelectionChanged?.call(!selected)
+              : () => showRecordEditor(
+                  context,
+                  controller,
+                  kind: RecordKind.task,
+                  record: task,
+                ),
+          onLongPress: selectionMode
+              ? null
+              : () => onSelectionChanged?.call(true),
           child: ConstrainedBox(
             constraints: BoxConstraints(
               minHeight: task.isDone && commitmentIndex != null
@@ -89,16 +101,23 @@ class TaskRow extends StatelessWidget {
                   ],
                   SizedBox.square(
                     dimension: 48,
-                    child: Checkbox(
-                      value: task.isDone,
-                      onChanged: (_) async {
-                        await controller.toggleTaskDone(task);
-                        if (!task.isDone && commitmentIndex != null) {
-                          await WorkbenchFeedback.completion();
-                        }
-                      },
-                      semanticLabel: task.isDone ? '标记为未完成' : '标记为完成',
-                    ),
+                    child: selectionMode
+                        ? Checkbox(
+                            value: selected,
+                            onChanged: (value) =>
+                                onSelectionChanged?.call(value ?? false),
+                            semanticLabel: selected ? '取消选择' : '选择任务',
+                          )
+                        : Checkbox(
+                            value: task.isDone,
+                            onChanged: (_) async {
+                              await controller.toggleTaskDone(task);
+                              if (!task.isDone && commitmentIndex != null) {
+                                await WorkbenchFeedback.completion();
+                              }
+                            },
+                            semanticLabel: task.isDone ? '标记为未完成' : '标记为完成',
+                          ),
                   ),
                   const SizedBox(width: 2),
                   Expanded(
@@ -109,6 +128,12 @@ class TaskRow extends StatelessWidget {
                         children: [
                           Tooltip(
                             message: task.title,
+                            triggerMode:
+                                defaultTargetPlatform ==
+                                        TargetPlatform.android &&
+                                    onSelectionChanged != null
+                                ? TooltipTriggerMode.manual
+                                : null,
                             child: AnimatedDefaultTextStyle(
                               duration: const Duration(milliseconds: 200),
                               curve: Curves.easeOut,
@@ -204,7 +229,7 @@ class TaskRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (!task.isDone && commitmentIndex == null)
+                  if (!selectionMode && !task.isDone && commitmentIndex == null)
                     IconButton(
                       onPressed: () async {
                         try {
@@ -227,84 +252,85 @@ class TaskRow extends StatelessWidget {
                             : theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  PopupMenuButton<String>(
-                    tooltip: '更多操作',
-                    onSelected: (value) => _handleAction(context, value),
-                    itemBuilder: (context) => [
-                      if (onStartFocus != null)
-                        const PopupMenuItem(
-                          value: 'focus',
-                          child: ListTile(
-                            leading: Icon(Icons.timer_outlined),
-                            title: Text('开始专注'),
-                          ),
-                        ),
-                      if (task.hasCtdpProtocol)
-                        PopupMenuItem(
-                          value: task.ctdpReservationPending
-                              ? 'ctdp_confirm'
-                              : 'ctdp_reserve',
-                          child: ListTile(
-                            leading: Icon(
-                              task.ctdpReservationPending
-                                  ? Icons.play_arrow_outlined
-                                  : Icons.notifications_active_outlined,
-                            ),
-                            title: Text(
-                              task.ctdpReservationPending
-                                  ? '触发主链'
-                                  : '预约 ${task.ctdpDelayMinutes} 分钟后开始',
+                  if (!selectionMode)
+                    PopupMenuButton<String>(
+                      tooltip: '更多操作',
+                      onSelected: (value) => _handleAction(context, value),
+                      itemBuilder: (context) => [
+                        if (onStartFocus != null)
+                          const PopupMenuItem(
+                            value: 'focus',
+                            child: ListTile(
+                              leading: Icon(Icons.timer_outlined),
+                              title: Text('开始专注'),
                             ),
                           ),
-                        ),
-                      if (task.hasCtdpProtocol && task.ctdpReservationPending)
+                        if (task.hasCtdpProtocol)
+                          PopupMenuItem(
+                            value: task.ctdpReservationPending
+                                ? 'ctdp_confirm'
+                                : 'ctdp_reserve',
+                            child: ListTile(
+                              leading: Icon(
+                                task.ctdpReservationPending
+                                    ? Icons.play_arrow_outlined
+                                    : Icons.notifications_active_outlined,
+                              ),
+                              title: Text(
+                                task.ctdpReservationPending
+                                    ? '触发主链'
+                                    : '预约 ${task.ctdpDelayMinutes} 分钟后开始',
+                              ),
+                            ),
+                          ),
+                        if (task.hasCtdpProtocol && task.ctdpReservationPending)
+                          const PopupMenuItem(
+                            value: 'ctdp_aux_fail',
+                            child: ListTile(
+                              leading: Icon(Icons.notifications_off_outlined),
+                              title: Text('辅助链失败并重置'),
+                            ),
+                          ),
+                        if (task.hasCtdpProtocol)
+                          const PopupMenuItem(
+                            value: 'ctdp_precedent',
+                            child: ListTile(
+                              leading: Icon(Icons.gavel_outlined),
+                              title: Text('记录判例'),
+                            ),
+                          ),
+                        if (task.hasCtdpProtocol && !task.isDone)
+                          const PopupMenuItem(
+                            value: 'ctdp_fail',
+                            child: ListTile(
+                              leading: Icon(Icons.link_off_outlined),
+                              title: Text('主链失败并重置'),
+                            ),
+                          ),
                         const PopupMenuItem(
-                          value: 'ctdp_aux_fail',
+                          value: 'edit',
                           child: ListTile(
-                            leading: Icon(Icons.notifications_off_outlined),
-                            title: Text('辅助链失败并重置'),
+                            leading: Icon(Icons.edit_outlined),
+                            title: Text('编辑'),
                           ),
                         ),
-                      if (task.hasCtdpProtocol)
                         const PopupMenuItem(
-                          value: 'ctdp_precedent',
+                          value: 'subtask',
                           child: ListTile(
-                            leading: Icon(Icons.gavel_outlined),
-                            title: Text('记录判例'),
+                            leading: Icon(Icons.subdirectory_arrow_right),
+                            title: Text('添加子任务'),
                           ),
                         ),
-                      if (task.hasCtdpProtocol && !task.isDone)
                         const PopupMenuItem(
-                          value: 'ctdp_fail',
+                          value: 'trash',
                           child: ListTile(
-                            leading: Icon(Icons.link_off_outlined),
-                            title: Text('主链失败并重置'),
+                            leading: Icon(Icons.delete_outline),
+                            title: Text('移入回收站'),
                           ),
                         ),
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: ListTile(
-                          leading: Icon(Icons.edit_outlined),
-                          title: Text('编辑'),
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'subtask',
-                        child: ListTile(
-                          leading: Icon(Icons.subdirectory_arrow_right),
-                          title: Text('添加子任务'),
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'trash',
-                        child: ListTile(
-                          leading: Icon(Icons.delete_outline),
-                          title: Text('移入回收站'),
-                        ),
-                      ),
-                    ],
-                    icon: const Icon(Icons.more_horiz),
-                  ),
+                      ],
+                      icon: const Icon(Icons.more_horiz),
+                    ),
                 ],
               ),
             ),
