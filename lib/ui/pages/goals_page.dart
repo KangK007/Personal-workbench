@@ -82,6 +82,7 @@ class GoalsPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (goals.length < 5) const SparseContentTail(),
                   ],
                 ),
         ),

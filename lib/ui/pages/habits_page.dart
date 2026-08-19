@@ -83,6 +83,7 @@ class HabitsPage extends StatelessWidget {
                       const SizedBox(height: 18),
                       protocolSection!,
                     ],
+                    if (habits.length < 5) const SparseContentTail(),
                   ],
                 ),
         ),
@@ -100,6 +101,8 @@ class _HabitMatrix extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final today = startOfDay(controller.currentTime());
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final cellSlot = compact ? 20.0 : 18.0;
     final days = List.generate(
       28,
       (index) => today.subtract(Duration(days: 27 - index)),
@@ -116,7 +119,7 @@ class _HabitMatrix extends StatelessWidget {
                 const SizedBox(width: 220),
                 for (final day in days)
                   SizedBox(
-                    width: 18,
+                    width: cellSlot,
                     child: Center(
                       child: NumericText(
                         day.day % 7 == 1 ? '${day.day}' : '·',
@@ -293,6 +296,8 @@ class _HabitCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final cellSize = compact ? 16.0 : 14.0;
     final color = switch (status) {
       WorkStatus.done => Theme.of(context).colorScheme.primary,
       WorkStatus.skipped => context.tokens.reward,
@@ -309,15 +314,15 @@ class _HabitCell extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(3),
         child: Container(
-          width: 12,
-          height: 12,
-          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: cellSize,
+          height: cellSize,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: status == null || status == WorkStatus.todo
                 ? Colors.transparent
                 : color,
             border: Border.all(
-              color: isToday ? Theme.of(context).colorScheme.primary : color,
+              color: isToday ? context.tokens.gold : color,
               width: isToday ? 2 : 1,
             ),
             borderRadius: BorderRadius.circular(2),
@@ -325,7 +330,7 @@ class _HabitCell extends StatelessWidget {
           child: status == WorkStatus.done
               ? Icon(
                   Icons.check,
-                  size: 8,
+                  size: compact ? 10 : 9,
                   color: Theme.of(context).colorScheme.onPrimary,
                 )
               : null,

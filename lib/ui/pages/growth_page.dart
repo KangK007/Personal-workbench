@@ -63,6 +63,7 @@ class GrowthPage extends StatelessWidget {
               _MilestoneStamps(level: snapshot.level),
               const SectionHeading(title: '最近证据', scale: '最近'),
               _RecentEvents(events: controller.growthEvents.take(8).toList()),
+              if (controller.growthEvents.length < 5) const SparseContentTail(),
             ],
           ),
         ),
@@ -550,6 +551,9 @@ class _ActivityLedger extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final cellSize = compact ? 16.0 : 14.0;
+    final cellSlot = cellSize + 4;
     const categories = [
       ('承诺', 'commitment'),
       ('专注', 'focus'),
@@ -572,7 +576,7 @@ class _ActivityLedger extends StatelessWidget {
                 const SizedBox(width: 54),
                 for (final day in days)
                   SizedBox(
-                    width: 16,
+                    width: cellSlot,
                     child: Center(
                       child: NumericText(
                         day.day % 7 == 1 ? '${day.day}' : '·',
@@ -635,9 +639,11 @@ class _ActivityCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final cellSize = compact ? 16.0 : 14.0;
     final color = switch (state) {
       2 => Theme.of(context).colorScheme.primary,
-      1 => context.tokens.rewardContainer,
+      1 => context.tokens.info,
       _ => context.tokens.divider,
     };
     return Semantics(
@@ -647,9 +653,9 @@ class _ActivityCell extends StatelessWidget {
         _ => '未计划',
       },
       child: Container(
-        width: 10,
-        height: 10,
-        margin: const EdgeInsets.symmetric(horizontal: 3),
+        width: cellSize,
+        height: cellSize,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           color: state == 0 ? Colors.transparent : color,
           border: Border.all(color: color),
@@ -658,7 +664,7 @@ class _ActivityCell extends StatelessWidget {
         child: state == 2
             ? Icon(
                 Icons.check,
-                size: 7,
+                size: compact ? 10 : 9,
                 color: Theme.of(context).colorScheme.onPrimary,
               )
             : null,
@@ -691,37 +697,49 @@ class _Stamp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = unlocked ? context.tokens.reward : context.tokens.divider;
+    final borderColor = unlocked ? context.tokens.gold : context.tokens.divider;
+    final detailColor = unlocked
+        ? context.tokens.gold
+        : context.tokens.mutedText.withValues(alpha: 0.55);
     return Semantics(
       label: unlocked ? '等级 $target 里程碑已解锁' : '等级 $target 里程碑未解锁',
       child: Container(
-        width: 78,
-        height: 78,
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: color, width: 2),
+          color: unlocked ? null : context.tokens.subtle,
+          gradient: unlocked
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    context.tokens.gold.withValues(alpha: 0.2),
+                    context.tokens.gold.withValues(alpha: 0.05),
+                  ],
+                )
+              : null,
+          border: Border.all(color: borderColor, width: 2),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              '等级',
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: color),
+            Icon(
+              unlocked ? Icons.workspace_premium_outlined : Icons.lock_outline,
+              size: 17,
+              color: detailColor,
             ),
             NumericText(
               '$target',
               style: Theme.of(
                 context,
-              ).textTheme.titleLarge?.copyWith(color: color),
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
-            SizedBox(width: 28, child: Divider(color: color, height: 6)),
             Text(
-              unlocked ? '已记录' : '待解锁',
+              unlocked ? '已解锁' : '待解锁',
               style: Theme.of(
                 context,
-              ).textTheme.labelSmall?.copyWith(color: color),
+              ).textTheme.labelSmall?.copyWith(color: detailColor),
             ),
           ],
         ),

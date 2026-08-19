@@ -320,6 +320,7 @@ class _DesktopWeek extends StatelessWidget {
                       child: _DayLane(
                         controller: controller,
                         day: day,
+                        now: now,
                         startHour: startHour,
                         endHour: endHour,
                         hourHeight: hourHeight,
@@ -340,6 +341,7 @@ class _DayLane extends StatelessWidget {
   const _DayLane({
     required this.controller,
     required this.day,
+    required this.now,
     required this.startHour,
     required this.endHour,
     required this.hourHeight,
@@ -348,6 +350,7 @@ class _DayLane extends StatelessWidget {
 
   final WorkbenchController controller;
   final DateTime day;
+  final DateTime now;
   final int startHour;
   final int endHour;
   final double hourHeight;
@@ -393,11 +396,7 @@ class _DayLane extends StatelessWidget {
                       height: hourHeight,
                       decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(
-                            color: context.tokens.divider.withValues(
-                              alpha: 0.72,
-                            ),
-                          ),
+                          bottom: BorderSide(color: context.tokens.divider),
                         ),
                       ),
                     ),
@@ -442,6 +441,21 @@ class _DayLane extends StatelessWidget {
                   block: block,
                   conflict: conflicts.contains(block.id),
                   onTap: () => onEdit(block),
+                ),
+              ),
+            ),
+          if (isSameDay(day, now) &&
+              _logicalHour(now) >= startHour &&
+              _logicalHour(now) <= endHour)
+            Positioned(
+              top: (_logicalHour(now) - startHour) * hourHeight,
+              left: 0,
+              right: 0,
+              child: Semantics(
+                label: '当前时间',
+                child: Container(
+                  height: 2,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ),
