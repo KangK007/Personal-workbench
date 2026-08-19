@@ -369,6 +369,12 @@ abstract final class AppTheme {
     final cardShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(12),
     );
+    final inputBorderColor = Color.alphaBlend(
+      scheme.onSurface.withValues(
+        alpha: brightness == Brightness.light ? 0.14 : 0.18,
+      ),
+      tokens.subtle,
+    );
 
     return base.copyWith(
       extensions: [tokens],
@@ -433,7 +439,7 @@ abstract final class AppTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: tokens.divider),
+          borderSide: BorderSide(color: inputBorderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -464,12 +470,32 @@ abstract final class AppTheme {
 
       // ─── OutlinedButton: 翠绿边框次按钮 ───
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          minimumSize: Size(0, controlHeight),
-          shape: shape,
-          side: BorderSide(color: scheme.primary),
-          foregroundColor: scheme.primary,
-        ),
+        style:
+            OutlinedButton.styleFrom(
+              minimumSize: Size(0, controlHeight),
+              shape: shape,
+              foregroundColor: scheme.primary,
+            ).copyWith(
+              side: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return BorderSide(
+                    color: tokens.divider.withValues(alpha: 0.55),
+                  );
+                }
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return BorderSide(color: scheme.primary);
+                }
+                return BorderSide(color: tokens.divider);
+              }),
+              overlayColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return scheme.primary.withValues(alpha: 0.08);
+                }
+                return null;
+              }),
+            ),
       ),
 
       // ─── TextButton ───
@@ -494,9 +520,7 @@ abstract final class AppTheme {
         foregroundColor: scheme.onPrimary,
         elevation: 2,
         focusElevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
 
       // ─── Checkbox ───
@@ -532,6 +556,9 @@ abstract final class AppTheme {
         dividerColor: tokens.divider,
         indicatorColor: scheme.primary,
         indicatorSize: TabBarIndicatorSize.label,
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(color: scheme.primary, width: 2),
+        ),
         labelColor: scheme.primary,
         unselectedLabelColor: scheme.onSurfaceVariant,
         labelStyle: textTheme.labelLarge,

@@ -24,8 +24,7 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
 }) {
   return showGeneralDialog<T>(
     context: context,
-    pageBuilder: (context, animation, secondaryAnimation) =>
-        builder(context),
+    pageBuilder: (context, animation, secondaryAnimation) => builder(context),
     barrierDismissible: barrierDismissible,
     barrierColor:
         barrierColor ??
@@ -113,7 +112,8 @@ class AnimatedNumber extends StatelessWidget {
       tween: Tween(end: value),
       duration: duration,
       curve: Curves.easeOutCubic,
-      builder: (context, current, child) => Text(_format(current), style: style),
+      builder: (context, current, child) =>
+          Text(_format(current), style: style),
       child: null,
     );
   }
@@ -122,11 +122,7 @@ class AnimatedNumber extends StatelessWidget {
 /// 按压缩放反馈：包裹任意可点按钮/卡片，按下时缩至 0.97。
 /// 使用 Listener 不参与手势竞技场，不干扰内部按钮的点击逻辑。
 class PressScale extends StatefulWidget {
-  const PressScale({
-    super.key,
-    required this.child,
-    this.pressedScale = 0.97,
-  });
+  const PressScale({super.key, required this.child, this.pressedScale = 0.97});
 
   final Widget child;
   final double pressedScale;
@@ -253,11 +249,7 @@ class SkeletonListTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SkeletonBlock(
-            width: 38,
-            height: 38,
-            borderRadius: 19,
-          ),
+          const SkeletonBlock(width: 38, height: 38, borderRadius: 19),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -298,21 +290,26 @@ class PageHeader extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.tokens.canvas,
-        border: Border(bottom: BorderSide(color: context.tokens.divider)),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.colorScheme.primary.withValues(alpha: 0.04),
-            context.tokens.canvas,
-          ],
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.primary.withValues(alpha: 0.08),
+          ),
+          bottom: BorderSide(color: context.tokens.divider),
         ),
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          compact ? 16 : wide ? 28 : 24,
+          compact
+              ? 16
+              : wide
+              ? 28
+              : 24,
           wide ? 20 : 16,
-          compact ? 10 : wide ? 28 : 20,
+          compact
+              ? 10
+              : wide
+              ? 28
+              : 20,
           wide ? 16 : 14,
         ),
         child: Row(
@@ -724,9 +721,9 @@ class EmptyState extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -744,6 +741,22 @@ class EmptyState extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class SparseContentTail extends StatelessWidget {
+  const SparseContentTail({super.key, this.height = 72});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 28),
+        child: Opacity(opacity: 0.5, child: InkHorizon(height: height)),
       ),
     );
   }
@@ -818,8 +831,8 @@ class _BackdropPainter extends CustomPainter {
     final topRight = Paint()
       ..shader = RadialGradient(
         center: Alignment.topRight,
-        radius: 0.65,
-        colors: [wash.withValues(alpha: 0.05), wash.withValues(alpha: 0)],
+        radius: 0.35,
+        colors: [wash.withValues(alpha: 0.025), wash.withValues(alpha: 0)],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, topRight);
 
@@ -827,8 +840,8 @@ class _BackdropPainter extends CustomPainter {
     final bottomLeft = Paint()
       ..shader = RadialGradient(
         center: Alignment.bottomLeft,
-        radius: 0.55,
-        colors: [accent.withValues(alpha: 0.04), accent.withValues(alpha: 0)],
+        radius: 0.30,
+        colors: [accent.withValues(alpha: 0.02), accent.withValues(alpha: 0)],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, bottomLeft);
 
@@ -836,8 +849,8 @@ class _BackdropPainter extends CustomPainter {
     final bottomRight = Paint()
       ..shader = RadialGradient(
         center: const Alignment(0.85, 0.95),
-        radius: 0.35,
-        colors: [gold.withValues(alpha: 0.035), gold.withValues(alpha: 0)],
+        radius: 0.20,
+        colors: [gold.withValues(alpha: 0.018), gold.withValues(alpha: 0)],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, bottomRight);
   }

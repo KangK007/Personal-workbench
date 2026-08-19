@@ -33,15 +33,7 @@ final _visualDate = DateTime(2026, 8, 7, 12);
 Future<void> _loadGoldenFonts() async {
   final materialIcons = FontLoader('MaterialIcons')
     ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-  final fluentIcons =
-      FontLoader(
-        'packages/fluentui_system_icons/FluentSystemIcons-Regular',
-      )..addFont(
-        rootBundle.load(
-          'packages/fluentui_system_icons/fonts/FluentSystemIcons-Regular.ttf',
-        ),
-      );
-  await Future.wait([materialIcons.load(), fluentIcons.load()]);
+  await materialIcons.load();
 
   final systemChinese = File(r'C:\Windows\Fonts\simhei.ttf');
   if (systemChinese.existsSync()) {

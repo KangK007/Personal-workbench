@@ -129,9 +129,12 @@ class _InboxPageState extends State<InboxPage> {
                     )
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
-                      itemCount: records.length,
+                      itemCount: records.length + (records.length < 5 ? 1 : 0),
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
+                        if (index == records.length) {
+                          return const SparseContentTail();
+                        }
                         final record = records[index];
                         if (record.kind == RecordKind.task) {
                           return Card(

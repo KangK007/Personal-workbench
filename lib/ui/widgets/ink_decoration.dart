@@ -55,10 +55,7 @@ class _SealLogoPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          primaryColor,
-          primaryColor.withValues(alpha: 0.85),
-        ],
+        colors: [primaryColor, primaryColor.withValues(alpha: 0.85)],
       ).createShader(rect.outerRect);
     canvas.drawRRect(rect, bgPaint);
 
@@ -172,11 +169,7 @@ class _LandscapePainter extends CustomPainter {
     for (var y = 0.0; y < size.height; y += spacing) {
       for (var x = 0.0; x < size.width; x += spacing) {
         final offset = rand.nextDouble() * 2 - 1;
-        canvas.drawCircle(
-          Offset(x + offset, y + offset),
-          1.2,
-          dotPaint,
-        );
+        canvas.drawCircle(Offset(x + offset, y + offset), 1.2, dotPaint);
       }
     }
 
@@ -234,10 +227,7 @@ class InkBrushDivider extends StatelessWidget {
 }
 
 class _InkBrushDividerPainter extends CustomPainter {
-  const _InkBrushDividerPainter({
-    required this.color,
-    required this.accent,
-  });
+  const _InkBrushDividerPainter({required this.color, required this.accent});
 
   final Color color;
   final Color accent;
@@ -247,11 +237,7 @@ class _InkBrushDividerPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..strokeWidth = 1;
-    canvas.drawLine(
-      Offset.zero,
-      Offset(size.width, 0),
-      paint,
-    );
+    canvas.drawLine(Offset.zero, Offset(size.width, 0), paint);
   }
 
   @override
@@ -379,16 +365,20 @@ class BambooChip extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Center(
-        child: Text(
-          label,
-          style: TextStyle(
-            color: fg,
-            fontSize: size.fontSize,
-            height: 1.3,
-            fontWeight: FontWeight.w600,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontSize: size.fontSize,
+              height: 1.3,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -509,9 +499,7 @@ class InkHorizon extends StatelessWidget {
       child: SizedBox(
         height: height,
         width: double.infinity,
-        child: CustomPaint(
-          painter: _InkHorizonPainter(washColor: wash),
-        ),
+        child: CustomPaint(painter: _InkHorizonPainter(washColor: wash)),
       ),
     );
   }

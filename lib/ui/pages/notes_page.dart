@@ -7,6 +7,7 @@ import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/attachment_panel.dart';
+import '../widgets/ink_decoration.dart';
 import '../widgets/markdown_editor_dialog.dart';
 
 class NotesPage extends StatefulWidget {
@@ -324,9 +325,11 @@ class _NoteReader extends StatelessWidget {
         if (note.tags.isNotEmpty) ...[
           const SizedBox(height: 28),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: note.tags.map((tag) => StatusPill(label: tag)).toList(),
+            spacing: 8,
+            runSpacing: 8,
+            children: note.tags
+                .map((tag) => BambooChip(label: tag, size: ChipSize.small))
+                .toList(),
           ),
         ],
       ],

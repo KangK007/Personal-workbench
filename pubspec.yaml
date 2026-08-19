@@ -46,7 +46,6 @@ dependencies:
   hotkey_manager: ^0.2.3
   flutter_timezone: ^5.1.0
   csv: ^8.0.0
-  fluentui_system_icons: 1.1.273
   google_fonts: ^6.2.1
   flutter_markdown: ^0.7.7+1
 

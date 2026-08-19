@@ -240,6 +240,8 @@ class FocusHubPage extends StatelessWidget {
                     ],
                   ),
                 ),
+              if (candidates.length + recent.length < 5)
+                const SparseContentTail(),
             ],
           ),
         ),
@@ -776,71 +778,76 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                             alignment: Alignment.center,
                             children: [
                               if (targetPulse)
-                                const PulseRing(duration: Duration(milliseconds: 900)),
-                              DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: scheme.surface.withValues(alpha: 0.42),
-                              border: Border.symmetric(
-                                horizontal: BorderSide(
-                                  color: context.tokens.divider,
+                                const PulseRing(
+                                  duration: Duration(milliseconds: 900),
                                 ),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: scheme.surface.withValues(alpha: 0.42),
+                                  border: Border.symmetric(
+                                    horizontal: BorderSide(
+                                      color: context.tokens.divider,
+                                    ),
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
+                                  ),
+                                  child: Column(
                                     children: [
-                                      Container(
-                                        width: 5,
-                                        height: 5,
-                                        decoration: BoxDecoration(
-                                          color: context.tokens.gold,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        service.running ? '灵息流转' : '待入静',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelMedium
-                                            ?.copyWith(
-                                              color: context.tokens.mutedText,
-                                              fontWeight: FontWeight.w600,
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 5,
+                                            height: 5,
+                                            decoration: BoxDecoration(
+                                              color: context.tokens.gold,
+                                              shape: BoxShape.circle,
                                             ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            service.running ? '灵息流转' : '待入静',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelMedium
+                                                ?.copyWith(
+                                                  color:
+                                                      context.tokens.mutedText,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        height: 128,
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            formatDuration(
+                                              service.displayDuration,
+                                            ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .displaySmall
+                                                ?.copyWith(
+                                                  fontSize: 84,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontFeatures: const [
+                                                    FontFeature.tabularFigures(),
+                                                  ],
+                                                ),
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    height: 128,
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        formatDuration(service.displayDuration),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .displaySmall
-                                            ?.copyWith(
-                                              fontSize: 84,
-                                              fontWeight: FontWeight.w700,
-                                              fontFeatures: const [
-                                                FontFeature.tabularFigures(),
-                                              ],
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
                             ],
                           ),
                           const SizedBox(height: 22),
