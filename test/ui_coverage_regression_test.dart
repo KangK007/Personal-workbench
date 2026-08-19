@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -17,6 +18,8 @@ import 'package:personal_workbench/services/supabase_sync_service.dart';
 import 'package:personal_workbench/state/workbench_controller.dart';
 import 'package:personal_workbench/ui/pages/calendar_page.dart';
 import 'package:personal_workbench/ui/pages/focus_page.dart';
+import 'package:personal_workbench/ui/pages/inbox_page.dart';
+import 'package:personal_workbench/ui/pages/plan_page.dart';
 import 'package:personal_workbench/ui/pages/settings_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
 import 'package:personal_workbench/ui/widgets/celebration.dart';
@@ -42,8 +45,27 @@ class _MemoryDatabase extends AppDatabase {
   }
 
   @override
+  Future<void> saveRecords(
+    Iterable<WorkspaceRecord> values, {
+    bool markDirty = true,
+  }) async {
+    for (final record in values) {
+      await saveRecord(record, markDirty: markDirty);
+    }
+  }
+
+  @override
   Future<void> permanentlyDelete(String id, RecordKind kind) async {
     records.remove('${kind.name}:$id');
+  }
+
+  @override
+  Future<void> permanentlyDeleteRecords(
+    Iterable<({String id, RecordKind kind})> values,
+  ) async {
+    for (final value in values) {
+      records.remove('${value.kind.name}:${value.id}');
+    }
   }
 
   @override
@@ -260,6 +282,200 @@ WorkspaceRecord _task(
 );
 
 void main() {
+  testWidgets(
+    'desktop task list supports explicit, range and all selection',
+    (tester) async {
+      final fixture = _fixture();
+      addTearDown(() {
+        fixture.dispose();
+        if (fixture.directory.existsSync()) {
+          fixture.directory.deleteSync(recursive: true);
+        }
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final project = WorkspaceRecord.create(
+        kind: RecordKind.project,
+        title: '批量测试项目',
+      );
+      await fixture.controller.addRecord(project);
+      for (var index = 0; index < 3; index++) {
+        await fixture.controller.addRecord(
+          WorkspaceRecord.create(
+            kind: RecordKind.task,
+            title: '批量任务 $index',
+            projectId: index == 0 ? project.id : null,
+          ),
+        );
+      }
+      await _pump(
+        tester,
+        fixture.controller,
+        () => PlanPage(controller: fixture.controller),
+      );
+
+      await tester.tap(find.widgetWithText(OutlinedButton, '选择任务').first);
+      await tester.pump();
+      expect(find.text('0 项'), findsOneWidget);
+      await tester.tap(find.text('批量任务 0'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('设置主项目'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('清除主项目'));
+      await tester.pumpAndSettle();
+      expect(
+        fixture.controller.tasks
+            .firstWhere((task) => task.title == '批量任务 0')
+            .projectId,
+        isNull,
+      );
+
+      await tester.tap(find.widgetWithText(OutlinedButton, '选择任务').first);
+      await tester.pump();
+      await tester.tap(find.text('批量任务 0'));
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.tap(find.text('批量任务 2'));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+      expect(find.text('3 项'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      expect(find.byTooltip('退出多选'), findsNothing);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      expect(find.text('3 项'), findsOneWidget);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'Android inbox exits selection on back and can undo batch trash',
+    (tester) async {
+      final fixture = _fixture();
+      addTearDown(() {
+        fixture.dispose();
+        if (fixture.directory.existsSync()) {
+          fixture.directory.deleteSync(recursive: true);
+        }
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final task = WorkspaceRecord.create(
+        kind: RecordKind.task,
+        title: '安卓批量任务',
+        status: WorkStatus.inbox,
+      );
+      final note = WorkspaceRecord.create(
+        kind: RecordKind.note,
+        title: '保持单项操作的笔记',
+        data: const {'inbox': true},
+      );
+      await fixture.controller.addRecord(task);
+      await fixture.controller.addRecord(note);
+      await _pump(
+        tester,
+        fixture.controller,
+        () => InboxPage(controller: fixture.controller),
+        size: const Size(412, 915),
+      );
+
+      await tester.longPress(find.text('安卓批量任务'));
+      await tester.pump();
+      expect(find.text('1 项'), findsOneWidget);
+      expect(find.text('保持单项操作的笔记'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(find.byTooltip('退出多选'), findsNothing);
+
+      await tester.longPress(find.text('安卓批量任务'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('移入回收站'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, '移入回收站'));
+      await tester.pumpAndSettle();
+      expect(fixture.controller.trashRecords, hasLength(1));
+      expect(find.text('撤销'), findsOneWidget);
+      await tester.tap(find.text('撤销'));
+      await tester.pumpAndSettle();
+      expect(fixture.controller.trashRecords, isEmpty);
+      expect(find.text('保持单项操作的笔记'), findsOneWidget);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  testWidgets('trash supports mixed selection and two-step clear', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final deletedAt = fixture.clock.value.subtract(const Duration(hours: 1));
+    await fixture.controller.addRecord(
+      WorkspaceRecord.create(
+        kind: RecordKind.task,
+        title: '回收任务',
+      ).copyWith(deletedAt: deletedAt),
+    );
+    await fixture.controller.addRecord(
+      WorkspaceRecord.create(
+        kind: RecordKind.note,
+        title: '回收笔记',
+      ).copyWith(deletedAt: deletedAt),
+    );
+    await _pump(
+      tester,
+      fixture.controller,
+      () => SettingsPage(controller: fixture.controller),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('回收站（2）'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    for (final title in ['回收任务', '回收笔记']) {
+      final tile = find.ancestor(
+        of: find.text(title),
+        matching: find.byType(ListTile),
+      );
+      await tester.tap(
+        find.descendant(of: tile, matching: find.byType(Checkbox)),
+      );
+      await tester.pump();
+    }
+    expect(find.text('已选 2 项'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('清空回收站'));
+    await tester.pumpAndSettle();
+    expect(find.text('清空回收站？'), findsOneWidget);
+    expect(find.textContaining('2 项记录和 0 个附件'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '继续'));
+    await tester.pumpAndSettle();
+    expect(find.text('最后确认'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, '取消'));
+    await tester.pumpAndSettle();
+    expect(fixture.controller.trashRecords, hasLength(2));
+
+    await tester.tap(find.byTooltip('清空回收站'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '继续'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '永久清空'));
+    await tester.pumpAndSettle();
+    expect(fixture.controller.trashRecords, isEmpty);
+    expect(find.text('回收站为空'), findsOneWidget);
+  });
+
   testWidgets('today exposes one next action for all seven states', (
     tester,
   ) async {
@@ -391,7 +607,10 @@ void main() {
     await _pump(
       tester,
       fixture.controller,
-      () => WorkbenchShell(controller: fixture.controller),
+      () => WorkbenchShell(
+        controller: fixture.controller,
+        enableSystemHotkey: false,
+      ),
       size: const Size(1536, 864),
     );
     for (final label in ['今日', '任务', '项目', '专注', '笔记', '回顾', '国策', '设置']) {
@@ -405,7 +624,10 @@ void main() {
     await _pump(
       tester,
       fixture.controller,
-      () => WorkbenchShell(controller: fixture.controller),
+      () => WorkbenchShell(
+        controller: fixture.controller,
+        enableSystemHotkey: false,
+      ),
       size: const Size(412, 915),
     );
     final navigation = tester.widget<NavigationBar>(find.byType(NavigationBar));
@@ -455,7 +677,10 @@ void main() {
     await _pump(
       tester,
       fixture.controller,
-      () => WorkbenchShell(controller: fixture.controller),
+      () => WorkbenchShell(
+        controller: fixture.controller,
+        enableSystemHotkey: false,
+      ),
       size: const Size(390, 700),
     );
 
@@ -602,12 +827,11 @@ void main() {
         300,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.drag(
-        find.byType(Scrollable).first,
-        const Offset(0, -120),
+      await Scrollable.ensureVisible(
+        tester.element(permission),
+        alignment: 0.5,
       );
       await tester.pumpAndSettle();
-      await tester.ensureVisible(permission);
       await tester.tap(permission);
       await tester.pump();
       expect(find.text('通知权限已启用'), findsOneWidget);

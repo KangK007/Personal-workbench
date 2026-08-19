@@ -33,7 +33,15 @@ final _visualDate = DateTime(2026, 8, 7, 12);
 Future<void> _loadGoldenFonts() async {
   final materialIcons = FontLoader('MaterialIcons')
     ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-  await materialIcons.load();
+  final fluentIcons =
+      FontLoader(
+        'packages/fluentui_system_icons/FluentSystemIcons-Regular',
+      )..addFont(
+        rootBundle.load(
+          'packages/fluentui_system_icons/fonts/FluentSystemIcons-Regular.ttf',
+        ),
+      );
+  await Future.wait([materialIcons.load(), fluentIcons.load()]);
 
   final systemChinese = File(r'C:\Windows\Fonts\simhei.ttf');
   if (systemChinese.existsSync()) {
@@ -503,7 +511,7 @@ void main() {
   testWidgets('Android today', (tester) async {
     await _pumpGolden(
       tester,
-      WorkbenchShell(controller: fixture.controller),
+      WorkbenchShell(controller: fixture.controller, enableSystemHotkey: false),
       size: const Size(412, 915),
       fileName: 'android_today',
       captureFinder: find.byType(Scaffold).last,
@@ -531,7 +539,7 @@ void main() {
   testWidgets('Wide shell today light', (tester) async {
     await _pumpGolden(
       tester,
-      WorkbenchShell(controller: fixture.controller),
+      WorkbenchShell(controller: fixture.controller, enableSystemHotkey: false),
       size: const Size(1536, 864),
       fileName: 'wide_shell_today_light',
       captureFinder: find.byType(Scaffold).last,
@@ -541,7 +549,7 @@ void main() {
   testWidgets('Wide shell today dark', (tester) async {
     await _pumpGolden(
       tester,
-      WorkbenchShell(controller: fixture.controller),
+      WorkbenchShell(controller: fixture.controller, enableSystemHotkey: false),
       size: const Size(1536, 864),
       fileName: 'wide_shell_today_dark',
       dark: true,
@@ -552,7 +560,10 @@ void main() {
   testWidgets('Wide shell unstarted today light', (tester) async {
     await _pumpGolden(
       tester,
-      WorkbenchShell(controller: unstartedFixture.controller),
+      WorkbenchShell(
+        controller: unstartedFixture.controller,
+        enableSystemHotkey: false,
+      ),
       size: const Size(1536, 864),
       fileName: 'wide_shell_unstarted_today_light',
       captureFinder: find.byType(Scaffold).last,
@@ -562,7 +573,10 @@ void main() {
   testWidgets('Wide shell empty today light', (tester) async {
     await _pumpGolden(
       tester,
-      WorkbenchShell(controller: emptyFixture.controller),
+      WorkbenchShell(
+        controller: emptyFixture.controller,
+        enableSystemHotkey: false,
+      ),
       size: const Size(1536, 864),
       fileName: 'wide_shell_empty_today_light',
       captureFinder: find.byType(Scaffold).last,

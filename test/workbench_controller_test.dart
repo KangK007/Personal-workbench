@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_workbench/core/models/workspace_record.dart';
 import 'package:personal_workbench/core/models/workspace_models_v3.dart';
+import 'package:personal_workbench/core/models/attachment.dart';
 import 'package:personal_workbench/data/app_database.dart';
 import 'package:personal_workbench/data/backup_service.dart';
 import 'package:personal_workbench/services/focus_service.dart';
@@ -29,9 +30,32 @@ class _MemoryDatabase extends AppDatabase {
   }
 
   @override
+  Future<void> saveRecords(
+    Iterable<WorkspaceRecord> values, {
+    bool markDirty = true,
+  }) async {
+    for (final record in values) {
+      await saveRecord(record, markDirty: markDirty);
+    }
+  }
+
+  @override
   Future<void> permanentlyDelete(String id, RecordKind kind) async {
     records.remove('${kind.name}:$id');
   }
+
+  @override
+  Future<void> permanentlyDeleteRecords(
+    Iterable<({String id, RecordKind kind})> values,
+  ) async {
+    for (final value in values) {
+      records.remove('${value.kind.name}:${value.id}');
+    }
+  }
+
+  @override
+  Future<List<Attachment>> loadAttachments({String? ownerRecordId}) async =>
+      const [];
 
   @override
   Future<String?> readMetadata(String key) async => metadata[key];

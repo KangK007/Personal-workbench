@@ -32,8 +32,27 @@ class _MemoryDatabase extends AppDatabase {
   }
 
   @override
+  Future<void> saveRecords(
+    Iterable<WorkspaceRecord> values, {
+    bool markDirty = true,
+  }) async {
+    for (final record in values) {
+      await saveRecord(record, markDirty: markDirty);
+    }
+  }
+
+  @override
   Future<void> permanentlyDelete(String id, RecordKind kind) async {
     records.remove('${kind.name}:$id');
+  }
+
+  @override
+  Future<void> permanentlyDeleteRecords(
+    Iterable<({String id, RecordKind kind})> values,
+  ) async {
+    for (final value in values) {
+      records.remove('${value.kind.name}:${value.id}');
+    }
   }
 
   @override

@@ -309,7 +309,10 @@ void main() {
     final controller = await _createController();
     addTearDown(controller.dispose);
 
-    await _pumpPage(tester, WorkbenchShell(controller: controller));
+    await _pumpPage(
+      tester,
+      WorkbenchShell(controller: controller, enableSystemHotkey: false),
+    );
     final navigation = find.descendant(
       of: find.byType(Scrollbar),
       matching: find.byType(ListView),
