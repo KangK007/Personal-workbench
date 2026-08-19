@@ -24,6 +24,34 @@ import '../services/windows_activity_service.dart';
 
 enum SyncPhase { localOnly, signedOut, idle, syncing, success, error }
 
+enum BatchTaskAction {
+  setStatus,
+  setDate,
+  setProject,
+  setTaskGroup,
+  moveToTrash,
+}
+
+class BatchOperationFailure {
+  const BatchOperationFailure({required this.recordId, required this.message});
+
+  final String recordId;
+  final String message;
+}
+
+class BatchOperationResult {
+  const BatchOperationResult({
+    required this.succeeded,
+    this.failures = const [],
+  });
+
+  final int succeeded;
+  final List<BatchOperationFailure> failures;
+
+  int get failed => failures.length;
+  bool get isSuccessful => failures.isEmpty;
+}
+
 class WorkbenchController extends ChangeNotifier {
   static const _maxImportBytes = 10 * 1024 * 1024;
 
@@ -150,8 +178,13 @@ class WorkbenchController extends ChangeNotifier {
   List<WorkspaceRecord> get allRecords => List.unmodifiable(_records);
   List<WorkspaceRecord> get activeRecords =>
       _records.where((record) => !record.isDeleted).toList(growable: false);
-  List<WorkspaceRecord> get trashRecords =>
-      _records.where((record) => record.isDeleted).toList(growable: false);
+  List<WorkspaceRecord> get trashRecords => _records
+      .where((record) => record.isDeleted && !_isHiddenTrashRecord(record))
+      .toList(growable: false);
+
+  bool _isHiddenTrashRecord(WorkspaceRecord record) =>
+      record.kind == RecordKind.relation &&
+      record.data['deletedWithTaskGroupId'] != null;
 
   List<WorkspaceRecord> recordsOf(RecordKind kind) => activeRecords
       .where((record) => record.kind == kind)
@@ -382,8 +415,9 @@ class WorkbenchController extends ChangeNotifier {
   List<WorkspaceRecord> get inboxRecords {
     final result = activeRecords.where((record) {
       if (record.kind == RecordKind.task) {
-        return record.status == WorkStatus.inbox ||
-            (record.scheduledFor == null && record.projectId == null);
+        return record.data['recordType'] != 'taskDefinition' &&
+            (record.status == WorkStatus.inbox ||
+                (record.scheduledFor == null && record.projectId == null));
       }
       return (record.kind == RecordKind.note ||
               record.kind == RecordKind.link) &&
@@ -2801,6 +2835,146 @@ class WorkbenchController extends ChangeNotifier {
     return updateRecord(task.copyWith(status: status));
   }
 
+  Future<BatchOperationResult> batchSetTaskStatus(
+    Iterable<WorkspaceRecord> selected,
+    String status,
+  ) async {
+    const allowed = {
+      WorkStatus.inbox,
+      WorkStatus.todo,
+      WorkStatus.doing,
+      WorkStatus.done,
+      WorkStatus.cancelled,
+    };
+    if (!allowed.contains(status)) {
+      throw const FormatException('不支持的批量任务状态。');
+    }
+    var succeeded = 0;
+    final failures = <BatchOperationFailure>[];
+    for (final task in selected) {
+      try {
+        var current = _latestRecord(task);
+        if (status == WorkStatus.done) {
+          if (!current.isDone) await toggleTaskDone(current);
+        } else if (current.isDone) {
+          await toggleTaskDone(current);
+          current = _latestRecord(current);
+          if (status != WorkStatus.todo) {
+            await setTaskStatus(current, status);
+          }
+        } else if (current.status != status) {
+          await setTaskStatus(current, status);
+        }
+        succeeded++;
+      } catch (error) {
+        failures.add(
+          BatchOperationFailure(recordId: task.id, message: '$error'),
+        );
+      }
+    }
+    return BatchOperationResult(succeeded: succeeded, failures: failures);
+  }
+
+  Future<BatchOperationResult> batchScheduleTasks(
+    Iterable<WorkspaceRecord> selected,
+    DateTime? date,
+  ) async {
+    final tasks = selected.toList(growable: false);
+    final updates = <WorkspaceRecord>[];
+    for (final task in tasks) {
+      final current = _latestRecord(task);
+      updates.add(
+        current.copyWith(
+          scheduledFor: date,
+          status: date != null && current.status == WorkStatus.inbox
+              ? WorkStatus.todo
+              : current.status,
+        ),
+      );
+    }
+    try {
+      await _saveRecordsBatch(updates);
+    } catch (error) {
+      return BatchOperationResult(
+        succeeded: 0,
+        failures: [
+          for (final task in tasks)
+            BatchOperationFailure(recordId: task.id, message: '$error'),
+        ],
+      );
+    }
+    var succeeded = 0;
+    final failures = <BatchOperationFailure>[];
+    for (final task in updates) {
+      try {
+        await notificationService.cancel(_notificationId(task.id));
+        final reminder = task.data['reminderAt']?.toString();
+        final reminderAt = reminder == null
+            ? null
+            : DateTime.tryParse(reminder)?.toLocal();
+        if (reminderAt != null) {
+          await notificationService.scheduleTaskReminder(
+            id: _notificationId(task.id),
+            title: task.title,
+            when: reminderAt,
+          );
+        }
+        succeeded++;
+      } catch (error) {
+        failures.add(
+          BatchOperationFailure(recordId: task.id, message: '$error'),
+        );
+      }
+    }
+    return BatchOperationResult(succeeded: succeeded, failures: failures);
+  }
+
+  Future<BatchOperationResult> batchSetTaskProject(
+    Iterable<WorkspaceRecord> selected,
+    String? projectId,
+  ) async {
+    if (projectId != null && projectById(projectId) == null) {
+      throw const FormatException('项目不存在或已在回收站。');
+    }
+    final tasks = selected.toList(growable: false);
+    try {
+      await _saveRecordsBatch(
+        tasks.map((task) => _latestRecord(task).copyWith(projectId: projectId)),
+      );
+      return BatchOperationResult(succeeded: tasks.length);
+    } catch (error) {
+      return BatchOperationResult(
+        succeeded: 0,
+        failures: [
+          for (final task in tasks)
+            BatchOperationFailure(recordId: task.id, message: '$error'),
+        ],
+      );
+    }
+  }
+
+  Future<BatchOperationResult> batchMoveTasksToTrash(
+    Iterable<WorkspaceRecord> selected,
+  ) async {
+    final tasks = selected.toList(growable: false);
+    try {
+      await _saveRecordsBatch(
+        tasks.map(
+          (task) => _latestRecord(task).copyWith(deletedAt: currentTime()),
+        ),
+      );
+      return BatchOperationResult(succeeded: tasks.length);
+    } catch (error) {
+      return BatchOperationResult(
+        succeeded: 0,
+        failures: [
+          for (final task in tasks)
+            BatchOperationFailure(recordId: task.id, message: '$error'),
+        ],
+      );
+    }
+  }
+
   Future<void> setLogicalDayBoundaryHour(int value) async {
     _logicalDayBoundaryHour = value.clamp(0, 6);
     growthService = GrowthService(
@@ -2810,6 +2984,24 @@ class WorkbenchController extends ChangeNotifier {
       'logical_day_boundary_hour',
       '$_logicalDayBoundaryHour',
     );
+    notifyListeners();
+  }
+
+  Future<void> _saveRecordsBatch(Iterable<WorkspaceRecord> records) async {
+    final values = records.map(_normalizeRsipRecord).toList(growable: false);
+    if (values.isEmpty) return;
+    await database.saveRecords(values);
+    for (final record in values) {
+      final index = _records.indexWhere(
+        (value) => value.id == record.id && value.kind == record.kind,
+      );
+      if (index < 0) {
+        _records.add(record);
+      } else {
+        _records[index] = record;
+      }
+    }
+    _projectIndex = null;
     notifyListeners();
   }
 
@@ -3159,13 +3351,51 @@ class WorkbenchController extends ChangeNotifier {
     return group;
   }
 
+  Future<WorkspaceRecord> updateTaskGroup({
+    required WorkspaceRecord group,
+    required String title,
+    required bool sequential,
+    required int? timeLimitMinutes,
+  }) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw const FormatException('请填写任务群名称。');
+    }
+    if (timeLimitMinutes != null &&
+        (timeLimitMinutes < 1 || timeLimitMinutes > 43200)) {
+      throw const FormatException('任务群总时限必须在 1–43200 分钟之间。');
+    }
+    final current = _latestRecord(group);
+    final wasSequential = current.data['mode'] == 'sequential';
+    if (wasSequential != sequential &&
+        groupMembers(current.id).any(_taskExecutionStarted)) {
+      throw const FormatException('任务群已有成员开始执行，暂不能切换模式。');
+    }
+    final updated = current.copyWith(
+      title: trimmed,
+      data: {
+        ...current.data,
+        'recordType': 'taskGroup',
+        'mode': sequential ? 'sequential' : 'parallel',
+        'timeLimitMinutes': timeLimitMinutes,
+        'version': ((current.data['version'] as num?)?.toInt() ?? 1) + 1,
+      },
+    );
+    await updateRecord(updated);
+    return updated;
+  }
+
+  bool taskGroupModeLocked(WorkspaceRecord group) =>
+      groupMembers(group.id).any(_taskExecutionStarted);
+
   List<WorkspaceRecord> groupMembers(String groupId) {
     final memberRelations =
         relations
             .where(
               (record) =>
                   record.data['relationType'] == 'taskGroupMember' &&
-                  record.data['groupId'] == groupId,
+                  record.data['groupId'] == groupId &&
+                  record.data['active'] != false,
             )
             .toList()
           ..sort(
@@ -3305,6 +3535,96 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
+  }
+
+  Future<BatchOperationResult> moveTaskGroupToTrash(
+    WorkspaceRecord group,
+  ) async {
+    final current = _latestRecord(group);
+    final deletedAt = currentTime();
+    final updates = <WorkspaceRecord>[
+      current.copyWith(deletedAt: deletedAt),
+      for (final relation in _records.where(
+        (record) =>
+            record.kind == RecordKind.relation &&
+            record.data['relationType'] == 'taskGroupMember' &&
+            record.data['groupId'] == current.id &&
+            record.data['active'] != false &&
+            !record.isDeleted,
+      ))
+        relation.copyWith(
+          deletedAt: deletedAt,
+          data: {
+            ...relation.data,
+            'active': false,
+            'deletedWithTaskGroupId': current.id,
+          },
+        ),
+    ];
+    try {
+      await _saveRecordsBatch(updates);
+      return BatchOperationResult(succeeded: 1);
+    } catch (error) {
+      return BatchOperationResult(
+        succeeded: 0,
+        failures: [
+          BatchOperationFailure(recordId: current.id, message: '$error'),
+        ],
+      );
+    }
+  }
+
+  Future<BatchOperationResult> restoreTaskGroup(WorkspaceRecord group) async {
+    final current = _latestRecord(group);
+    final relationsToRestore = _records.where(
+      (record) =>
+          record.kind == RecordKind.relation &&
+          record.isDeleted &&
+          record.data['deletedWithTaskGroupId'] == current.id,
+    );
+    final updates = <WorkspaceRecord>[current.copyWith(deletedAt: null)];
+    final conflictFailures = <BatchOperationFailure>[];
+    for (final relation in relationsToRestore) {
+      final taskId = relation.data['taskId']?.toString();
+      final occupied =
+          taskId != null &&
+          relations.any(
+            (candidate) =>
+                candidate.data['relationType'] == 'taskGroupMember' &&
+                candidate.data['taskId'] == taskId &&
+                candidate.data['groupId'] != current.id &&
+                candidate.data['active'] != false,
+          );
+      final data = {...relation.data};
+      if (occupied) {
+        data['active'] = false;
+        data['restoreConflict'] = true;
+        updates.add(relation.copyWith(data: data));
+        conflictFailures.add(
+          BatchOperationFailure(
+            recordId: relation.id,
+            message: '成员任务已加入其他任务群，关系未恢复。',
+          ),
+        );
+      } else {
+        data
+          ..remove('deletedWithTaskGroupId')
+          ..remove('restoreConflict')
+          ..addAll({'active': true});
+        updates.add(relation.copyWith(deletedAt: null, data: data));
+      }
+    }
+    try {
+      await _saveRecordsBatch(updates);
+      return BatchOperationResult(succeeded: 1, failures: conflictFailures);
+    } catch (error) {
+      return BatchOperationResult(
+        succeeded: 0,
+        failures: [
+          BatchOperationFailure(recordId: current.id, message: '$error'),
+        ],
+      );
+    }
   }
 
   bool _taskExecutionStarted(WorkspaceRecord task) {
@@ -3522,6 +3842,173 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
+  }
+
+  Future<void> removeTaskFromGroup({
+    required WorkspaceRecord task,
+    required WorkspaceRecord group,
+  }) async {
+    final relation = relations
+        .where(
+          (record) =>
+              record.data['relationType'] == 'taskGroupMember' &&
+              record.data['groupId'] == group.id &&
+              record.data['taskId'] == task.id &&
+              record.data['active'] != false,
+        )
+        .firstOrNull;
+    if (relation == null) return;
+    final remaining =
+        relations
+            .where(
+              (record) =>
+                  record.data['relationType'] == 'taskGroupMember' &&
+                  record.data['groupId'] == group.id &&
+                  record.id != relation.id &&
+                  record.data['active'] != false,
+            )
+            .toList()
+          ..sort(
+            (a, b) => ((a.data['position'] as num?)?.toInt() ?? 0).compareTo(
+              (b.data['position'] as num?)?.toInt() ?? 0,
+            ),
+          );
+    final updates = <WorkspaceRecord>[
+      relation.copyWith(
+        data: {
+          ...relation.data,
+          'active': false,
+          'detachedAt': currentTime().toUtc().toIso8601String(),
+        },
+      ),
+      for (var index = 0; index < remaining.length; index++)
+        remaining[index].copyWith(
+          data: {...remaining[index].data, 'position': index},
+        ),
+    ];
+    await _saveRecordsBatch(updates);
+  }
+
+  Future<BatchOperationResult> batchSetTaskGroup(
+    Iterable<WorkspaceRecord> selected,
+    String? groupId, {
+    bool replaceExisting = false,
+  }) async {
+    final group = groupId == null
+        ? null
+        : taskGroups.where((record) => record.id == groupId).firstOrNull;
+    if (groupId != null && group == null) {
+      throw const FormatException('任务群不存在或已在回收站。');
+    }
+    final tasks = selected.toList(growable: false);
+    final updates = <WorkspaceRecord>[];
+    final failures = <BatchOperationFailure>[];
+    final detachedRelationIds = <String>{};
+    final affectedGroupIds = <String>{};
+    var nextPosition = group == null ? 0 : groupMembers(group.id).length;
+    var succeeded = 0;
+    for (final task in tasks) {
+      final current = _latestRecord(task);
+      final existing = relations
+          .where(
+            (record) =>
+                record.data['relationType'] == 'taskGroupMember' &&
+                record.data['taskId'] == current.id &&
+                record.data['active'] != false,
+          )
+          .toList(growable: false);
+      final sameGroup =
+          group != null &&
+          existing.any((record) => record.data['groupId'] == group.id);
+      final conflicts = group == null
+          ? existing
+          : existing
+                .where((record) => record.data['groupId'] != group.id)
+                .toList(growable: false);
+      if (conflicts.isNotEmpty && !replaceExisting) {
+        failures.add(
+          BatchOperationFailure(recordId: current.id, message: '任务已属于其他任务群。'),
+        );
+        continue;
+      }
+      for (final relation in conflicts) {
+        detachedRelationIds.add(relation.id);
+        final sourceGroupId = relation.data['groupId']?.toString();
+        if (sourceGroupId != null) affectedGroupIds.add(sourceGroupId);
+        updates.add(
+          relation.copyWith(
+            data: {
+              ...relation.data,
+              'active': false,
+              'replacedByGroupId': group?.id,
+              'detachedAt': currentTime().toUtc().toIso8601String(),
+            },
+          ),
+        );
+      }
+      if (!sameGroup && group != null) {
+        updates.add(
+          WorkspaceRecord.create(
+            kind: RecordKind.relation,
+            title: '${group.title} · ${current.title}',
+            parentId: group.id,
+            data: {
+              'relationType': 'taskGroupMember',
+              'groupId': group.id,
+              'taskId': current.id,
+              'position': nextPosition++,
+              'active': true,
+            },
+          ),
+        );
+      }
+      succeeded++;
+    }
+    for (final affectedGroupId in affectedGroupIds) {
+      final remaining =
+          relations
+              .where(
+                (record) =>
+                    record.data['relationType'] == 'taskGroupMember' &&
+                    record.data['groupId'] == affectedGroupId &&
+                    record.data['active'] != false &&
+                    !detachedRelationIds.contains(record.id),
+              )
+              .toList()
+            ..sort(
+              (a, b) => ((a.data['position'] as num?)?.toInt() ?? 0).compareTo(
+                (b.data['position'] as num?)?.toInt() ?? 0,
+              ),
+            );
+      for (var index = 0; index < remaining.length; index++) {
+        updates.add(
+          remaining[index].copyWith(
+            data: {...remaining[index].data, 'position': index},
+          ),
+        );
+      }
+    }
+    if (updates.isEmpty) {
+      return BatchOperationResult(succeeded: succeeded, failures: failures);
+    }
+    try {
+      await _saveRecordsBatch(updates);
+      return BatchOperationResult(succeeded: succeeded, failures: failures);
+    } catch (error) {
+      final failuresById = {
+        for (final failure in failures) failure.recordId: failure,
+      };
+      for (final task in tasks) {
+        failuresById.putIfAbsent(
+          task.id,
+          () => BatchOperationFailure(recordId: task.id, message: '$error'),
+        );
+      }
+      return BatchOperationResult(
+        succeeded: 0,
+        failures: failuresById.values.toList(growable: false),
+      );
+    }
   }
 
   Future<void> purgeForegroundEvents({bool all = false}) async {
@@ -5036,26 +5523,143 @@ class WorkbenchController extends ChangeNotifier {
       searchService.search(activeRecords, query);
 
   Future<void> moveToTrash(WorkspaceRecord record) async {
+    if (record.kind == RecordKind.template &&
+        record.data['recordType'] == 'taskGroup') {
+      final result = await moveTaskGroupToTrash(record);
+      if (!result.isSuccessful) {
+        throw StateError(result.failures.first.message);
+      }
+      return;
+    }
     await updateRecord(record.copyWith(deletedAt: currentTime()));
   }
 
   Future<void> restoreFromTrash(WorkspaceRecord record) async {
-    await updateRecord(record.copyWith(deletedAt: null));
+    final result = await restoreRecords([record]);
+    if (result.succeeded == 0 && result.failed > 0) {
+      throw StateError(result.failures.first.message);
+    }
   }
 
   Future<void> permanentlyDelete(WorkspaceRecord record) async {
-    if (syncService.cloudWriteReady) {
-      await syncService.deleteRecords([record]);
+    final result = await permanentlyDeleteRecords([record]);
+    if (!result.isSuccessful) {
+      throw StateError(result.failures.first.message);
     }
-    if (record.kind == RecordKind.note || record.kind == RecordKind.diary) {
-      await attachmentService.deleteForRecord(record.id);
+  }
+
+  Future<BatchOperationResult> restoreRecords(
+    Iterable<WorkspaceRecord> selected,
+  ) async {
+    final records = selected.toList(growable: false);
+    final groups = records
+        .where(
+          (record) =>
+              record.kind == RecordKind.template &&
+              record.data['recordType'] == 'taskGroup',
+        )
+        .toList(growable: false);
+    final ordinary = records.where((record) => !groups.contains(record));
+    var succeeded = 0;
+    final failures = <BatchOperationFailure>[];
+    final ordinaryUpdates = ordinary
+        .map((record) => _latestRecord(record).copyWith(deletedAt: null))
+        .toList(growable: false);
+    if (ordinaryUpdates.isNotEmpty) {
+      try {
+        await _saveRecordsBatch(ordinaryUpdates);
+        succeeded += ordinaryUpdates.length;
+      } catch (error) {
+        failures.addAll(
+          ordinaryUpdates.map(
+            (record) =>
+                BatchOperationFailure(recordId: record.id, message: '$error'),
+          ),
+        );
+      }
     }
-    await database.permanentlyDelete(record.id, record.kind);
-    _records.removeWhere(
-      (value) => value.id == record.id && value.kind == record.kind,
-    );
-    _projectIndex = null;
-    notifyListeners();
+    for (final group in groups) {
+      final result = await restoreTaskGroup(group);
+      succeeded += result.succeeded;
+      failures.addAll(result.failures);
+    }
+    return BatchOperationResult(succeeded: succeeded, failures: failures);
+  }
+
+  Future<BatchOperationResult> permanentlyDeleteRecords(
+    Iterable<WorkspaceRecord> selected,
+  ) async {
+    final requested = selected.toList(growable: false);
+    final targets = _permanentDeleteTargets(requested);
+    final values = targets.values.toList(growable: false);
+    if (values.isEmpty) return const BatchOperationResult(succeeded: 0);
+    try {
+      if (syncService.cloudWriteReady) {
+        await syncService.deleteRecords(values);
+      }
+      await attachmentService.deleteForRecordsAtomically(
+        values,
+        commitDatabase: () => database.permanentlyDeleteRecords(
+          values.map((record) => (id: record.id, kind: record.kind)),
+        ),
+      );
+      final keys = targets.keys.toSet();
+      _records.removeWhere(
+        (record) => keys.contains('${record.kind.name}:${record.id}'),
+      );
+      _projectIndex = null;
+      notifyListeners();
+      return BatchOperationResult(succeeded: requested.length);
+    } catch (error) {
+      return BatchOperationResult(
+        succeeded: 0,
+        failures: [
+          for (final record in requested)
+            BatchOperationFailure(recordId: record.id, message: '$error'),
+        ],
+      );
+    }
+  }
+
+  Future<BatchOperationResult> clearTrash() {
+    return permanentlyDeleteRecords(trashRecords);
+  }
+
+  Future<int> attachmentCountForRecords(
+    Iterable<WorkspaceRecord> selected,
+  ) async {
+    final keys = _permanentDeleteTargets(selected).keys;
+    return (await database.loadAttachments()).where((attachment) {
+      return keys.contains(
+        '${attachment.ownerKind.name}:${attachment.ownerRecordId}',
+      );
+    }).length;
+  }
+
+  Map<String, WorkspaceRecord> _permanentDeleteTargets(
+    Iterable<WorkspaceRecord> selected,
+  ) {
+    final targets = <String, WorkspaceRecord>{};
+    void addTarget(WorkspaceRecord record) {
+      targets['${record.kind.name}:${record.id}'] = record;
+    }
+
+    for (final record in selected) {
+      final current = _latestRecord(record);
+      addTarget(current);
+      if (current.kind == RecordKind.template &&
+          current.data['recordType'] == 'taskGroup') {
+        for (final relation in _records.where(
+          (candidate) =>
+              candidate.kind == RecordKind.relation &&
+              candidate.data['relationType'] == 'taskGroupMember' &&
+              candidate.data['groupId'] == current.id,
+        )) {
+          addTarget(relation);
+        }
+      }
+    }
+    return targets;
   }
 
   Future<void> clearSampleData() async {

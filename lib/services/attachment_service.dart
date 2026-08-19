@@ -211,6 +211,59 @@ class AttachmentService {
     return attachments.length;
   }
 
+  Future<void> deleteForRecordsAtomically(
+    Iterable<WorkspaceRecord> records, {
+    required Future<void> Function() commitDatabase,
+  }) async {
+    final keys = records
+        .map((record) => '${record.kind.name}:${record.id}')
+        .toSet();
+    final attachments = (await database.loadAttachments()).where(
+      (attachment) => keys.contains(
+        '${attachment.ownerKind.name}:${attachment.ownerRecordId}',
+      ),
+    );
+    if (attachments.isEmpty) {
+      await commitDatabase();
+      return;
+    }
+
+    final root = _root ?? await getApplicationSupportDirectory();
+    final quarantine = Directory(
+      p.join(root.path, '.attachments-delete-${newRecordId()}'),
+    );
+    await quarantine.create(recursive: true);
+    final moved = <({File source, File target})>[];
+    try {
+      for (final attachment in attachments) {
+        final source = File(p.join(root.path, attachment.relativePath));
+        if (!await source.exists()) continue;
+        final target = File(p.join(quarantine.path, p.basename(source.path)));
+        await source.rename(target.path);
+        moved.add((source: source, target: target));
+      }
+      await commitDatabase();
+      if (await quarantine.exists()) {
+        try {
+          await quarantine.delete(recursive: true);
+        } catch (_) {
+          // The database commit is authoritative; a quarantined file can be
+          // cleaned up later without restoring an orphaned live attachment.
+        }
+      }
+    } catch (_) {
+      for (final item in moved.reversed) {
+        if (await item.target.exists()) {
+          await item.target.rename(item.source.path);
+        }
+      }
+      if (await quarantine.exists()) {
+        await quarantine.delete(recursive: true);
+      }
+      rethrow;
+    }
+  }
+
   Future<String> _sha256(List<int> bytes) async {
     final digest = await Sha256().hash(bytes);
     return digest.bytes

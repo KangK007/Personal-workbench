@@ -236,12 +236,31 @@ class AppDatabase {
   }
 
   Future<void> permanentlyDelete(String id, RecordKind kind) async {
+    await permanentlyDeleteRecords([(id: id, kind: kind)]);
+  }
+
+  Future<void> permanentlyDeleteRecords(
+    Iterable<({String id, RecordKind kind})> keys,
+  ) async {
+    final values = keys.toList(growable: false);
+    if (values.isEmpty) return;
     final db = await database;
-    await db.delete(
-      'workspace_records',
-      where: 'id = ? AND kind = ?',
-      whereArgs: [id, kind.name],
-    );
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final key in values) {
+        batch.delete(
+          'attachments',
+          where: 'owner_record_id = ? AND owner_kind = ?',
+          whereArgs: [key.id, key.kind.name],
+        );
+        batch.delete(
+          'workspace_records',
+          where: 'id = ? AND kind = ?',
+          whereArgs: [key.id, key.kind.name],
+        );
+      }
+      await batch.commit(noResult: true);
+    });
   }
 
   Future<void> replaceAll(
