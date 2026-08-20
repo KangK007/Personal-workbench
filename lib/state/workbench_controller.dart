@@ -22,6 +22,7 @@ import '../services/notification_service.dart';
 import '../services/restriction_monitor.dart';
 import '../services/restriction_policy_engine.dart';
 import '../services/restriction_security_service.dart';
+import '../services/restriction_defaults.dart';
 import '../services/search_service.dart';
 import '../services/self_control_importer.dart';
 import '../services/share_capture_service.dart';
@@ -109,6 +110,13 @@ class WorkbenchController extends ChangeNotifier {
   SyncPhase _syncPhase = SyncPhase.localOnly;
   String _syncMessage = '本地数据已就绪';
   bool _navigationCollapsed = false;
+  Map<String, bool> _navigationGroups = const {
+    'plan': true,
+    'execute': true,
+    'capture': true,
+    'review': true,
+    'system': true,
+  };
   bool _rsipAllowMultiplePerDay = false;
   bool _rsipStrictMode = true;
   int _logicalDayBoundaryHour = 4;
@@ -162,6 +170,7 @@ class WorkbenchController extends ChangeNotifier {
   String? get signedInEmail => syncService.currentUser?.email;
   bool get cloudConfigured => syncService.configured;
   bool get navigationCollapsed => _navigationCollapsed;
+  bool navigationGroupExpanded(String id) => _navigationGroups[id] ?? true;
   bool get rsipAllowMultiplePerDay => _rsipAllowMultiplePerDay;
   bool get rsipStrictMode => _rsipStrictMode;
   int get logicalDayBoundaryHour => _logicalDayBoundaryHour;
@@ -180,8 +189,7 @@ class WorkbenchController extends ChangeNotifier {
       _restrictionMonitorState;
   RestrictionSecurityState get restrictionSecurityState =>
       _restrictionSecurityState;
-  RestrictionHostsStatus get restrictionHostsStatus =>
-      _restrictionHostsStatus;
+  RestrictionHostsStatus get restrictionHostsStatus => _restrictionHostsStatus;
   DateTime? get restrictionCooldownEndsAt => _restrictionCooldownEndsAt;
   RestrictionProfile? get pendingRestrictionProfile =>
       _pendingRestrictionProfile;
@@ -332,6 +340,7 @@ class WorkbenchController extends ChangeNotifier {
       return at.year == now.year && at.month == now.month && at.day == now.day;
     }).length;
   }
+
   List<WorkspaceRecord> get growthEvents => recordsOf(RecordKind.growthEvent);
   WorkspaceRecord? get todayPlan =>
       growthService.planForDay(activeRecords, currentTime());
@@ -600,6 +609,23 @@ class WorkbenchController extends ChangeNotifier {
       );
       _navigationCollapsed =
           await database.readMetadata('navigation_collapsed') == 'true';
+      final navigationGroups = await database.readMetadata(
+        'navigation_groups_v1',
+      );
+      if (navigationGroups != null && navigationGroups.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(navigationGroups);
+          if (decoded is Map) {
+            _navigationGroups = {
+              ..._navigationGroups,
+              for (final entry in decoded.entries)
+                entry.key.toString(): entry.value == true,
+            };
+          }
+        } catch (_) {
+          // Keep the default expansion state when metadata is malformed.
+        }
+      }
       _rsipAllowMultiplePerDay =
           await database.readMetadata('rsip_allow_multiple_per_day') == 'true';
       final persistedRsipStrictMode = await database.readMetadata(
@@ -704,6 +730,7 @@ class WorkbenchController extends ChangeNotifier {
           ),
         );
       });
+      await _ensureRestrictionDefaults();
       await _initializeRestrictionRuntime();
       _syncPhase = !cloudConfigured
           ? SyncPhase.localOnly
@@ -777,27 +804,30 @@ class WorkbenchController extends ChangeNotifier {
     }
 
     _restrictionMonitor?.dispose();
-    _restrictionMonitor = RestrictionMonitor(
-      activityService: windowsActivityService,
-      profileProvider: () => restrictionProfile,
-      onEvent: _recordRestrictionViolation,
-      onStateChanged: (state) async {
-        _restrictionMonitorState = state;
-        await _persistRestrictionRuntime(cleanShutdown: false);
-        notifyListeners();
-      },
-      now: currentTime,
-    )..restore(
-      activeSnapshot: recoveredSnapshot,
-      pausedUntil: pausedUntil,
-      breakDayKey: breakDayKey,
-      breaksUsed: breaksUsed,
-    );
+    _restrictionMonitor =
+        RestrictionMonitor(
+          activityService: windowsActivityService,
+          profileProvider: () => restrictionProfile,
+          onEvent: _recordRestrictionViolation,
+          onStateChanged: (state) async {
+            _restrictionMonitorState = state;
+            await _persistRestrictionRuntime(cleanShutdown: false);
+            notifyListeners();
+          },
+          now: currentTime,
+        )..restore(
+          activeSnapshot: recoveredSnapshot,
+          pausedUntil: pausedUntil,
+          breakDayKey: breakDayKey,
+          breaksUsed: breaksUsed,
+        );
     await _restrictionMonitor!.start();
     await refreshRestrictionHostsStatus();
 
     await _restrictionExitSubscription?.cancel();
-    _restrictionExitSubscription = windowsActivityService.exitRequests.listen((_) {
+    _restrictionExitSubscription = windowsActivityService.exitRequests.listen((
+      _,
+    ) {
       if (_restrictionMonitorState.activeSnapshot?.strongProtection == true) {
         _restrictionExitRequested = true;
         notifyListeners();
@@ -806,31 +836,40 @@ class WorkbenchController extends ChangeNotifier {
       }
     });
     await _restrictionPowerSubscription?.cancel();
-    _restrictionPowerSubscription = windowsActivityService.powerEvents.listen((event) {
+    _restrictionPowerSubscription = windowsActivityService.powerEvents.listen((
+      event,
+    ) {
       if (event == 'resume') unawaited(_restrictionMonitor?.poll());
     });
     await _restorePendingRestrictionAction();
   }
 
-  RestrictionProfile createRestrictionProfile() => RestrictionProfile(
-    id: 'restriction-profile-${newRecordId()}',
-    title: '自律规则',
-    schedules: [
-      RestrictionScheduleRule(
-        id: newRecordId(),
-        label: '工作时段',
-        days: const [
-          DateTime.monday,
-          DateTime.tuesday,
-          DateTime.wednesday,
-          DateTime.thursday,
-          DateTime.friday,
-        ],
-        startMinutes: 9 * 60,
-        endMinutes: 18 * 60,
-      ),
-    ],
-  );
+  Future<void> _ensureRestrictionDefaults() async {
+    final existing = restrictionProfileRecords.firstOrNull;
+    if (existing == null) {
+      final profile = RestrictionDefaults.create(
+        id: 'restriction-profile-${newRecordId()}',
+      );
+      final record = profile.toRecord();
+      await database.saveRecord(record);
+      _records.add(record);
+      return;
+    }
+
+    final current = RestrictionProfile.fromRecord(existing);
+    final merged = RestrictionDefaults.mergeMissing(current);
+    final currentJson = jsonEncode(current.toData());
+    final mergedJson = jsonEncode(merged.toData());
+    if (currentJson == mergedJson) return;
+
+    // Keep a readable recovery copy before adding source defaults to an
+    // existing user's custom profile.
+    await backupService.writeJsonExport(_records);
+    await updateRecord(merged.toRecord(existing: existing));
+  }
+
+  RestrictionProfile createRestrictionProfile() =>
+      RestrictionDefaults.create(id: 'restriction-profile-${newRecordId()}');
 
   Future<DateTime?> saveRestrictionProfile(
     RestrictionProfile profile, {
@@ -1074,7 +1113,8 @@ class WorkbenchController extends ChangeNotifier {
   }
 
   Future<bool> repairRestrictionHosts() async {
-    final profile = _restrictionMonitorState.activeSnapshot ?? restrictionProfile;
+    final profile =
+        _restrictionMonitorState.activeSnapshot ?? restrictionProfile;
     if (profile == null || !profile.websiteBlocking) return false;
     final result = await windowsActivityService.applyHostsPolicy(
       profile.blockedWebsites,
@@ -1104,9 +1144,7 @@ class WorkbenchController extends ChangeNotifier {
     );
     if (profileIndex >= 0) {
       final profile = preview.profile.copyWith(enabled: enableProfile);
-      records[profileIndex] = profile.toRecord(
-        existing: records[profileIndex],
-      );
+      records[profileIndex] = profile.toRecord(existing: records[profileIndex]);
     }
 
     final archiveRecord = records
@@ -1136,7 +1174,9 @@ class WorkbenchController extends ChangeNotifier {
         metadataKey: 'self_control_import_v1',
       );
     } catch (_) {
-      if (importedArchive != null) await attachmentService.delete(importedArchive);
+      if (importedArchive != null) {
+        await attachmentService.delete(importedArchive);
+      }
       rethrow;
     }
     _records
@@ -1230,6 +1270,15 @@ class WorkbenchController extends ChangeNotifier {
   Future<void> setNavigationCollapsed(bool value) async {
     _navigationCollapsed = value;
     await database.writeMetadata('navigation_collapsed', '$value');
+    notifyListeners();
+  }
+
+  Future<void> setNavigationGroupExpanded(String id, bool value) async {
+    _navigationGroups = {..._navigationGroups, id: value};
+    await database.writeMetadata(
+      'navigation_groups_v1',
+      jsonEncode(_navigationGroups),
+    );
     notifyListeners();
   }
 

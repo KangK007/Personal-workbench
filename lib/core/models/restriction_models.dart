@@ -169,6 +169,7 @@ class RestrictionProfile {
     int? breakMinutes,
     int? maxBreaksPerDay,
     bool? strongProtection,
+    String? sourceImportId,
   }) {
     return RestrictionProfile(
       id: id,
@@ -192,7 +193,7 @@ class RestrictionProfile {
       breakMinutes: breakMinutes ?? this.breakMinutes,
       maxBreaksPerDay: maxBreaksPerDay ?? this.maxBreaksPerDay,
       strongProtection: strongProtection ?? this.strongProtection,
-      sourceImportId: sourceImportId,
+      sourceImportId: sourceImportId ?? this.sourceImportId,
     );
   }
 

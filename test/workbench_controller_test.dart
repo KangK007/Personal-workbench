@@ -166,7 +166,7 @@ void main() {
 
   setUpAll(sqfliteFfiInit);
 
-  test('fresh database stays empty and disables advanced features', () async {
+  test('fresh database seeds disabled restriction defaults', () async {
     final database = AppDatabase(
       factory: databaseFactoryFfi,
       overridePath: inMemoryDatabasePath,
@@ -176,7 +176,9 @@ void main() {
 
     await controller.initialize();
 
-    expect(controller.allRecords, isEmpty);
+    expect(controller.allRecords, hasLength(1));
+    expect(controller.restrictionProfile, isNotNull);
+    expect(controller.restrictionProfile!.enabled, isFalse);
     expect(controller.advancedFeaturesEnabled, isFalse);
     expect(controller.gameFeaturesEnabled, isTrue);
     expect(controller.gameFeaturesPromptPending, isFalse);
