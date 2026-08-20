@@ -20,10 +20,12 @@ class FocusHubPage extends StatelessWidget {
     super.key,
     required this.controller,
     this.showHeader = true,
+    this.onOpenSettings,
   });
 
   final WorkbenchController controller;
   final bool showHeader;
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +102,10 @@ class FocusHubPage extends StatelessWidget {
                   child: TabBarView(
                     children: [
                       _FocusTab(controller: controller),
-                      RestrictionSection(controller: controller),
+                      RestrictionSection(
+                        controller: controller,
+                        onOpenSettings: onOpenSettings,
+                      ),
                     ],
                   ),
                 ),

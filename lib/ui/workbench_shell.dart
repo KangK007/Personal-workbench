@@ -11,6 +11,9 @@ import '../core/theme/app_theme.dart';
 import '../state/workbench_controller.dart';
 import 'pages/focus_page.dart';
 import 'pages/growth_page.dart';
+import 'pages/goals_page.dart';
+import 'pages/habits_page.dart';
+import 'pages/diary_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/plan_page.dart';
 import 'pages/policies_page.dart';
@@ -445,10 +448,12 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     WorkbenchSection.focus => FocusHubPage(
       controller: widget.controller,
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+      onOpenSettings: () => _select(WorkbenchSection.settings),
     ),
     WorkbenchSection.restriction => RestrictionPage(
       controller: widget.controller,
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+      onOpenSettings: () => _select(WorkbenchSection.settings),
     ),
     WorkbenchSection.policies => PoliciesPage(
       controller: widget.controller,
@@ -480,6 +485,18 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       controller: widget.controller,
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
     ),
+    WorkbenchSection.diary => DiaryPage(
+      controller: widget.controller,
+      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+    ),
+    WorkbenchSection.goals => GoalsPage(
+      controller: widget.controller,
+      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+    ),
+    WorkbenchSection.habits => HabitsPage(
+      controller: widget.controller,
+      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+    ),
     WorkbenchSection.settings => SettingsPage(
       controller: widget.controller,
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
@@ -500,15 +517,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       } else if (value == WorkbenchSection.calendar) {
         planTab = PlanTab.week;
         value = WorkbenchSection.tasks;
-      } else if (value == WorkbenchSection.diary) {
-        reviewTab = ReviewTab.diary;
-        value = WorkbenchSection.review;
-      } else if (value == WorkbenchSection.goals) {
-        protocolTab = ProtocolTab.goals;
-        value = WorkbenchSection.policies;
-      } else if (value == WorkbenchSection.habits) {
-        protocolTab = ProtocolTab.habits;
-        value = WorkbenchSection.policies;
       } else if (value == WorkbenchSection.plan) {
         value = WorkbenchSection.tasks;
       }

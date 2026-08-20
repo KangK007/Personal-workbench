@@ -15,9 +15,14 @@ import '../widgets/common.dart';
 /// 供「专注」页的「自律」Tab 与旧版 RestrictionPage 复用。
 /// 数据全部走 [controller] 的现有 getter，状态逻辑与旧版一致。
 class RestrictionSection extends StatelessWidget {
-  const RestrictionSection({super.key, required this.controller});
+  const RestrictionSection({
+    super.key,
+    required this.controller,
+    this.onOpenSettings,
+  });
 
   final WorkbenchController controller;
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -338,6 +343,10 @@ class RestrictionSection extends StatelessWidget {
   }
 
   void _showSettingsHint(BuildContext context) {
+    if (onOpenSettings != null) {
+      onOpenSettings!();
+      return;
+    }
     showWorkbenchSnackBar(
       context,
       const SnackBar(content: Text('请在主设置的“系统行为”和“诊断与恢复”中管理。')),
@@ -351,10 +360,12 @@ class RestrictionPage extends StatelessWidget {
     super.key,
     required this.controller,
     this.showHeader = true,
+    this.onOpenSettings,
   });
 
   final WorkbenchController controller;
   final bool showHeader;
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -387,7 +398,12 @@ class RestrictionPage extends StatelessWidget {
               icon: const Icon(Icons.edit_outlined),
             ),
           ),
-        Expanded(child: RestrictionSection(controller: controller)),
+        Expanded(
+          child: RestrictionSection(
+            controller: controller,
+            onOpenSettings: onOpenSettings,
+          ),
+        ),
       ],
     );
   }
