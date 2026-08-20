@@ -161,4 +161,13 @@ New-Item -ItemType Directory -Force -Path $destinationDirectory | Out-Null
 $destination = Join-Path $destinationDirectory $apkName
 Copy-Item -LiteralPath $artifact -Destination $destination -Force
 
+$distributionDirectory = Join-Path $projectRoot 'dist\apk'
+New-Item -ItemType Directory -Force -Path $distributionDirectory | Out-Null
+$distributionName = "PersonalWorkbench_$versionName`_$versionCode`_$Configuration.apk"
+$distribution = Join-Path $distributionDirectory $distributionName
+Get-ChildItem -LiteralPath $distributionDirectory -Filter 'PersonalWorkbench_*.apk' -File |
+    Remove-Item -Force
+Copy-Item -LiteralPath $artifact -Destination $distribution -Force
+
 Write-Output "Android build completed: $destination"
+Write-Output "Android distribution APK: $distribution"

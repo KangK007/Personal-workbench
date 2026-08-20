@@ -62,6 +62,9 @@ flutter run -d android
 # Windows Release 构建；完成后自动刷新桌面快捷方式
 powershell -ExecutionPolicy Bypass -File .\tool\build_windows.ps1 -Configuration release
 
+# 生成可分发 Windows 安装包，并安装到稳定目录后刷新桌面/开始菜单快捷方式
+powershell -ExecutionPolicy Bypass -File .\tool\package_windows_release.ps1 -Configuration release -Install
+
 # Android 调试 APK（兼容中文工作区路径）
 powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration debug
 
@@ -116,8 +119,8 @@ Windows 侧栏按“计划 / 执行 / 沉淀 / 回顾 / 系统”分组；“执
 
 - SQLite 数据库：由 `path_provider` 放在应用支持目录，文件名为 `personal_workbench.sqlite`。
 - 加密备份和 JSON 导出：应用文档目录下的 `PersonalWorkbench/` 文件夹。
-- Android APK：`build/app/outputs/flutter-apk/app-release.apk`；本项目的侧载副本会写入 `build/releases/`。
-- Windows Release：`build/windows/x64/runner/Release/`；`tool/build_windows.ps1` 会将桌面快捷方式更新到本次生成的可执行文件。
+- Android APK：`build/app/outputs/flutter-apk/app-debug.apk` 或 `app-release.apk`；发布脚本还会更新 `dist/apk/` 下带版本号的侧载副本。
+- Windows Release：`build/windows/x64/runner/Release/`；`tool/build_windows.ps1` 会更新开发构建快捷方式，`tool/package_windows_release.ps1 -Install` 会生成 `dist/PersonalWorkbench_<版本>_windows.zip`，并将稳定安装目录及桌面/开始菜单快捷方式更新到最新版。
 
 ## 论文图像复现方法
 
