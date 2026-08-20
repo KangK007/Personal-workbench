@@ -10,12 +10,14 @@ import '../core/models/workspace_record.dart';
 import '../core/theme/app_theme.dart';
 import '../state/workbench_controller.dart';
 import 'pages/focus_page.dart';
+import 'pages/growth_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/plan_page.dart';
 import 'pages/policies_page.dart';
 import 'pages/projects_page.dart';
 import 'pages/protocols_page.dart';
 import 'pages/review_page.dart';
+import 'pages/restriction_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/today_page.dart';
 import 'widgets/global_search_dialog.dart';
@@ -29,6 +31,7 @@ enum WorkbenchSection {
   tasks,
   projects,
   focus,
+  restriction,
   notes,
   review,
   policies,
@@ -204,6 +207,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       WorkbenchSection.today => '今日',
       WorkbenchSection.plan => '计划',
       WorkbenchSection.focus => '专注',
+      WorkbenchSection.restriction => '自律',
       WorkbenchSection.notes => '笔记',
       WorkbenchSection.protocols =>
         widget.controller.advancedFeaturesEnabled ? '协议' : '目标与习惯',
@@ -254,36 +258,10 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               tooltip: '全局搜索',
               icon: const Icon(Icons.search),
             ),
-            PopupMenuButton<WorkbenchSection>(
+            IconButton(
               tooltip: '更多',
               icon: const Icon(Icons.apps_outlined),
-              onSelected: _select,
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: WorkbenchSection.projects,
-                  child: ListTile(
-                    leading: const Icon(Icons.folder_outlined),
-                    title: const Text('项目'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                PopupMenuItem(
-                  value: WorkbenchSection.focus,
-                  child: ListTile(
-                    leading: const Icon(Icons.timer_outlined),
-                    title: const Text('专注'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                PopupMenuItem(
-                  value: WorkbenchSection.notes,
-                  child: ListTile(
-                    leading: const Icon(Icons.note_alt_outlined),
-                    title: const Text('笔记'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
+              onPressed: () => _openMobileNavigation(context),
             ),
           ],
           flexibleSpace: GlassConfig.blurEnabled
@@ -298,8 +276,9 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                         color: tokens.glassPanel,
                         border: Border(
                           top: BorderSide(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.08),
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.08,
+                            ),
                           ),
                           bottom: BorderSide(color: tokens.divider),
                         ),
@@ -312,8 +291,9 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                     color: tokens.panel.withValues(alpha: 0.96),
                     border: Border(
                       top: BorderSide(
-                        color: theme.colorScheme.primary
-                            .withValues(alpha: 0.08),
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.08,
+                        ),
                       ),
                       bottom: BorderSide(color: tokens.divider),
                     ),
@@ -466,6 +446,10 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       controller: widget.controller,
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
     ),
+    WorkbenchSection.restriction => RestrictionPage(
+      controller: widget.controller,
+      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+    ),
     WorkbenchSection.policies => PoliciesPage(
       controller: widget.controller,
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
@@ -490,6 +474,10 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       key: ValueKey(reviewTab),
       controller: widget.controller,
       initialTab: reviewTab,
+      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+    ),
+    WorkbenchSection.growth => GrowthPage(
+      controller: widget.controller,
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
     ),
     WorkbenchSection.settings => SettingsPage(
@@ -523,10 +511,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         value = WorkbenchSection.policies;
       } else if (value == WorkbenchSection.plan) {
         value = WorkbenchSection.tasks;
-      } else if (value == WorkbenchSection.protocols) {
-        value = WorkbenchSection.policies;
-      } else if (value == WorkbenchSection.growth) {
-        value = WorkbenchSection.settings;
       }
       if (compact && value != section) {
         if (_mobileHistory.isEmpty || _mobileHistory.last != section) {
@@ -539,6 +523,22 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       section = value;
       _visitedSections.add(value);
     });
+  }
+
+  Future<void> _openMobileNavigation(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => _MobileNavigationSheet(
+        selected: section,
+        controller: widget.controller,
+        onSelected: (value) {
+          Navigator.pop(context);
+          _select(value);
+        },
+      ),
+    );
   }
 
   bool get _shouldShowPersistentAdd =>
@@ -578,6 +578,52 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     }
   }
 }
+
+class _NavigationGroup {
+  const _NavigationGroup(this.id, this.label, this.icon, this.items);
+
+  final String id;
+  final String label;
+  final IconData icon;
+  final List<_NavigationItem> items;
+}
+
+class _NavigationItem {
+  const _NavigationItem(this.section, this.label, this.icon);
+
+  final WorkbenchSection section;
+  final String label;
+  final IconData icon;
+}
+
+List<_NavigationGroup> _navigationGroups(WorkbenchController controller) => [
+  const _NavigationGroup('plan', '计划', Icons.event_note_outlined, [
+    _NavigationItem(WorkbenchSection.today, '今日', Icons.today_outlined),
+    _NavigationItem(WorkbenchSection.tasks, '任务', Icons.checklist_outlined),
+    _NavigationItem(WorkbenchSection.projects, '项目', Icons.folder_outlined),
+  ]),
+  const _NavigationGroup('execute', '执行', Icons.play_circle_outline, [
+    _NavigationItem(WorkbenchSection.focus, '专注', Icons.timer_outlined),
+    _NavigationItem(WorkbenchSection.restriction, '自律', Icons.shield_outlined),
+  ]),
+  const _NavigationGroup('capture', '沉淀', Icons.collections_bookmark_outlined, [
+    _NavigationItem(WorkbenchSection.notes, '笔记', Icons.note_alt_outlined),
+    _NavigationItem(WorkbenchSection.diary, '日记', Icons.book_outlined),
+  ]),
+  const _NavigationGroup('review', '回顾', Icons.insights_outlined, [
+    _NavigationItem(WorkbenchSection.review, '期间回顾', Icons.insights_outlined),
+    _NavigationItem(
+      WorkbenchSection.policies,
+      '国策',
+      Icons.account_tree_outlined,
+    ),
+    _NavigationItem(WorkbenchSection.goals, '目标与习惯', Icons.flag_outlined),
+    _NavigationItem(WorkbenchSection.growth, '成长', Icons.trending_up_outlined),
+  ]),
+  const _NavigationGroup('system', '系统', Icons.settings_outlined, [
+    _NavigationItem(WorkbenchSection.settings, '设置', Icons.settings_outlined),
+  ]),
+];
 
 class _DesktopNavigation extends StatelessWidget {
   const _DesktopNavigation({
@@ -732,6 +778,7 @@ class _DesktopNavigation extends StatelessWidget {
               Expanded(
                 child: Scrollbar(
                   child: ListView(
+                    cacheExtent: 10000,
                     padding: EdgeInsets.fromLTRB(
                       collapsed
                           ? 7
@@ -747,53 +794,11 @@ class _DesktopNavigation extends StatelessWidget {
                       12,
                     ),
                     children: [
-                      _item(
-                        context,
-                        WorkbenchSection.today,
-                        '今日',
-                        Icons.today_outlined,
-                      ),
-                      _item(
-                        context,
-                        WorkbenchSection.tasks,
-                        '任务',
-                        Icons.checklist_outlined,
-                      ),
-                      _item(
-                        context,
-                        WorkbenchSection.projects,
-                        '项目',
-                        Icons.folder_outlined,
-                      ),
-                      _item(
-                        context,
-                        WorkbenchSection.focus,
-                        '专注',
-                        Icons.timer_outlined,
-                      ),
-                      _item(
-                        context,
-                        WorkbenchSection.notes,
-                        '笔记',
-                        Icons.note_alt_outlined,
-                      ),
-                      _item(
-                        context,
-                        WorkbenchSection.review,
-                        '回顾',
-                        Icons.insights_outlined,
-                      ),
-                      _item(
-                        context,
-                        WorkbenchSection.policies,
-                        '国策',
-                        Icons.account_tree_outlined,
-                      ),
-                      _item(
-                        context,
-                        WorkbenchSection.settings,
-                        '设置',
-                        Icons.settings_outlined,
+                      Column(
+                        children: [
+                          for (final group in _navigationGroups(controller))
+                            _group(context, group),
+                        ],
                       ),
                     ],
                   ),
@@ -864,12 +869,95 @@ class _DesktopNavigation extends StatelessWidget {
     );
   }
 
-  Widget _item(
+  Widget _group(BuildContext context, _NavigationGroup group) {
+    final containsSelected = group.items.any(
+      (item) => item.section == selected,
+    );
+    final expanded =
+        controller.navigationGroupExpanded(group.id) || containsSelected;
+    if (collapsed) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Tooltip(
+          message: group.label,
+          child: IconButton(
+            onPressed: () => _showGroupMenu(context, group),
+            icon: Icon(group.icon),
+            color: containsSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Focus(
+          canRequestFocus: true,
+          onKeyEvent: (node, event) {
+            if (event is! KeyDownEvent) return KeyEventResult.ignored;
+            if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+                !expanded) {
+              controller.setNavigationGroupExpanded(group.id, true);
+              return KeyEventResult.handled;
+            }
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft && expanded) {
+              controller.setNavigationGroupExpanded(group.id, false);
+              return KeyEventResult.handled;
+            }
+            if (event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.space) {
+              controller.setNavigationGroupExpanded(group.id, !expanded);
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Semantics(
+            button: true,
+            expanded: expanded,
+            child: ListTile(
+              dense: true,
+              minVerticalPadding: 4,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: Icon(group.icon, size: 19),
+              title: Text(
+                group.label,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              trailing: Icon(
+                expanded ? Icons.expand_less : Icons.expand_more,
+                size: 19,
+              ),
+              onTap: () =>
+                  controller.setNavigationGroupExpanded(group.id, !expanded),
+            ),
+          ),
+        ),
+        if (expanded)
+          for (final item in group.items) _item(context, item),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  Future<void> _showGroupMenu(
     BuildContext context,
-    WorkbenchSection value,
-    String label,
-    IconData icon,
-  ) {
+    _NavigationGroup group,
+  ) async {
+    final selected = await showMenu<WorkbenchSection>(
+      context: context,
+      position: const RelativeRect.fromLTRB(72, 180, 0, 0),
+      items: [
+        for (final item in group.items)
+          PopupMenuItem(value: item.section, child: Text(item.label)),
+      ],
+    );
+    if (selected != null) onSelected(selected);
+  }
+
+  Widget _item(BuildContext context, _NavigationItem item) {
+    final value = item.section;
     final isSelected = selected == value;
     final theme = Theme.of(context);
     final tile = DecoratedBox(
@@ -890,9 +978,7 @@ class _DesktopNavigation extends StatelessWidget {
             dense: true,
             minVerticalPadding: 4,
             visualDensity: const VisualDensity(vertical: -1),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: collapsed ? 12 : 14,
-            ),
+            contentPadding: EdgeInsets.symmetric(horizontal: 14),
             hoverColor: theme.colorScheme.primary.withValues(alpha: 0.06),
             focusColor: theme.colorScheme.primary.withValues(alpha: 0.1),
             selected: isSelected,
@@ -900,18 +986,19 @@ class _DesktopNavigation extends StatelessWidget {
             iconColor: isSelected
                 ? theme.colorScheme.primary
                 : theme.colorScheme.onSurfaceVariant,
-            leading: Icon(icon, size: 20),
-            title: collapsed
-                ? null
-                : Text(
-                    label,
-                    style: isSelected
-                        ? TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          )
-                        : null,
-                  ),
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Icon(item.icon, size: 20),
+            ),
+            title: Text(
+              item.label,
+              style: isSelected
+                  ? TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    )
+                  : null,
+            ),
             onTap: () => onSelected(value),
           ),
           if (isSelected)
@@ -939,7 +1026,49 @@ class _DesktopNavigation extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: collapsed ? Tooltip(message: label, child: tile) : tile,
+      child: tile,
+    );
+  }
+}
+
+class _MobileNavigationSheet extends StatelessWidget {
+  const _MobileNavigationSheet({
+    required this.selected,
+    required this.controller,
+    required this.onSelected,
+  });
+
+  final WorkbenchSection selected;
+  final WorkbenchController controller;
+  final ValueChanged<WorkbenchSection> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      children: [
+        for (final group in _navigationGroups(controller))
+          ExpansionTile(
+            initiallyExpanded:
+                controller.navigationGroupExpanded(group.id) ||
+                group.items.any((item) => item.section == selected),
+            leading: Icon(group.icon),
+            title: Text(group.label),
+            onExpansionChanged: (expanded) =>
+                controller.setNavigationGroupExpanded(group.id, expanded),
+            children: [
+              for (final item in group.items)
+                ListTile(
+                  contentPadding: const EdgeInsets.only(left: 32, right: 8),
+                  selected: item.section == selected,
+                  leading: Icon(item.icon, size: 20),
+                  title: Text(item.label),
+                  onTap: () => onSelected(item.section),
+                ),
+            ],
+          ),
+      ],
     );
   }
 }

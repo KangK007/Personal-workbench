@@ -613,9 +613,12 @@ void main() {
       ),
       size: const Size(1536, 864),
     );
-    for (final label in ['今日', '任务', '项目', '专注', '笔记', '回顾', '国策', '设置']) {
+    for (final label in ['计划', '执行', '沉淀', '回顾', '系统']) {
       expect(find.widgetWithText(ListTile, label), findsOneWidget);
     }
+    await tester.tap(find.widgetWithText(ListTile, '系统'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, '设置'), findsOneWidget);
     expect(find.widgetWithText(ListTile, '收集箱'), findsNothing);
     expect(find.widgetWithText(ListTile, '协议'), findsNothing);
 
