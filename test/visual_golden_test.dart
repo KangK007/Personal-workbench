@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:personal_workbench/core/models/restriction_models.dart';
 import 'package:personal_workbench/core/models/workspace_record.dart';
 import 'package:personal_workbench/core/models/workspace_models_v3.dart';
 import 'package:personal_workbench/core/theme/app_theme.dart';
@@ -341,6 +342,42 @@ Future<_Fixture> _createGuideFixture() async {
   await controller.addRecord(child);
   await controller.addRecord(archived);
   await controller.archiveRsipNode(archived, reason: '已合并到实验记录收尾流程');
+
+  // 自律规则：供合并页「自律」Tab golden 展示
+  final restrictionProfile = controller.createRestrictionProfile().copyWith(
+    title: '论文冲刺自律',
+    enabled: true,
+    schedules: [
+      RestrictionScheduleRule(
+        id: 'restriction-schedule-1',
+        label: '深度工作',
+        days: const [
+          DateTime.monday,
+          DateTime.tuesday,
+          DateTime.wednesday,
+          DateTime.thursday,
+          DateTime.friday,
+        ],
+        startMinutes: 9 * 60,
+        endMinutes: 18 * 60,
+      ),
+      RestrictionScheduleRule(
+        id: 'restriction-schedule-2',
+        label: '晚间阅读',
+        days: const [DateTime.monday, DateTime.wednesday, DateTime.friday],
+        startMinutes: 19 * 60 + 30,
+        endMinutes: 22 * 60,
+      ),
+    ],
+    defaultAction: RestrictionAction.forceClose,
+    blockedApps: const ['steam.exe', 'chrome.exe'],
+    websiteBlocking: true,
+    blockedWebsites: const ['weibo.com', 'bilibili.com'],
+    titleKeywordBlocking: true,
+    blockedTitleKeywords: const ['视频', '游戏'],
+  );
+  await controller.addRecord(restrictionProfile.toRecord());
+
   return fixture;
 }
 
@@ -635,6 +672,20 @@ void main() {
       tester,
       FocusHubPage(controller: guideFixture.controller),
       fileName: 'guide_focus',
+    );
+  });
+
+  testWidgets('documentation focus restriction tab', (tester) async {
+    await _pumpDocumentationPage(
+      tester,
+      FocusHubPage(controller: guideFixture.controller),
+      fileName: 'guide_focus_restriction',
+      beforeCapture: () async {
+        await tester.tap(find.widgetWithText(Tab, '自律'));
+        await tester.pumpAndSettle();
+        expect(find.text('当前状态'), findsOneWidget);
+        expect(find.text('论文冲刺自律'), findsWidgets);
+      },
     );
   });
 

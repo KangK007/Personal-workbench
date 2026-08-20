@@ -1,9 +1,11 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
+import 'glass.dart';
 import 'ink_decoration.dart';
 
 void showWorkbenchSnackBar(BuildContext context, SnackBar snackBar) {
@@ -24,7 +26,15 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
 }) {
   return showGeneralDialog<T>(
     context: context,
-    pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+    pageBuilder: (context, animation, secondaryAnimation) {
+      final child = builder(context);
+      if (!GlassConfig.blurEnabled) return child;
+      final blur = context.tokens.glassBlur;
+      return BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: child,
+      );
+    },
     barrierDismissible: barrierDismissible,
     barrierColor:
         barrierColor ??
@@ -56,11 +66,13 @@ Future<T?> showWorkbenchSheet<T extends Object?>({
   AnimationController? transitionAnimationController,
   Offset? anchorPoint,
 }) {
-  final tokens = context.tokens;
   return showModalBottomSheet<T>(
     context: context,
-    builder: builder,
-    backgroundColor: backgroundColor ?? tokens.panel,
+    // 默认玻璃面板（半透明 + 模糊）；显式传入 backgroundColor 时走实色路径。
+    builder: (ctx) => backgroundColor == null
+        ? GlassSurface(radius: 0, glow: false, child: builder(ctx))
+        : builder(ctx),
+    backgroundColor: backgroundColor ?? Colors.transparent,
     elevation: elevation,
     shape:
         shape ??
@@ -287,70 +299,73 @@ class PageHeader extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < AppBreakpoints.compact;
     final wide = width >= AppBreakpoints.expanded;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.tokens.canvas,
-        border: Border(
-          top: BorderSide(
-            color: theme.colorScheme.primary.withValues(alpha: 0.08),
-          ),
-          bottom: BorderSide(color: context.tokens.divider),
-        ),
-      ),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          compact
-              ? 16
-              : wide
-              ? 28
-              : 24,
-          wide ? 20 : 16,
-          compact
-              ? 10
-              : wide
-              ? 28
-              : 20,
-          wide ? 16 : 14,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _GradientAccentBar(height: wide ? 40 : 32),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontSize: wide ? 26 : null,
-                      height: wide ? 1.2 : null,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: context.tokens.mutedText,
-                        fontFeatures: _numericFeaturesIfUseful(subtitle!),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                ],
-              ),
+    // 玻璃底条：半透明模糊背景 + 微光边框；底部保留 1px 分隔线，
+    // 顶部翠绿高光由 GlassSurface 内部 glassHighlight 提供。
+    return GlassSurface(
+      radius: 0,
+      glow: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              compact
+                  ? 16
+                  : wide
+                  ? 28
+                  : 24,
+              wide ? 20 : 16,
+              compact
+                  ? 10
+                  : wide
+                  ? 28
+                  : 20,
+              wide ? 16 : 14,
             ),
-            if (actions.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              ...actions.map(
-                (action) => PressScale(key: ValueKey(action), child: action),
-              ),
-            ],
-          ],
-        ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _GradientAccentBar(height: wide ? 40 : 32),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontSize: wide ? 26 : null,
+                          height: wide ? 1.2 : null,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (subtitle != null)
+                        Text(
+                          subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: context.tokens.mutedText,
+                            fontFeatures: _numericFeaturesIfUseful(subtitle!),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  ...actions.map(
+                    (action) =>
+                        PressScale(key: ValueKey(action), child: action),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // 底部 1px 分隔线
+          Container(height: 1, color: context.tokens.divider),
+        ],
       ),
     );
   }
@@ -523,68 +538,9 @@ class LogSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
-    final radius = wide ? 12.0 : 10.0;
-    final tokens = context.tokens;
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.panel,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: tokens.divider),
-        boxShadow: [
-          BoxShadow(
-            color: isLight ? const Color(0x0A000000) : const Color(0x14000000),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // 顶部微高光
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 1,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(radius),
-                ),
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.primary.withValues(alpha: 0.12),
-                    theme.colorScheme.primary.withValues(alpha: 0.02),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsetsDirectional.only(start: accent == null ? 0 : 3),
-            child: Padding(padding: padding, child: child),
-          ),
-          if (accent != null)
-            PositionedDirectional(
-              start: 0,
-              top: 0,
-              bottom: 0,
-              child: Container(
-                width: 3,
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: BorderRadius.horizontal(
-                    left: Radius.circular(radius),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
+    // 玻璃面板：半透明填充 + 背景模糊 + 翠绿微光边框 + 顶部高光。
+    // API（child/padding/accent）保持不变，全部调用点零改动。
+    return GlassSurface(padding: padding, accent: accent, child: child);
   }
 }
 
@@ -697,9 +653,9 @@ class EmptyState extends StatelessWidget {
                     width: 54,
                     height: 54,
                     decoration: BoxDecoration(
-                      color: context.tokens.panel,
+                      color: context.tokens.glassPanel,
                       shape: BoxShape.circle,
-                      border: Border.all(color: context.tokens.divider),
+                      border: Border.all(color: context.tokens.glassBorder),
                       boxShadow: [
                         BoxShadow(
                           color: Theme.of(
@@ -790,20 +746,26 @@ class WorkbenchBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isLight = theme.brightness == Brightness.light;
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 极淡背景纹理
-        const Positioned.fill(child: SilkTexture()),
-        // 淡淡的渐变晕染
+        // 极淡背景网格（玻璃衬底下调低透明度，避免干扰模糊观感）
+        Positioned.fill(child: SilkTexture(opacity: isLight ? 0.2 : 0.15)),
+        // 增强翠绿光晕：为玻璃面板提供「看得见」的背景色块
         ExcludeSemantics(
           child: IgnorePointer(
             child: CustomPaint(
               painter: _BackdropPainter(
-                wash: scheme.primary.withValues(alpha: 0.02),
-                accent: scheme.secondary.withValues(alpha: 0.012),
-                gold: context.tokens.gold.withValues(alpha: 0.008),
+                wash: scheme.primary.withValues(alpha: isLight ? 0.18 : 0.25),
+                accent: scheme.secondary.withValues(
+                  alpha: isLight ? 0.12 : 0.18,
+                ),
+                gold: context.tokens.gold.withValues(
+                  alpha: isLight ? 0.06 : 0.08,
+                ),
               ),
             ),
           ),
@@ -827,21 +789,21 @@ class _BackdropPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 右上角主光晕
+    // 右上角主光晕（翠绿）
     final topRight = Paint()
       ..shader = RadialGradient(
-        center: Alignment.topRight,
-        radius: 0.35,
-        colors: [wash.withValues(alpha: 0.025), wash.withValues(alpha: 0)],
+        center: const Alignment(1.0, 0.0),
+        radius: 0.55,
+        colors: [wash, wash.withValues(alpha: 0)],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, topRight);
 
-    // 左下角次光晕
+    // 左下角次光晕（青绿）
     final bottomLeft = Paint()
       ..shader = RadialGradient(
-        center: Alignment.bottomLeft,
-        radius: 0.30,
-        colors: [accent.withValues(alpha: 0.02), accent.withValues(alpha: 0)],
+        center: const Alignment(-0.6, 1.1),
+        radius: 0.50,
+        colors: [accent, accent.withValues(alpha: 0)],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, bottomLeft);
 
@@ -849,8 +811,8 @@ class _BackdropPainter extends CustomPainter {
     final bottomRight = Paint()
       ..shader = RadialGradient(
         center: const Alignment(0.85, 0.95),
-        radius: 0.20,
-        colors: [gold.withValues(alpha: 0.018), gold.withValues(alpha: 0)],
+        radius: 0.35,
+        colors: [gold, gold.withValues(alpha: 0)],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, bottomRight);
   }

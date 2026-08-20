@@ -85,7 +85,7 @@ if (-not (Test-Path -LiteralPath $executable)) {
     throw "Build completed without the expected executable: $executable"
 }
 
-$shortcutScript = Join-Path $projectRoot 'tool\update_desktop_shortcut.ps1'
+$shortcutScript = Join-Path $projectRoot 'tool\update_all_shortcuts.ps1'
 & $shortcutScript -TargetPath $executable
 
 Write-Output "Windows build completed: $executable"
