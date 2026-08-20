@@ -11,7 +11,9 @@ import '../../state/workbench_controller.dart';
 import '../platform_feedback.dart';
 import '../widgets/celebration.dart';
 import '../widgets/common.dart';
+import '../widgets/glass.dart';
 import '../widgets/ink_decoration.dart';
+import 'restriction_page.dart';
 
 class FocusHubPage extends StatelessWidget {
   const FocusHubPage({
@@ -22,6 +24,118 @@ class FocusHubPage extends StatelessWidget {
 
   final WorkbenchController controller;
   final bool showHeader;
+
+  @override
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
+    return Column(
+      children: [
+        if (showHeader)
+          PageHeader(
+            title: '专注',
+            subtitle: '预设与任务关联的计时会话 · 自律规则与拦截日志',
+            actions: [
+              if (wide) ...[
+                FilledButton.icon(
+                  onPressed: () => _showPresetEditor(context, controller),
+                  icon: const Icon(Icons.add),
+                  label: const Text('新建专注预设'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      showRestrictionProfileEditor(context, controller),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('编辑规则'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      showRestrictionImportDialog(context, controller),
+                  icon: const Icon(Icons.file_upload_outlined),
+                  label: const Text('导入 SelfControl'),
+                ),
+              ] else ...[
+                IconButton(
+                  onPressed: () => _showPresetEditor(context, controller),
+                  tooltip: '新建专注预设',
+                  icon: const Icon(Icons.add),
+                ),
+                IconButton(
+                  onPressed: () =>
+                      showRestrictionProfileEditor(context, controller),
+                  tooltip: '编辑自律规则',
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+                IconButton(
+                  onPressed: () =>
+                      showRestrictionImportDialog(context, controller),
+                  tooltip: '导入 SelfControl',
+                  icon: const Icon(Icons.file_upload_outlined),
+                ),
+              ],
+            ],
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => _showPresetEditor(context, controller),
+                    tooltip: '新建专注预设',
+                    icon: const Icon(Icons.add),
+                  ),
+                  IconButton(
+                    onPressed: () =>
+                        showRestrictionProfileEditor(context, controller),
+                    tooltip: '编辑自律规则',
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                  IconButton(
+                    onPressed: () =>
+                        showRestrictionImportDialog(context, controller),
+                    tooltip: '导入 SelfControl',
+                    icon: const Icon(Icons.file_upload_outlined),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        Expanded(
+          child: DefaultTabController(
+            length: 2,
+            child: Column(
+              children: [
+                const TabBar(
+                  tabs: [
+                    Tab(text: '专注'),
+                    Tab(text: '自律'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _FocusTab(controller: controller),
+                      RestrictionSection(controller: controller),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 专注 Tab：待确认启动 → 专注预设 → 下一项承诺 → 最近记录。
+class _FocusTab extends StatelessWidget {
+  const _FocusTab({required this.controller});
+
+  final WorkbenchController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -36,215 +150,171 @@ class FocusHubPage extends StatelessWidget {
         .recordsOf(RecordKind.focusSession)
         .take(6)
         .toList();
-    return Column(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 132),
       children: [
-        if (showHeader)
-          PageHeader(
-            title: '专注',
-            subtitle: '预设与任务关联的单一计时会话',
-            actions: [
-              FilledButton.icon(
-                onPressed: () => _showPresetEditor(context, controller),
-                icon: const Icon(Icons.add),
-                label: const Text('新建专注预设'),
-              ),
-            ],
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                onPressed: () => _showPresetEditor(context, controller),
-                tooltip: '新建专注预设',
-                icon: const Icon(Icons.add),
-              ),
+        if (controller.pendingFocusPresets.isNotEmpty) ...[
+          const SectionHeading(title: '待确认启动'),
+          LogSurface(
+            accent: Theme.of(context).colorScheme.tertiary,
+            child: Column(
+              children: [
+                for (final preset in controller.pendingFocusPresets)
+                  ListTile(
+                    leading: const Icon(Icons.notification_important_outlined),
+                    title: Text(preset.title),
+                    subtitle: Text(
+                      controller.pendingFocusPresets.length > 1
+                          ? '与其他预设冲突，请选择一个开始'
+                          : '已到计划时间，确认后才会开始计时',
+                    ),
+                    trailing: Wrap(
+                      spacing: 6,
+                      children: [
+                        TextButton(
+                          onPressed: () =>
+                              controller.declineScheduledFocus(preset),
+                          child: const Text('跳过'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: () async {
+                            await controller.confirmScheduledFocus(preset);
+                            if (context.mounted) {
+                              await _startPreset(context, controller, preset);
+                            }
+                          },
+                          icon: const Icon(Icons.play_arrow),
+                          label: const Text('确认开始'),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 132),
-            children: [
-              if (controller.pendingFocusPresets.isNotEmpty) ...[
-                const SectionHeading(title: '待确认启动'),
-                LogSurface(
-                  accent: Theme.of(context).colorScheme.tertiary,
-                  child: Column(
-                    children: [
-                      for (final preset in controller.pendingFocusPresets)
-                        ListTile(
-                          leading: const Icon(
-                            Icons.notification_important_outlined,
-                          ),
-                          title: Text(preset.title),
-                          subtitle: Text(
-                            controller.pendingFocusPresets.length > 1
-                                ? '与其他预设冲突，请选择一个开始'
-                                : '已到计划时间，确认后才会开始计时',
-                          ),
-                          trailing: Wrap(
-                            spacing: 6,
-                            children: [
-                              TextButton(
-                                onPressed: () =>
-                                    controller.declineScheduledFocus(preset),
-                                child: const Text('跳过'),
-                              ),
-                              FilledButton.icon(
-                                onPressed: () async {
-                                  await controller.confirmScheduledFocus(
-                                    preset,
-                                  );
-                                  if (context.mounted) {
-                                    await _startPreset(
-                                      context,
-                                      controller,
-                                      preset,
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.play_arrow),
-                                label: const Text('确认开始'),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-              const SectionHeading(title: '专注预设'),
-              if (controller.focusPresets.isEmpty)
-                Text(
-                  '尚未创建预设。',
-                  style: TextStyle(color: context.tokens.mutedText),
-                )
-              else
-                LogSurface(
-                  child: Column(
-                    children: [
-                      for (final preset in controller.focusPresets)
-                        ListTile(
-                          leading: Icon(
-                            preset.data['mode'] == FocusMode.stopwatch.name
-                                ? Icons.timer_outlined
-                                : Icons.hourglass_bottom_outlined,
-                          ),
-                          title: Text(preset.title),
-                          subtitle: Text(_presetSummary(preset)),
-                          trailing: Wrap(
-                            spacing: 4,
-                            children: [
-                              IconButton(
-                                onPressed: () => _showPresetEditor(
-                                  context,
-                                  controller,
-                                  preset: preset,
-                                ),
-                                tooltip: '编辑预设',
-                                icon: const Icon(Icons.edit_outlined),
-                              ),
-                              FilledButton.icon(
-                                onPressed: () =>
-                                    _startPreset(context, controller, preset),
-                                icon: const Icon(Icons.play_arrow),
-                                label: const Text('开始'),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              const SectionHeading(title: '下一项承诺'),
-              if (candidates.isEmpty)
-                const EmptyState(
-                  icon: Icons.timer_outlined,
-                  title: '尚无可执行承诺',
-                  message: '先在“今日”选择并锁定 1–3 项承诺。',
-                )
-              else
-                LogSurface(
-                  accent: Theme.of(context).colorScheme.primary,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        candidates.first.title,
-                        style: Theme.of(context).textTheme.titleLarge,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        controller.todayStarted
-                            ? controller.advancedFeaturesEnabled
-                                  ? '已关联今日承诺，完成的有效时长可计入专注 XP。'
-                                  : '已关联今日重点，完成后会保留专注记录。'
-                            : '尚未开始今天，本次专注只记录时间。',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: context.tokens.mutedText,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FilledButton.icon(
-                          onPressed: () => showFocusSession(
+        ],
+        const SectionHeading(title: '专注预设'),
+        if (controller.focusPresets.isEmpty)
+          Text('尚未创建预设。', style: TextStyle(color: context.tokens.mutedText))
+        else
+          LogSurface(
+            child: Column(
+              children: [
+                for (final preset in controller.focusPresets)
+                  ListTile(
+                    leading: Icon(
+                      preset.data['mode'] == FocusMode.stopwatch.name
+                          ? Icons.timer_outlined
+                          : Icons.hourglass_bottom_outlined,
+                    ),
+                    title: Text(preset.title),
+                    subtitle: Text(_presetSummary(preset)),
+                    trailing: Wrap(
+                      spacing: 4,
+                      children: [
+                        IconButton(
+                          onPressed: () => _showPresetEditor(
                             context,
                             controller,
-                            candidates.first,
+                            preset: preset,
                           ),
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('开始专注'),
+                          tooltip: '编辑预设',
+                          icon: const Icon(Icons.edit_outlined),
                         ),
-                      ),
-                    ],
+                        FilledButton.icon(
+                          onPressed: () =>
+                              _startPreset(context, controller, preset),
+                          icon: const Icon(Icons.play_arrow),
+                          label: const Text('开始'),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              const SectionHeading(title: '最近记录'),
-              if (recent.isEmpty)
+              ],
+            ),
+          ),
+        const SectionHeading(title: '下一项承诺'),
+        if (candidates.isEmpty)
+          const EmptyState(
+            icon: Icons.timer_outlined,
+            title: '尚无可执行承诺',
+            message: '先在“今日”选择并锁定 1–3 项承诺。',
+          )
+        else
+          LogSurface(
+            accent: Theme.of(context).colorScheme.primary,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Text(
-                  '尚无专注记录。',
+                  candidates.first.title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  controller.todayStarted
+                      ? controller.advancedFeaturesEnabled
+                            ? '已关联今日承诺，完成的有效时长可计入专注 XP。'
+                            : '已关联今日重点，完成后会保留专注记录。'
+                      : '尚未开始今天，本次专注只记录时间。',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: context.tokens.mutedText,
                   ),
-                )
-              else
-                LogSurface(
-                  child: Column(
-                    children: [
-                      for (var index = 0; index < recent.length; index++) ...[
-                        ListTile(
-                          leading: NumericText(
-                            '${((recent[index].data['seconds'] as num?)?.toInt() ?? 0) ~/ 60}'
-                                .padLeft(2, '0'),
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          title: Text(
-                            recent[index].title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: const Text('分钟'),
-                          trailing: Text(
-                            recent[index].data['mode']?.toString() ?? '',
-                            style: Theme.of(context).textTheme.labelMedium
-                                ?.copyWith(color: context.tokens.mutedText),
-                          ),
-                        ),
-                        if (index < recent.length - 1) const Divider(),
-                      ],
-                    ],
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.icon(
+                    onPressed: () =>
+                        showFocusSession(context, controller, candidates.first),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('开始专注'),
                   ),
                 ),
-              if (candidates.length + recent.length < 5)
-                const SparseContentTail(),
-            ],
+              ],
+            ),
           ),
-        ),
+        const SectionHeading(title: '最近记录'),
+        if (recent.isEmpty)
+          Text(
+            '尚无专注记录。',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
+          )
+        else
+          LogSurface(
+            child: Column(
+              children: [
+                for (var index = 0; index < recent.length; index++) ...[
+                  ListTile(
+                    leading: NumericText(
+                      '${((recent[index].data['seconds'] as num?)?.toInt() ?? 0) ~/ 60}'
+                          .padLeft(2, '0'),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    title: Text(
+                      recent[index].title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: const Text('分钟'),
+                    trailing: Text(
+                      recent[index].data['mode']?.toString() ?? '',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: context.tokens.mutedText,
+                      ),
+                    ),
+                  ),
+                  if (index < recent.length - 1) const Divider(),
+                ],
+              ],
+            ),
+          ),
+        if (candidates.length + recent.length < 5) const SparseContentTail(),
       ],
     );
   }
@@ -696,6 +766,10 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
           body: Stack(
             fit: StackFit.expand,
             children: [
+              // 玻璃衬底：为计时卡片与分段选择器提供可模糊的背景光晕
+              Positioned.fill(
+                child: WorkbenchBackdrop(child: const SizedBox.shrink()),
+              ),
               const Positioned(
                 left: 0,
                 right: 0,
@@ -742,35 +816,40 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 32),
-                          SegmentedButton<FocusMode>(
-                            segments: const [
-                              ButtonSegment(
-                                value: FocusMode.stopwatch,
-                                label: Text('正计时'),
-                                icon: Icon(Icons.timer_outlined),
-                              ),
-                              ButtonSegment(
-                                value: FocusMode.pomodoro25,
-                                label: Text('25 / 5'),
-                              ),
-                              ButtonSegment(
-                                value: FocusMode.pomodoro50,
-                                label: Text('50 / 10'),
-                              ),
-                              ButtonSegment(
-                                value: FocusMode.custom,
-                                label: Text('协议时长'),
-                                icon: Icon(Icons.link),
-                              ),
-                            ],
-                            selected: {
-                              service.running ? service.mode : selectedMode,
-                            },
-                            onSelectionChanged: service.running
-                                ? null
-                                : (value) => setState(
-                                    () => selectedMode = value.first,
-                                  ),
+                          GlassSurface(
+                            padding: const EdgeInsets.all(4),
+                            radius: 24,
+                            glow: false,
+                            child: SegmentedButton<FocusMode>(
+                              segments: const [
+                                ButtonSegment(
+                                  value: FocusMode.stopwatch,
+                                  label: Text('正计时'),
+                                  icon: Icon(Icons.timer_outlined),
+                                ),
+                                ButtonSegment(
+                                  value: FocusMode.pomodoro25,
+                                  label: Text('25 / 5'),
+                                ),
+                                ButtonSegment(
+                                  value: FocusMode.pomodoro50,
+                                  label: Text('50 / 10'),
+                                ),
+                                ButtonSegment(
+                                  value: FocusMode.custom,
+                                  label: Text('协议时长'),
+                                  icon: Icon(Icons.link),
+                                ),
+                              ],
+                              selected: {
+                                service.running ? service.mode : selectedMode,
+                              },
+                              onSelectionChanged: service.running
+                                  ? null
+                                  : (value) => setState(
+                                      () => selectedMode = value.first,
+                                    ),
+                            ),
                           ),
                           const SizedBox(height: 44),
                           Stack(
@@ -781,71 +860,60 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                                 const PulseRing(
                                   duration: Duration(milliseconds: 900),
                                 ),
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: scheme.surface.withValues(alpha: 0.42),
-                                  border: Border.symmetric(
-                                    horizontal: BorderSide(
-                                      color: context.tokens.divider,
-                                    ),
-                                  ),
+                              GlassSurface(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
                                 ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 12,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            width: 5,
-                                            height: 5,
-                                            decoration: BoxDecoration(
-                                              color: context.tokens.gold,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            service.running ? '灵息流转' : '待入静',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelMedium
-                                                ?.copyWith(
-                                                  color:
-                                                      context.tokens.mutedText,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      SizedBox(
-                                        height: 128,
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            formatDuration(
-                                              service.displayDuration,
-                                            ),
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .displaySmall
-                                                ?.copyWith(
-                                                  fontSize: 84,
-                                                  fontWeight: FontWeight.w700,
-                                                  fontFeatures: const [
-                                                    FontFeature.tabularFigures(),
-                                                  ],
-                                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 5,
+                                          height: 5,
+                                          decoration: BoxDecoration(
+                                            color: context.tokens.gold,
+                                            shape: BoxShape.circle,
                                           ),
                                         ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          service.running ? '灵息流转' : '待入静',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelMedium
+                                              ?.copyWith(
+                                                color: context.tokens.mutedText,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      height: 128,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          formatDuration(
+                                            service.displayDuration,
+                                          ),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .displaySmall
+                                              ?.copyWith(
+                                                fontSize: 84,
+                                                fontWeight: FontWeight.w700,
+                                                fontFeatures: const [
+                                                  FontFeature.tabularFigures(),
+                                                ],
+                                              ),
+                                        ),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],

@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 
 abstract final class AppColors {
   // ═══ 浅色 · 清新绿意工作台 ═══
-  static const lightCanvas = Color(0xFFF6F8F6); // 清爽灰白页面底色（微绿调）
+  static const lightCanvas = Color(0xFFEDF5EF); // 清爽灰白页面底色（微绿调，玻璃衬底更饱满）
   static const lightSurface = Color(0xFFFFFFFF); // 面板背景
   static const lightRaised = Color(0xFFFFFFFF); // 浮层背景
   static const lightInk = Color(0xFF1A1F1C); // 主文字
@@ -25,7 +25,7 @@ abstract final class AppColors {
   static const lightGold = Color(0xFFF59E0B); // 琥珀金
 
   // ═══ 深色 · 深墨绿夜色 ═══
-  static const darkCanvas = Color(0xFF0E1311); // 深墨绿石墨底色
+  static const darkCanvas = Color(0xFF071612); // 深墨绿石墨底色（玻璃衬底更饱满）
   static const darkSurface = Color(0xFF151C19); // 墨绿面板
   static const darkRaised = Color(0xFF1C2420); // 墨绿浮层
   static const darkInk = Color(0xFFF1F5F9); // 亮白文字
@@ -80,6 +80,11 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     required this.sealColor,
     required this.washColor,
     required this.gold,
+    required this.glassPanel,
+    required this.glassBorder,
+    required this.glassHighlight,
+    required this.glassGlow,
+    required this.glassBlur,
   });
 
   final Color canvas;
@@ -95,6 +100,11 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
   final Color sealColor; // 主品牌强调色
   final Color washColor; // 背景晕染色
   final Color gold; // 点缀金色
+  final Color glassPanel; // 玻璃面板填充
+  final Color glassBorder; // 玻璃微光边框
+  final Color glassHighlight; // 玻璃顶部高光
+  final Color glassGlow; // 玻璃外发光阴影
+  final double glassBlur; // 背景模糊半径 sigma
 
   @override
   WorkbenchTokens copyWith({
@@ -111,6 +121,11 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     Color? sealColor,
     Color? washColor,
     Color? gold,
+    Color? glassPanel,
+    Color? glassBorder,
+    Color? glassHighlight,
+    Color? glassGlow,
+    double? glassBlur,
   }) {
     return WorkbenchTokens(
       canvas: canvas ?? this.canvas,
@@ -126,6 +141,11 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       sealColor: sealColor ?? this.sealColor,
       washColor: washColor ?? this.washColor,
       gold: gold ?? this.gold,
+      glassPanel: glassPanel ?? this.glassPanel,
+      glassBorder: glassBorder ?? this.glassBorder,
+      glassHighlight: glassHighlight ?? this.glassHighlight,
+      glassGlow: glassGlow ?? this.glassGlow,
+      glassBlur: glassBlur ?? this.glassBlur,
     );
   }
 
@@ -146,6 +166,11 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       sealColor: Color.lerp(sealColor, other.sealColor, t)!,
       washColor: Color.lerp(washColor, other.washColor, t)!,
       gold: Color.lerp(gold, other.gold, t)!,
+      glassPanel: Color.lerp(glassPanel, other.glassPanel, t)!,
+      glassBorder: Color.lerp(glassBorder, other.glassBorder, t)!,
+      glassHighlight: Color.lerp(glassHighlight, other.glassHighlight, t)!,
+      glassGlow: Color.lerp(glassGlow, other.glassGlow, t)!,
+      glassBlur: glassBlur + (other.glassBlur - glassBlur) * t,
     );
   }
 }
@@ -196,6 +221,11 @@ abstract final class AppTheme {
       sealColor: Color(0xFF059669), // 翠绿品牌色
       washColor: Color(0x08059669), // 翠绿晕染 3%
       gold: AppColors.lightGold,
+      glassPanel: Color(0x8CFFFFFF), // 白 55% 玻璃填充
+      glassBorder: Color(0x26059669), // 翠绿 15% 微光边框
+      glassHighlight: Color(0xB3FFFFFF), // 白 70% 顶部高光
+      glassGlow: Color(0x1A059669), // 翠绿 10% 外发光
+      glassBlur: 10.0, // 模糊半径 sigma
     ),
     scheme: const ColorScheme(
       brightness: Brightness.light,
@@ -246,6 +276,11 @@ abstract final class AppTheme {
       sealColor: Color(0xFF34D399), // 亮翠绿品牌色
       washColor: Color(0x0A34D399), // 亮翠绿晕染 4%
       gold: AppColors.darkGold,
+      glassPanel: Color(0x14FFFFFF), // 白 8% 玻璃填充
+      glassBorder: Color(0x2E34D399), // 翠绿 18% 微光边框
+      glassHighlight: Color(0x33FFFFFF), // 白 20% 顶部高光
+      glassGlow: Color(0x3334D399), // 翠绿 20% 外发光
+      glassBlur: 12.0, // 模糊半径 sigma
     ),
     scheme: const ColorScheme(
       brightness: Brightness.dark,
@@ -274,7 +309,7 @@ abstract final class AppTheme {
       shadow: Colors.black,
       scrim: Colors.black,
       inverseSurface: Color(0xFFF1F5F9),
-      onInverseSurface: Color(0xFF0E1311),
+      onInverseSurface: AppColors.darkCanvas,
       inversePrimary: Color(0xFF059669),
     ),
   );
@@ -416,12 +451,14 @@ abstract final class AppTheme {
       ),
 
       // ─── Dialog ───
+      // 半透明面板配合 showWorkbenchDialog 的模态背景模糊形成玻璃效果。
       dialogTheme: DialogThemeData(
         elevation: 0,
-        backgroundColor: tokens.raised,
+        backgroundColor: tokens.glassPanel,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: tokens.divider),
+          side: BorderSide(color: tokens.glassBorder),
         ),
       ),
 
@@ -542,7 +579,8 @@ abstract final class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         height: 68,
         elevation: 0,
-        backgroundColor: tokens.panel.withValues(alpha: 0.95),
+        backgroundColor: tokens.glassPanel,
+        surfaceTintColor: Colors.transparent,
         indicatorColor: scheme.primaryContainer,
         indicatorShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),

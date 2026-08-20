@@ -10,6 +10,7 @@ import 'package:personal_workbench/services/search_service.dart';
 import 'package:personal_workbench/services/share_capture_service.dart';
 import 'package:personal_workbench/services/supabase_sync_service.dart';
 import 'package:personal_workbench/state/workbench_controller.dart';
+import 'package:personal_workbench/ui/pages/focus_page.dart';
 import 'package:personal_workbench/ui/pages/restriction_page.dart';
 
 class _MemoryDatabase extends AppDatabase {
@@ -41,31 +42,58 @@ Widget _host(Widget child) => MaterialApp(
 );
 
 void main() {
-  testWidgets('restriction page renders compact guidance', (tester) async {
+  testWidgets('restriction section renders compact guidance', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final controller = _controller();
     addTearDown(controller.dispose);
-    await tester.pumpWidget(_host(RestrictionPage(controller: controller, showHeader: false)));
+    await tester.pumpWidget(_host(RestrictionSection(controller: controller)));
     await tester.pump();
     expect(find.text('尚未创建自律规则'), findsOneWidget);
     expect(find.text('当前状态'), findsOneWidget);
   });
 
-  testWidgets('restriction page renders wide status and editor entry', (tester) async {
+  testWidgets('focus hub merges restriction tab with header actions', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final controller = _controller();
     addTearDown(controller.dispose);
-    await tester.pumpWidget(_host(RestrictionPage(controller: controller)));
+    await tester.pumpWidget(_host(FocusHubPage(controller: controller)));
     await tester.pump();
-    expect(find.text('自律'), findsOneWidget);
+    expect(find.text('专注'), findsWidgets); // PageHeader 标题 + Tab
     expect(find.text('导入 SelfControl'), findsOneWidget);
+    // Tab 2 惰性构建：未选中时不渲染自律内容
+    expect(find.text('保护设置'), findsNothing);
+    await tester.tap(find.text('自律'));
+    await tester.pumpAndSettle();
     expect(find.text('保护设置'), findsOneWidget);
+    expect(find.text('当前状态'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('compact focus hub keeps restriction creation actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _controller();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _host(FocusHubPage(controller: controller, showHeader: false)),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('新建专注预设'), findsOneWidget);
+    expect(find.byTooltip('编辑自律规则'), findsOneWidget);
+    expect(find.byTooltip('导入 SelfControl'), findsOneWidget);
   });
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -15,11 +16,11 @@ import 'pages/policies_page.dart';
 import 'pages/projects_page.dart';
 import 'pages/protocols_page.dart';
 import 'pages/review_page.dart';
-import 'pages/restriction_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/today_page.dart';
 import 'widgets/global_search_dialog.dart';
 import 'widgets/common.dart';
+import 'widgets/glass.dart';
 import 'widgets/ink_decoration.dart';
 import 'widgets/quick_capture_sheet.dart';
 
@@ -28,7 +29,6 @@ enum WorkbenchSection {
   tasks,
   projects,
   focus,
-  restrictions,
   notes,
   review,
   policies,
@@ -204,7 +204,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       WorkbenchSection.today => '今日',
       WorkbenchSection.plan => '计划',
       WorkbenchSection.focus => '专注',
-      WorkbenchSection.restrictions => '自律',
       WorkbenchSection.notes => '笔记',
       WorkbenchSection.protocols =>
         widget.controller.advancedFeaturesEnabled ? '协议' : '目标与习惯',
@@ -277,14 +276,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                   ),
                 ),
                 PopupMenuItem(
-                  value: WorkbenchSection.restrictions,
-                  child: ListTile(
-                    leading: const Icon(Icons.shield_outlined),
-                    title: const Text('自律'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                PopupMenuItem(
                   value: WorkbenchSection.notes,
                   child: ListTile(
                     leading: const Icon(Icons.note_alt_outlined),
@@ -295,17 +286,39 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               ],
             ),
           ],
-          flexibleSpace: DecoratedBox(
-            decoration: BoxDecoration(
-              color: tokens.canvas,
-              border: Border(
-                top: BorderSide(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
+          flexibleSpace: GlassConfig.blurEnabled
+              ? ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: tokens.glassBlur,
+                      sigmaY: tokens.glassBlur,
+                    ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: tokens.glassPanel,
+                        border: Border(
+                          top: BorderSide(
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.08),
+                          ),
+                          bottom: BorderSide(color: tokens.divider),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: tokens.panel.withValues(alpha: 0.96),
+                    border: Border(
+                      top: BorderSide(
+                        color: theme.colorScheme.primary
+                            .withValues(alpha: 0.08),
+                      ),
+                      bottom: BorderSide(color: tokens.divider),
+                    ),
+                  ),
                 ),
-                bottom: BorderSide(color: tokens.divider),
-              ),
-            ),
-          ),
         ),
         body: SafeArea(
           top: false,
@@ -326,7 +339,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               height: 26,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: tokens.panel,
+                color: tokens.glassPanel,
                 border: Border(top: BorderSide(color: tokens.divider)),
               ),
               child: Stack(
@@ -450,10 +463,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
     ),
     WorkbenchSection.focus => FocusHubPage(
-      controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
-    WorkbenchSection.restrictions => RestrictionPage(
       controller: widget.controller,
       showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
     ),
@@ -595,14 +604,15 @@ class _DesktopNavigation extends StatelessWidget {
     final expanded =
         MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
     return WorkbenchBackdrop(
-      child: ColoredBox(
-        color: context.tokens.panel.withValues(alpha: 0.96),
+      child: GlassSurface(
+        radius: 0,
+        glow: false,
         child: SafeArea(
           child: Column(
             children: [
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: context.tokens.panel.withValues(alpha: 0.96),
+                  color: context.tokens.glassHighlight.withValues(alpha: 0.28),
                   border: Border(
                     bottom: BorderSide(color: context.tokens.divider),
                   ),
@@ -760,12 +770,6 @@ class _DesktopNavigation extends StatelessWidget {
                         WorkbenchSection.focus,
                         '专注',
                         Icons.timer_outlined,
-                      ),
-                      _item(
-                        context,
-                        WorkbenchSection.restrictions,
-                        '自律',
-                        Icons.shield_outlined,
                       ),
                       _item(
                         context,
