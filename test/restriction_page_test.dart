@@ -55,7 +55,7 @@ void main() {
     expect(find.text('当前状态'), findsOneWidget);
   });
 
-  testWidgets('focus hub merges restriction tab with header actions', (
+  testWidgets('focus hub keeps focus and legacy restriction tabs', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -67,7 +67,7 @@ void main() {
     await tester.pumpWidget(_host(FocusHubPage(controller: controller)));
     await tester.pump();
     expect(find.text('专注'), findsWidgets); // PageHeader 标题 + Tab
-    expect(find.text('导入 SelfControl'), findsOneWidget);
+    expect(find.text('导入 SelfControl'), findsNothing);
     // Tab 2 惰性构建：未选中时不渲染自律内容
     expect(find.text('保护设置'), findsNothing);
     await tester.tap(find.text('自律'));
@@ -94,6 +94,6 @@ void main() {
 
     expect(find.byTooltip('新建专注预设'), findsOneWidget);
     expect(find.byTooltip('编辑自律规则'), findsOneWidget);
-    expect(find.byTooltip('导入 SelfControl'), findsOneWidget);
+    expect(find.byTooltip('导入 SelfControl'), findsNothing);
   });
 }

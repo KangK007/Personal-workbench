@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/models/restriction_models.dart';
@@ -30,8 +29,7 @@ class RestrictionSection extends StatelessWidget {
       children: [
         if (controller.restrictionExitRequested)
           _ExitRequestBanner(controller: controller),
-        if (!windows)
-          const _PlatformNotice(),
+        if (!windows) const _PlatformNotice(),
         _buildOverview(context, profile, monitor),
         const SectionHeading(title: '规则'),
         _buildProfileCard(context, profile),
@@ -39,8 +37,8 @@ class RestrictionSection extends StatelessWidget {
         _buildSecurityCard(context, monitor, profile),
         const SectionHeading(title: '日志与统计'),
         _buildEvents(context),
-        const SectionHeading(title: '诊断与恢复'),
-        _buildDiagnostics(context, profile),
+        const SectionHeading(title: '保护状态'),
+        _buildProtectionSummary(context, profile),
       ],
     );
   }
@@ -52,13 +50,13 @@ class RestrictionSection extends StatelessWidget {
   ) {
     final status = monitor.active
         ? monitor.isPaused(controller.currentTime())
-            ? '临时休息'
-            : '限制中'
+              ? '临时休息'
+              : '限制中'
         : profile?.enabled == true
-            ? '等待时段'
-            : '未启用';
-    final statusColor = monitor.active &&
-            !monitor.isPaused(controller.currentTime())
+        ? '等待时段'
+        : '未启用';
+    final statusColor =
+        monitor.active && !monitor.isPaused(controller.currentTime())
         ? Theme.of(context).colorScheme.error
         : Theme.of(context).colorScheme.primary;
     final next = profile == null
@@ -193,13 +191,12 @@ class RestrictionSection extends StatelessWidget {
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             value: security.hasPassword,
-            onChanged: (value) =>
-                value ? _setPassword(context, controller) : _clearPassword(context, controller),
+            onChanged: (value) => value
+                ? _setPassword(context, controller)
+                : _clearPassword(context, controller),
             title: const Text('保护密码'),
             subtitle: Text(
-              security.hasPassword
-                  ? '敏感修改需要密码并进入 5 分钟冷静期'
-                  : '未设置本机保护密码',
+              security.hasPassword ? '敏感修改需要密码并进入 5 分钟冷静期' : '未设置本机保护密码',
             ),
             secondary: const Icon(Icons.lock_outline),
           ),
@@ -234,30 +231,12 @@ class RestrictionSection extends StatelessWidget {
             title: const Text('敏感操作冷静期'),
             subtitle: const Text('固定为 5 分钟；一次性紧急恢复码可立即执行'),
           ),
-          if (Platform.isWindows)
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              value: controller.startupEnabled,
-              onChanged: controller.setStartupEnabled,
-              title: const Text('开机启动'),
-              secondary: const Icon(Icons.power_outlined),
-            ),
-          if (Platform.isWindows)
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              value: controller.closeToTray,
-              onChanged: controller.setCloseToTray,
-              title: const Text('关闭窗口时进入托盘'),
-              secondary: const Icon(Icons.minimize_outlined),
-            ),
           if (monitor.active && monitor.activeSnapshot?.allowBreak == true)
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.free_breakfast_outlined),
               title: Text(
-                monitor.isPaused(controller.currentTime())
-                    ? '临时休息中'
-                    : '临时休息',
+                monitor.isPaused(controller.currentTime()) ? '临时休息中' : '临时休息',
               ),
               subtitle: Text(
                 monitor.activeSnapshot!.maxBreaksPerDay == 0
@@ -304,7 +283,7 @@ class RestrictionSection extends StatelessWidget {
     return _RestrictionEvents(events: controller.restrictionEvents);
   }
 
-  Widget _buildDiagnostics(
+  Widget _buildProtectionSummary(
     BuildContext context,
     RestrictionProfile? profile,
   ) {
@@ -315,78 +294,58 @@ class RestrictionSection extends StatelessWidget {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(
-              hosts.administrator
-                  ? Icons.admin_panel_settings_outlined
-                  : Icons.person_outline,
+              profile?.strongProtection == true
+                  ? Icons.gpp_good_outlined
+                  : Icons.gpp_maybe_outlined,
             ),
-            title: const Text('管理员权限'),
+            title: const Text('强保护'),
+            subtitle: Text(profile?.strongProtection == true ? '已启用' : '未启用'),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.power_outlined),
+            title: const Text('Windows 后台行为'),
             subtitle: Text(
-              hosts.supported
-                  ? (hosts.administrator
-                      ? '已具备'
-                      : '未具备，写入 hosts 时可能需要 UAC')
-                  : '当前平台不支持 Windows 原生限制',
+              '开机启动：${controller.startupEnabled ? '已开启' : '未开启'} · '
+              '关闭窗口进托盘：${controller.closeToTray ? '已开启' : '未开启'}',
             ),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(
-              hosts.active ? Icons.check_circle_outline : Icons.cloud_off_outlined,
+              hosts.active
+                  ? Icons.check_circle_outline
+                  : Icons.cloud_off_outlined,
             ),
-            title: const Text('hosts 健康状态'),
+            title: const Text('hosts 与系统诊断'),
             subtitle: Text(
               hosts.error.isNotEmpty
                   ? hosts.error
-                  : hosts.externallyModified
-                      ? '检测到受管区块缺失或被外部修改'
-                      : hosts.active
-                          ? '受管区块完整'
-                          : '未发现活动受管区块',
+                  : hosts.active
+                  ? 'hosts 受管区块完整'
+                  : hosts.supported
+                  ? '当前未启用 hosts 拦截'
+                  : 'Android 不执行 Windows hosts 限制',
             ),
-            trailing: Wrap(
-              spacing: 4,
-              children: [
-                IconButton(
-                  onPressed: controller.refreshRestrictionHostsStatus,
-                  tooltip: '重新检查',
-                  icon: const Icon(Icons.refresh),
-                ),
-                if (profile?.websiteBlocking == true)
-                  IconButton(
-                    onPressed: controller.repairRestrictionHosts,
-                    tooltip: '修复 hosts',
-                    icon: const Icon(Icons.build_outlined),
-                  ),
-                if (hosts.active)
-                  IconButton(
-                    onPressed: controller.clearRestrictionHosts,
-                    tooltip: '清理 hosts',
-                    icon: const Icon(Icons.cleaning_services_outlined),
-                  ),
-              ],
-            ),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.power_settings_new_outlined),
-            title: const Text('异常退出恢复'),
-            subtitle: Text(
-              controller.restrictionRecoveredAfterAbnormalExit
-                  ? '检测到上次异常退出，活动限制已恢复'
-                  : '未发现异常退出',
+            trailing: TextButton(
+              onPressed: () => _showSettingsHint(context),
+              child: const Text('前往设置'),
             ),
           ),
         ],
       ),
     );
   }
+
+  void _showSettingsHint(BuildContext context) {
+    showWorkbenchSnackBar(
+      context,
+      const SnackBar(content: Text('请在主设置的“系统行为”和“诊断与恢复”中管理。')),
+    );
+  }
 }
 
-/// 旧版独立自律页。
-///
-/// @Deprecated：已并入「专注」页（FocusHubPage 的「自律」Tab），
-/// 保留此类仅用于兼容既有测试与过渡期深链。
-@Deprecated('已并入专注页（FocusHubPage 的「自律」Tab），请使用 RestrictionSection')
+/// 独立自律页；FocusHub 中的旧自律标签仍复用 [RestrictionSection]。
 class RestrictionPage extends StatelessWidget {
   const RestrictionPage({
     super.key,
@@ -410,13 +369,9 @@ class RestrictionPage extends StatelessWidget {
                 ? 'Windows 正在执行规则，Android 仅管理同步配置'
                 : '规则可编辑并同步；限制仅在 Windows 执行',
             actions: [
-              OutlinedButton.icon(
-                onPressed: () => showRestrictionImportDialog(context, controller),
-                icon: const Icon(Icons.file_upload_outlined),
-                label: const Text('导入 SelfControl'),
-              ),
               FilledButton.icon(
-                onPressed: () => showRestrictionProfileEditor(context, controller),
+                onPressed: () =>
+                    showRestrictionProfileEditor(context, controller),
                 icon: const Icon(Icons.edit_outlined),
                 label: Text(profile == null ? '新建规则' : '编辑规则'),
               ),
@@ -426,7 +381,8 @@ class RestrictionPage extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: IconButton(
-              onPressed: () => showRestrictionProfileEditor(context, controller),
+              onPressed: () =>
+                  showRestrictionProfileEditor(context, controller),
               tooltip: '编辑自律规则',
               icon: const Icon(Icons.edit_outlined),
             ),
@@ -434,68 +390,6 @@ class RestrictionPage extends StatelessWidget {
         Expanded(child: RestrictionSection(controller: controller)),
       ],
     );
-  }
-}
-
-/// 导入 SelfControl 数据（合并页「自律」头部动作）。
-Future<void> showRestrictionImportDialog(
-  BuildContext context,
-  WorkbenchController controller,
-) async {
-  final directory = await FilePicker.getDirectoryPath(
-    dialogTitle: '选择 SelfControl 来源目录',
-  );
-  if (directory == null || !context.mounted) return;
-  try {
-    final preview = await controller.previewSelfControlImport(directory);
-    if (!context.mounted) return;
-    final choice = await showWorkbenchDialog<int>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('导入预览'),
-        content: SingleChildScrollView(
-          child: Text(
-            '规则：${preview.profile.schedules.length} 个时段\n结构化事件：${preview.eventCount}\n习惯：${preview.habitCount}，打卡：${preview.habitLogCount}\n专注记录：${preview.focusSessionCount}\n文本日志：${preview.blockLog == null ? '无' : '作为只读附件保存'}\n\n导入会先创建当前数据库备份，规则默认不启用。',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, 0),
-            child: const Text('取消'),
-          ),
-          OutlinedButton(
-            onPressed: () => Navigator.pop(context, 1),
-            child: const Text('导入但不启用'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, 2),
-            child: const Text('导入并启用'),
-          ),
-        ],
-      ),
-    );
-    if (choice == null || choice == 0) return;
-    final enable = choice == 2;
-    final backup = await controller.importSelfControl(
-      preview,
-      enableProfile: enable,
-    );
-    if (context.mounted) {
-      showWorkbenchSnackBar(
-        context,
-        SnackBar(
-          content: Text(
-            enable
-                ? '导入完成并已启用，备份已保存：${backup.path}'
-                : '导入完成，备份已保存：${backup.path}；规则保持停用。',
-          ),
-        ),
-      );
-    }
-  } catch (error) {
-    if (context.mounted) {
-      showWorkbenchSnackBar(context, SnackBar(content: Text('导入失败：$error')));
-    }
   }
 }
 
@@ -817,7 +711,8 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
                           );
                           if (edited != null) {
                             setState(
-                              () => _schedules[_schedules.indexOf(rule)] = edited,
+                              () =>
+                                  _schedules[_schedules.indexOf(rule)] = edited,
                             );
                           }
                         },
@@ -882,7 +777,8 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
                       child: Text('强制结束进程'),
                     ),
                   ],
-                  onChanged: (v) => setState(() => _titleAction = v ?? _titleAction),
+                  onChanged: (v) =>
+                      setState(() => _titleAction = v ?? _titleAction),
                 ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -936,9 +832,7 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
                 initialValue: _poll,
                 decoration: const InputDecoration(labelText: '检测间隔'),
                 items: [1, 3, 5, 10, 30, 60]
-                    .map(
-                      (v) => DropdownMenuItem(value: v, child: Text('$v 秒')),
-                    )
+                    .map((v) => DropdownMenuItem(value: v, child: Text('$v 秒')))
                     .toList(),
                 onChanged: (v) => setState(() => _poll = v ?? _poll),
               ),
@@ -1122,9 +1016,7 @@ class _PlatformNotice extends StatelessWidget {
         children: [
           Icon(Icons.info_outline),
           SizedBox(width: 10),
-          Expanded(
-            child: Text('Android 可以查看、编辑和同步规则，实际拦截仅在 Windows 端生效。'),
-          ),
+          Expanded(child: Text('Android 可以查看、编辑和同步规则，实际拦截仅在 Windows 端生效。')),
         ],
       ),
     ),
@@ -1144,11 +1036,7 @@ class _ExitRequestBanner extends StatelessWidget {
         children: [
           const Icon(Icons.lock_clock_outlined),
           const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              '应用关闭请求已拦截。强保护期间需要密码并进入冷静期，紧急恢复码可立即退出。',
-            ),
-          ),
+          const Expanded(child: Text('应用关闭请求已拦截。强保护期间需要密码并进入冷静期，紧急恢复码可立即退出。')),
           TextButton(
             onPressed: () async {
               final credential = await _askInlineCredential(context);
@@ -1167,7 +1055,10 @@ class _ExitRequestBanner extends StatelessWidget {
                 }
               } catch (error) {
                 if (context.mounted) {
-                  showWorkbenchSnackBar(context, SnackBar(content: Text('$error')));
+                  showWorkbenchSnackBar(
+                    context,
+                    SnackBar(content: Text('$error')),
+                  );
                 }
               }
             },
@@ -1261,12 +1152,13 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
 
   @override
   Widget build(BuildContext context) {
-    final reasons = widget.events
-        .map((event) => event.data['reason']?.toString() ?? '')
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final reasons =
+        widget.events
+            .map((event) => event.data['reason']?.toString() ?? '')
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     final events = widget.events.where(_matches).take(50).toList();
     return LogSurface(
       child: Column(
@@ -1297,7 +1189,8 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
                     DropdownMenuItem(value: 'today', child: Text('今天')),
                     DropdownMenuItem(value: 'week', child: Text('近 7 天')),
                   ],
-                  onChanged: (value) => setState(() => _period = value ?? 'all'),
+                  onChanged: (value) =>
+                      setState(() => _period = value ?? 'all'),
                 ),
               ),
               SizedBox(
@@ -1319,7 +1212,8 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
                       ),
                     ),
                   ],
-                  onChanged: (value) => setState(() => _reason = value ?? 'all'),
+                  onChanged: (value) =>
+                      setState(() => _reason = value ?? 'all'),
                 ),
               ),
               SizedBox(
@@ -1333,7 +1227,8 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
                     DropdownMenuItem(value: 'warn', child: Text('提醒')),
                     DropdownMenuItem(value: 'forceClose', child: Text('强制结束')),
                   ],
-                  onChanged: (value) => setState(() => _action = value ?? 'all'),
+                  onChanged: (value) =>
+                      setState(() => _action = value ?? 'all'),
                 ),
               ),
             ],
@@ -1382,7 +1277,8 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
         (at.year != now.year || at.month != now.month || at.day != now.day)) {
       return false;
     }
-    if (_period == 'week' && at.isBefore(now.subtract(const Duration(days: 7)))) {
+    if (_period == 'week' &&
+        at.isBefore(now.subtract(const Duration(days: 7)))) {
       return false;
     }
     return true;
@@ -1402,8 +1298,8 @@ int? _parseMinutes(String value) {
   final minute = int.parse(match.group(2)!);
   return hour <= 23 && minute <= 59 ? hour * 60 + minute : null;
 }
+
 String _dayLabel(int day) =>
-    const {1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '日'}[day] ??
-    '?';
+    const {1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '日'}[day] ?? '?';
 String _dateTime(DateTime value) =>
     '${value.month}/${value.day} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';

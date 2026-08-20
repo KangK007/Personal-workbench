@@ -216,6 +216,68 @@ class SettingsPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               _Section(
+                title: '诊断与恢复',
+                children: [
+                  ListTile(
+                    leading: const _SettingsIcon(
+                      Icons.admin_panel_settings_outlined,
+                    ),
+                    title: const Text('管理员权限'),
+                    subtitle: Text(
+                      controller.restrictionHostsStatus.supported
+                          ? (controller.restrictionHostsStatus.administrator
+                                ? '已具备 Windows 管理员权限'
+                                : '未具备，写入 hosts 时可能需要 UAC')
+                          : '当前平台不支持 Windows 原生限制',
+                    ),
+                  ),
+                  ListTile(
+                    leading: _SettingsIcon(
+                      controller.restrictionHostsStatus.active
+                          ? Icons.check_circle_outline
+                          : Icons.cloud_off_outlined,
+                    ),
+                    title: const Text('hosts 健康状态'),
+                    subtitle: Text(_hostsSummary(controller)),
+                    trailing: Wrap(
+                      spacing: 4,
+                      children: [
+                        IconButton(
+                          tooltip: '重新检查',
+                          onPressed: controller.refreshRestrictionHostsStatus,
+                          icon: const Icon(Icons.refresh),
+                        ),
+                        if (controller.restrictionProfile?.websiteBlocking ==
+                            true)
+                          IconButton(
+                            tooltip: '修复 hosts',
+                            onPressed: controller.repairRestrictionHosts,
+                            icon: const Icon(Icons.build_outlined),
+                          ),
+                        if (controller.restrictionHostsStatus.active)
+                          IconButton(
+                            tooltip: '清理 hosts',
+                            onPressed: controller.clearRestrictionHosts,
+                            icon: const Icon(Icons.cleaning_services_outlined),
+                          ),
+                      ],
+                    ),
+                  ),
+                  ListTile(
+                    leading: const _SettingsIcon(
+                      Icons.power_settings_new_outlined,
+                    ),
+                    title: const Text('异常退出恢复'),
+                    subtitle: Text(
+                      controller.restrictionRecoveredAfterAbnormalExit
+                          ? '检测到上次异常退出，活动限制已恢复'
+                          : '未发现异常退出',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _Section(
                 title: '数据与备份',
                 children: [
                   ListTile(
@@ -316,6 +378,14 @@ class SettingsPage extends StatelessWidget {
     } catch (error) {
       if (context.mounted) _message(context, '通知设置失败：$error');
     }
+  }
+
+  String _hostsSummary(WorkbenchController controller) {
+    final hosts = controller.restrictionHostsStatus;
+    if (hosts.error.isNotEmpty) return hosts.error;
+    if (hosts.externallyModified) return '检测到受管区块缺失或被外部修改';
+    if (hosts.active) return '受管区块完整';
+    return hosts.supported ? '未发现活动受管区块' : 'Android 不执行 Windows hosts 限制';
   }
 
   Future<void> _clearForegroundHistory(BuildContext context) async {

@@ -47,12 +47,6 @@ class FocusHubPage extends StatelessWidget {
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('编辑规则'),
                 ),
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      showRestrictionImportDialog(context, controller),
-                  icon: const Icon(Icons.file_upload_outlined),
-                  label: const Text('导入 SelfControl'),
-                ),
               ] else ...[
                 IconButton(
                   onPressed: () => _showPresetEditor(context, controller),
@@ -64,12 +58,6 @@ class FocusHubPage extends StatelessWidget {
                       showRestrictionProfileEditor(context, controller),
                   tooltip: '编辑自律规则',
                   icon: const Icon(Icons.edit_outlined),
-                ),
-                IconButton(
-                  onPressed: () =>
-                      showRestrictionImportDialog(context, controller),
-                  tooltip: '导入 SelfControl',
-                  icon: const Icon(Icons.file_upload_outlined),
                 ),
               ],
             ],
@@ -92,12 +80,6 @@ class FocusHubPage extends StatelessWidget {
                         showRestrictionProfileEditor(context, controller),
                     tooltip: '编辑自律规则',
                     icon: const Icon(Icons.edit_outlined),
-                  ),
-                  IconButton(
-                    onPressed: () =>
-                        showRestrictionImportDialog(context, controller),
-                    tooltip: '导入 SelfControl',
-                    icon: const Icon(Icons.file_upload_outlined),
                   ),
                 ],
               ),
