@@ -9,11 +9,11 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 import '../core/models/workspace_record.dart';
 import '../core/theme/app_theme.dart';
 import '../state/workbench_controller.dart';
+import 'pages/behavior_page.dart';
 import 'pages/focus_page.dart';
 import 'pages/growth_page.dart';
 import 'pages/goals_page.dart';
 import 'pages/habits_page.dart';
-import 'pages/diary_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/plan_page.dart';
 import 'pages/policies_page.dart';
@@ -53,6 +53,7 @@ enum WorkbenchSection {
   policiesAnalytics,
   goals,
   habits,
+  behavior,
   growth,
   settings,
 
@@ -111,11 +112,13 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     WorkbenchSection.today,
     WorkbenchSection.tasksAll,
     WorkbenchSection.reviewDaily,
-    WorkbenchSection.policiesTree,
+    WorkbenchSection.behavior,
     WorkbenchSection.settings,
   ];
 
   WorkbenchSection section = WorkbenchSection.today;
+  BehaviorMode behaviorMode = BehaviorMode.habits;
+  PolicyTab behaviorPolicyTab = PolicyTab.tree;
   ProtocolTab protocolTab = ProtocolTab.goals;
   String? selectedProjectId;
   HotKey? captureHotKey;
@@ -125,12 +128,14 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   final Map<WorkbenchSection, WorkbenchSection> _lastMobileChild = {
     WorkbenchSection.tasksAll: WorkbenchSection.tasksAll,
     WorkbenchSection.reviewDaily: WorkbenchSection.reviewDaily,
-    WorkbenchSection.policiesTree: WorkbenchSection.policiesTree,
   };
 
   @override
   void initState() {
     super.initState();
+    behaviorMode = widget.controller.behaviorMode == 'policies'
+        ? BehaviorMode.policies
+        : BehaviorMode.habits;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.enableSystemHotkey &&
           Platform.isWindows &&
@@ -257,7 +262,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       return WorkbenchSection.reviewDaily;
     }
     if (_policySections.contains(value)) {
-      return WorkbenchSection.policiesTree;
+      return WorkbenchSection.behavior;
     }
     if (_mobilePrimarySections.contains(value)) {
       return value;
@@ -285,16 +290,17 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       WorkbenchSection.focus => '专注',
       WorkbenchSection.restriction => '自律',
       WorkbenchSection.notes => '笔记',
-      WorkbenchSection.diary => '日记',
+      WorkbenchSection.diary => '回顾 · 日回顾',
       WorkbenchSection.reviewDaily => '回顾 · 日回顾',
       WorkbenchSection.reviewWeekly => '回顾 · 周回顾',
       WorkbenchSection.reviewMonthly => '回顾 · 月回顾',
-      WorkbenchSection.policiesTree => '国策 · 国策树',
-      WorkbenchSection.policiesLibrary => '国策 · 国策库',
-      WorkbenchSection.policiesHistory => '国策 · 轮次历史',
-      WorkbenchSection.policiesAnalytics => '国策 · 高级分析',
-      WorkbenchSection.goals => '目标与习惯 · 目标',
-      WorkbenchSection.habits => '目标与习惯 · 习惯',
+      WorkbenchSection.policiesTree => '行为 · 国策树',
+      WorkbenchSection.policiesLibrary => '行为 · 国策库',
+      WorkbenchSection.policiesHistory => '行为 · 轮次历史',
+      WorkbenchSection.policiesAnalytics => '行为 · 高级分析',
+      WorkbenchSection.goals => '目标',
+      WorkbenchSection.habits => '行为 · 习惯追踪',
+      WorkbenchSection.behavior => '行为',
       WorkbenchSection.growth => '成长',
       WorkbenchSection.settings => '设置',
       _ => '个人工作台',
@@ -469,9 +475,9 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                   label: '回顾',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.account_tree_outlined),
-                  selectedIcon: Icon(Icons.account_tree),
-                  label: '国策',
+                  icon: Icon(Icons.psychology_outlined),
+                  selectedIcon: Icon(Icons.psychology),
+                  label: '行为',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.settings_outlined),
@@ -522,6 +528,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         onProjectSelected: (id) {
           if (selectedProjectId != id) setState(() => selectedProjectId = id);
         },
+        onOpenGoals: () => _select(WorkbenchSection.goals),
       );
 
   Widget _reviewPage(WorkbenchSection value, ReviewTab tab) => ReviewPage(
@@ -585,10 +592,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       controller: widget.controller,
       showHeader: _showPageHeader,
     ),
-    WorkbenchSection.diary => DiaryPage(
-      controller: widget.controller,
-      showHeader: _showPageHeader,
-    ),
+    WorkbenchSection.diary => _reviewPage(value, ReviewTab.diary),
     WorkbenchSection.reviewDaily => _reviewPage(value, ReviewTab.diary),
     WorkbenchSection.reviewWeekly => _reviewPage(value, ReviewTab.weekly),
     WorkbenchSection.reviewMonthly => _reviewPage(value, ReviewTab.monthly),
@@ -606,6 +610,13 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     WorkbenchSection.habits => HabitsPage(
       controller: widget.controller,
       showHeader: _showPageHeader,
+    ),
+    WorkbenchSection.behavior => BehaviorPage(
+      controller: widget.controller,
+      showHeader: _showPageHeader,
+      initialMode: behaviorMode,
+      initialPolicyTab: behaviorPolicyTab,
+      onModeChanged: (value) => behaviorMode = value,
     ),
     WorkbenchSection.growth => GrowthPage(
       controller: widget.controller,
@@ -627,6 +638,23 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   };
 
   void _select(WorkbenchSection value) {
+    final requestedBehaviorMode = switch (value) {
+      WorkbenchSection.habits => BehaviorMode.habits,
+      WorkbenchSection.policies ||
+      WorkbenchSection.policiesTree ||
+      WorkbenchSection.policiesLibrary ||
+      WorkbenchSection.policiesHistory ||
+      WorkbenchSection.policiesAnalytics => BehaviorMode.policies,
+      _ => null,
+    };
+    final requestedPolicyTab = switch (value) {
+      WorkbenchSection.policiesLibrary => PolicyTab.library,
+      WorkbenchSection.policiesHistory => PolicyTab.history,
+      WorkbenchSection.policiesAnalytics => PolicyTab.analytics,
+      WorkbenchSection.policies ||
+      WorkbenchSection.policiesTree => PolicyTab.tree,
+      _ => null,
+    };
     value = switch (value) {
       WorkbenchSection.tasks || WorkbenchSection.plan =>
         _lastMobileChild[WorkbenchSection.tasksAll] ??
@@ -637,9 +665,13 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       WorkbenchSection.review =>
         _lastMobileChild[WorkbenchSection.reviewDaily] ??
             WorkbenchSection.reviewDaily,
-      WorkbenchSection.policies =>
-        _lastMobileChild[WorkbenchSection.policiesTree] ??
-            WorkbenchSection.policiesTree,
+      WorkbenchSection.diary => WorkbenchSection.reviewDaily,
+      WorkbenchSection.habits ||
+      WorkbenchSection.policies ||
+      WorkbenchSection.policiesTree ||
+      WorkbenchSection.policiesLibrary ||
+      WorkbenchSection.policiesHistory ||
+      WorkbenchSection.policiesAnalytics => WorkbenchSection.behavior,
       WorkbenchSection.protocols => WorkbenchSection.goals,
       _ => value,
     };
@@ -649,6 +681,11 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     }
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     setState(() {
+      if (requestedBehaviorMode != null) {
+        behaviorMode = requestedBehaviorMode;
+        widget.controller.setBehaviorMode(requestedBehaviorMode.name);
+      }
+      if (requestedPolicyTab != null) behaviorPolicyTab = requestedPolicyTab;
       if (compact && value != section) {
         if (_mobileHistory.isEmpty || _mobileHistory.last != section) {
           _mobileHistory.add(section);
@@ -657,9 +694,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       final primary = _mobilePrimaryFor(value);
       if (primary != null) {
         _lastMobilePrimary = primary;
-        if (_taskSections.contains(value) ||
-            _reviewSections.contains(value) ||
-            _policySections.contains(value)) {
+        if (_taskSections.contains(value) || _reviewSections.contains(value)) {
           _lastMobileChild[primary] = value;
         }
       }
@@ -801,7 +836,6 @@ const _navigationTree = [
     Icons.shield_outlined,
   ),
   _NavigationNode.leaf(WorkbenchSection.notes, '笔记', Icons.note_alt_outlined),
-  _NavigationNode.leaf(WorkbenchSection.diary, '日记', Icons.book_outlined),
   _NavigationNode.parent('review', '回顾', Icons.insights_outlined, [
     _NavigationNode.leaf(
       WorkbenchSection.reviewDaily,
@@ -819,32 +853,12 @@ const _navigationTree = [
       Icons.calendar_month_outlined,
     ),
   ]),
-  _NavigationNode.parent('policies', '国策', Icons.account_tree_outlined, [
-    _NavigationNode.leaf(
-      WorkbenchSection.policiesTree,
-      '国策树',
-      Icons.account_tree_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.policiesLibrary,
-      '国策库',
-      Icons.inventory_2_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.policiesHistory,
-      '轮次历史',
-      Icons.history_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.policiesAnalytics,
-      '高级分析',
-      Icons.analytics_outlined,
-    ),
-  ]),
-  _NavigationNode.parent('goals_habits', '目标与习惯', Icons.flag_outlined, [
-    _NavigationNode.leaf(WorkbenchSection.goals, '目标', Icons.flag_outlined),
-    _NavigationNode.leaf(WorkbenchSection.habits, '习惯', Icons.repeat),
-  ]),
+  _NavigationNode.leaf(WorkbenchSection.goals, '目标', Icons.flag_outlined),
+  _NavigationNode.leaf(
+    WorkbenchSection.behavior,
+    '行为',
+    Icons.psychology_outlined,
+  ),
   _NavigationNode.leaf(
     WorkbenchSection.growth,
     '成长',
@@ -870,11 +884,6 @@ String? _navigationParentId(WorkbenchSection value) => switch (value) {
   WorkbenchSection.reviewDaily ||
   WorkbenchSection.reviewWeekly ||
   WorkbenchSection.reviewMonthly => 'review',
-  WorkbenchSection.policiesTree ||
-  WorkbenchSection.policiesLibrary ||
-  WorkbenchSection.policiesHistory ||
-  WorkbenchSection.policiesAnalytics => 'policies',
-  WorkbenchSection.goals || WorkbenchSection.habits => 'goals_habits',
   _ => null,
 };
 

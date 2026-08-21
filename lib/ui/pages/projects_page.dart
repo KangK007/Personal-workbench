@@ -20,6 +20,7 @@ class ProjectsPage extends StatefulWidget {
     this.showTabs = true,
     this.selectedProjectId,
     this.onProjectSelected,
+    this.onOpenGoals,
   });
 
   final WorkbenchController controller;
@@ -28,6 +29,7 @@ class ProjectsPage extends StatefulWidget {
   final bool showTabs;
   final String? selectedProjectId;
   final ValueChanged<String>? onProjectSelected;
+  final VoidCallback? onOpenGoals;
 
   @override
   State<ProjectsPage> createState() => _ProjectsPageState();
@@ -357,16 +359,11 @@ class _ProjectsPageState extends State<ProjectsPage> {
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 132),
                   children: [
                     SectionHeading(
-                      title: '里程碑',
+                      title: '关联里程碑',
                       trailing: TextButton.icon(
-                        onPressed: () => showRecordEditor(
-                          context,
-                          controller,
-                          kind: RecordKind.milestone,
-                          initialProjectId: project.id,
-                        ),
-                        icon: const Icon(Icons.add),
-                        label: const Text('添加'),
+                        onPressed: widget.onOpenGoals,
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('前往目标'),
                       ),
                     ),
                     if (milestones.isEmpty)
@@ -377,27 +374,30 @@ class _ProjectsPageState extends State<ProjectsPage> {
                         ),
                       )
                     else
-                      Card(
-                        child: Column(
-                          children: [
-                            for (
-                              var index = 0;
-                              index < milestones.length;
-                              index++
-                            ) ...[
-                              CheckboxListTile(
-                                value: milestones[index].isDone,
-                                title: Text(milestones[index].title),
-                                onChanged: (_) => controller.toggleTaskDone(
-                                  milestones[index],
-                                ),
-                              ),
-                              if (index != milestones.length - 1)
-                                const Divider(),
-                            ],
-                          ],
+                      for (final milestone in milestones)
+                        ListTile(
+                          leading: Icon(
+                            milestone.isDone
+                                ? Icons.check_circle
+                                : Icons.flag_outlined,
+                          ),
+                          title: Text(milestone.title),
+                          subtitle: Text(
+                            [
+                              controller.goals
+                                      .where(
+                                        (goal) => goal.id == milestone.parentId,
+                                      )
+                                      .firstOrNull
+                                      ?.title ??
+                                  '未关联目标',
+                              if (milestone.dueAt != null)
+                                '截止 ${milestone.dueAt!.year}-${milestone.dueAt!.month.toString().padLeft(2, '0')}-${milestone.dueAt!.day.toString().padLeft(2, '0')}',
+                            ].join(' · '),
+                          ),
+                          trailing: Text(milestone.isDone ? '已完成' : '进行中'),
+                          onTap: widget.onOpenGoals,
                         ),
-                      ),
                   ],
                 ),
                 ListView(

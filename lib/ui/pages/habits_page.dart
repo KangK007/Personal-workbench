@@ -12,15 +12,19 @@ class HabitsPage extends StatelessWidget {
     required this.controller,
     this.showHeader = true,
     this.protocolSection,
+    this.includeRsip = true,
   });
 
   final WorkbenchController controller;
   final bool showHeader;
   final Widget? protocolSection;
+  final bool includeRsip;
 
   @override
   Widget build(BuildContext context) {
-    final habits = controller.habits;
+    final habits = controller.habits
+        .where((habit) => includeRsip || !habit.hasRsipProtocol)
+        .toList(growable: false);
     return Column(
       children: [
         if (showHeader)
