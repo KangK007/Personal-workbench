@@ -110,6 +110,7 @@ class WorkbenchController extends ChangeNotifier {
   SyncPhase _syncPhase = SyncPhase.localOnly;
   String _syncMessage = '本地数据已就绪';
   bool _navigationCollapsed = false;
+  String _behaviorMode = 'habits';
   Map<String, bool> _navigationGroups = const {
     'plan': true,
     'execute': true,
@@ -170,6 +171,7 @@ class WorkbenchController extends ChangeNotifier {
   String? get signedInEmail => syncService.currentUser?.email;
   bool get cloudConfigured => syncService.configured;
   bool get navigationCollapsed => _navigationCollapsed;
+  String get behaviorMode => _behaviorMode;
   bool navigationGroupExpanded(String id) => _navigationGroups[id] ?? true;
   bool get rsipAllowMultiplePerDay => _rsipAllowMultiplePerDay;
   bool get rsipStrictMode => _rsipStrictMode;
@@ -544,6 +546,20 @@ class WorkbenchController extends ChangeNotifier {
     return null;
   }
 
+  /// Returns the newest legacy diary for a day without changing it.
+  WorkspaceRecord? latestDiaryForDay(DateTime day) {
+    final matches =
+        diaries.where((record) => isSameDay(record.scheduledFor, day)).toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return matches.firstOrNull;
+  }
+
+  /// Canonical daily review takes precedence over legacy diary data.
+  WorkspaceRecord? dailyReviewSourceForDay(DateTime day) {
+    return reviewForPeriod(ReviewPeriodType.daily, _calendarDayKey(day)) ??
+        latestDiaryForDay(day);
+  }
+
   WorkspaceRecord? habitLogForDay(String habitId, DateTime day) {
     for (final log in recordsOf(RecordKind.habitLog)) {
       if (log.parentId == habitId && isSameDay(log.scheduledFor, day)) {
@@ -609,6 +625,12 @@ class WorkbenchController extends ChangeNotifier {
       );
       _navigationCollapsed =
           await database.readMetadata('navigation_collapsed') == 'true';
+      final persistedBehaviorMode = await database.readMetadata(
+        'behavior_mode',
+      );
+      _behaviorMode = persistedBehaviorMode == 'policies'
+          ? 'policies'
+          : 'habits';
       final navigationGroups = await database.readMetadata(
         'navigation_groups_v1',
       );
@@ -1279,6 +1301,14 @@ class WorkbenchController extends ChangeNotifier {
       'navigation_groups_v1',
       jsonEncode(_navigationGroups),
     );
+    notifyListeners();
+  }
+
+  Future<void> setBehaviorMode(String value) async {
+    final normalized = value == 'policies' ? 'policies' : 'habits';
+    if (_behaviorMode == normalized) return;
+    _behaviorMode = normalized;
+    await database.writeMetadata('behavior_mode', normalized);
     notifyListeners();
   }
 
@@ -5514,6 +5544,12 @@ class WorkbenchController extends ChangeNotifier {
     String snapshotRefreshReason = '',
     Iterable<String>? relatedTaskIds,
     Iterable<String>? relatedProjectIds,
+    String? title,
+    int? mood,
+    String completedToday = '',
+    String blockers = '',
+    String tomorrowPlan = '',
+    String? legacyDiaryId,
   }) async {
     final existing = reviewForPeriod(type, periodKey);
     if (type == ReviewPeriodType.yearly && existing == null) {
@@ -5580,19 +5616,37 @@ class WorkbenchController extends ChangeNotifier {
         'relatedTaskIds': relatedTaskIds.toSet().toList(),
       if (relatedProjectIds != null)
         'relatedProjectIds': relatedProjectIds.toSet().toList(),
+      if (type == ReviewPeriodType.daily) ...{
+        'mood': mood?.clamp(1, 5),
+        'completedToday': completedToday.trim(),
+        'blockers': blockers.trim(),
+        'tomorrowPlan': tomorrowPlan.trim(),
+        if (legacyDiaryId != null) ...{
+          'legacyDiaryId': legacyDiaryId,
+          'migratedFrom': 'diary',
+        },
+      },
       'draft': false,
       'reviewSkipped': false,
     };
     final record = existing == null
         ? WorkspaceRecord.create(
             kind: RecordKind.note,
-            title: '$label · $periodKey',
+            title: title?.trim().isNotEmpty == true
+                ? title!.trim()
+                : '$label · $periodKey',
             body: body,
             scheduledFor: periodStart,
             tags: [label],
             data: data,
           )
-        : existing.copyWith(body: body, data: data);
+        : existing.copyWith(
+            title: title?.trim().isNotEmpty == true
+                ? title!.trim()
+                : existing.title,
+            body: body,
+            data: data,
+          );
     await updateRecord(record);
     await _scheduleOverdueReviewReminder();
     return record;

@@ -31,11 +31,18 @@ class ReviewPage extends StatefulWidget {
 class _ReviewPageState extends State<ReviewPage> {
   late ReviewPeriodType type;
   late DateTime anchor;
+  late final TextEditingController titleController;
   late final TextEditingController bodyController;
+  late final TextEditingController completedController;
+  late final TextEditingController blockersController;
+  late final TextEditingController tomorrowController;
   late final TextEditingController searchController;
   final Set<String> relatedTaskIds = {};
   final Set<String> relatedProjectIds = {};
   WorkspaceRecord? existing;
+  WorkspaceRecord? legacyDiary;
+  bool legacyNoticeVisible = true;
+  int? mood;
   bool preview = false;
   bool saving = false;
   bool libraryVisible = false;
@@ -53,7 +60,11 @@ class _ReviewPageState extends State<ReviewPage> {
       ReviewTab.monthly => ReviewPeriodType.monthly,
     };
     anchor = controller.growthService.logicalDay(controller.currentTime());
+    titleController = TextEditingController();
     bodyController = TextEditingController();
+    completedController = TextEditingController();
+    blockersController = TextEditingController();
+    tomorrowController = TextEditingController();
     searchController = TextEditingController()..addListener(_refreshLibrary);
     _loadPeriod();
   }
@@ -61,6 +72,10 @@ class _ReviewPageState extends State<ReviewPage> {
   @override
   void dispose() {
     bodyController.dispose();
+    titleController.dispose();
+    completedController.dispose();
+    blockersController.dispose();
+    tomorrowController.dispose();
     searchController
       ..removeListener(_refreshLibrary)
       ..dispose();
@@ -73,7 +88,20 @@ class _ReviewPageState extends State<ReviewPage> {
 
   void _loadPeriod() {
     existing = controller.reviewForPeriod(type, period.key);
+    legacyDiary = type == ReviewPeriodType.daily && existing == null
+        ? controller.latestDiaryForDay(period.start)
+        : null;
+    legacyNoticeVisible = legacyDiary != null;
+    final source = existing ?? legacyDiary;
+    titleController.text = source?.title ?? '';
     bodyController.text = existing?.body ?? '';
+    if (existing == null && legacyDiary != null) {
+      bodyController.text = legacyDiary!.body;
+    }
+    completedController.text = source?.data['completedToday']?.toString() ?? '';
+    blockersController.text = source?.data['blockers']?.toString() ?? '';
+    tomorrowController.text = source?.data['tomorrowPlan']?.toString() ?? '';
+    mood = (source?.data['mood'] as num?)?.toInt();
     relatedTaskIds
       ..clear()
       ..addAll(_ids(existing?.data['relatedTaskIds']));
@@ -188,6 +216,60 @@ class _ReviewPageState extends State<ReviewPage> {
           ),
         ],
         const SizedBox(height: 18),
+        if (type == ReviewPeriodType.daily) ...[
+          if (legacyDiary != null && existing == null && legacyNoticeVisible)
+            MaterialBanner(
+              content: const Text('这是旧日记生成的迁移草稿，保存后会成为规范日回顾。'),
+              leading: const Icon(Icons.history_outlined),
+              actions: [
+                TextButton(
+                  onPressed: () => setState(() => legacyNoticeVisible = false),
+                  child: const Text('知道了'),
+                ),
+              ],
+            ),
+          TextField(
+            controller: titleController,
+            decoration: const InputDecoration(labelText: '标题'),
+          ),
+          const SizedBox(height: 12),
+          InputDecorator(
+            decoration: const InputDecoration(labelText: '今日心情'),
+            child: SegmentedButton<int>(
+              emptySelectionAllowed: true,
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: 1, label: Text('1')),
+                ButtonSegment(value: 2, label: Text('2')),
+                ButtonSegment(value: 3, label: Text('3')),
+                ButtonSegment(value: 4, label: Text('4')),
+                ButtonSegment(value: 5, label: Text('5')),
+              ],
+              selected: mood == null ? const {} : {mood!},
+              onSelectionChanged: (value) =>
+                  setState(() => mood = value.isEmpty ? null : value.first),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _DailyReviewField(
+            controller: completedController,
+            label: '今天完成了什么',
+            icon: Icons.check_circle_outline,
+          ),
+          const SizedBox(height: 12),
+          _DailyReviewField(
+            controller: blockersController,
+            label: '遇到的问题',
+            icon: Icons.block_outlined,
+          ),
+          const SizedBox(height: 12),
+          _DailyReviewField(
+            controller: tomorrowController,
+            label: '明日计划',
+            icon: Icons.next_plan_outlined,
+          ),
+          const SizedBox(height: 18),
+        ],
         Row(
           children: [
             Text('回顾正文', style: Theme.of(context).textTheme.titleMedium),
@@ -307,20 +389,42 @@ class _ReviewPageState extends State<ReviewPage> {
 
   Widget _buildLibrary() {
     final query = searchController.text.trim().toLowerCase();
+    final canonicalDailyKeys = controller.periodReviews
+        .where((review) => review.data['periodType'] == 'daily')
+        .map((review) => review.data['periodKey']?.toString())
+        .whereType<String>()
+        .toSet();
+    final newestLegacyByDay = <String, WorkspaceRecord>{};
+    for (final diary in controller.diaries) {
+      final day = diary.scheduledFor;
+      if (day == null) continue;
+      final key = _dateKey(day);
+      if (canonicalDailyKeys.contains(key)) continue;
+      final current = newestLegacyByDay[key];
+      if (current == null || diary.updatedAt.isAfter(current.updatedAt)) {
+        newestLegacyByDay[key] = diary;
+      }
+    }
     final records =
-        controller.periodReviews.where((review) {
-          final periodType = review.data['periodType']?.toString() ?? 'daily';
-          if (libraryFilter != 'all' && periodType != libraryFilter) {
-            return false;
-          }
-          if (query.isEmpty) return true;
-          return review.title.toLowerCase().contains(query) ||
-              review.body.toLowerCase().contains(query);
-        }).toList()..sort(
-          (a, b) => (b.scheduledFor ?? b.updatedAt).compareTo(
-            a.scheduledFor ?? a.updatedAt,
-          ),
-        );
+        <WorkspaceRecord>[
+            ...controller.periodReviews,
+            ...newestLegacyByDay.values,
+          ].where((review) {
+            final periodType = review.kind == RecordKind.diary
+                ? 'daily'
+                : review.data['periodType']?.toString() ?? 'daily';
+            if (libraryFilter != 'all' && periodType != libraryFilter) {
+              return false;
+            }
+            if (query.isEmpty) return true;
+            return review.title.toLowerCase().contains(query) ||
+                review.body.toLowerCase().contains(query);
+          }).toList()
+          ..sort(
+            (a, b) => (b.scheduledFor ?? b.updatedAt).compareTo(
+              a.scheduledFor ?? a.updatedAt,
+            ),
+          );
     return Column(
       children: [
         Padding(
@@ -341,9 +445,9 @@ class _ReviewPageState extends State<ReviewPage> {
                 value: libraryFilter,
                 items: const [
                   DropdownMenuItem(value: 'all', child: Text('全部回顾')),
-                  DropdownMenuItem(value: 'daily', child: Text('日记')),
-                  DropdownMenuItem(value: 'weekly', child: Text('周记')),
-                  DropdownMenuItem(value: 'monthly', child: Text('月记')),
+                  DropdownMenuItem(value: 'daily', child: Text('日回顾')),
+                  DropdownMenuItem(value: 'weekly', child: Text('周回顾')),
+                  DropdownMenuItem(value: 'monthly', child: Text('月回顾')),
                   DropdownMenuItem(value: 'yearly', child: Text('历史年回顾')),
                 ],
                 onChanged: (value) =>
@@ -365,22 +469,25 @@ class _ReviewPageState extends State<ReviewPage> {
                   separatorBuilder: (_, _) => const Divider(),
                   itemBuilder: (context, index) {
                     final review = records[index];
+                    final isLegacyDiary = review.kind == RecordKind.diary;
                     final periodType = review.data['periodType']?.toString();
                     final legacy = periodType == 'yearly';
-                    final status = review.data['reviewSkipped'] == true
+                    final status = isLegacyDiary
+                        ? '待迁移'
+                        : review.data['reviewSkipped'] == true
                         ? '已跳过'
                         : review.data['draft'] == true
                         ? '草稿'
                         : '已完成';
                     return ListTile(
                       leading: Icon(
-                        legacy
+                        legacy || isLegacyDiary
                             ? Icons.history_outlined
                             : Icons.menu_book_outlined,
                       ),
                       title: Text(review.title),
                       subtitle: Text(
-                        '${review.data['periodKey'] ?? formatShortDate(review.scheduledFor ?? review.updatedAt)}'
+                        '${isLegacyDiary ? _dateKey(review.scheduledFor ?? review.updatedAt) : review.data['periodKey'] ?? formatShortDate(review.scheduledFor ?? review.updatedAt)}'
                         ' · 保存于 ${formatDateTime(review.updatedAt)} · $status',
                       ),
                       trailing: Icon(
@@ -411,7 +518,18 @@ class _ReviewPageState extends State<ReviewPage> {
         body: bodyController.text,
         relatedTaskIds: relatedTaskIds,
         relatedProjectIds: relatedProjectIds,
+        title: type == ReviewPeriodType.daily ? titleController.text : null,
+        mood: type == ReviewPeriodType.daily ? mood : null,
+        completedToday: type == ReviewPeriodType.daily
+            ? completedController.text
+            : '',
+        blockers: type == ReviewPeriodType.daily ? blockersController.text : '',
+        tomorrowPlan: type == ReviewPeriodType.daily
+            ? tomorrowController.text
+            : '',
+        legacyDiaryId: type == ReviewPeriodType.daily ? legacyDiary?.id : null,
       );
+      legacyDiary = null;
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
       messenger.showSnackBar(
@@ -982,6 +1100,35 @@ class _MarkdownToolbar extends StatelessWidget {
       offset: start + before.length + selected.length,
     );
     onChanged();
+  }
+}
+
+class _DailyReviewField extends StatelessWidget {
+  const _DailyReviewField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      minLines: 2,
+      maxLines: 5,
+      decoration: InputDecoration(
+        labelText: label,
+        alignLabelWithHint: true,
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(bottom: 32),
+          child: Icon(icon),
+        ),
+      ),
+    );
   }
 }
 
