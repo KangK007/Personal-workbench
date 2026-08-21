@@ -3048,8 +3048,14 @@ class WorkbenchController extends ChangeNotifier {
   }
 
   Future<int> ensureTaskInstancesThrough(DateTime through) async {
-    final existingKeys = recordsOf(RecordKind.task)
-        .where((record) => record.data['recordType'] == 'taskInstance')
+    // A trashed occurrence still occupies its definition/date slot. Otherwise
+    // creating any task can resurrect the same recurring occurrence.
+    final existingKeys = _records
+        .where(
+          (record) =>
+              record.kind == RecordKind.task &&
+              record.data['recordType'] == 'taskInstance',
+        )
         .map(
           (record) =>
               '${record.data['definitionId']}:${record.data['occurrenceKey']}',

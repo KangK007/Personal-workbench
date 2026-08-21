@@ -193,6 +193,51 @@ void main() {
   );
 
   test(
+    'creating a task does not resurrect trashed recurring instances',
+    () async {
+      final controller = _controller(_MemoryDatabase());
+      addTearDown(controller.dispose);
+      final definition = WorkspaceRecord.create(
+        kind: RecordKind.task,
+        title: '每日实验记录',
+        scheduledFor: DateTime(2026, 8, 18, 9),
+        data: const {'recordType': 'taskDefinition', 'recurrence': 'daily'},
+      );
+      await controller.addRecord(definition);
+      await controller.ensureTaskInstancesThrough(DateTime(2026, 8, 20));
+
+      final oldInstances = controller.tasks
+          .where((task) => task.data['definitionId'] == definition.id)
+          .toList(growable: false);
+      expect(oldInstances, hasLength(3));
+      final trashedOccurrenceKeys = oldInstances
+          .map((task) => task.data['occurrenceKey'])
+          .toSet();
+      expect(
+        (await controller.batchMoveTasksToTrash(oldInstances)).succeeded,
+        3,
+      );
+
+      await controller.addRecord(
+        WorkspaceRecord.create(kind: RecordKind.task, title: '新任务'),
+      );
+
+      expect(
+        controller.tasks.where(
+          (task) =>
+              task.title == '每日实验记录' &&
+              trashedOccurrenceKeys.contains(task.data['occurrenceKey']),
+        ),
+        isEmpty,
+      );
+      expect(
+        controller.trashRecords.where((task) => task.title == '每日实验记录'),
+        hasLength(3),
+      );
+    },
+  );
+
+  test(
     'batch completion advances only the selected recurring instance',
     () async {
       final controller = _controller(_MemoryDatabase());
