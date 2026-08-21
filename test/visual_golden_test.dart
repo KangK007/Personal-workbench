@@ -24,6 +24,7 @@ import 'package:personal_workbench/ui/pages/policies_page.dart';
 import 'package:personal_workbench/ui/pages/projects_page.dart';
 import 'package:personal_workbench/ui/pages/protocols_page.dart';
 import 'package:personal_workbench/ui/pages/review_page.dart';
+import 'package:personal_workbench/ui/pages/restriction_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
 import 'package:personal_workbench/ui/widgets/record_editor_dialog.dart';
 import 'package:personal_workbench/ui/workbench_shell.dart';
@@ -678,11 +679,9 @@ void main() {
   testWidgets('documentation focus restriction tab', (tester) async {
     await _pumpDocumentationPage(
       tester,
-      FocusHubPage(controller: guideFixture.controller),
+      RestrictionPage(controller: guideFixture.controller),
       fileName: 'guide_focus_restriction',
       beforeCapture: () async {
-        await tester.tap(find.widgetWithText(Tab, '自律'));
-        await tester.pumpAndSettle();
         expect(find.text('当前状态'), findsOneWidget);
         expect(find.text('论文冲刺自律'), findsWidgets);
       },

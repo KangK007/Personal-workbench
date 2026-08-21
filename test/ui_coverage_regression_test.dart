@@ -613,14 +613,48 @@ void main() {
       ),
       size: const Size(1536, 864),
     );
-    for (final label in ['计划', '执行', '沉淀', '回顾', '系统']) {
-      expect(find.widgetWithText(ListTile, label), findsOneWidget);
-    }
-    await tester.tap(find.widgetWithText(ListTile, '系统'));
+    expect(find.widgetWithText(ListTile, '今日'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('navigation-group:tasks')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('navigation-group:projects')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('navigation-leaf:settings')),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(ListTile, '计划'), findsNothing);
+    expect(find.widgetWithText(ListTile, '执行'), findsNothing);
+    await fixture.controller.setNavigationGroupExpanded('tasks', false);
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(ListTile, '设置'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, '收集箱'), findsNothing);
-    expect(find.widgetWithText(ListTile, '协议'), findsNothing);
+    for (final key in ['tasksAll', 'tasksInbox', 'tasksWeek', 'tasksGroups']) {
+      expect(find.byKey(ValueKey('navigation-leaf:$key')), findsNothing);
+    }
+    await tester.tap(find.byKey(const ValueKey('navigation-group:tasks')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('navigation-leaf:tasksInbox')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('navigation-group:tasks')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('navigation-leaf:tasksInbox')),
+      findsNothing,
+    );
+    await tester.tap(find.byKey(const ValueKey('navigation-group:tasks')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('navigation-leaf:tasksInbox')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('navigation-leaf:tasksInbox')));
+    await tester.pumpAndSettle();
+    expect(find.byType(TabBar), findsNothing);
+    expect(find.widgetWithText(ListTile, '系统'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await fixture.controller.setAdvancedFeaturesEnabled(false);
@@ -645,18 +679,18 @@ void main() {
     expect(find.byTooltip('更多'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsNothing);
 
+    await fixture.controller.setNavigationGroupExpanded('projects', false);
     await tester.tap(find.byTooltip('更多'));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(ListTile, '项目'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, '专注'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, '笔记'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(ListTile, '项目'));
-    await tester.pumpAndSettle();
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.text('项目')),
+      find.byKey(const ValueKey('navigation-group:projects')),
       findsOneWidget,
     );
+
+    await tester.tap(find.byKey(const ValueKey('navigation-group:projects')));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.text('项目 · 概览'), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(
@@ -692,7 +726,9 @@ void main() {
     expect(navigation.destinations, hasLength(5));
     await tester.tap(find.byTooltip('更多'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ListTile, '专注'));
+    await tester.drag(find.byType(ListView).last, const Offset(0, -420));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('navigation-leaf:focus')));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
