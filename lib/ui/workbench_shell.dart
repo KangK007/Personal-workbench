@@ -31,23 +31,66 @@ import 'widgets/quick_capture_sheet.dart';
 
 enum WorkbenchSection {
   today,
-  tasks,
-  projects,
+  tasksAll,
+  tasksInbox,
+  tasksWeek,
+  tasksGroups,
+  projectsOverview,
+  projectsTasks,
+  projectsGroups,
+  projectsMilestones,
+  projectsNotes,
   focus,
   restriction,
   notes,
-  review,
-  policies,
-  settings,
-  plan,
-  protocols,
-  growth,
-  inbox,
-  calendar,
   diary,
+  reviewDaily,
+  reviewWeekly,
+  reviewMonthly,
+  policiesTree,
+  policiesLibrary,
+  policiesHistory,
+  policiesAnalytics,
   goals,
   habits,
+  growth,
+  settings,
+
+  // Legacy targets remain as compatibility aliases and are normalized in _select.
+  tasks,
+  projects,
+  review,
+  policies,
+  plan,
+  protocols,
+  inbox,
+  calendar,
 }
+
+const _taskSections = {
+  WorkbenchSection.tasksAll,
+  WorkbenchSection.tasksInbox,
+  WorkbenchSection.tasksWeek,
+  WorkbenchSection.tasksGroups,
+};
+const _reviewSections = {
+  WorkbenchSection.reviewDaily,
+  WorkbenchSection.reviewWeekly,
+  WorkbenchSection.reviewMonthly,
+};
+const _policySections = {
+  WorkbenchSection.policiesTree,
+  WorkbenchSection.policiesLibrary,
+  WorkbenchSection.policiesHistory,
+  WorkbenchSection.policiesAnalytics,
+};
+const _projectSections = {
+  WorkbenchSection.projectsOverview,
+  WorkbenchSection.projectsTasks,
+  WorkbenchSection.projectsGroups,
+  WorkbenchSection.projectsMilestones,
+  WorkbenchSection.projectsNotes,
+};
 
 class WorkbenchShell extends StatefulWidget {
   const WorkbenchShell({
@@ -66,20 +109,24 @@ class WorkbenchShell extends StatefulWidget {
 class _WorkbenchShellState extends State<WorkbenchShell> {
   static const _mobilePrimarySections = [
     WorkbenchSection.today,
-    WorkbenchSection.tasks,
-    WorkbenchSection.review,
-    WorkbenchSection.policies,
+    WorkbenchSection.tasksAll,
+    WorkbenchSection.reviewDaily,
+    WorkbenchSection.policiesTree,
     WorkbenchSection.settings,
   ];
 
   WorkbenchSection section = WorkbenchSection.today;
-  PlanTab planTab = PlanTab.all;
-  ReviewTab reviewTab = ReviewTab.diary;
   ProtocolTab protocolTab = ProtocolTab.goals;
+  String? selectedProjectId;
   HotKey? captureHotKey;
   final Set<WorkbenchSection> _visitedSections = {WorkbenchSection.today};
   final List<WorkbenchSection> _mobileHistory = [];
   WorkbenchSection _lastMobilePrimary = WorkbenchSection.today;
+  final Map<WorkbenchSection, WorkbenchSection> _lastMobileChild = {
+    WorkbenchSection.tasksAll: WorkbenchSection.tasksAll,
+    WorkbenchSection.reviewDaily: WorkbenchSection.reviewDaily,
+    WorkbenchSection.policiesTree: WorkbenchSection.policiesTree,
+  };
 
   @override
   void initState() {
@@ -199,29 +246,58 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     );
   }
 
+  WorkbenchSection? _mobilePrimaryFor(WorkbenchSection value) {
+    if (_taskSections.contains(value)) {
+      return WorkbenchSection.tasksAll;
+    }
+    if (_projectSections.contains(value)) {
+      return WorkbenchSection.projectsOverview;
+    }
+    if (_reviewSections.contains(value)) {
+      return WorkbenchSection.reviewDaily;
+    }
+    if (_policySections.contains(value)) {
+      return WorkbenchSection.policiesTree;
+    }
+    if (_mobilePrimarySections.contains(value)) {
+      return value;
+    }
+    return null;
+  }
+
   Widget _mobileLayout() {
-    final index = _mobilePrimarySections.indexOf(
-      _mobilePrimarySections.contains(section) ? section : _lastMobilePrimary,
-    );
+    final primary = _mobilePrimaryFor(section) ?? _lastMobilePrimary;
+    final index = _mobilePrimarySections.indexOf(primary);
+    // Project detail pages are reachable from 更多 but are not bottom
+    // destinations; keep NavigationBar on a valid neutral index.
+    final navigationIndex = index < 0 ? 0 : index;
     final title = switch (section) {
-      WorkbenchSection.tasks => '任务',
-      WorkbenchSection.projects => '项目',
-      WorkbenchSection.policies => '国策',
       WorkbenchSection.today => '今日',
-      WorkbenchSection.plan => '计划',
+      WorkbenchSection.tasksAll => '任务 · 全部',
+      WorkbenchSection.tasksInbox => '任务 · 收件箱',
+      WorkbenchSection.tasksWeek => '任务 · 周视图',
+      WorkbenchSection.tasksGroups => '任务 · 任务群',
+      WorkbenchSection.projectsOverview => '项目 · 概览',
+      WorkbenchSection.projectsTasks => '项目 · 任务',
+      WorkbenchSection.projectsGroups => '项目 · 任务群',
+      WorkbenchSection.projectsMilestones => '项目 · 里程碑',
+      WorkbenchSection.projectsNotes => '项目 · 笔记与回顾',
       WorkbenchSection.focus => '专注',
       WorkbenchSection.restriction => '自律',
       WorkbenchSection.notes => '笔记',
-      WorkbenchSection.protocols =>
-        widget.controller.advancedFeaturesEnabled ? '协议' : '目标与习惯',
-      WorkbenchSection.growth => '成长',
-      WorkbenchSection.inbox => '收集箱',
-      WorkbenchSection.calendar => '工作周',
       WorkbenchSection.diary => '日记',
-      WorkbenchSection.goals => '目标与习惯',
-      WorkbenchSection.habits => '目标与习惯',
-      WorkbenchSection.review => '回顾',
+      WorkbenchSection.reviewDaily => '回顾 · 日回顾',
+      WorkbenchSection.reviewWeekly => '回顾 · 周回顾',
+      WorkbenchSection.reviewMonthly => '回顾 · 月回顾',
+      WorkbenchSection.policiesTree => '国策 · 国策树',
+      WorkbenchSection.policiesLibrary => '国策 · 国策库',
+      WorkbenchSection.policiesHistory => '国策 · 轮次历史',
+      WorkbenchSection.policiesAnalytics => '国策 · 高级分析',
+      WorkbenchSection.goals => '目标与习惯 · 目标',
+      WorkbenchSection.habits => '目标与习惯 · 习惯',
+      WorkbenchSection.growth => '成长',
       WorkbenchSection.settings => '设置',
+      _ => '个人工作台',
     };
     final theme = Theme.of(context);
     final tokens = context.tokens;
@@ -371,9 +447,11 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               ),
             ),
             NavigationBar(
-              selectedIndex: index,
-              onDestinationSelected: (value) =>
-                  _select(_mobilePrimarySections[value]),
+              selectedIndex: navigationIndex,
+              onDestinationSelected: (value) => _select(
+                _lastMobileChild[_mobilePrimarySections[value]] ??
+                    _mobilePrimarySections[value],
+              ),
               destinations: const [
                 NavigationDestination(
                   icon: Icon(Icons.today_outlined),
@@ -422,42 +500,120 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     ),
   );
 
+  bool get _showPageHeader =>
+      MediaQuery.sizeOf(context).width >= AppBreakpoints.compact;
+
+  Widget _planPage(WorkbenchSection value, PlanTab tab) => PlanPage(
+    key: ValueKey(value),
+    controller: widget.controller,
+    initialTab: tab,
+    showHeader: _showPageHeader,
+    showTabs: false,
+  );
+
+  Widget _projectPage(WorkbenchSection value, ProjectDetailTab tab) =>
+      ProjectsPage(
+        key: ValueKey(value),
+        controller: widget.controller,
+        initialTab: tab,
+        showHeader: _showPageHeader,
+        showTabs: false,
+        selectedProjectId: selectedProjectId,
+        onProjectSelected: (id) {
+          if (selectedProjectId != id) setState(() => selectedProjectId = id);
+        },
+      );
+
+  Widget _reviewPage(WorkbenchSection value, ReviewTab tab) => ReviewPage(
+    key: ValueKey(value),
+    controller: widget.controller,
+    initialTab: tab,
+    showHeader: _showPageHeader,
+    showPeriodSwitcher: false,
+  );
+
+  Widget _policyPage(WorkbenchSection value, PolicyTab tab) => PoliciesPage(
+    key: ValueKey(value),
+    controller: widget.controller,
+    initialTab: tab,
+    showHeader: _showPageHeader,
+    showTabs: false,
+  );
+
   Widget _buildPage(WorkbenchSection value) => switch (value) {
     WorkbenchSection.today => TodayPage(
       controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-      onOpenPlan: () => _select(WorkbenchSection.tasks),
-      onOpenInbox: () => _select(WorkbenchSection.tasks),
-      onOpenReview: () {
-        reviewTab = ReviewTab.diary;
-        _select(WorkbenchSection.review);
-      },
+      showHeader: _showPageHeader,
+      onOpenPlan: () => _select(WorkbenchSection.tasksAll),
+      onOpenInbox: () => _select(WorkbenchSection.tasksInbox),
+      onOpenReview: () => _select(WorkbenchSection.reviewDaily),
     ),
-    WorkbenchSection.tasks => PlanPage(
-      key: ValueKey(planTab),
-      controller: widget.controller,
-      initialTab: planTab,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+    WorkbenchSection.tasksAll => _planPage(value, PlanTab.all),
+    WorkbenchSection.tasksInbox => _planPage(value, PlanTab.inbox),
+    WorkbenchSection.tasksWeek => _planPage(value, PlanTab.week),
+    WorkbenchSection.tasksGroups => _planPage(value, PlanTab.groups),
+    WorkbenchSection.projectsOverview => _projectPage(
+      value,
+      ProjectDetailTab.overview,
     ),
-    WorkbenchSection.plan => PlanPage(
-      key: ValueKey(planTab),
-      controller: widget.controller,
-      initialTab: planTab,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+    WorkbenchSection.projectsTasks => _projectPage(
+      value,
+      ProjectDetailTab.tasks,
+    ),
+    WorkbenchSection.projectsGroups => _projectPage(
+      value,
+      ProjectDetailTab.groups,
+    ),
+    WorkbenchSection.projectsMilestones => _projectPage(
+      value,
+      ProjectDetailTab.milestones,
+    ),
+    WorkbenchSection.projectsNotes => _projectPage(
+      value,
+      ProjectDetailTab.notes,
     ),
     WorkbenchSection.focus => FocusHubPage(
       controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-      onOpenSettings: () => _select(WorkbenchSection.settings),
+      showHeader: _showPageHeader,
     ),
     WorkbenchSection.restriction => RestrictionPage(
       controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+      showHeader: _showPageHeader,
       onOpenSettings: () => _select(WorkbenchSection.settings),
     ),
-    WorkbenchSection.policies => PoliciesPage(
+    WorkbenchSection.notes => NotesPage(
       controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+      showHeader: _showPageHeader,
+    ),
+    WorkbenchSection.diary => DiaryPage(
+      controller: widget.controller,
+      showHeader: _showPageHeader,
+    ),
+    WorkbenchSection.reviewDaily => _reviewPage(value, ReviewTab.diary),
+    WorkbenchSection.reviewWeekly => _reviewPage(value, ReviewTab.weekly),
+    WorkbenchSection.reviewMonthly => _reviewPage(value, ReviewTab.monthly),
+    WorkbenchSection.policiesTree => _policyPage(value, PolicyTab.tree),
+    WorkbenchSection.policiesLibrary => _policyPage(value, PolicyTab.library),
+    WorkbenchSection.policiesHistory => _policyPage(value, PolicyTab.history),
+    WorkbenchSection.policiesAnalytics => _policyPage(
+      value,
+      PolicyTab.analytics,
+    ),
+    WorkbenchSection.goals => GoalsPage(
+      controller: widget.controller,
+      showHeader: _showPageHeader,
+    ),
+    WorkbenchSection.habits => HabitsPage(
+      controller: widget.controller,
+      showHeader: _showPageHeader,
+    ),
+    WorkbenchSection.growth => GrowthPage(
+      controller: widget.controller,
+      showHeader: _showPageHeader,
+    ),
+    WorkbenchSection.settings => SettingsPage(
+      controller: widget.controller,
+      showHeader: _showPageHeader,
     ),
     WorkbenchSection.protocols => ProtocolsPage(
       key: ValueKey(
@@ -465,68 +621,47 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       ),
       controller: widget.controller,
       initialTab: protocolTab,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
+      showHeader: _showPageHeader,
     ),
-    WorkbenchSection.projects => ProjectsPage(
-      controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
-    WorkbenchSection.notes => NotesPage(
-      controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
-    WorkbenchSection.review => ReviewPage(
-      key: ValueKey(reviewTab),
-      controller: widget.controller,
-      initialTab: reviewTab,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
-    WorkbenchSection.growth => GrowthPage(
-      controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
-    WorkbenchSection.diary => DiaryPage(
-      controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
-    WorkbenchSection.goals => GoalsPage(
-      controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
-    WorkbenchSection.habits => HabitsPage(
-      controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
-    WorkbenchSection.settings => SettingsPage(
-      controller: widget.controller,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
-    _ => PlanPage(
-      controller: widget.controller,
-      initialTab: PlanTab.all,
-      showHeader: MediaQuery.sizeOf(context).width >= AppBreakpoints.compact,
-    ),
+    _ => const SizedBox.shrink(),
   };
 
   void _select(WorkbenchSection value) {
+    value = switch (value) {
+      WorkbenchSection.tasks || WorkbenchSection.plan =>
+        _lastMobileChild[WorkbenchSection.tasksAll] ??
+            WorkbenchSection.tasksAll,
+      WorkbenchSection.inbox => WorkbenchSection.tasksInbox,
+      WorkbenchSection.calendar => WorkbenchSection.tasksWeek,
+      WorkbenchSection.projects => WorkbenchSection.projectsOverview,
+      WorkbenchSection.review =>
+        _lastMobileChild[WorkbenchSection.reviewDaily] ??
+            WorkbenchSection.reviewDaily,
+      WorkbenchSection.policies =>
+        _lastMobileChild[WorkbenchSection.policiesTree] ??
+            WorkbenchSection.policiesTree,
+      WorkbenchSection.protocols => WorkbenchSection.goals,
+      _ => value,
+    };
+    final parentId = _navigationParentId(value);
+    if (parentId != null) {
+      widget.controller.setNavigationGroupExpanded(parentId, true);
+    }
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     setState(() {
-      if (value == WorkbenchSection.inbox) {
-        planTab = PlanTab.inbox;
-        value = WorkbenchSection.tasks;
-      } else if (value == WorkbenchSection.calendar) {
-        planTab = PlanTab.week;
-        value = WorkbenchSection.tasks;
-      } else if (value == WorkbenchSection.plan) {
-        value = WorkbenchSection.tasks;
-      }
       if (compact && value != section) {
         if (_mobileHistory.isEmpty || _mobileHistory.last != section) {
           _mobileHistory.add(section);
         }
       }
-      if (_mobilePrimarySections.contains(value)) {
-        _lastMobilePrimary = value;
+      final primary = _mobilePrimaryFor(value);
+      if (primary != null) {
+        _lastMobilePrimary = primary;
+        if (_taskSections.contains(value) ||
+            _reviewSections.contains(value) ||
+            _policySections.contains(value)) {
+          _lastMobileChild[primary] = value;
+        }
       }
       section = value;
       _visitedSections.add(value);
@@ -542,6 +677,10 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         selected: section,
         controller: widget.controller,
         onSelected: (value) {
+          Navigator.pop(context);
+          _select(value);
+        },
+        onParentSelected: (value) {
           Navigator.pop(context);
           _select(value);
         },
@@ -587,51 +726,157 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   }
 }
 
-class _NavigationGroup {
-  const _NavigationGroup(this.id, this.label, this.icon, this.items);
+class _NavigationNode {
+  const _NavigationNode.leaf(this.section, this.label, this.icon)
+    : id = null,
+      children = const [];
 
-  final String id;
+  const _NavigationNode.parent(this.id, this.label, this.icon, this.children)
+    : section = null;
+
+  final String? id;
+  final WorkbenchSection? section;
   final String label;
   final IconData icon;
-  final List<_NavigationItem> items;
+  final List<_NavigationNode> children;
+
+  bool get isLeaf => children.isEmpty;
 }
 
-class _NavigationItem {
-  const _NavigationItem(this.section, this.label, this.icon);
-
-  final WorkbenchSection section;
-  final String label;
-  final IconData icon;
-}
-
-List<_NavigationGroup> _navigationGroups(WorkbenchController controller) => [
-  const _NavigationGroup('plan', '计划', Icons.event_note_outlined, [
-    _NavigationItem(WorkbenchSection.today, '今日', Icons.today_outlined),
-    _NavigationItem(WorkbenchSection.tasks, '任务', Icons.checklist_outlined),
-    _NavigationItem(WorkbenchSection.projects, '项目', Icons.folder_outlined),
-  ]),
-  const _NavigationGroup('execute', '执行', Icons.play_circle_outline, [
-    _NavigationItem(WorkbenchSection.focus, '专注', Icons.timer_outlined),
-    _NavigationItem(WorkbenchSection.restriction, '自律', Icons.shield_outlined),
-  ]),
-  const _NavigationGroup('capture', '沉淀', Icons.collections_bookmark_outlined, [
-    _NavigationItem(WorkbenchSection.notes, '笔记', Icons.note_alt_outlined),
-    _NavigationItem(WorkbenchSection.diary, '日记', Icons.book_outlined),
-  ]),
-  const _NavigationGroup('review', '回顾', Icons.insights_outlined, [
-    _NavigationItem(WorkbenchSection.review, '期间回顾', Icons.insights_outlined),
-    _NavigationItem(
-      WorkbenchSection.policies,
-      '国策',
+const _navigationTree = [
+  _NavigationNode.leaf(WorkbenchSection.today, '今日', Icons.today_outlined),
+  _NavigationNode.parent('tasks', '任务', Icons.checklist_outlined, [
+    _NavigationNode.leaf(
+      WorkbenchSection.tasksAll,
+      '全部',
+      Icons.checklist_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.tasksInbox,
+      '收件箱',
+      Icons.inbox_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.tasksWeek,
+      '周视图',
+      Icons.calendar_view_week_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.tasksGroups,
+      '任务群',
       Icons.account_tree_outlined,
     ),
-    _NavigationItem(WorkbenchSection.goals, '目标与习惯', Icons.flag_outlined),
-    _NavigationItem(WorkbenchSection.growth, '成长', Icons.trending_up_outlined),
   ]),
-  const _NavigationGroup('system', '系统', Icons.settings_outlined, [
-    _NavigationItem(WorkbenchSection.settings, '设置', Icons.settings_outlined),
+  _NavigationNode.parent('projects', '项目', Icons.folder_outlined, [
+    _NavigationNode.leaf(
+      WorkbenchSection.projectsOverview,
+      '概览',
+      Icons.dashboard_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.projectsTasks,
+      '任务',
+      Icons.checklist_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.projectsGroups,
+      '任务群',
+      Icons.account_tree_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.projectsMilestones,
+      '里程碑',
+      Icons.flag_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.projectsNotes,
+      '笔记与回顾',
+      Icons.library_books_outlined,
+    ),
   ]),
+  _NavigationNode.leaf(WorkbenchSection.focus, '专注', Icons.timer_outlined),
+  _NavigationNode.leaf(
+    WorkbenchSection.restriction,
+    '自律',
+    Icons.shield_outlined,
+  ),
+  _NavigationNode.leaf(WorkbenchSection.notes, '笔记', Icons.note_alt_outlined),
+  _NavigationNode.leaf(WorkbenchSection.diary, '日记', Icons.book_outlined),
+  _NavigationNode.parent('review', '回顾', Icons.insights_outlined, [
+    _NavigationNode.leaf(
+      WorkbenchSection.reviewDaily,
+      '日回顾',
+      Icons.today_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.reviewWeekly,
+      '周回顾',
+      Icons.date_range_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.reviewMonthly,
+      '月回顾',
+      Icons.calendar_month_outlined,
+    ),
+  ]),
+  _NavigationNode.parent('policies', '国策', Icons.account_tree_outlined, [
+    _NavigationNode.leaf(
+      WorkbenchSection.policiesTree,
+      '国策树',
+      Icons.account_tree_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.policiesLibrary,
+      '国策库',
+      Icons.inventory_2_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.policiesHistory,
+      '轮次历史',
+      Icons.history_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.policiesAnalytics,
+      '高级分析',
+      Icons.analytics_outlined,
+    ),
+  ]),
+  _NavigationNode.parent('goals_habits', '目标与习惯', Icons.flag_outlined, [
+    _NavigationNode.leaf(WorkbenchSection.goals, '目标', Icons.flag_outlined),
+    _NavigationNode.leaf(WorkbenchSection.habits, '习惯', Icons.repeat),
+  ]),
+  _NavigationNode.leaf(
+    WorkbenchSection.growth,
+    '成长',
+    Icons.trending_up_outlined,
+  ),
+  _NavigationNode.leaf(
+    WorkbenchSection.settings,
+    '设置',
+    Icons.settings_outlined,
+  ),
 ];
+
+String? _navigationParentId(WorkbenchSection value) => switch (value) {
+  WorkbenchSection.tasksAll ||
+  WorkbenchSection.tasksInbox ||
+  WorkbenchSection.tasksWeek ||
+  WorkbenchSection.tasksGroups => 'tasks',
+  WorkbenchSection.projectsOverview ||
+  WorkbenchSection.projectsTasks ||
+  WorkbenchSection.projectsGroups ||
+  WorkbenchSection.projectsMilestones ||
+  WorkbenchSection.projectsNotes => 'projects',
+  WorkbenchSection.reviewDaily ||
+  WorkbenchSection.reviewWeekly ||
+  WorkbenchSection.reviewMonthly => 'review',
+  WorkbenchSection.policiesTree ||
+  WorkbenchSection.policiesLibrary ||
+  WorkbenchSection.policiesHistory ||
+  WorkbenchSection.policiesAnalytics => 'policies',
+  WorkbenchSection.goals || WorkbenchSection.habits => 'goals_habits',
+  _ => null,
+};
 
 class _DesktopNavigation extends StatelessWidget {
   const _DesktopNavigation({
@@ -804,8 +1049,8 @@ class _DesktopNavigation extends StatelessWidget {
                     children: [
                       Column(
                         children: [
-                          for (final group in _navigationGroups(controller))
-                            _group(context, group),
+                          for (final node in _navigationTree)
+                            _node(context, node),
                         ],
                       ),
                     ],
@@ -877,20 +1122,20 @@ class _DesktopNavigation extends StatelessWidget {
     );
   }
 
-  Widget _group(BuildContext context, _NavigationGroup group) {
-    final containsSelected = group.items.any(
-      (item) => item.section == selected,
+  Widget _node(BuildContext context, _NavigationNode node) {
+    if (node.isLeaf) return _leaf(context, node);
+    final containsSelected = node.children.any(
+      (child) => child.section == selected,
     );
-    final expanded =
-        controller.navigationGroupExpanded(group.id) || containsSelected;
+    final expanded = controller.navigationGroupExpanded(node.id!);
     if (collapsed) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Tooltip(
-          message: group.label,
+          message: node.label,
           child: IconButton(
-            onPressed: () => _showGroupMenu(context, group),
-            icon: Icon(group.icon),
+            onPressed: () => _showGroupMenu(context, node),
+            icon: Icon(node.icon),
             color: containsSelected
                 ? Theme.of(context).colorScheme.primary
                 : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -898,52 +1143,74 @@ class _DesktopNavigation extends StatelessWidget {
         ),
       );
     }
+    void toggle() => controller.setNavigationGroupExpanded(node.id!, !expanded);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Focus(
           canRequestFocus: true,
-          onKeyEvent: (node, event) {
+          onKeyEvent: (nodeFocus, event) {
             if (event is! KeyDownEvent) return KeyEventResult.ignored;
             if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
                 !expanded) {
-              controller.setNavigationGroupExpanded(group.id, true);
+              controller.setNavigationGroupExpanded(node.id!, true);
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.arrowLeft && expanded) {
-              controller.setNavigationGroupExpanded(group.id, false);
+              controller.setNavigationGroupExpanded(node.id!, false);
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.enter ||
                 event.logicalKey == LogicalKeyboardKey.space) {
-              controller.setNavigationGroupExpanded(group.id, !expanded);
+              if (!containsSelected) {
+                controller.setNavigationGroupExpanded(node.id!, true);
+                onSelected(node.children.first.section!);
+              } else {
+                toggle();
+              }
               return KeyEventResult.handled;
             }
             return KeyEventResult.ignored;
           },
           child: Semantics(
             button: true,
+            selected: containsSelected,
             expanded: expanded,
             child: ListTile(
+              key: ValueKey('navigation-group:${node.id}'),
               dense: true,
               minVerticalPadding: 4,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: Icon(group.icon, size: 19),
+              selected: containsSelected,
+              selectedColor: Theme.of(context).colorScheme.primary,
+              leading: Icon(node.icon, size: 19),
               title: Text(
-                group.label,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                node.label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: containsSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
               ),
               trailing: Icon(
                 expanded ? Icons.expand_less : Icons.expand_more,
                 size: 19,
               ),
-              onTap: () =>
-                  controller.setNavigationGroupExpanded(group.id, !expanded),
+              onTap: () {
+                if (!containsSelected) {
+                  controller.setNavigationGroupExpanded(node.id!, true);
+                  onSelected(node.children.first.section!);
+                } else {
+                  toggle();
+                }
+              },
             ),
           ),
         ),
         if (expanded)
-          for (final item in group.items) _item(context, item),
+          for (final child in node.children)
+            _leaf(context, child, nested: true),
         const SizedBox(height: 4),
       ],
     );
@@ -951,23 +1218,42 @@ class _DesktopNavigation extends StatelessWidget {
 
   Future<void> _showGroupMenu(
     BuildContext context,
-    _NavigationGroup group,
+    _NavigationNode node,
   ) async {
     final selected = await showMenu<WorkbenchSection>(
       context: context,
       position: const RelativeRect.fromLTRB(72, 180, 0, 0),
       items: [
-        for (final item in group.items)
-          PopupMenuItem(value: item.section, child: Text(item.label)),
+        for (final child in node.children)
+          PopupMenuItem(value: child.section, child: Text(child.label)),
       ],
     );
     if (selected != null) onSelected(selected);
   }
 
-  Widget _item(BuildContext context, _NavigationItem item) {
-    final value = item.section;
+  Widget _leaf(
+    BuildContext context,
+    _NavigationNode node, {
+    bool nested = false,
+  }) {
+    final value = node.section!;
     final isSelected = selected == value;
     final theme = Theme.of(context);
+    if (collapsed && !nested) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Tooltip(
+          message: node.label,
+          child: IconButton(
+            onPressed: () => onSelected(value),
+            icon: Icon(node.icon),
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
     final tile = DecoratedBox(
       decoration: BoxDecoration(
         color: isSelected
@@ -983,10 +1269,11 @@ class _DesktopNavigation extends StatelessWidget {
       child: Stack(
         children: [
           ListTile(
+            key: ValueKey('navigation-leaf:${value.name}'),
             dense: true,
             minVerticalPadding: 4,
             visualDensity: const VisualDensity(vertical: -1),
-            contentPadding: EdgeInsets.symmetric(horizontal: 14),
+            contentPadding: EdgeInsets.symmetric(horizontal: nested ? 14 : 12),
             hoverColor: theme.colorScheme.primary.withValues(alpha: 0.06),
             focusColor: theme.colorScheme.primary.withValues(alpha: 0.1),
             selected: isSelected,
@@ -995,11 +1282,11 @@ class _DesktopNavigation extends StatelessWidget {
                 ? theme.colorScheme.primary
                 : theme.colorScheme.onSurfaceVariant,
             leading: Padding(
-              padding: const EdgeInsets.only(left: 16),
-              child: Icon(item.icon, size: 20),
+              padding: EdgeInsets.only(left: nested ? 16 : 0),
+              child: Icon(node.icon, size: 20),
             ),
             title: Text(
-              item.label,
+              node.label,
               style: isSelected
                   ? TextStyle(
                       color: theme.colorScheme.primary,
@@ -1044,11 +1331,13 @@ class _MobileNavigationSheet extends StatelessWidget {
     required this.selected,
     required this.controller,
     required this.onSelected,
+    required this.onParentSelected,
   });
 
   final WorkbenchSection selected;
   final WorkbenchController controller;
   final ValueChanged<WorkbenchSection> onSelected;
+  final ValueChanged<WorkbenchSection> onParentSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -1056,26 +1345,45 @@ class _MobileNavigationSheet extends StatelessWidget {
       shrinkWrap: true,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
       children: [
-        for (final group in _navigationGroups(controller))
-          ExpansionTile(
-            initiallyExpanded:
-                controller.navigationGroupExpanded(group.id) ||
-                group.items.any((item) => item.section == selected),
-            leading: Icon(group.icon),
-            title: Text(group.label),
-            onExpansionChanged: (expanded) =>
-                controller.setNavigationGroupExpanded(group.id, expanded),
-            children: [
-              for (final item in group.items)
-                ListTile(
-                  contentPadding: const EdgeInsets.only(left: 32, right: 8),
-                  selected: item.section == selected,
-                  leading: Icon(item.icon, size: 20),
-                  title: Text(item.label),
-                  onTap: () => onSelected(item.section),
-                ),
-            ],
-          ),
+        for (final node in _navigationTree)
+          if (node.isLeaf)
+            ListTile(
+              key: ValueKey('navigation-leaf:${node.section!.name}'),
+              selected: node.section == selected,
+              leading: Icon(node.icon, size: 20),
+              title: Text(node.label),
+              onTap: () => onSelected(node.section!),
+            )
+          else
+            ExpansionTile(
+              key: ValueKey('navigation-group:${node.id}'),
+              initiallyExpanded: controller.navigationGroupExpanded(node.id!),
+              leading: Icon(node.icon),
+              title: Text(node.label),
+              onExpansionChanged: (expanded) {
+                controller.setNavigationGroupExpanded(node.id!, expanded);
+                final containsSelected = node.children.any(
+                  (child) => child.section == selected,
+                );
+                if (!containsSelected) {
+                  onParentSelected(node.children.first.section!);
+                }
+              },
+              children: [
+                for (final child in node.children)
+                  ListTile(
+                    key: ValueKey('navigation-leaf:${child.section!.name}'),
+                    contentPadding: const EdgeInsetsDirectional.only(
+                      start: 32,
+                      end: 8,
+                    ),
+                    selected: child.section == selected,
+                    leading: Icon(child.icon, size: 20),
+                    title: Text(child.label),
+                    onTap: () => onSelected(child.section!),
+                  ),
+              ],
+            ),
       ],
     );
   }
