@@ -9,15 +9,21 @@ import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
 
+enum PolicyTab { tree, library, history, analytics }
+
 class PoliciesPage extends StatefulWidget {
   const PoliciesPage({
     super.key,
     required this.controller,
     this.showHeader = true,
+    this.initialTab = PolicyTab.tree,
+    this.showTabs = true,
   });
 
   final WorkbenchController controller;
   final bool showHeader;
+  final PolicyTab initialTab;
+  final bool showTabs;
 
   @override
   State<PoliciesPage> createState() => _PoliciesPageState();
@@ -31,7 +37,8 @@ class _PoliciesPageState extends State<PoliciesPage> {
   Widget build(BuildContext context) {
     final actions = _pageActions();
     return DefaultTabController(
-      length: 4,
+      length: PolicyTab.values.length,
+      initialIndex: widget.initialTab.index,
       child: Column(
         children: [
           if (widget.showHeader)
@@ -67,15 +74,16 @@ class _PoliciesPageState extends State<PoliciesPage> {
                 ),
               ),
             ),
-          const TabBar(
-            isScrollable: true,
-            tabs: [
-              Tab(text: '国策树', icon: Icon(Icons.account_tree_outlined)),
-              Tab(text: '国策库', icon: Icon(Icons.inventory_2_outlined)),
-              Tab(text: '轮次历史', icon: Icon(Icons.history_outlined)),
-              Tab(text: '高级分析', icon: Icon(Icons.analytics_outlined)),
-            ],
-          ),
+          if (widget.showTabs)
+            const TabBar(
+              isScrollable: true,
+              tabs: [
+                Tab(text: '国策树', icon: Icon(Icons.account_tree_outlined)),
+                Tab(text: '国策库', icon: Icon(Icons.inventory_2_outlined)),
+                Tab(text: '轮次历史', icon: Icon(Icons.history_outlined)),
+                Tab(text: '高级分析', icon: Icon(Icons.analytics_outlined)),
+              ],
+            ),
           Expanded(
             child: TabBarView(
               children: [_tree(), _library(), _history(), _analytics()],

@@ -13,19 +13,16 @@ import '../widgets/celebration.dart';
 import '../widgets/common.dart';
 import '../widgets/glass.dart';
 import '../widgets/ink_decoration.dart';
-import 'restriction_page.dart';
 
 class FocusHubPage extends StatelessWidget {
   const FocusHubPage({
     super.key,
     required this.controller,
     this.showHeader = true,
-    this.onOpenSettings,
   });
 
   final WorkbenchController controller;
   final bool showHeader;
-  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -43,23 +40,11 @@ class FocusHubPage extends StatelessWidget {
                   icon: const Icon(Icons.add),
                   label: const Text('新建专注预设'),
                 ),
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      showRestrictionProfileEditor(context, controller),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('编辑规则'),
-                ),
               ] else ...[
                 IconButton(
                   onPressed: () => _showPresetEditor(context, controller),
                   tooltip: '新建专注预设',
                   icon: const Icon(Icons.add),
-                ),
-                IconButton(
-                  onPressed: () =>
-                      showRestrictionProfileEditor(context, controller),
-                  tooltip: '编辑自律规则',
-                  icon: const Icon(Icons.edit_outlined),
                 ),
               ],
             ],
@@ -77,42 +62,11 @@ class FocusHubPage extends StatelessWidget {
                     tooltip: '新建专注预设',
                     icon: const Icon(Icons.add),
                   ),
-                  IconButton(
-                    onPressed: () =>
-                        showRestrictionProfileEditor(context, controller),
-                    tooltip: '编辑自律规则',
-                    icon: const Icon(Icons.edit_outlined),
-                  ),
                 ],
               ),
             ),
           ),
-        Expanded(
-          child: DefaultTabController(
-            length: 2,
-            child: Column(
-              children: [
-                const TabBar(
-                  tabs: [
-                    Tab(text: '专注'),
-                    Tab(text: '自律'),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _FocusTab(controller: controller),
-                      RestrictionSection(
-                        controller: controller,
-                        onOpenSettings: onOpenSettings,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        Expanded(child: _FocusTab(controller: controller)),
       ],
     );
   }

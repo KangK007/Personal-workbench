@@ -16,11 +16,13 @@ class ReviewPage extends StatefulWidget {
     required this.controller,
     this.initialTab = ReviewTab.diary,
     this.showHeader = true,
+    this.showPeriodSwitcher = true,
   });
 
   final WorkbenchController controller;
   final ReviewTab initialTab;
   final bool showHeader;
+  final bool showPeriodSwitcher;
 
   @override
   State<ReviewPage> createState() => _ReviewPageState();
@@ -150,14 +152,26 @@ class _ReviewPageState extends State<ReviewPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 132),
       children: [
-        _PeriodToolbar(
-          type: type,
-          period: currentPeriod,
-          onTypeChanged: _selectType,
-          onPrevious: () => _movePeriod(-1),
-          onNext: () => _movePeriod(1),
-          onToday: _goCurrent,
-        ),
+        if (widget.showPeriodSwitcher)
+          _PeriodToolbar(
+            type: type,
+            period: currentPeriod,
+            onTypeChanged: _selectType,
+            onPrevious: () => _movePeriod(-1),
+            onNext: () => _movePeriod(1),
+            onToday: _goCurrent,
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _periodLabel(currentPeriod),
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+          ),
         const SizedBox(height: 12),
         _ReviewFacts(snapshot: snapshot),
         if (statisticsChanged) ...[

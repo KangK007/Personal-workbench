@@ -23,6 +23,7 @@ class PlanPage extends StatelessWidget {
     required this.controller,
     this.initialTab = PlanTab.all,
     this.showHeader = true,
+    this.showTabs = true,
     this.onOpenInbox,
     this.onOpenCalendar,
     this.onOpenProjects,
@@ -31,6 +32,7 @@ class PlanPage extends StatelessWidget {
   final WorkbenchController controller;
   final PlanTab initialTab;
   final bool showHeader;
+  final bool showTabs;
   // Kept for callers from the first shell API; tabs now handle these routes.
   final VoidCallback? onOpenInbox;
   final VoidCallback? onOpenCalendar;
@@ -59,37 +61,38 @@ class PlanPage extends StatelessWidget {
             initialIndex: initialTab.index,
             child: Column(
               children: [
-                TabBar(
-                  isScrollable: compact,
-                  labelPadding: EdgeInsets.symmetric(
-                    horizontal: compact ? 14 : 16,
+                if (showTabs)
+                  TabBar(
+                    isScrollable: compact,
+                    labelPadding: EdgeInsets.symmetric(
+                      horizontal: compact ? 14 : 16,
+                    ),
+                    indicatorSize: TabBarIndicatorSize.label,
+                    tabs: [
+                      Tab(
+                        text: '全部',
+                        icon: compact
+                            ? null
+                            : const Icon(Icons.checklist_outlined),
+                      ),
+                      Tab(
+                        text: '收件箱',
+                        icon: compact ? null : const Icon(Icons.inbox_outlined),
+                      ),
+                      Tab(
+                        text: '周视图',
+                        icon: compact
+                            ? null
+                            : const Icon(Icons.calendar_view_week_outlined),
+                      ),
+                      Tab(
+                        text: '任务群',
+                        icon: compact
+                            ? null
+                            : const Icon(Icons.account_tree_outlined),
+                      ),
+                    ],
                   ),
-                  indicatorSize: TabBarIndicatorSize.label,
-                  tabs: [
-                    Tab(
-                      text: '全部',
-                      icon: compact
-                          ? null
-                          : const Icon(Icons.checklist_outlined),
-                    ),
-                    Tab(
-                      text: '收件箱',
-                      icon: compact ? null : const Icon(Icons.inbox_outlined),
-                    ),
-                    Tab(
-                      text: '周视图',
-                      icon: compact
-                          ? null
-                          : const Icon(Icons.calendar_view_week_outlined),
-                    ),
-                    Tab(
-                      text: '任务群',
-                      icon: compact
-                          ? null
-                          : const Icon(Icons.account_tree_outlined),
-                    ),
-                  ],
-                ),
                 Expanded(
                   child: TabBarView(
                     children: [

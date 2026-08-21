@@ -9,15 +9,25 @@ import '../widgets/task_row.dart';
 
 enum ProjectViewMode { list, board }
 
+enum ProjectDetailTab { overview, tasks, groups, milestones, notes }
+
 class ProjectsPage extends StatefulWidget {
   const ProjectsPage({
     super.key,
     required this.controller,
     this.showHeader = true,
+    this.initialTab = ProjectDetailTab.overview,
+    this.showTabs = true,
+    this.selectedProjectId,
+    this.onProjectSelected,
   });
 
   final WorkbenchController controller;
   final bool showHeader;
+  final ProjectDetailTab initialTab;
+  final bool showTabs;
+  final String? selectedProjectId;
+  final ValueChanged<String>? onProjectSelected;
 
   @override
   State<ProjectsPage> createState() => _ProjectsPageState();
@@ -28,6 +38,26 @@ class _ProjectsPageState extends State<ProjectsPage> {
   ProjectViewMode mode = ProjectViewMode.list;
 
   WorkbenchController get controller => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedProjectId = widget.selectedProjectId;
+  }
+
+  @override
+  void didUpdateWidget(covariant ProjectsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedProjectId != oldWidget.selectedProjectId) {
+      selectedProjectId = widget.selectedProjectId;
+    }
+  }
+
+  void _selectProject(String? value) {
+    if (value == null) return;
+    setState(() => selectedProjectId = value);
+    widget.onProjectSelected?.call(value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,8 +129,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                         projects: projects,
                         controller: controller,
                         selectedId: selected!.id,
-                        onSelected: (id) =>
-                            setState(() => selectedProjectId = id),
+                        onSelected: _selectProject,
                         onEdit: _editProject,
                         onDelete: _moveProjectToTrash,
                       ),
@@ -135,7 +164,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                   ),
                 )
                 .toList(),
-            onChanged: (value) => setState(() => selectedProjectId = value),
+            onChanged: _selectProject,
           ),
         ),
         Expanded(child: _projectDetail(context, selected)),
@@ -168,7 +197,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
       return record.projectId == project.id || ids.contains(project.id);
     }).toList();
     return DefaultTabController(
-      length: 5,
+      length: ProjectDetailTab.values.length,
+      initialIndex: widget.initialTab.index,
       child: Column(
         children: [
           Padding(
@@ -242,16 +272,17 @@ class _ProjectsPageState extends State<ProjectsPage> {
               ],
             ),
           ),
-          const TabBar(
-            isScrollable: true,
-            tabs: [
-              Tab(text: '概览'),
-              Tab(text: '任务'),
-              Tab(text: '任务群'),
-              Tab(text: '里程碑'),
-              Tab(text: '笔记与回顾'),
-            ],
-          ),
+          if (widget.showTabs)
+            const TabBar(
+              isScrollable: true,
+              tabs: [
+                Tab(text: '概览'),
+                Tab(text: '任务'),
+                Tab(text: '任务群'),
+                Tab(text: '里程碑'),
+                Tab(text: '笔记与回顾'),
+              ],
+            ),
           Expanded(
             child: TabBarView(
               children: [
