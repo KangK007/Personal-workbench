@@ -655,6 +655,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TabBar), findsNothing);
     expect(find.widgetWithText(ListTile, '系统'), findsNothing);
+    expect(find.byKey(const ValueKey('navigation-leaf:diary')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('navigation-group:policies')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('navigation-group:goals_habits')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('navigation-leaf:goals')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('navigation-leaf:behavior')),
+      findsOneWidget,
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await fixture.controller.setAdvancedFeaturesEnabled(false);
@@ -672,7 +686,7 @@ void main() {
         .cast<NavigationDestination>()
         .map((destination) => destination.label)
         .toList();
-    expect(labels, ['今日', '任务', '回顾', '国策', '设置']);
+    expect(labels, ['今日', '任务', '回顾', '行为', '设置']);
     expect(find.byType(PageHeader), findsNothing);
     expect(find.byType(FloatingActionButton), findsNothing);
     expect(find.byTooltip('全局搜索'), findsOneWidget);

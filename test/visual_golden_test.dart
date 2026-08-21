@@ -16,6 +16,7 @@ import 'package:personal_workbench/services/search_service.dart';
 import 'package:personal_workbench/services/share_capture_service.dart';
 import 'package:personal_workbench/services/supabase_sync_service.dart';
 import 'package:personal_workbench/state/workbench_controller.dart';
+import 'package:personal_workbench/ui/pages/behavior_page.dart';
 import 'package:personal_workbench/ui/pages/calendar_page.dart';
 import 'package:personal_workbench/ui/pages/focus_page.dart';
 import 'package:personal_workbench/ui/pages/growth_page.dart';
@@ -554,6 +555,31 @@ void main() {
       GrowthPage(controller: fixture.controller, now: _visualDate),
       size: const Size(412, 915),
       fileName: 'android_growth',
+    );
+  });
+
+  testWidgets('Wide behavior habits', (tester) async {
+    await _pumpGolden(
+      tester,
+      BehaviorPage(
+        controller: fixture.controller,
+        initialMode: BehaviorMode.habits,
+      ),
+      size: const Size(1536, 864),
+      fileName: 'wide_behavior_habits',
+    );
+  });
+
+  testWidgets('Android behavior policies', (tester) async {
+    await _pumpGolden(
+      tester,
+      BehaviorPage(
+        controller: fixture.controller,
+        initialMode: BehaviorMode.policies,
+        showHeader: false,
+      ),
+      size: const Size(412, 915),
+      fileName: 'android_behavior_policies',
     );
   });
 
