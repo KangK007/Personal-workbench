@@ -63,26 +63,27 @@ class TaskRow extends StatelessWidget {
           child: ConstrainedBox(
             constraints: BoxConstraints(
               minHeight: task.isDone && commitmentIndex != null
-                  ? 46
-                  : (dense ? 54 : 66),
+                  ? 42
+                  : (dense ? 48 : 58),
             ),
             child: Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: 10,
-                vertical: dense ? 5 : 8,
+                vertical: dense ? 4 : 7,
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (commitmentIndex != null) ...[
+                    // 状态强调条（v2 规范）：done=primary@30%，进行中=primary。
                     Container(
                       width: 3,
-                      height: task.isDone ? 28 : 42,
+                      height: task.isDone ? 26 : 38,
                       margin: const EdgeInsets.only(top: 5, right: 8),
                       decoration: BoxDecoration(
                         color: task.isDone
-                            ? theme.colorScheme.primary
-                            : context.tokens.reward,
+                            ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                            : theme.colorScheme.primary,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),

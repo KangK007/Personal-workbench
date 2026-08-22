@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +24,6 @@ import 'pages/settings_page.dart';
 import 'pages/today_page.dart';
 import 'widgets/global_search_dialog.dart';
 import 'widgets/common.dart';
-import 'widgets/glass.dart';
 import 'widgets/ink_decoration.dart';
 import 'widgets/quick_capture_sheet.dart';
 
@@ -242,7 +240,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               ),
               const VerticalDivider(),
               Expanded(
-                child: SafeArea(child: WorkbenchBackdrop(child: _pageStack())),
+                child: SafeArea(child: _pageStack()),
               ),
             ],
           ),
@@ -349,45 +347,18 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               onPressed: () => _openMobileNavigation(context),
             ),
           ],
-          flexibleSpace: GlassConfig.blurEnabled
-              ? ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: tokens.glassBlur,
-                      sigmaY: tokens.glassBlur,
-                    ),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.glassPanel,
-                        border: Border(
-                          top: BorderSide(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.08,
-                            ),
-                          ),
-                          bottom: BorderSide(color: tokens.divider),
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-              : DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: tokens.panel.withValues(alpha: 0.96),
-                    border: Border(
-                      top: BorderSide(
-                        color: theme.colorScheme.primary.withValues(
-                          alpha: 0.08,
-                        ),
-                      ),
-                      bottom: BorderSide(color: tokens.divider),
-                    ),
-                  ),
-                ),
+          flexibleSpace: DecoratedBox(
+            decoration: BoxDecoration(
+              color: tokens.panel,
+              border: Border(
+                bottom: BorderSide(color: tokens.panelBorder),
+              ),
+            ),
+          ),
         ),
         body: SafeArea(
           top: false,
-          child: WorkbenchBackdrop(child: _pageStack(slidable: true)),
+          child: _pageStack(slidable: true),
         ),
         floatingActionButton: _shouldShowPersistentAdd
             ? FloatingActionButton.small(
@@ -404,50 +375,29 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               height: 26,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: tokens.glassPanel,
-                border: Border(top: BorderSide(color: tokens.divider)),
+                color: tokens.panel,
+                border: Border(top: BorderSide(color: tokens.panelBorder)),
               ),
-              child: Stack(
+              child: Row(
                 children: [
-                  // 底部 1px 主色微高光 — 分隔同步状态与底部导航
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: 1,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            theme.colorScheme.primary.withValues(alpha: 0.10),
-                            theme.colorScheme.primary.withValues(alpha: 0.02),
-                          ],
-                        ),
+                  Icon(
+                    widget.controller.cloudConfigured
+                        ? Icons.cloud_outlined
+                        : Icons.cloud_off_outlined,
+                    size: 13,
+                    color: tokens.mutedText,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      widget.controller.syncMessage,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: tokens.mutedText,
+                        fontSize: 11,
                       ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Icon(
-                        widget.controller.cloudConfigured
-                            ? Icons.cloud_outlined
-                            : Icons.cloud_off_outlined,
-                        size: 13,
-                        color: tokens.mutedText,
-                      ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Text(
-                          widget.controller.syncMessage,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: tokens.mutedText,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -500,7 +450,10 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       children: [
         for (final value in WorkbenchSection.values)
           _visitedSections.contains(value)
-              ? _buildPage(value)
+              ? TickerMode(
+                  enabled: value == section,
+                  child: _buildPage(value),
+                )
               : const SizedBox.shrink(),
       ],
     ),
@@ -911,34 +864,24 @@ class _DesktopNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final expanded =
         MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
-    return WorkbenchBackdrop(
-      child: GlassSurface(
-        radius: 0,
-        glow: false,
-        child: SafeArea(
+    // 侧栏：实色 surface，右缘由外层 VerticalDivider 提供 1px 分隔。
+    return ColoredBox(
+      color: context.tokens.panel,
+      child: SafeArea(
           child: Column(
             children: [
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: context.tokens.glassHighlight.withValues(alpha: 0.28),
                   border: Border(
-                    bottom: BorderSide(color: context.tokens.divider),
+                    bottom: BorderSide(color: context.tokens.panelBorder),
                   ),
                 ),
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
-                    collapsed
-                        ? 16
-                        : expanded
-                        ? 28
-                        : 18,
-                    expanded ? 22 : 14,
-                    collapsed
-                        ? 16
-                        : expanded
-                        ? 24
-                        : 14,
-                    expanded ? 16 : 10,
+                    collapsed ? 14 : expanded ? 24 : 16,
+                    expanded ? 20 : 12,
+                    collapsed ? 14 : expanded ? 20 : 12,
+                    expanded ? 14 : 10,
                   ),
                   child: Row(
                     children: [
@@ -1127,7 +1070,6 @@ class _DesktopNavigation extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -1266,12 +1208,12 @@ class _DesktopNavigation extends StatelessWidget {
     final tile = DecoratedBox(
       decoration: BoxDecoration(
         color: isSelected
-            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.6)
+            ? theme.colorScheme.primary.withValues(alpha: 0.08)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: isSelected
             ? Border.all(
-                color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                color: theme.colorScheme.primary.withValues(alpha: 0.25),
               )
             : null,
       ),
@@ -1314,14 +1256,7 @@ class _DesktopNavigation extends StatelessWidget {
                 width: 3,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      theme.colorScheme.primary,
-                      theme.colorScheme.secondary,
-                    ],
-                  ),
+                  color: theme.colorScheme.primary,
                 ),
               ),
             ),

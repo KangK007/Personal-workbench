@@ -948,17 +948,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
             )
           : Text(widget.record == null ? '创建${widget.kind.label}' : '保存修改'),
     );
-    final heading = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(child: Text(editorTitle)),
-        const SizedBox(width: 8),
-        OrientalMark(
-          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.72),
-          size: 14,
-        ),
-      ],
-    );
+    final heading = Text(editorTitle);
     if (compact) {
       return Dialog.fullscreen(
         child: Scaffold(
@@ -971,8 +961,8 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
             ),
             title: heading,
             bottom: const PreferredSize(
-              preferredSize: Size.fromHeight(8),
-              child: TraditionalDivider(height: 8),
+              preferredSize: Size.fromHeight(1),
+              child: Divider(height: 1),
             ),
           ),
           body: SafeArea(top: false, child: editorContent),
@@ -1001,11 +991,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
     return AlertDialog(
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          heading,
-          const SizedBox(height: 8),
-          const TraditionalDivider(height: 8),
-        ],
+        children: [heading, const SizedBox(height: 8), const Divider()],
       ),
       content: SizedBox(width: 560, child: editorContent),
       actions: [cancelAction, saveAction],

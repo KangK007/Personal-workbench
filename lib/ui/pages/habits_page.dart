@@ -87,7 +87,7 @@ class HabitsPage extends StatelessWidget {
                       const SizedBox(height: 18),
                       protocolSection!,
                     ],
-                    if (habits.length < 5) const SparseContentTail(),
+                    if (habits.length < 5) const SizedBox(height: 12),
                   ],
                 ),
         ),
@@ -302,10 +302,12 @@ class _HabitCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     final cellSize = compact ? 16.0 : 14.0;
+    // 未记录格用 mutedText@35% 描边，保证与面板底 ≥1.15:1 的可辨识对比度。
+    final unrecordedBorder = context.tokens.mutedText.withValues(alpha: 0.35);
     final color = switch (status) {
       WorkStatus.done => Theme.of(context).colorScheme.primary,
       WorkStatus.skipped => context.tokens.reward,
-      _ => context.tokens.divider,
+      _ => unrecordedBorder,
     };
     return Semantics(
       button: true,

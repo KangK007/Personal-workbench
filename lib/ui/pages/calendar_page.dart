@@ -577,7 +577,7 @@ class _MobileWeek extends StatelessWidget {
                           border: Border.all(
                             color: isSameDay(day, selectedDay)
                                 ? Theme.of(context).colorScheme.primary
-                                : context.tokens.divider,
+                                : context.tokens.panelBorder,
                           ),
                         ),
                         child: Column(

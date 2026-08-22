@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回顾 · DESIGN V2 预览</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+  .period-tabs { display: flex; gap: 4px; }
+  .form-card { padding: 18px; }
+  .form-row { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+  .form-row label { font-size: 13px; font-weight: 600; }
+  .form-row .hint { font-size: 11.5px; color: var(--ink-muted); }
+
+  .snap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .snap-card { padding: 14px; display: flex; flex-direction: column; gap: 6px; cursor: default; }
+  .snap-card .k { font-size: 11.5px; color: var(--ink-muted); letter-spacing: .3px; }
+  .snap-card .v { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+  .snap-card .v small { font-size: 12px; font-weight: 600; color: var(--ink-muted); margin-left: 2px; }
+  .snap-card .delta { font-size: 11.5px; font-weight: 600; }
+  .delta.up { color: var(--primary); }
+  .delta.down { color: var(--danger); }
+
+  .week-grid { display: flex; gap: 6px; margin-top: 6px; }
+  .week-grid .day { flex: 1; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .week-grid .day .lbl { font-size: 10.5px; color: var(--ink-muted); }
+  .week-grid .day .bar { width: 100%; border-radius: 3px; background: var(--subtle); border: 1px solid var(--divider); height: 44px; position: relative; overflow: hidden; }
+  .week-grid .day .bar .fill { position: absolute; bottom: 0; left: 0; right: 0; background: color-mix(in srgb, var(--primary) 75%, transparent); }
+  .week-grid .day .bar.warn .fill { background: color-mix(in srgb, var(--reward) 70%, transparent); }
+
+  .review-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 1000px) { .review-layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="preview-bar">
+  <div class="brand"><span class="dot"></span>DESIGN V2 · 翠绿·锐意</div>
+  <nav>
+    <a href="index.html">令牌总览</a>
+    <a href="today.html">桌面 · 今日</a>
+    <a href="tasks.html">桌面 · 任务</a>
+    <a href="focus.html">专注</a>
+    <a href="review.html" class="active">回顾</a>
+    <a href="mobile.html">移动端</a>
+    <a href="components.html">组件总览</a>
+  </nav>
+  <button class="theme-toggle" onclick="toggleTheme()">
+    <svg class="ic" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    <span class="label">切换暗色</span>
+  </button>
+</header>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo-row">
+      <div class="logo"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+      <div class="name">个人工作台</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">工作流</div>
+      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>今日</div>
+      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>任务</div>
+      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>项目</div>
+      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>专注</div>
+      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>笔记</div>
+      <div class="nav-group">复盘</div>
+      <div class="nav-item active"><svg class="ic" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>回顾</div>
+      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8"/></svg>成长</div>
+      <div class="nav-group">系统</div>
+      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="15" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>设置</div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div class="accent-bar"></div>
+      <div>
+        <h1>回顾</h1>
+        <div class="sub num">2026年8月21日 · 日回顾</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="period-tabs">
+        <span class="chip" style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:var(--r-btn);font-size:12.5px;font-weight:600;background:color-mix(in srgb,var(--primary) 10%,transparent);color:var(--primary);border:1px solid color-mix(in srgb,var(--primary) 30%,transparent)">日</span>
+        <span class="chip" style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:var(--r-btn);font-size:12.5px;font-weight:600;background:var(--subtle);color:var(--ink-muted)">周</span>
+        <span class="chip" style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:var(--r-btn);font-size:12.5px;font-weight:600;background:var(--subtle);color:var(--ink-muted)">月</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="review-layout">
+
+        <!-- 左：回顾表单 -->
+        <div class="panel form-card stagger">
+          <div class="section-head" style="margin-bottom:16px"><span class="bar"></span><h2>日回顾</h2><span class="pill num">草稿</span></div>
+          <div class="form-row">
+            <label>今天做得好的</label>
+            <textarea class="input" rows="2" placeholder="事实与证据，而非评价…"></textarea>
+          </div>
+          <div class="form-row">
+            <label>偏差与原因</label>
+            <textarea class="input" rows="2" placeholder="计划与实际的偏差，归因到可改变的行为…"></textarea>
+          </div>
+          <div class="form-row">
+            <label>明日承诺候选</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill primary">规范收尾</span>
+              <span class="pill">预览稿评审</span>
+              <span class="pill" style="border:1px dashed var(--divider);background:transparent;color:var(--ink-muted)">+ 添加</span>
+            </div>
+            <span class="hint">从今日未完成与收件箱中提取 · 最多 3 项</span>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn ghost">存草稿</button>
+            <button class="btn primary"><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M20 6L9 17l-5-5"/></svg>完成日结</button>
+          </div>
+        </div>
+
+        <!-- 右：事实快照 -->
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <div>
+            <div class="section-head"><span class="bar"></span><h2>今日快照</h2><span class="pill num">自动生成</span></div>
+            <div class="snap-grid stagger">
+              <div class="panel snap-card motion-demo-card"><span class="k">完成 / 计划</span><span class="v num">5<small>/ 9</small></span><span class="delta up">↑ 较昨日 +2</span></div>
+              <div class="panel snap-card motion-demo-card"><span class="k">专注时长</span><span class="v num">2<small>h</small>35<small>m</small></span><span class="delta up">↑ +18%</span></div>
+              <div class="panel snap-card motion-demo-card"><span class="k">中断次数</span><span class="v num">2</span><span class="delta down">↓ 较昨日 -1</span></div>
+              <div class="panel snap-card motion-demo-card"><span class="k">XP 净增</span><span class="v num" style="color:var(--gold)">+62</span><span class="delta up">↑ 连续第 6 日</span></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-head"><span class="bar"></span><h2>本周专注分布</h2></div>
+            <div class="panel snap-card">
+              <div class="week-grid">
+                <div class="day"><span class="lbl">一</span><div class="bar"><div class="fill" style="height:55%"></div></div></div>
+                <div class="day"><span class="lbl">二</span><div class="bar"><div class="fill" style="height:80%"></div></div></div>
+                <div class="day"><span class="lbl">三</span><div class="bar"><div class="fill" style="height:35%"></div></div></div>
+                <div class="day"><span class="lbl">四</span><div class="bar"><div class="fill" style="height:65%"></div></div></div>
+                <div class="day"><span class="lbl">五</span><div class="bar warn"><div class="fill" style="height:92%"></div></div></div>
+                <div class="day"><span class="lbl">六</span><div class="bar"><div class="fill" style="height:20%"></div></div></div>
+                <div class="day"><span class="lbl">日</span><div class="bar"><div class="fill" style="height:0%"></div></div></div>
+              </div>
+              <span class="hint" style="font-size:11.5px;color:var(--ink-muted);display:block;margin-top:10px">网格线与空格对比度已按 v2 基准修正（≥1.15:1）· 今日（五）超出目标 92%</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

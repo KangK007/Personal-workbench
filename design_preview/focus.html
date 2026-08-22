@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>专注 · DESIGN V2 预览</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+  body { overflow-x: hidden; }
+  .focus-stage {
+    min-height: calc(100vh - 41px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 24px; position: relative;
+  }
+  .focus-card { width: 100%; max-width: 560px; padding: 36px 32px; text-align: center; }
+  .mode-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 26px; }
+  .timer { font-size: 84px; font-weight: 700; letter-spacing: -2px; line-height: 1; margin-bottom: 8px; }
+  .timer .sep { opacity: .35; }
+  .timer-sub { font-size: 13px; color: var(--ink-muted); margin-bottom: 26px; }
+  .presets { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+  .actions { display: flex; gap: 10px; justify-content: center; }
+
+  .focus-meta { display: flex; gap: 20px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+  .focus-meta .m { display: flex; flex-direction: column; gap: 2px; }
+  .focus-meta .m .k { font-size: 11px; color: var(--ink-muted); letter-spacing: .5px; }
+  .focus-meta .m .v { font-size: 15px; }
+
+  .interrupt-log { width: 100%; max-width: 560px; margin-top: 22px; text-align: left; }
+  .int-row { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border-bottom: 1px solid var(--divider); font-size: 13px; }
+  .int-row:last-child { border-bottom: none; }
+
+  /* ---- 完成庆祝仪式：FocusCelebration（精修版） ---- */
+  .celebration-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: color-mix(in srgb, var(--canvas) 82%, transparent);
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    backdrop-filter: none; /* v2 无模糊 */
+  }
+  .celebration-overlay.show { display: flex; }
+  .cele-badge {
+    width: 92px; height: 92px; border-radius: 22px;
+    background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--raised-shadow);
+    animation: badgeIn .5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    position: relative;
+  }
+  html[data-theme="dark"] .cele-badge { color: #06281D; }
+  .cele-badge svg.ic { width: 44px; height: 44px; stroke-width: 2.5; }
+  .cele-ring { position: absolute; inset: 0; border-radius: 22px; border: 2px solid var(--primary); animation: ringOut 1.2s ease-out infinite; }
+  .cele-ring.r2 { animation-delay: .4s; }
+  @keyframes ringOut { from { transform: scale(1); opacity: .55; } to { transform: scale(1.9); opacity: 0; } }
+  @keyframes badgeIn { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .cele-title { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin-top: 24px; animation: rise .32s ease .15s both; }
+  .cele-sub { font-size: 14px; color: var(--ink-muted); margin-top: 6px; animation: rise .32s ease .22s both; }
+  .cele-stats { display: flex; gap: 10px; margin-top: 26px; animation: rise .32s ease .3s both; }
+  .confetti { position: absolute; width: 7px; height: 7px; border-radius: 2px; animation: confettiFall 1.6s ease-in both; }
+  @keyframes confettiFall { from { transform: translateY(-40px) rotate(0deg); opacity: 1; } to { transform: translateY(280px) rotate(320deg); opacity: 0; } }
+  .cele-close { margin-top: 30px; animation: rise .32s ease .38s both; }
+</style>
+</head>
+<body>
+
+<header class="preview-bar">
+  <div class="brand"><span class="dot"></span>DESIGN V2 · 翠绿·锐意</div>
+  <nav>
+    <a href="index.html">令牌总览</a>
+    <a href="today.html">桌面 · 今日</a>
+    <a href="tasks.html">桌面 · 任务</a>
+    <a href="focus.html" class="active">专注</a>
+    <a href="review.html">回顾</a>
+    <a href="mobile.html">移动端</a>
+    <a href="components.html">组件总览</a>
+  </nav>
+  <button class="theme-toggle" onclick="toggleTheme()">
+    <svg class="ic" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    <span class="label">切换暗色</span>
+  </button>
+</header>
+
+<div class="focus-stage stagger">
+  <div class="panel focus-card">
+    <div class="mode-row">
+      <span class="pill primary">正计时</span>
+      <span class="pill">倒计时</span>
+    </div>
+
+    <!-- 等宽数字计时器（tabular-nums + w700） -->
+    <div class="timer num">00:47<span class="sep">:</span>23</div>
+    <div class="timer-sub">深度专注 · 与「DESIGN V2 规范」关联 · 开始于 14:02</div>
+
+    <div class="presets">
+      <span class="chip" style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:var(--r-btn);font-size:12.5px;font-weight:600;background:var(--subtle);color:var(--ink-muted)">番茄 25m</span>
+      <span class="chip" style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:var(--r-btn);font-size:12.5px;font-weight:600;background:color-mix(in srgb,var(--primary) 10%,transparent);color:var(--primary);border:1px solid color-mix(in srgb,var(--primary) 30%,transparent)">深度 50m</span>
+      <span class="chip" style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:var(--r-btn);font-size:12.5px;font-weight:600;background:var(--subtle);color:var(--ink-muted)">缓冲 10m</span>
+      <span class="chip" style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:var(--r-btn);font-size:12.5px;font-weight:600;background:var(--subtle);color:var(--ink-muted)">自定义</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" style="min-width:130px">
+        <svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>暂停
+      </button>
+      <button class="btn outline">中断记录</button>
+      <button class="btn ghost">结束并保存</button>
+    </div>
+
+    <div class="focus-meta">
+      <div class="m"><span class="k">今日累计</span><span class="v num">2h 35m</span></div>
+      <div class="m"><span class="k">连续专注</span><span class="v num">第 2 段</span></div>
+      <div class="m"><span class="k">预设押注</span><span class="v num" style="color:var(--reward)">+15 分</span></div>
+    </div>
+  </div>
+
+  <div class="interrupt-log panel">
+    <div style="padding:10px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;gap:10px">
+      <span style="width:3px;height:14px;border-radius:2px;background:color-mix(in srgb,var(--primary) 60%,transparent)"></span>
+      <b style="font-size:13.5px">中断记录</b><span class="pill num">2</span>
+    </div>
+    <div class="int-row"><span class="num muted">14:21</span><span>查看手机通知</span><span class="spacer" style="flex:1"></span><span class="pill">内部</span></div>
+    <div class="int-row"><span class="num muted">14:35</span><span>起身倒水</span><span style="flex:1"></span><span class="pill">生理</span></div>
+  </div>
+
+  <button class="btn primary" style="margin-top:26px" onclick="showCelebration()">
+    <svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="8" r="6"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8"/></svg>
+    播放完成庆祝仪式
+  </button>
+</div>
+
+<!-- ============ 完成庆祝（FocusCelebration v2 精修：纯色彩纸 + 扩散光环） ============ -->
+<div class="celebration-overlay" id="cele">
+  <div class="cele-badge">
+    <span class="cele-ring"></span><span class="cele-ring r2"></span>
+    <svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+  </div>
+  <div class="cele-title">专注完成</div>
+  <div class="cele-sub num">50 分钟深度专注 · 记录已保存 · +15 分押注达成</div>
+  <div class="cele-stats">
+    <span class="pill primary">连续第 2 段</span>
+    <span class="pill gold">+15 分</span>
+    <span class="pill">XP +50</span>
+  </div>
+  <button class="btn outline cele-close" onclick="hideCelebration()">继续下一段</button>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+  function showCelebration() {
+    var overlay = document.getElementById("cele");
+    overlay.classList.add("show");
+    // 22 片纯色四色彩纸（primary/secondary/reward/gold —— v2 去渐变改实心）
+    var colors = ["var(--primary)", "var(--secondary)", "var(--reward)", "var(--gold)"];
+    for (var i = 0; i < 22; i++) {
+      var c = document.createElement("span");
+      c.className = "confetti";
+      c.style.background = colors[i % 4];
+      c.style.left = (38 + Math.random() * 24) + "%";
+      c.style.top = (18 + Math.random() * 10) + "%";
+      c.style.animationDelay = (Math.random() * 0.3) + "s";
+      overlay.appendChild(c);
+    }
+  }
+  function hideCelebration() {
+    var overlay = document.getElementById("cele");
+    overlay.classList.remove("show");
+    overlay.querySelectorAll(".confetti").forEach(function (n) { n.remove(); });
+  }
+</script>
+</body>
+</html>

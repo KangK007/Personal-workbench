@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
@@ -62,7 +63,7 @@ class _DiaryPageState extends State<DiaryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final desktop = MediaQuery.sizeOf(context).width >= 980;
+    final desktop = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
     return Column(
       children: [
         if (widget.showHeader)

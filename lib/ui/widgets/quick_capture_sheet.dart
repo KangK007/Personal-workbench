@@ -15,7 +15,7 @@ Future<void> showQuickCapture(
   String? initialProjectId,
   String? initialStatus,
 }) async {
-  final compact = MediaQuery.sizeOf(context).width < 720;
+  final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
   if (compact) {
     await showWorkbenchSheet<void>(
       context: context,

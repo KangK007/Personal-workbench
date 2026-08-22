@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
+import '../../core/theme/app_theme.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/quick_capture_sheet.dart';
@@ -69,7 +70,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
             .where((project) => project.id == selectedProjectId)
             .firstOrNull ??
         projects.firstOrNull;
-    final desktop = MediaQuery.sizeOf(context).width >= 900;
+    final desktop = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
     return Column(
       children: [
         if (widget.showHeader)
@@ -607,7 +608,7 @@ class _KanbanBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final narrow = MediaQuery.sizeOf(context).width < 860;
+    final narrow = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     final columns = [
       (WorkStatus.todo, '待办'),
       (WorkStatus.doing, '进行中'),

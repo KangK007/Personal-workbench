@@ -1,14 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-// ─── 色彩体系：翠绿·暖橙·清爽灰白 ───
-// 灵感：自然治愈系工作台，清新绿意、层次分明
+// ─── 色彩体系：翠绿·锐意工作台（Emerald Precision v2）───
+// 实色锐利面板 + 1px 边框 + 微阴影；无玻璃拟态、无背景装饰、无渐变装饰。
 // 浅色：清爽灰白底 + 翠绿主色 + 暖橙点缀
 // 深色：深墨绿石墨底 + 亮翠绿 + 暖橙点缀
 
 abstract final class AppColors {
   // ═══ 浅色 · 清新绿意工作台 ═══
-  static const lightCanvas = Color(0xFFEDF5EF); // 清爽灰白页面底色（微绿调，玻璃衬底更饱满）
+  static const lightCanvas = Color(0xFFEDF5EF); // 页面底色（纯平）
   static const lightSurface = Color(0xFFFFFFFF); // 面板背景
   static const lightRaised = Color(0xFFFFFFFF); // 浮层背景
   static const lightInk = Color(0xFF1A1F1C); // 主文字
@@ -25,7 +25,7 @@ abstract final class AppColors {
   static const lightGold = Color(0xFFF59E0B); // 琥珀金
 
   // ═══ 深色 · 深墨绿夜色 ═══
-  static const darkCanvas = Color(0xFF071612); // 深墨绿石墨底色（玻璃衬底更饱满）
+  static const darkCanvas = Color(0xFF071612); // 深墨绿石墨底色（纯平）
   static const darkSurface = Color(0xFF151C19); // 墨绿面板
   static const darkRaised = Color(0xFF1C2420); // 墨绿浮层
   static const darkInk = Color(0xFFF1F5F9); // 亮白文字
@@ -42,25 +42,52 @@ abstract final class AppColors {
   static const darkGold = Color(0xFFFBBF24); // 亮琥珀
 }
 
-// ─── 响应式断点 ───
+// ─── 响应式断点（强制收敛：仅此两档）───
 abstract final class AppBreakpoints {
   static const compact = 768.0; // <768: 移动端
   static const expanded = 1200.0; // ≥1200: 完整展开
 }
 
-// ─── 间距标尺 ───
+// ─── 圆角标尺（v2 锐利几何）───
+abstract final class AppRadius {
+  static const card = 6.0; // 卡片/弹窗/FAB
+  static const control = 5.0; // 按钮/输入框/Chip
+  static const sheetTop = 8.0; // 底部弹层顶部角
+  static const indicator = 6.0; // NavigationBar indicator / Snackbar
+  static const tooltip = 4.0; // Tooltip
+}
+
+// ─── 动效标尺（三级时长）───
+abstract final class AppMotion {
+  /// 按压反馈、悬停、开关、焦点环。
+  static const micro = Duration(milliseconds: 120);
+
+  /// 淡入淡出、尺寸变化、Snackbar、弹层入场。
+  static const standard = Duration(milliseconds: 200);
+
+  /// 页面切换、庆祝仪式、大面积编排。
+  static const emphasized = Duration(milliseconds: 320);
+
+  /// 页面切换过渡（emphasized 的实用档）。
+  static const pageTransition = Duration(milliseconds: 240);
+
+  /// 列表项交错入场间隔。
+  static const staggerInterval = Duration(milliseconds: 20);
+}
+
+// ─── 间距标尺（v2 收紧 15-20%）───
 abstract final class AppSpacing {
   static const xs = 4.0;
   static const sm = 8.0;
   static const md = 12.0;
-  static const lg = 16.0;
-  static const xl = 24.0;
-  static const xxl = 32.0;
-  static const xxxl = 40.0;
+  static const lg = 14.0;
+  static const xl = 20.0;
+  static const xxl = 24.0;
+  static const xxxl = 32.0;
   // 页面横向边距
-  static const pageCompact = 16.0;
-  static const pageMedium = 24.0;
-  static const pageWide = 28.0;
+  static const pageCompact = 14.0;
+  static const pageMedium = 20.0;
+  static const pageWide = 24.0;
 }
 
 // ─── 自定义主题令牌 ───
@@ -71,6 +98,10 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     required this.panel,
     required this.raised,
     required this.subtle,
+    required this.panelBorder,
+    required this.panelShadow,
+    required this.raisedShadow,
+    required this.focusRing,
     required this.mutedText,
     required this.divider,
     required this.reward,
@@ -78,19 +109,25 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     required this.info,
     required this.danger,
     required this.sealColor,
-    required this.washColor,
     required this.gold,
-    required this.glassPanel,
-    required this.glassBorder,
-    required this.glassHighlight,
-    required this.glassGlow,
-    required this.glassBlur,
   });
 
   final Color canvas;
   final Color panel;
   final Color raised;
   final Color subtle;
+
+  /// 面板 1px 描边（同色系灰绿，非中性灰）。
+  final Color panelBorder;
+
+  /// 面板投影色（配合 blur 10 / offset(0,3)）。
+  final Color panelShadow;
+
+  /// 浮层投影色（配合 blur 16 / offset(0,6)）。
+  final Color raisedShadow;
+
+  /// 键盘焦点 2px 外环。
+  final Color focusRing;
   final Color mutedText;
   final Color divider;
   final Color reward;
@@ -98,13 +135,7 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
   final Color info;
   final Color danger;
   final Color sealColor; // 主品牌强调色
-  final Color washColor; // 背景晕染色
   final Color gold; // 点缀金色
-  final Color glassPanel; // 玻璃面板填充
-  final Color glassBorder; // 玻璃微光边框
-  final Color glassHighlight; // 玻璃顶部高光
-  final Color glassGlow; // 玻璃外发光阴影
-  final double glassBlur; // 背景模糊半径 sigma
 
   @override
   WorkbenchTokens copyWith({
@@ -112,6 +143,10 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     Color? panel,
     Color? raised,
     Color? subtle,
+    Color? panelBorder,
+    Color? panelShadow,
+    Color? raisedShadow,
+    Color? focusRing,
     Color? mutedText,
     Color? divider,
     Color? reward,
@@ -119,19 +154,17 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     Color? info,
     Color? danger,
     Color? sealColor,
-    Color? washColor,
     Color? gold,
-    Color? glassPanel,
-    Color? glassBorder,
-    Color? glassHighlight,
-    Color? glassGlow,
-    double? glassBlur,
   }) {
     return WorkbenchTokens(
       canvas: canvas ?? this.canvas,
       panel: panel ?? this.panel,
       raised: raised ?? this.raised,
       subtle: subtle ?? this.subtle,
+      panelBorder: panelBorder ?? this.panelBorder,
+      panelShadow: panelShadow ?? this.panelShadow,
+      raisedShadow: raisedShadow ?? this.raisedShadow,
+      focusRing: focusRing ?? this.focusRing,
       mutedText: mutedText ?? this.mutedText,
       divider: divider ?? this.divider,
       reward: reward ?? this.reward,
@@ -139,13 +172,7 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       info: info ?? this.info,
       danger: danger ?? this.danger,
       sealColor: sealColor ?? this.sealColor,
-      washColor: washColor ?? this.washColor,
       gold: gold ?? this.gold,
-      glassPanel: glassPanel ?? this.glassPanel,
-      glassBorder: glassBorder ?? this.glassBorder,
-      glassHighlight: glassHighlight ?? this.glassHighlight,
-      glassGlow: glassGlow ?? this.glassGlow,
-      glassBlur: glassBlur ?? this.glassBlur,
     );
   }
 
@@ -157,6 +184,10 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       panel: Color.lerp(panel, other.panel, t)!,
       raised: Color.lerp(raised, other.raised, t)!,
       subtle: Color.lerp(subtle, other.subtle, t)!,
+      panelBorder: Color.lerp(panelBorder, other.panelBorder, t)!,
+      panelShadow: Color.lerp(panelShadow, other.panelShadow, t)!,
+      raisedShadow: Color.lerp(raisedShadow, other.raisedShadow, t)!,
+      focusRing: Color.lerp(focusRing, other.focusRing, t)!,
       mutedText: Color.lerp(mutedText, other.mutedText, t)!,
       divider: Color.lerp(divider, other.divider, t)!,
       reward: Color.lerp(reward, other.reward, t)!,
@@ -164,13 +195,7 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       info: Color.lerp(info, other.info, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
       sealColor: Color.lerp(sealColor, other.sealColor, t)!,
-      washColor: Color.lerp(washColor, other.washColor, t)!,
       gold: Color.lerp(gold, other.gold, t)!,
-      glassPanel: Color.lerp(glassPanel, other.glassPanel, t)!,
-      glassBorder: Color.lerp(glassBorder, other.glassBorder, t)!,
-      glassHighlight: Color.lerp(glassHighlight, other.glassHighlight, t)!,
-      glassGlow: Color.lerp(glassGlow, other.glassGlow, t)!,
-      glassBlur: glassBlur + (other.glassBlur - glassBlur) * t,
     );
   }
 }
@@ -188,12 +213,15 @@ TextStyle _sansStyle({
   Color? color,
   double? letterSpacing,
 }) {
+  // 纪律：负字间距仅用于 ≥18px 标题；小字号禁用。
+  final effectiveSpacing =
+      (letterSpacing ?? 0) < 0 && fontSize < 18 ? 0.0 : (letterSpacing ?? 0);
   return TextStyle(
     fontSize: fontSize,
     height: height,
     fontWeight: fontWeight,
     color: color,
-    letterSpacing: letterSpacing ?? 0,
+    letterSpacing: effectiveSpacing,
     fontFamilyFallback: const [
       'Noto Sans CJK SC',
       'Microsoft YaHei UI',
@@ -212,6 +240,10 @@ abstract final class AppTheme {
       panel: AppColors.lightSurface,
       raised: AppColors.lightRaised,
       subtle: Color(0xFFF0F4F2),
+      panelBorder: Color(0xFFE2E8E5),
+      panelShadow: Color(0x0A0A0F0F), // rgba(10,20,15,0.04)
+      raisedShadow: Color(0x140A0F0F), // rgba(10,20,15,0.08)
+      focusRing: Color(0x52059669), // #059669 @ 32%
       mutedText: AppColors.lightInkMuted,
       divider: AppColors.lightDivider,
       reward: AppColors.lightReward,
@@ -219,13 +251,7 @@ abstract final class AppTheme {
       info: AppColors.lightInfo,
       danger: AppColors.lightDanger,
       sealColor: Color(0xFF059669), // 翠绿品牌色
-      washColor: Color(0x08059669), // 翠绿晕染 3%
       gold: AppColors.lightGold,
-      glassPanel: Color(0x8CFFFFFF), // 白 55% 玻璃填充
-      glassBorder: Color(0x26059669), // 翠绿 15% 微光边框
-      glassHighlight: Color(0xB3FFFFFF), // 白 70% 顶部高光
-      glassGlow: Color(0x1A059669), // 翠绿 10% 外发光
-      glassBlur: 10.0, // 模糊半径 sigma
     ),
     scheme: const ColorScheme(
       brightness: Brightness.light,
@@ -267,6 +293,10 @@ abstract final class AppTheme {
       panel: AppColors.darkSurface,
       raised: AppColors.darkRaised,
       subtle: Color(0xFF1C2420),
+      panelBorder: Color(0xFF2A342F),
+      panelShadow: Color(0x47000000), // rgba(0,0,0,0.28)
+      raisedShadow: Color(0x66000000), // rgba(0,0,0,0.40)
+      focusRing: Color(0x6634D399), // #34D399 @ 40%
       mutedText: AppColors.darkInkMuted,
       divider: AppColors.darkDivider,
       reward: AppColors.darkReward,
@@ -274,13 +304,7 @@ abstract final class AppTheme {
       info: AppColors.darkInfo,
       danger: AppColors.darkDanger,
       sealColor: Color(0xFF34D399), // 亮翠绿品牌色
-      washColor: Color(0x0A34D399), // 亮翠绿晕染 4%
       gold: AppColors.darkGold,
-      glassPanel: Color(0x14FFFFFF), // 白 8% 玻璃填充
-      glassBorder: Color(0x2E34D399), // 翠绿 18% 微光边框
-      glassHighlight: Color(0x33FFFFFF), // 白 20% 顶部高光
-      glassGlow: Color(0x3334D399), // 翠绿 20% 外发光
-      glassBlur: 12.0, // 模糊半径 sigma
     ),
     scheme: const ColorScheme(
       brightness: Brightness.dark,
@@ -333,7 +357,7 @@ abstract final class AppTheme {
     );
 
     // ─── 字体排版层 ───
-    // H1: 28px Bold；H2: 22px SemiBold；H3: 18px Medium
+    // H1: 28px Bold；H2: 22px SemiBold；H3: 18px SemiBold
     // 正文: 15px；辅助: 13px，均交给平台系统字体渲染
     final textTheme = base.textTheme.copyWith(
       displayLarge: _sansStyle(
@@ -399,10 +423,10 @@ abstract final class AppTheme {
 
     final controlHeight = isAndroid ? 48.0 : 36.0;
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadius.control),
     );
     final cardShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.card),
     );
     final inputBorderColor = Color.alphaBlend(
       scheme.onSurface.withValues(
@@ -422,22 +446,24 @@ abstract final class AppTheme {
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: canvas,
+        backgroundColor: tokens.panel,
         surfaceTintColor: Colors.transparent,
       ),
 
-      // ─── Card: 现代卡片 + 微阴影 ───
+      // ─── Card: 实色面板 + 1px 边框 + 微阴影 ───
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
         color: tokens.panel,
-        shape: cardShape.copyWith(side: BorderSide(color: tokens.divider)),
+        shape: cardShape.copyWith(
+          side: BorderSide(color: tokens.panelBorder),
+        ),
         shadowColor: Colors.transparent,
       ),
 
       chipTheme: ChipThemeData(
         backgroundColor: tokens.subtle,
-        side: BorderSide(color: tokens.divider),
+        side: BorderSide(color: tokens.panelBorder),
         shape: shape,
         labelStyle: textTheme.labelMedium,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -445,20 +471,22 @@ abstract final class AppTheme {
 
       popupMenuTheme: PopupMenuThemeData(
         color: tokens.raised,
-        elevation: 4,
-        shape: cardShape.copyWith(side: BorderSide(color: tokens.divider)),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          side: BorderSide(color: tokens.panelBorder),
+        ),
         labelTextStyle: WidgetStatePropertyAll(textTheme.bodyMedium),
       ),
 
-      // ─── Dialog ───
-      // 半透明面板配合 showWorkbenchDialog 的模态背景模糊形成玻璃效果。
+      // ─── Dialog: 实色 raised 底 + 1px 边框 + 浮层阴影 ───
       dialogTheme: DialogThemeData(
         elevation: 0,
-        backgroundColor: tokens.glassPanel,
+        backgroundColor: tokens.raised,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: tokens.glassBorder),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          side: BorderSide(color: tokens.panelBorder),
         ),
       ),
 
@@ -471,15 +499,15 @@ abstract final class AppTheme {
           vertical: 12,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: tokens.divider),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          borderSide: BorderSide(color: tokens.panelBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           borderSide: BorderSide(color: inputBorderColor),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
         hintStyle: TextStyle(
@@ -492,7 +520,7 @@ abstract final class AppTheme {
         elevation: const WidgetStatePropertyAll(0),
         backgroundColor: WidgetStatePropertyAll(tokens.panel),
         shape: WidgetStatePropertyAll(
-          cardShape.copyWith(side: BorderSide(color: tokens.divider)),
+          cardShape.copyWith(side: BorderSide(color: tokens.panelBorder)),
         ),
       ),
 
@@ -523,7 +551,7 @@ abstract final class AppTheme {
                     states.contains(WidgetState.focused)) {
                   return BorderSide(color: scheme.primary);
                 }
-                return BorderSide(color: tokens.divider);
+                return BorderSide(color: tokens.panelBorder);
               }),
               overlayColor: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.hovered) ||
@@ -557,7 +585,9 @@ abstract final class AppTheme {
         foregroundColor: scheme.onPrimary,
         elevation: 2,
         focusElevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
       ),
 
       // ─── Checkbox ───
@@ -566,24 +596,24 @@ abstract final class AppTheme {
         side: BorderSide(color: scheme.outline, width: 1.5),
       ),
 
-      // ─── ListTile ───
+      // ─── ListTile: 44px 行高（v2 密度收紧）───
       listTileTheme: ListTileThemeData(
-        minTileHeight: isAndroid ? 48 : 40,
+        minTileHeight: isAndroid ? 44 : 38,
         shape: shape,
         selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.5),
         selectedColor: scheme.primary,
         iconColor: scheme.onSurfaceVariant,
       ),
 
-      // ─── NavigationBar (移动端) ───
+      // ─── NavigationBar (移动端): 实色 surface + 顶缘分隔 ───
       navigationBarTheme: NavigationBarThemeData(
         height: 68,
         elevation: 0,
-        backgroundColor: tokens.glassPanel,
+        backgroundColor: tokens.panel,
         surfaceTintColor: Colors.transparent,
         indicatorColor: scheme.primaryContainer,
         indicatorShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.indicator),
         ),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStatePropertyAll(textTheme.labelMedium),
@@ -615,7 +645,9 @@ abstract final class AppTheme {
         behavior: SnackBarBehavior.floating,
         showCloseIcon: true,
         closeIconColor: scheme.onInverseSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.indicator),
+        ),
       ),
 
       // ─── Tooltip ───
@@ -623,9 +655,22 @@ abstract final class AppTheme {
         waitDuration: const Duration(milliseconds: 450),
         decoration: BoxDecoration(
           color: scheme.inverseSurface,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadius.tooltip),
         ),
         textStyle: TextStyle(color: scheme.onInverseSurface),
+      ),
+
+      // ─── BottomSheet: 实色 raised + 顶部 8px 圆角 ───
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: tokens.raised,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        modalBackgroundColor: tokens.raised,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheetTop),
+          ),
+        ),
       ),
     );
   }

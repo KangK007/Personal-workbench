@@ -1,11 +1,11 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'common.dart';
 
 // ══════════════════════════════════════════════════════════════════════════
-// 现代装饰组件集：几何Logo · 清爽背景 · 简洁分割线 · 现代加载动画
+// 现代组件集：几何 Logo · 简洁加载动画 · 标签徽章
+// （v2 翠绿·锐意：水墨装饰组件已全部移除，背景 = 纯 canvas）
 // ══════════════════════════════════════════════════════════════════════════
 
 // ─── 几何 Logo ───
@@ -112,137 +112,8 @@ class _SealLogoPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SealLogoPainter oldDelegate) =>
       oldDelegate.primaryColor != primaryColor ||
-      oldDelegate.surfaceColor != surfaceColor;
-}
-
-// ─── 清爽背景暗纹 ───
-// 极淡的几何网格点阵，现代工作台底纹
-class LandscapePattern extends StatelessWidget {
-  const LandscapePattern({
-    super.key,
-    this.width = double.infinity,
-    this.height = 200,
-  });
-
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return ExcludeSemantics(
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: CustomPaint(
-          painter: _LandscapePainter(
-            dotColor: theme.colorScheme.primary.withValues(
-              alpha: isDark ? 0.06 : 0.04,
-            ),
-            accentColor: context.tokens.gold.withValues(alpha: 0.05),
-            isDark: isDark,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LandscapePainter extends CustomPainter {
-  const _LandscapePainter({
-    required this.dotColor,
-    required this.accentColor,
-    required this.isDark,
-  });
-
-  final Color dotColor;
-  final Color accentColor;
-  final bool isDark;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()..color = dotColor;
-    final spacing = 24.0;
-    final rand = math.Random(7);
-
-    for (var y = 0.0; y < size.height; y += spacing) {
-      for (var x = 0.0; x < size.width; x += spacing) {
-        final offset = rand.nextDouble() * 2 - 1;
-        canvas.drawCircle(Offset(x + offset, y + offset), 1.2, dotPaint);
-      }
-    }
-
-    // 装饰性弧线
-    final arcPaint = Paint()
-      ..color = accentColor
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-    final arcPath = Path()
-      ..moveTo(size.width * 0.6, size.height * 0.3)
-      ..cubicTo(
-        size.width * 0.75,
-        size.height * 0.15,
-        size.width * 0.85,
-        size.height * 0.4,
-        size.width,
-        size.height * 0.25,
-      );
-    canvas.drawPath(arcPath, arcPaint);
-
-    // 点缀光点
-    final glowPaint = Paint()..color = accentColor;
-    canvas.drawCircle(
-      Offset(size.width * 0.85, size.height * 0.2),
-      2.5,
-      glowPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _LandscapePainter oldDelegate) =>
-      oldDelegate.dotColor != dotColor ||
+      oldDelegate.surfaceColor != surfaceColor ||
       oldDelegate.accentColor != accentColor;
-}
-
-// ─── 简洁分割线 ───
-class InkBrushDivider extends StatelessWidget {
-  const InkBrushDivider({super.key, this.width = double.infinity});
-
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      height: 1,
-      child: CustomPaint(
-        painter: _InkBrushDividerPainter(
-          color: context.tokens.divider,
-          accent: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-        ),
-      ),
-    );
-  }
-}
-
-class _InkBrushDividerPainter extends CustomPainter {
-  const _InkBrushDividerPainter({required this.color, required this.accent});
-
-  final Color color;
-  final Color accent;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-    canvas.drawLine(Offset.zero, Offset(size.width, 0), paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _InkBrushDividerPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.accent != accent;
 }
 
 // ─── 现代加载动画 ───
@@ -336,34 +207,46 @@ class _InkRipplePainter extends CustomPainter {
       oldDelegate.progress != progress || oldDelegate.color != color;
 }
 
-// ─── 现代标签/徽章 ───
-class BambooChip extends StatelessWidget {
-  const BambooChip({
+// ─── 标签（Tag）───
+enum TagSize {
+  normal(22, 7, 12),
+  small(20, 6, 11);
+
+  const TagSize(this.height, this.hPadding, this.fontSize);
+  final double height;
+  final double hPadding;
+  final double fontSize;
+}
+
+/// 通用标签：22px 高、5px 圆角实色。
+class Tag extends StatelessWidget {
+  const Tag({
     super.key,
     required this.label,
     this.color,
-    this.size = ChipSize.normal,
+    this.size = TagSize.normal,
   });
 
   final String label;
   final Color? color;
-  final ChipSize size;
+  final TagSize size;
 
-  static const normal = ChipSize.normal;
-  static const small = ChipSize.small;
+  static const normal = TagSize.normal;
+  static const small = TagSize.small;
 
   @override
   Widget build(BuildContext context) {
-    final bg = color ?? Theme.of(context).colorScheme.primaryContainer;
+    final scheme = Theme.of(context).colorScheme;
+    final bg = color ?? scheme.primaryContainer;
     final fg = color != null
-        ? _bestContrast(bg)
-        : Theme.of(context).colorScheme.onPrimaryContainer;
+        ? bestContrastingText(bg)
+        : scheme.onPrimaryContainer;
     return Container(
       height: size.height,
       padding: EdgeInsets.symmetric(horizontal: size.hPadding),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -382,31 +265,20 @@ class BambooChip extends StatelessWidget {
       ),
     );
   }
-
-  Color _bestContrast(Color bg) {
-    const dark = Color(0xFF1A1D29);
-    const light = Color(0xFFF8FAFC);
-    double contrast(Color fg) {
-      final l = math.max(fg.computeLuminance(), bg.computeLuminance());
-      final d = math.min(fg.computeLuminance(), bg.computeLuminance());
-      return (l + 0.05) / (d + 0.05);
-    }
-
-    return contrast(dark) >= contrast(light) ? dark : light;
-  }
 }
 
-enum ChipSize {
-  normal(24, 8, 12),
-  small(20, 6, 11);
-
-  const ChipSize(this.height, this.hPadding, this.fontSize);
-  final double height;
-  final double hPadding;
-  final double fontSize;
+/// 兼容别名：v1 水墨命名迁移期保留。
+@Deprecated('Use Tag instead.')
+class BambooChip extends Tag {
+  const BambooChip({
+    super.key,
+    required super.label,
+    super.color,
+    super.size = TagSize.normal,
+  });
 }
 
-// ─── 状态标签（现代圆角样式） ───
+// ─── 状态标签（现代圆角样式）───
 class SealStatusLabel extends StatelessWidget {
   const SealStatusLabel({super.key, required this.label});
 
@@ -416,11 +288,11 @@ class SealStatusLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = context.tokens.sealColor;
     return Container(
-      height: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      height: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: Center(
         child: Text(
@@ -435,99 +307,4 @@ class SealStatusLabel extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─── 背景纹理 ───
-// 极淡的网格点阵，现代工作台底纹质感
-class SilkTexture extends StatelessWidget {
-  const SilkTexture({super.key, this.opacity});
-
-  final double? opacity;
-
-  @override
-  Widget build(BuildContext context) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
-    final base = context.tokens.divider;
-    final alpha = opacity ?? (isLight ? 0.3 : 0.2);
-    return IgnorePointer(
-      child: RepaintBoundary(
-        child: CustomPaint(
-          size: Size.infinite,
-          painter: _SilkTexturePainter(
-            color: base.withValues(alpha: alpha),
-            spacing: isLight ? 20.0 : 24.0,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SilkTexturePainter extends CustomPainter {
-  const _SilkTexturePainter({required this.color, required this.spacing});
-
-  final Color color;
-  final double spacing;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 0.5;
-    // 极淡水平线
-    for (var y = 0.0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SilkTexturePainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.spacing != spacing;
-}
-
-// ─── 底部装饰渐变 ───
-// 页面底部淡淡的渐变装饰
-class InkHorizon extends StatelessWidget {
-  const InkHorizon({super.key, this.height = 90});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final wash = context.tokens.washColor;
-    return IgnorePointer(
-      child: SizedBox(
-        height: height,
-        width: double.infinity,
-        child: CustomPaint(painter: _InkHorizonPainter(washColor: wash)),
-      ),
-    );
-  }
-}
-
-class _InkHorizonPainter extends CustomPainter {
-  const _InkHorizonPainter({required this.washColor});
-
-  final Color washColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 从透明到淡色的渐变
-    final gradient = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          washColor.withValues(alpha: 0),
-          washColor.withValues(alpha: 0.03),
-          washColor.withValues(alpha: 0.01),
-        ],
-        stops: const [0.0, 0.62, 1.0],
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, gradient);
-  }
-
-  @override
-  bool shouldRepaint(covariant _InkHorizonPainter oldDelegate) =>
-      oldDelegate.washColor != washColor;
 }

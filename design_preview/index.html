@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>翠绿·锐意工作台 · DESIGN V2 预览</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+  .hero { padding: 40px 24px 28px; max-width: 1080px; margin: 0 auto; }
+  .hero .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--primary); letter-spacing: 1.5px; margin-bottom: 10px; }
+  .hero .eyebrow .dot { width: 8px; height: 8px; border-radius: 2px; background: var(--primary); }
+  .hero h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.8px; margin-bottom: 10px; }
+  .hero p.lead { font-size: 15px; color: var(--ink-muted); max-width: 640px; margin-bottom: 20px; }
+  .hero .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .tokens { max-width: 1080px; margin: 0 auto; padding: 0 24px 60px; display: flex; flex-direction: column; gap: 28px; }
+
+  .sec-title { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .sec-title .bar { width: 3px; height: 18px; border-radius: 2px; background: color-mix(in srgb, var(--primary) 60%, transparent); }
+  .sec-title h2 { font-size: 17px; font-weight: 600; }
+  .sec-title .note { font-size: 12px; color: var(--ink-muted); margin-left: 4px; }
+
+  .grid { display: grid; gap: 10px; }
+  .g-colors { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .swatch { border: 1px solid var(--panel-border); border-radius: var(--r-card); overflow: hidden; background: var(--surface); box-shadow: var(--panel-shadow); }
+  .swatch .chip { height: 52px; }
+  .swatch .info { padding: 8px 10px; }
+  .swatch .info .name { font-size: 12px; font-weight: 600; }
+  .swatch .info .val { font-size: 11px; color: var(--ink-muted); }
+  .swatch .info .pair { font-size: 10.5px; color: var(--ink-muted); margin-top: 2px; }
+
+  .g-shape { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  .shape-card { padding: 18px 16px; text-align: center; }
+  .shape-card .demo { height: 56px; margin: 0 auto 12px; width: 100px; background: var(--surface); border: 1px solid var(--panel-border); }
+  .shape-card .demo.r6 { border-radius: 6px; box-shadow: var(--panel-shadow); }
+  .shape-card .demo.r5 { border-radius: 5px; width: 84px; }
+  .shape-card .demo.r8 { border-radius: 8px; width: 110px; }
+  .shape-card .demo.r4 { border-radius: 4px; width: 70px; }
+  .shape-card .name { font-size: 13px; font-weight: 600; }
+  .shape-card .val { font-size: 11.5px; color: var(--ink-muted); }
+  .shape-card .delta { font-size: 11px; color: var(--reward); margin-top: 2px; }
+
+  .g-depth { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .depth-stage { padding: 28px 20px; display: flex; gap: 14px; align-items: stretch; justify-content: center; min-height: 150px; }
+  .depth-stage .layer { padding: 14px; font-size: 12.5px; display: flex; flex-direction: column; justify-content: space-between; min-width: 130px; }
+  .depth-stage .layer b { font-size: 13px; }
+  .depth-stage .layer .spec { color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
+
+  .g-spacing { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .spacing-card { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .spacing-card .row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .spacing-card .row .blk { height: 12px; background: color-mix(in srgb, var(--primary) 30%, transparent); border-radius: 2px; }
+  .spacing-card .row .lbl { color: var(--ink-muted); min-width: 84px; }
+
+  .g-accent { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .accent-demo { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .accent-demo .item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .accent-demo .item .vbar { width: 3px; border-radius: 2px; flex: none; }
+  .accent-demo .item .vbar.h30 { height: 30px; background: var(--primary); }
+  .accent-demo .item .vbar.h16 { height: 16px; background: color-mix(in srgb, var(--primary) 60%, transparent); }
+  .accent-demo .item .vbar.h24 { height: 24px; background: var(--primary); opacity: .35; }
+
+  .g-motion { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .motion-card { padding: 18px; }
+  .motion-card h3 { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
+  .motion-card .spec { font-size: 11.5px; color: var(--ink-muted); margin-bottom: 14px; }
+  .motion-stage { min-height: 70px; display: flex; align-items: center; gap: 12px; }
+  .counter-num { font-size: 34px; font-weight: 700; letter-spacing: -0.5px; }
+
+  .g-pages { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .page-card { padding: 18px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; }
+  .page-card .thumb { height: 110px; border-radius: var(--r-btn); border: 1px solid var(--panel-border); background: var(--subtle); display: flex; align-items: center; justify-content: center; color: var(--primary); position: relative; overflow: hidden; }
+  .page-card .thumb svg.ic { width: 30px; height: 30px; stroke-width: 1.5; }
+  .page-card .thumb .mini-side { position: absolute; left: 0; top: 0; bottom: 0; width: 26px; background: var(--surface); border-right: 1px solid var(--divider); }
+  .page-card .thumb .mini-bar { position: absolute; left: 34px; top: 14px; height: 3px; width: 56px; border-radius: 2px; background: var(--primary); }
+  .page-card .thumb .mini-line { position: absolute; left: 34px; height: 5px; border-radius: 2px; background: var(--divider); }
+  .page-card .name { font-size: 14px; font-weight: 600; }
+  .page-card .desc { font-size: 12px; color: var(--ink-muted); line-height: 1.5; }
+  .page-card:hover { text-decoration: none; }
+
+  .token-note { font-size: 11.5px; color: var(--ink-muted); border-left: 2px solid var(--divider); padding-left: 10px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<header class="preview-bar">
+  <div class="brand"><span class="dot"></span>DESIGN V2 · 翠绿·锐意</div>
+  <nav>
+    <a href="index.html" class="active">令牌总览</a>
+    <a href="today.html">桌面 · 今日</a>
+    <a href="tasks.html">桌面 · 任务</a>
+    <a href="focus.html">专注</a>
+    <a href="review.html">回顾</a>
+    <a href="mobile.html">移动端</a>
+    <a href="components.html">组件总览</a>
+  </nav>
+  <button class="theme-toggle" onclick="toggleTheme()">
+    <svg class="ic" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    <span class="label">切换暗色</span>
+  </button>
+</header>
+
+<section class="hero stagger">
+  <div class="eyebrow"><span class="dot"></span>EMERALD PRECISION · V2.0 · 2026-08-21</div>
+  <h1>翠绿·锐意工作台</h1>
+  <p class="lead">实色锐利面板 × 翠绿气质 × 丰富仪式感动效。移除全部玻璃拟态与背景装饰，以 1px 边框 + 极轻投影制造层次；圆角收紧至 6px；密度收紧 15-20%；动效三级标尺全覆盖。保留翠绿主色、墨绿暗底与等宽数字体系。</p>
+  <div class="meta">
+    <span class="pill primary">边框+微阴影双保险</span>
+    <span class="pill">卡片 6px / 按钮 5px</span>
+    <span class="pill">列表行 44px</span>
+    <span class="pill reward">120 / 200 / 320ms 动效标尺</span>
+    <span class="pill gold">双主题等价</span>
+  </div>
+</section>
+
+<main class="tokens">
+
+  <!-- 色彩令牌 -->
+  <section>
+    <div class="sec-title"><span class="bar"></span><h2>色彩令牌</h2><span class="note">保留 v1 语义色 · 新增 panel 面板令牌 · 点击右上角切换主题查看双套</span></div>
+    <div class="grid g-colors">
+      <div class="swatch"><div class="chip" style="background:var(--canvas);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">canvas</div><div class="val num">#EDF5EF / #071612</div><div class="pair">纯平页面底 · 无任何装饰</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--surface);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">surface</div><div class="val num">#FFFFFF / #151C19</div><div class="pair">内容面板底</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--subtle)"></div><div class="info"><div class="name">subtle</div><div class="val num">#F0F4F2 / #1C2420</div><div class="pair">输入框 / Chip 填充</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--primary)"></div><div class="info"><div class="name">primary</div><div class="val num">#059669 / #34D399</div><div class="pair">翠绿主色 · 唯一强调</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--primary-container)"></div><div class="info"><div class="name">primaryContainer</div><div class="val num">#D1FAE5 / #064E3B</div><div class="pair">主色容器</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--reward)"></div><div class="info"><div class="name">reward</div><div class="val num">#F97316 / #FB923C</div><div class="pair">暖橙 · tertiary</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--gold)"></div><div class="info"><div class="name">gold</div><div class="val num">#F59E0B / #FBBF24</div><div class="pair">琥珀点缀</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--info)"></div><div class="info"><div class="name">info</div><div class="val num">#0EA5E9 / #38BDF8</div><div class="pair">信息状态</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="info"><div class="name">danger</div><div class="val num">#EF4444 / #F87171</div><div class="pair">危险状态</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink)"></div><div class="info"><div class="name">ink</div><div class="val num">#1A1F1C / #F1F5F9</div><div class="pair">主文字</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink-muted)"></div><div class="info"><div class="name">inkMuted</div><div class="val num">#6B7280 / #94A3B8</div><div class="pair">次级文字</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--panel-border)"></div><div class="info"><div class="name">panelBorder ★</div><div class="val num">#E2E8E5 / #2A342F</div><div class="pair">v2 新增 · 1px 面板描边</div></div></div>
+    </div>
+    <p class="token-note" style="margin-top:12px">★ panelShadow：亮 rgba(10,20,15,.04) blur10 y3 / 暗 rgba(0,0,0,.28)；raisedShadow：blur16 y6。已删除 glass* 四件套（glassPanel/glassBorder/glassHighlight/glassGlow）。</p>
+  </section>
+
+  <!-- 形状 -->
+  <section>
+    <div class="sec-title"><span class="bar"></span><h2>形状语言 · 锐利化</h2><span class="note">整体从柔和圆润转向硬朗锐意</span></div>
+    <div class="grid g-shape">
+      <div class="panel shape-card"><div class="demo r6"></div><div class="name">卡片 / 弹窗 / FAB</div><div class="val num">6px</div><div class="delta">v1 12px → 收紧 50%</div></div>
+      <div class="panel shape-card"><div class="demo r5"></div><div class="name">按钮 / 输入 / Chip</div><div class="val num">5px</div><div class="delta">v1 8px</div></div>
+      <div class="panel shape-card"><div class="demo r8"></div><div class="name">底部弹层顶部</div><div class="val num">8px</div><div class="delta">v1 16px</div></div>
+      <div class="panel shape-card"><div class="demo r4"></div><div class="name">Tooltip / 胶囊</div><div class="val num">4px</div><div class="delta">v1 6px</div></div>
+    </div>
+  </section>
+
+  <!-- 层次 -->
+  <section>
+    <div class="sec-title"><span class="bar"></span><h2>层次手法 · 边框+微阴影双保险</h2><span class="note">替代玻璃拟态的三级深度</span></div>
+    <div class="grid g-depth">
+      <div class="panel depth-stage" style="background:var(--canvas)">
+        <div class="layer" style="background:var(--canvas)">
+          <b>层级 0 · canvas</b>
+          <div class="spec">纯色底<br>无边框无阴影<br>零装饰叠加</div>
+        </div>
+      </div>
+      <div class="panel depth-stage">
+        <div class="layer panel">
+          <b>层级 1 · surface</b>
+          <div class="spec">panelBorder 1px<br>panelShadow<br>blur10 · y3 · 4-6%</div>
+        </div>
+      </div>
+      <div class="panel depth-stage">
+        <div class="layer panel elevated">
+          <b>层级 2 · raised</b>
+          <div class="spec">raisedShadow<br>blur16 · y6 · 8-12%<br>对话框 / 弹层 / 菜单</div>
+        </div>
+      </div>
+      <div class="panel depth-stage">
+        <div class="layer panel selected with-accent">
+          <b>选中态</b>
+          <div class="spec">左缘 3px 实心 primary<br>边框 primary@40%<br>（替代渐变条）</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 密度 -->
+  <section>
+    <div class="sec-title"><span class="bar"></span><h2>间距与密度</h2><span class="note">整体收紧 15-20%</span></div>
+    <div class="grid g-spacing">
+      <div class="panel spacing-card">
+        <div class="row"><span class="lbl">列表行高</span><div class="blk" style="width:88px"></div><span class="num muted">48 → 44px</span></div>
+        <div class="row"><span class="lbl">行内边距</span><div class="blk" style="width:56px"></div><span class="num muted">16 → 14px</span></div>
+        <div class="row"><span class="lbl">分区间距</span><div class="blk" style="width:80px"></div><span class="num muted">24 → 20px</span></div>
+        <div class="row"><span class="lbl">页面边距 wide</span><div class="blk" style="width:96px"></div><span class="num muted">28 → 24px</span></div>
+        <div class="row"><span class="lbl">卡片内边距</span><div class="blk" style="width:56px"></div><span class="num muted">16 → 14px</span></div>
+      </div>
+      <div class="panel spacing-card">
+        <div class="row"><span class="lbl">间距标尺</span><span class="num muted" style="margin-left:auto">4/8/12/14/20/24/32</span></div>
+        <div class="row"><span class="lbl">响应式断点</span><span class="num muted" style="margin-left:auto">768 / 1200 仅两个</span></div>
+        <div class="row"><span class="lbl">视觉密度</span><span class="num muted" style="margin-left:auto">桌面 (-1,-1) 不变</span></div>
+        <div class="row"><span class="lbl">H1 字号</span><span class="num muted" style="margin-left:auto">28px · ls -0.5</span></div>
+        <div class="row"><span class="lbl">数字</span><span class="num muted" style="margin-left:auto">tabular-nums + w600</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 强调元素 -->
+  <section>
+    <div class="sec-title"><span class="bar"></span><h2>强调元素 · 纯色实心</h2><span class="note">全部渐变表达改实心单色</span></div>
+    <div class="grid g-accent">
+      <div class="panel accent-demo">
+        <div class="item"><span class="vbar h30"></span><span>PageHeader 竖条 — 3px 实心 primary 全高 <span class="muted">（v1 渐变+圆点）</span></span></div>
+        <div class="item"><span class="vbar h16"></span><span>SectionHeading 窄条 — primary@60% <span class="muted">（层级低于页头）</span></span></div>
+        <div class="item"><span class="vbar h24"></span><span>选中态左缘条 — 3px 实心 primary</span></div>
+      </div>
+      <div class="panel accent-demo">
+        <div class="item">
+          <span style="width:40px;height:40px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--primary) 40%,transparent);background:color-mix(in srgb,var(--primary) 8%,transparent);display:inline-flex;align-items:center;justify-content:center;color:var(--primary)"><svg class="ic" viewBox="0 0 24 24" style="width:19px;height:19px"><path d="M12 5v14M5 12h14"/></svg></span>
+          <span>空态徽章 — 单色描边圆 <span class="muted">（v1 双层渐变环+玻璃圆）</span></span>
+        </div>
+        <div class="item"><span class="pill primary">状态胶囊</span><span>subtle 底 · 对比度自适应前景</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 动效 -->
+  <section>
+    <div class="sec-title"><span class="bar"></span><h2>动效标尺 · 丰富有仪式感</h2><span class="note">修复 v1 全项目仅 4 处动画的问题 · 全部尊重 prefers-reduced-motion</span></div>
+    <div class="grid g-motion">
+      <div class="panel motion-card motion-demo-card">
+        <h3>micro · 120ms easeOut</h3>
+        <div class="spec">按压 / 悬停 / 开关 / 焦点环 — 悬停本卡片体验</div>
+        <div class="motion-stage">
+          <button class="btn primary">主要按钮</button>
+          <button class="btn outline">描边按钮</button>
+          <span class="checkbox on"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span class="checkbox"></span>
+        </div>
+      </div>
+      <div class="panel motion-card">
+        <h3>standard · 200ms easeOutCubic</h3>
+        <div class="spec">淡入 / 尺寸变化 / 弹层 / 列表入场（本页卡片即交错 stagger 演示）</div>
+        <div class="motion-stage">
+          <div class="skeleton" style="width:60%;height:12px"></div>
+          <div class="skeleton" style="width:30%;height:12px"></div>
+        </div>
+      </div>
+      <div class="panel motion-card">
+        <h3>emphasized · 320ms + 计数滚动</h3>
+        <div class="spec">页面切换 240ms 淡入+8px 上移 · AnimatedNumber 350ms</div>
+        <div class="motion-stage">
+          <span class="counter-num num" id="demo-counter">0</span>
+          <button class="btn outline sm" id="count-btn">重播计数</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页面导航 -->
+  <section>
+    <div class="sec-title"><span class="bar"></span><h2>页面预览导航</h2><span class="note">7 个高保真页面 · 桌面+移动双形态</span></div>
+    <div class="grid g-pages stagger">
+      <a class="panel motion-demo-card page-card" href="today.html">
+        <div class="thumb"><div class="mini-side"></div><div class="mini-bar"></div><div class="mini-line" style="width:90px;top:30px"></div><div class="mini-line" style="width:60px;top:44px"></div></div>
+        <div class="name">桌面 · 今日</div>
+        <div class="desc">侧栏 + 页头 + 承诺卡 + 时间线 + 计分习惯</div>
+      </a>
+      <a class="panel motion-demo-card page-card" href="tasks.html">
+        <div class="thumb"><div class="mini-side"></div><div class="mini-bar"></div><div class="mini-line" style="width:100px;top:30px"></div><div class="mini-line" style="width:80px;top:44px"></div><div class="mini-line" style="width:90px;top:58px"></div></div>
+        <div class="name">桌面 · 任务</div>
+        <div class="desc">批量工具条 + 状态筛选 + 44px 任务行 + 空态</div>
+      </a>
+      <a class="panel motion-demo-card page-card" href="focus.html">
+        <div class="thumb"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></div>
+        <div class="name">专注</div>
+        <div class="desc">全屏计时器 + 预设 + 完成庆祝仪式帧</div>
+      </a>
+      <a class="panel motion-demo-card page-card" href="review.html">
+        <div class="thumb"><svg class="ic" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div>
+        <div class="name">回顾</div>
+        <div class="desc">日回顾表单 + 事实快照卡 + 计数滚动</div>
+      </a>
+      <a class="panel motion-demo-card page-card" href="mobile.html">
+        <div class="thumb"><svg class="ic" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div>
+        <div class="name">移动端</div>
+        <div class="desc">底部导航 + 快速捕获弹层 + 390px 形态</div>
+      </a>
+      <a class="panel motion-demo-card page-card" href="components.html">
+        <div class="thumb"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        <div class="name">组件总览</div>
+        <div class="desc">按钮 / 输入 / 面板 / 胶囊 / 空态 / 骨架 / 弹层全集</div>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<script src="assets/app.js"></script>
+<script>
+  // 计数滚动演示（AnimatedNumber 对应 Flutter 350ms easeOutCubic）
+  (function () {
+    var el = document.getElementById("demo-counter");
+    var btn = document.getElementById("count-btn");
+    function run() {
+      var start = null, target = 1284, dur = 350;
+      function step(t) {
+        if (!start) start = t;
+        var p = Math.min((t - start) / dur, 1);
+        var eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * eased).toLocaleString();
+        if (p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+    btn.addEventListener("click", run);
+    setTimeout(run, 600);
+  })();
+</script>
+</body>
+</html>

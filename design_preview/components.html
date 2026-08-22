@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>组件总览 · DESIGN V2 预览</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+  .gallery { max-width: 1080px; margin: 0 auto; padding: 24px 24px 70px; display: flex; flex-direction: column; gap: 28px; }
+  .demo-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .demo-block { padding: 18px; }
+  .demo-block .caption { font-size: 11.5px; color: var(--ink-muted); margin-bottom: 12px; }
+
+  /* 对话框演示 */
+  .dialog-stage { padding: 34px 20px; display: flex; justify-content: center; background: var(--canvas); border-radius: var(--r-card); }
+  .dialog { width: 380px; background: var(--raised); border: 1px solid var(--panel-border); border-radius: var(--r-card); box-shadow: var(--raised-shadow); padding: 18px; }
+  .dialog h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .dialog p { font-size: 13px; color: var(--ink-muted); margin-bottom: 16px; line-height: 1.6; }
+  .dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Snackbar 演示 */
+  .snack-stage { padding: 30px 20px; display: flex; justify-content: center; background: var(--canvas); border-radius: var(--r-card); }
+
+  .switch { width: 40px; height: 22px; border-radius: 5px; background: var(--subtle); border: 1px solid var(--divider); position: relative; cursor: pointer; transition: all .12s ease; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 4px; background: var(--ink-muted); transition: all .12s ease; }
+  .switch.on { background: var(--primary); border-color: var(--primary); }
+  .switch.on::after { left: 20px; background: #fff; }
+
+  .tag-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .segs { display: inline-flex; border: 1px solid var(--panel-border); border-radius: var(--r-btn); overflow: hidden; background: var(--surface); }
+  .segs span { padding: 6px 14px; font-size: 12.5px; font-weight: 600; color: var(--ink-muted); cursor: pointer; }
+  .segs span.on { background: var(--primary); color: #fff; }
+  html[data-theme="dark"] .segs span.on { color: #06281D; }
+  .segs span + span { border-left: 1px solid var(--panel-border); }
+</style>
+</head>
+<body>
+
+<header class="preview-bar">
+  <div class="brand"><span class="dot"></span>DESIGN V2 · 翠绿·锐意</div>
+  <nav>
+    <a href="index.html">令牌总览</a>
+    <a href="today.html">桌面 · 今日</a>
+    <a href="tasks.html">桌面 · 任务</a>
+    <a href="focus.html">专注</a>
+    <a href="review.html">回顾</a>
+    <a href="mobile.html">移动端</a>
+    <a href="components.html" class="active">组件总览</a>
+  </nav>
+  <button class="theme-toggle" onclick="toggleTheme()">
+    <svg class="ic" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    <span class="label">切换暗色</span>
+  </button>
+</header>
+
+<main class="gallery">
+
+  <!-- 按钮 -->
+  <section>
+    <div class="section-head"><span class="bar"></span><h2>按钮</h2><span class="pill">micro 120ms 按压反馈</span></div>
+    <div class="panel demo-block stagger">
+      <div class="caption">高度 36px（桌面）/ 30px sm · 圆角 5px · 按压缩放 0.97</div>
+      <div class="demo-row">
+        <button class="btn primary">主要操作</button>
+        <button class="btn outline">描边按钮</button>
+        <button class="btn ghost">幽灵按钮</button>
+        <button class="btn danger">危险操作</button>
+        <button class="btn primary sm">小尺寸</button>
+        <button class="btn outline icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="btn primary" disabled style="opacity:.45;cursor:not-allowed">禁用态</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 面板 -->
+  <section>
+    <div class="section-head"><span class="bar"></span><h2>面板 SolidPanel</h2><span class="pill">1px 边框 + 微阴影</span></div>
+    <div class="panel demo-block">
+      <div class="caption">圆角 6px · elevated 切换 raisedShadow · with-accent 状态强调条</div>
+      <div class="demo-row">
+        <div class="panel" style="width:150px;padding:16px"><b style="font-size:13px">默认</b><div class="muted" style="font-size:11.5px">panelShadow</div></div>
+        <div class="panel elevated" style="width:150px;padding:16px"><b style="font-size:13px">浮层</b><div class="muted" style="font-size:11.5px">raisedShadow</div></div>
+        <div class="panel selected with-accent" style="width:150px;padding:16px"><b style="font-size:13px">选中态</b><div class="muted" style="font-size:11.5px">3px primary 左缘条</div></div>
+        <div class="panel with-accent" data-status="done" style="width:150px;padding:16px"><b style="font-size:13px">完成态</b><div class="muted" style="font-size:11.5px">secondary@30% 条</div></div>
+        <div class="panel with-accent" data-status="todo" style="width:150px;padding:16px"><b style="font-size:13px">待办态</b><div class="muted" style="font-size:11.5px">inkMuted@40% 条</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 输入与开关 -->
+  <section>
+    <div class="section-head"><span class="bar"></span><h2>输入 · 开关 · 分段</h2></div>
+    <div class="panel demo-block">
+      <div class="caption">subtle 填充 + divider 边框 · 聚焦 primary 边框 + 2px 焦点环</div>
+      <div class="demo-row" style="align-items:flex-start">
+        <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:10px">
+          <input class="input" placeholder="默认态 — 点击聚焦体验焦点环">
+          <input class="input" value="聚焦态" style="border-color:var(--primary);background:var(--surface);box-shadow:0 0 0 2px var(--focus-ring)">
+          <textarea class="input" rows="2" placeholder="多行输入…"></textarea>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:10px"><span class="switch on" onclick="this.classList.toggle('on')"></span><span style="font-size:13px">开</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="switch" onclick="this.classList.toggle('on')"></span><span style="font-size:13px">关</span></div>
+          <div class="segs"><span>日</span><span class="on">周</span><span>月</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 胶囊与标签 -->
+  <section>
+    <div class="section-head"><span class="bar"></span><h2>胶囊 Pill / 标签 Tag</h2><span class="pill">高度 22px · 圆角 4px</span></div>
+    <div class="panel demo-block">
+      <div class="caption">BambooChip 更名为 Tag · 对比度自适应前景</div>
+      <div class="tag-row">
+        <span class="pill">默认</span>
+        <span class="pill primary">进行中</span>
+        <span class="pill primary num">12 项</span>
+        <span class="pill reward">暖橙状态</span>
+        <span class="pill gold num">+62 XP</span>
+        <span class="pill info">信息</span>
+        <span class="pill danger">已逾期 3</span>
+        <span class="pill" style="background:color-mix(in srgb,var(--secondary) 14%,transparent);color:var(--secondary)">已完成</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 任务行 -->
+  <section>
+    <div class="section-head"><span class="bar"></span><h2>任务行 TaskRow</h2><span class="pill">44px 行高</span></div>
+    <div class="panel demo-block">
+      <div class="caption">统一左缘 3px 状态条 · 点击复选框交互</div>
+      <div class="task-row" data-status="doing" onclick="this.querySelector('.checkbox').classList.toggle('on')">
+        <span class="checkbox" style="border-color:var(--primary);color:currentColor"><svg class="ic" viewBox="0 0 24 24" style="width:13px;height:13px;stroke-width:3;opacity:.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        <span class="title">进行中任务 — primary 条</span><span class="spacer"></span><span class="pill primary">进行中</span>
+      </div>
+      <div class="task-row" data-status="todo" onclick="this.querySelector('.checkbox').classList.toggle('on')">
+        <span class="checkbox"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
+        <span class="title">待办任务 — inkMuted@40% 条</span><span class="spacer"></span><span class="pill">待办</span>
+      </div>
+      <div class="task-row" data-status="done" onclick="this.querySelector('.checkbox').classList.toggle('on')">
+        <span class="checkbox on"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
+        <span class="title">完成任务 — secondary@30% 条 + 删除线</span><span class="spacer"></span><span class="pill gold">已完成</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 空态与骨架 -->
+  <section>
+    <div class="section-head"><span class="bar"></span><h2>空态 · 骨架屏</h2><span class="pill">320ms 入场编排</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="panel" style="padding:10px">
+        <div class="empty-state">
+          <div class="badge"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+          <h3>还没有笔记</h3>
+          <p>从收件箱或快速捕获开始沉淀</p>
+          <button class="btn outline sm">新建笔记</button>
+        </div>
+      </div>
+      <div class="panel" style="padding:18px">
+        <div class="caption" style="font-size:11.5px;color:var(--ink-muted);margin-bottom:14px">shimmer 1300ms 循环</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;gap:10px;align-items:center"><div class="skeleton" style="width:16px;height:16px;border-radius:4px"></div><div class="skeleton" style="flex:1;height:10px"></div><div class="skeleton" style="width:44px;height:10px"></div></div>
+          <div style="display:flex;gap:10px;align-items:center"><div class="skeleton" style="width:16px;height:16px;border-radius:4px"></div><div class="skeleton" style="flex:1;height:10px"></div><div class="skeleton" style="width:60px;height:10px"></div></div>
+          <div style="display:flex;gap:10px;align-items:center"><div class="skeleton" style="width:16px;height:16px;border-radius:4px"></div><div class="skeleton" style="flex:1;height:10px"></div><div class="skeleton" style="width:36px;height:10px"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 对话框 -->
+  <section>
+    <div class="section-head"><span class="bar"></span><h2>对话框</h2><span class="pill">raised 实色 · 6px 圆角</span></div>
+    <div class="panel">
+      <div class="dialog-stage">
+        <div class="dialog">
+          <h3>删除 3 项任务？</h3>
+          <p>任务将移入回收站，可在 30 天内恢复。关联的子任务与时间块将一并移除。</p>
+          <div class="row">
+            <button class="btn ghost">取消</button>
+            <button class="btn danger" style="border:1px solid color-mix(in srgb,var(--danger) 35%,transparent)">移入回收站</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Snackbar -->
+  <section>
+    <div class="section-head"><span class="bar"></span><h2>Snackbar</h2><span class="pill">200ms 上浮入场</span></div>
+    <div class="panel">
+      <div class="snack-stage">
+        <div class="snackbar">
+          <svg class="ic" viewBox="0 0 24 24" style="color:var(--primary)"><path d="M20 6L9 17l-5-5"/></svg>
+          已存入收件箱
+          <span style="margin-left:10px;color:var(--primary);font-weight:600;cursor:pointer;font-size:13px">撤销</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -328,7 +328,7 @@ class _NoteReader extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: note.tags
-                .map((tag) => BambooChip(label: tag, size: ChipSize.small))
+                .map((tag) => Tag(label: tag, size: TagSize.small))
                 .toList(),
           ),
         ],

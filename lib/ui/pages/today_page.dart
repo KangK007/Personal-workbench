@@ -10,7 +10,6 @@ import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../platform_feedback.dart';
 import '../widgets/common.dart';
-import '../widgets/ink_decoration.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/task_row.dart';
@@ -288,97 +287,71 @@ class _TodayContent extends StatelessWidget {
 
     if (wide) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
-        child: Stack(
-          fit: StackFit.expand,
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 画卷底部天际线：不占滚动空间，铺满整页底部
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: IgnorePointer(child: InkHorizon(height: 88)),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 72),
+                children: [
+                  nextStep,
+                  ...taskSections,
+                  ...timeline,
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: EdgeInsets.zero,
+                    title: const Text('今日详情'),
+                    children: details,
+                  ),
+                ],
+              ),
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.only(bottom: 72),
-                    children: [
-                      nextStep,
-                      ...taskSections,
-                      ...timeline,
-                      ExpansionTile(
-                        tilePadding: EdgeInsets.zero,
-                        childrenPadding: EdgeInsets.zero,
-                        title: const Text('今日详情'),
-                        children: details,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 28),
-                SizedBox(
-                  width: 380,
-                  child: ListView(
-                    padding: const EdgeInsets.only(bottom: 80),
-                    children: [
-                      ...commitmentSection,
-                      if (controller.advancedFeaturesEnabled) ...[
-                        const SectionHeading(title: '成长进度'),
-                        _CompactGrowth(controller: controller),
-                      ],
-                      // 装饰图案：现代工作台氛围
-                      const SizedBox(height: 16),
-                      const LandscapePattern(height: 120),
-                    ],
-                  ),
-                ),
-              ],
+            const SizedBox(width: 24),
+            SizedBox(
+              width: 380,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 80),
+                children: [
+                  ...commitmentSection,
+                  if (controller.advancedFeaturesEnabled) ...[
+                    const SectionHeading(title: '成长进度'),
+                    _CompactGrowth(controller: controller),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
       );
     }
 
-    return Stack(
+    return ListView(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        132 + MediaQuery.paddingOf(context).bottom,
+      ),
       children: [
-        ListView(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            0,
-            20,
-            132 + MediaQuery.paddingOf(context).bottom,
-          ),
+        nextStep,
+        todaySection,
+        ...commitmentSection,
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          title: const Text('更多今日记录'),
           children: [
-            nextStep,
-            todaySection,
-            ...commitmentSection,
+            overdueSection,
+            settledSection,
+            ...timeline,
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
-              title: const Text('更多今日记录'),
-              children: [
-                overdueSection,
-                settledSection,
-                ...timeline,
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: EdgeInsets.zero,
-                  title: const Text('今日详情'),
-                  children: details,
-                ),
-              ],
+              title: const Text('今日详情'),
+              children: details,
             ),
           ],
-        ),
-        // 底部渐变装饰 — 与桌面端 InkHorizon 对齐
-        const Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: IgnorePointer(child: InkHorizon(height: 64)),
         ),
       ],
     );

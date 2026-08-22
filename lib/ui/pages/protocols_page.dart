@@ -30,36 +30,69 @@ class ProtocolsPage extends StatefulWidget {
 }
 
 class _ProtocolsPageState extends State<ProtocolsPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController tabController;
   Timer? ticker;
   String ruleQuery = '';
+  bool _tickerActive = false;
 
-  @override
-  void initState() {
-    super.initState();
-    final tabs = _tabs;
-    tabController = TabController(
-      length: tabs.length,
-      initialIndex: tabs.indexOf(widget.initialTab).clamp(0, tabs.length - 1),
-      vsync: this,
-    )..addListener(_handleTabChanged);
+  void _startTicker() {
+    if (_tickerActive) return;
+    _tickerActive = true;
     ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       widget.controller.settleProtocols();
       if (mounted) setState(() {});
     });
   }
 
+  void _stopTicker() {
+    _tickerActive = false;
+    ticker?.cancel();
+    ticker = null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final tabs = _tabs;
+    tabController = TabController(
+      length: tabs.length,
+      initialIndex: tabs.indexOf(widget.initialTab).clamp(0, tabs.length - 1),
+      vsync: this,
+    )..addListener(_handleTabChanged);
+    _startTicker();
+  }
+
   @override
   void dispose() {
-    ticker?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _stopTicker();
     tabController.removeListener(_handleTabChanged);
     tabController.dispose();
     super.dispose();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 应用退到后台时暂停秒级重建，回到前台立即恢复。
+    if (state == AppLifecycleState.resumed) {
+      if (TickerMode.of(context)) _startTicker();
+    } else if (state != AppLifecycleState.inactive) {
+      _stopTicker();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // 页面不在前台 Section（IndexedStack 非激活页）时暂停秒级重建，
+    // 修复「页面不可见时 Timer 仍每秒重建」的性能问题。
+    final visible = TickerMode.of(context);
+    if (visible && !_tickerActive) {
+      _startTicker();
+    } else if (!visible && _tickerActive) {
+      _stopTicker();
+    }
     final tabs = _tabs;
     return Column(
       children: [

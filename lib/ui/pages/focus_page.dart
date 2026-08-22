@@ -11,8 +11,7 @@ import '../../state/workbench_controller.dart';
 import '../platform_feedback.dart';
 import '../widgets/celebration.dart';
 import '../widgets/common.dart';
-import '../widgets/glass.dart';
-import '../widgets/ink_decoration.dart';
+import '../widgets/solid_panel.dart';
 
 class FocusHubPage extends StatelessWidget {
   const FocusHubPage({
@@ -255,7 +254,8 @@ class _FocusTab extends StatelessWidget {
               ],
             ),
           ),
-        if (candidates.length + recent.length < 5) const SparseContentTail(),
+        if (candidates.length + recent.length < 5)
+          const SizedBox(height: 12),
       ],
     );
   }
@@ -688,48 +688,15 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
               tooltip: '退出专注',
               icon: const Icon(Icons.close),
             ),
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('专注'),
-                const SizedBox(width: 8),
-                OrientalMark(
-                  color: scheme.tertiary.withValues(alpha: 0.72),
-                  size: 14,
-                ),
-              ],
-            ),
+            title: const Text('专注'),
             bottom: const PreferredSize(
-              preferredSize: Size.fromHeight(8),
-              child: TraditionalDivider(height: 8),
+              preferredSize: Size.fromHeight(1),
+              child: Divider(height: 1),
             ),
           ),
           body: Stack(
             fit: StackFit.expand,
             children: [
-              // 玻璃衬底：为计时卡片与分段选择器提供可模糊的背景光晕
-              Positioned.fill(
-                child: WorkbenchBackdrop(child: const SizedBox.shrink()),
-              ),
-              const Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: IgnorePointer(
-                  child: Opacity(opacity: 0.72, child: InkHorizon(height: 150)),
-                ),
-              ),
-              const Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: IgnorePointer(
-                  child: Opacity(
-                    opacity: 0.56,
-                    child: LandscapePattern(height: 240),
-                  ),
-                ),
-              ),
               if (celebrating)
                 Positioned.fill(
                   child: FocusCelebration(
@@ -757,10 +724,9 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 32),
-                          GlassSurface(
+                          SolidPanel(
                             padding: const EdgeInsets.all(4),
                             radius: 24,
-                            glow: false,
                             child: SegmentedButton<FocusMode>(
                               segments: const [
                                 ButtonSegment(
@@ -801,7 +767,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                                 const PulseRing(
                                   duration: Duration(milliseconds: 900),
                                 ),
-                              GlassSurface(
+                              SolidPanel(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
                                   vertical: 12,

@@ -63,7 +63,8 @@ class GrowthPage extends StatelessWidget {
               _MilestoneStamps(level: snapshot.level),
               const SectionHeading(title: '最近证据', scale: '最近'),
               _RecentEvents(events: controller.growthEvents.take(8).toList()),
-              if (controller.growthEvents.length < 5) const SparseContentTail(),
+              if (controller.growthEvents.length < 5)
+                const SizedBox(height: 12),
             ],
           ),
         ),
@@ -697,10 +698,14 @@ class _Stamp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = unlocked ? context.tokens.gold : context.tokens.divider;
+    // 未解锁印章：边框与说明文字提高对比度（≥1.15:1 边框基准），去掉低对比渐变。
+    final borderColor = unlocked
+        ? context.tokens.gold
+        : context.tokens.mutedText.withValues(alpha: 0.45);
     final detailColor = unlocked
         ? context.tokens.gold
-        : context.tokens.mutedText.withValues(alpha: 0.55);
+        : context.tokens.mutedText.withValues(alpha: 0.85);
+    final titleColor = Theme.of(context).colorScheme.onSurface;
     return Semantics(
       label: unlocked ? '等级 $target 里程碑已解锁' : '等级 $target 里程碑未解锁',
       child: Container(
@@ -708,17 +713,7 @@ class _Stamp extends StatelessWidget {
         height: 72,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: unlocked ? null : context.tokens.subtle,
-          gradient: unlocked
-              ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    context.tokens.gold.withValues(alpha: 0.2),
-                    context.tokens.gold.withValues(alpha: 0.05),
-                  ],
-                )
-              : null,
+          color: unlocked ? context.tokens.gold.withValues(alpha: 0.1) : context.tokens.subtle,
           border: Border.all(color: borderColor, width: 2),
         ),
         child: Column(
@@ -733,7 +728,10 @@ class _Stamp extends StatelessWidget {
               '$target',
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: titleColor,
+              ),
             ),
             Text(
               unlocked ? '已解锁' : '待解锁',

@@ -1,12 +1,10 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
-import 'glass.dart';
-import 'ink_decoration.dart';
+import 'solid_panel.dart';
 
 void showWorkbenchSnackBar(BuildContext context, SnackBar snackBar) {
   final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
@@ -26,15 +24,8 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
 }) {
   return showGeneralDialog<T>(
     context: context,
-    pageBuilder: (context, animation, secondaryAnimation) {
-      final child = builder(context);
-      if (!GlassConfig.blurEnabled) return child;
-      final blur = context.tokens.glassBlur;
-      return BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: child,
-      );
-    },
+    pageBuilder: (context, animation, secondaryAnimation) =>
+        builder(context),
     barrierDismissible: barrierDismissible,
     barrierColor:
         barrierColor ??
@@ -45,11 +36,25 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
     useRootNavigator: useRootNavigator,
     routeSettings: routeSettings,
     anchorPoint: anchorPoint,
-    transitionDuration: const Duration(milliseconds: 200),
+    transitionDuration: AppMotion.standard,
+    transitionBuilder: (context, animation, secondaryAnimation, child) {
+      if (MediaQuery.disableAnimationsOf(context)) return child;
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: ScaleTransition(
+          scale: Tween(begin: 0.96, end: 1.0).animate(curved),
+          child: child,
+        ),
+      );
+    },
   );
 }
 
-/// 统一底部弹层入口：品牌面板色 + 顶部 16px 圆角 + 拖拽把手。
+/// 统一底部弹层入口：实色 raised 底 + 顶部 8px 圆角 + 拖拽把手。
 Future<T?> showWorkbenchSheet<T extends Object?>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -66,18 +71,17 @@ Future<T?> showWorkbenchSheet<T extends Object?>({
   AnimationController? transitionAnimationController,
   Offset? anchorPoint,
 }) {
+  final tokens = context.tokens;
   return showModalBottomSheet<T>(
     context: context,
-    // 默认玻璃面板（半透明 + 模糊）；显式传入 backgroundColor 时走实色路径。
-    builder: (ctx) => backgroundColor == null
-        ? GlassSurface(radius: 0, glow: false, child: builder(ctx))
-        : builder(ctx),
-    backgroundColor: backgroundColor ?? Colors.transparent,
-    elevation: elevation,
+    builder: builder,
+    backgroundColor: backgroundColor ?? tokens.raised,
+    elevation: elevation ?? 0,
     shape:
         shape ??
         const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+          side: BorderSide(color: Color(0x00000000)),
         ),
     isScrollControlled: isScrollControlled,
     useSafeArea: useSafeArea,
@@ -159,8 +163,75 @@ class _PressScaleState extends State<PressScale> {
       onPointerCancel: (_) => _set(false),
       child: AnimatedScale(
         scale: _pressed ? widget.pressedScale : 1,
-        duration: const Duration(milliseconds: 90),
+        duration: AppMotion.micro,
         curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// 列表交错入场：前 8 项每项 20ms 交错，淡入 + 12px 上移。
+/// 尊重系统「减少动画」设置；仅首次挂载播放。
+class StaggeredEntrance extends StatefulWidget {
+  const StaggeredEntrance({
+    super.key,
+    required this.child,
+    this.index = 0,
+    this.maxAnimated = 8,
+  });
+
+  final Widget child;
+  final int index;
+  final int maxAnimated;
+
+  @override
+  State<StaggeredEntrance> createState() => _StaggeredEntranceState();
+}
+
+class _StaggeredEntranceState extends State<StaggeredEntrance>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: AppMotion.emphasized,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    final participates = widget.index < widget.maxAnimated;
+    if (participates) {
+      final delay = Duration(
+        milliseconds: widget.index * AppMotion.staggerInterval.inMilliseconds,
+      );
+      Future.delayed(delay, () {
+        if (mounted) _controller.forward();
+      });
+    } else {
+      _controller.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return widget.child;
+    final curved = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.04), // 约 12px 位移
+          end: Offset.zero,
+        ).animate(curved),
         child: widget.child,
       ),
     );
@@ -174,7 +245,7 @@ class SkeletonBlock extends StatefulWidget {
     this.width,
     this.height = 12,
     this.widthFactor,
-    this.borderRadius = 6,
+    this.borderRadius = 5,
   });
 
   final double? width;
@@ -257,19 +328,19 @@ class SkeletonListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SkeletonBlock(width: 38, height: 38, borderRadius: 19),
-          const SizedBox(width: 14),
+          const SkeletonBlock(width: 34, height: 34, borderRadius: 5),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SkeletonBlock(height: 13, widthFactor: 0.72),
                 if (rows > 1) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   const SkeletonBlock(height: 10, widthFactor: 0.42),
                 ],
               ],
@@ -296,130 +367,71 @@ class PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = context.tokens;
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < AppBreakpoints.compact;
     final wide = width >= AppBreakpoints.expanded;
-    // 玻璃底条：半透明模糊背景 + 微光边框；底部保留 1px 分隔线，
-    // 顶部翠绿高光由 GlassSurface 内部 glassHighlight 提供。
-    return GlassSurface(
-      radius: 0,
-      glow: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              compact
-                  ? 16
-                  : wide
-                  ? 28
-                  : 24,
-              wide ? 20 : 16,
-              compact
-                  ? 10
-                  : wide
-                  ? 28
-                  : 20,
-              wide ? 16 : 14,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _GradientAccentBar(height: wide ? 40 : 32),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontSize: wide ? 26 : null,
-                          height: wide ? 1.2 : null,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (subtitle != null)
-                        Text(
-                          subtitle!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: context.tokens.mutedText,
-                            fontFeatures: _numericFeaturesIfUseful(subtitle!),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (actions.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  ...actions.map(
-                    (action) =>
-                        PressScale(key: ValueKey(action), child: action),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          // 底部 1px 分隔线
-          Container(height: 1, color: context.tokens.divider),
-        ],
+    // 实色 surface 底条 + 底部 1px 分隔线；左侧 3px 实心 primary 竖条。
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tokens.panel,
+        border: Border(bottom: BorderSide(color: tokens.panelBorder)),
       ),
-    );
-  }
-}
-
-class _GradientAccentBar extends StatelessWidget {
-  const _GradientAccentBar({required this.height});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 5,
-      height: height,
-      child: Column(
-        children: [
-          Container(
-            width: 5,
-            height: 5,
-            decoration: BoxDecoration(
-              color: scheme.secondary,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Expanded(
-            child: Container(
-              width: 5,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          compact ? AppSpacing.pageCompact : AppSpacing.pageWide,
+          wide ? 18 : 14,
+          compact ? 10 : AppSpacing.pageWide,
+          wide ? 14 : 12,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 3,
+              height: wide ? 38 : 30,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(3),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [scheme.primary, scheme.secondary],
-                ),
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontSize: wide ? 24 : null,
+                      height: wide ? 1.25 : null,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: tokens.mutedText,
+                        fontFeatures: _numericFeaturesIfUseful(subtitle!),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (actions.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              ...actions.map(
+                (action) => PressScale(key: ValueKey(action), child: action),
+              ),
+            ],
+          ],
+        ),
       ),
     );
-  }
-}
-
-class TraditionalDivider extends StatelessWidget {
-  const TraditionalDivider({super.key, this.height = 9});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(height: height, child: InkBrushDivider());
   }
 }
 
@@ -437,56 +449,32 @@ class SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
     final theme = Theme.of(context);
+    final tokens = context.tokens;
+    final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
     return Padding(
-      padding: EdgeInsets.only(top: wide ? 28 : 22, bottom: wide ? 10 : 8),
+      padding: EdgeInsets.only(top: wide ? 20 : 16, bottom: 8),
       child: Row(
         children: [
           Expanded(
             child: Row(
               children: [
-                SizedBox(
-                  width: 4,
-                  height: 18,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.secondary,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Expanded(
-                        child: Container(
-                          width: 4,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                theme.colorScheme.primary,
-                                theme.colorScheme.secondary,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                Container(
+                  width: 3,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Flexible(
                   child: Text(
                     title,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontSize: wide ? 20 : null,
-                      height: wide ? 1.25 : null,
+                      fontSize: 18,
+                      height: 1.25,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -495,18 +483,19 @@ class SectionHeading extends StatelessWidget {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
+                      horizontal: 7,
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: context.tokens.subtle,
-                      borderRadius: BorderRadius.circular(6),
+                      color: tokens.subtle,
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(color: tokens.panelBorder),
                     ),
                     child: Text(
                       scale!,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: context.tokens.mutedText,
+                        color: tokens.mutedText,
                         fontFeatures: const [FontFeature.tabularFigures()],
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
@@ -538,72 +527,9 @@ class LogSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 玻璃面板：半透明填充 + 背景模糊 + 翠绿微光边框 + 顶部高光。
-    // API（child/padding/accent）保持不变，全部调用点零改动。
-    return GlassSurface(padding: padding, accent: accent, child: child);
+    // 实色锐利面板；API（child/padding/accent）保持不变，全部调用点零改动。
+    return SolidPanel(padding: padding, accent: accent, child: child);
   }
-}
-
-class BambooSprig extends StatelessWidget {
-  const BambooSprig({super.key, this.width = 150, this.height = 130});
-
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: CustomPaint(
-        size: Size(width, height),
-        painter: _ModernSprigPainter(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-          accent: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-        ),
-      ),
-    );
-  }
-}
-
-class _ModernSprigPainter extends CustomPainter {
-  const _ModernSprigPainter({required this.color, required this.accent});
-
-  final Color color;
-  final Color accent;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 现代几何装饰：交错的圆角矩形和圆形
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-    final fillPaint = Paint()
-      ..color = accent
-      ..style = PaintingStyle.fill;
-
-    // 三个递增的圆形
-    for (var i = 0; i < 3; i++) {
-      final cx = size.width * (0.3 + i * 0.2);
-      final cy = size.height * (0.7 - i * 0.15);
-      final r = size.width * (0.06 + i * 0.02);
-      canvas.drawCircle(Offset(cx, cy), r, fillPaint);
-      canvas.drawCircle(Offset(cx, cy), r, paint);
-    }
-
-    // 连接线
-    final linePaint = Paint()
-      ..color = color.withValues(alpha: 0.5)
-      ..strokeWidth = 1;
-    canvas.drawLine(
-      Offset(size.width * 0.3, size.height * 0.7),
-      Offset(size.width * 0.7, size.height * 0.4),
-      linePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ModernSprigPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.accent != accent;
 }
 
 class EmptyState extends StatelessWidget {
@@ -622,206 +548,116 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final badge = Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: scheme.primary.withValues(alpha: 0.08),
+        border: Border.all(
+          color: scheme.primary.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Icon(icon, size: 26, color: scheme.primary),
+    );
+
+    Widget content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        badge,
+        const SizedBox(height: 14),
+        Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          message,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: context.tokens.mutedText,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        if (action != null) ...[
+          const SizedBox(height: 18),
+          PressScale(child: action!),
+        ],
+      ],
+    );
+
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(padding: const EdgeInsets.all(24), child: content),
+        ),
+      );
+    }
+
+    // 入场编排：徽章 320ms 缩放淡入；文案延迟 80ms 淡入跟随。
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.12),
-                      Theme.of(
-                        context,
-                      ).colorScheme.secondary.withValues(alpha: 0.06),
-                    ],
-                  ),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: context.tokens.glassPanel,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: context.tokens.glassBorder),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 26,
-                      color: Theme.of(context).colorScheme.primary,
+          padding: const EdgeInsets.all(24),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: AppMotion.emphasized,
+            curve: Curves.easeOutCubic,
+            builder: (context, t, child) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Opacity(
+                    opacity: t.clamp(0.0, 1.0),
+                    child: Transform.scale(
+                      scale: 0.8 + 0.2 * t.clamp(0.0, 1.0),
+                      child: badge,
                     ),
                   ),
+                  Opacity(
+                    opacity: ((t - 0.25) / 0.75).clamp(0.0, 1.0),
+                    child: child,
+                  ),
+                ],
+              );
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.tokens.mutedText,
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: context.tokens.mutedText,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              if (action != null) ...[
-                const SizedBox(height: 20),
-                PressScale(child: action!),
+                if (action != null) ...[
+                  const SizedBox(height: 18),
+                  PressScale(child: action!),
+                ],
               ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class SparseContentTail extends StatelessWidget {
-  const SparseContentTail({super.key, this.height = 72});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 28),
-        child: Opacity(opacity: 0.5, child: InkHorizon(height: height)),
-      ),
-    );
-  }
-}
-
-class OrientalMark extends StatelessWidget {
-  const OrientalMark({super.key, required this.color, this.size = 16});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(4),
-        ),
-      ),
-    );
-  }
-}
-
-class WorkbenchBackdrop extends StatelessWidget {
-  const WorkbenchBackdrop({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final isLight = theme.brightness == Brightness.light;
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // 极淡背景网格（玻璃衬底下调低透明度，避免干扰模糊观感）
-        Positioned.fill(child: SilkTexture(opacity: isLight ? 0.2 : 0.15)),
-        // 增强翠绿光晕：为玻璃面板提供「看得见」的背景色块
-        ExcludeSemantics(
-          child: IgnorePointer(
-            child: CustomPaint(
-              painter: _BackdropPainter(
-                wash: scheme.primary.withValues(alpha: isLight ? 0.18 : 0.25),
-                accent: scheme.secondary.withValues(
-                  alpha: isLight ? 0.12 : 0.18,
-                ),
-                gold: context.tokens.gold.withValues(
-                  alpha: isLight ? 0.06 : 0.08,
-                ),
-              ),
             ),
           ),
         ),
-        child,
-      ],
+      ),
     );
   }
-}
-
-class _BackdropPainter extends CustomPainter {
-  const _BackdropPainter({
-    required this.wash,
-    required this.accent,
-    required this.gold,
-  });
-
-  final Color wash;
-  final Color accent;
-  final Color gold;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 右上角主光晕（翠绿）
-    final topRight = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(1.0, 0.0),
-        radius: 0.55,
-        colors: [wash, wash.withValues(alpha: 0)],
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, topRight);
-
-    // 左下角次光晕（青绿）
-    final bottomLeft = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-0.6, 1.1),
-        radius: 0.50,
-        colors: [accent, accent.withValues(alpha: 0)],
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, bottomLeft);
-
-    // 右下角金色点缀光晕（更克制）
-    final bottomRight = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(0.85, 0.95),
-        radius: 0.35,
-        colors: [gold, gold.withValues(alpha: 0)],
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, bottomRight);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BackdropPainter oldDelegate) =>
-      oldDelegate.wash != wash ||
-      oldDelegate.accent != accent ||
-      oldDelegate.gold != gold;
 }
 
 class StatusPill extends StatelessWidget {
@@ -835,7 +671,7 @@ class StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final background =
         color ?? Theme.of(context).colorScheme.secondaryContainer;
-    final foreground = _bestContrastingText(background);
+    final foreground = bestContrastingText(background);
     return Semantics(
       label: '标签：$label',
       child: ExcludeSemantics(
@@ -843,7 +679,7 @@ class StatusPill extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
             color: background,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadius.control),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -957,9 +793,13 @@ class _TickDividerPainter extends CustomPainter {
 List<FontFeature>? _numericFeaturesIfUseful(String value) =>
     RegExp(r'\d').hasMatch(value) ? const [FontFeature.tabularFigures()] : null;
 
-Color _bestContrastingText(Color background) {
-  const dark = Color(0xFF1A1D29);
-  const light = Color(0xFFF8FAFC);
+/// 唯一的对比度取色实现：基于 ink 令牌返回在 [background] 上
+/// 对比度更高的前景色（深 ink 或近白）。
+Color bestContrastingText(
+  Color background, {
+  Color dark = const Color(0xFF1A1F1C),
+  Color light = const Color(0xFFF1F5F9),
+}) {
   double contrast(Color foreground) {
     final lighter = math.max(
       foreground.computeLuminance(),
