@@ -24,8 +24,7 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
 }) {
   return showGeneralDialog<T>(
     context: context,
-    pageBuilder: (context, animation, secondaryAnimation) =>
-        builder(context),
+    pageBuilder: (context, animation, secondaryAnimation) => builder(context),
     barrierDismissible: barrierDismissible,
     barrierColor:
         barrierColor ??
@@ -75,7 +74,7 @@ Future<T?> showWorkbenchSheet<T extends Object?>({
   return showModalBottomSheet<T>(
     context: context,
     builder: builder,
-    backgroundColor: backgroundColor ?? tokens.raised,
+    backgroundColor: backgroundColor ?? tokens.glassRaised,
     elevation: elevation ?? 0,
     shape:
         shape ??
@@ -371,12 +370,9 @@ class PageHeader extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < AppBreakpoints.compact;
     final wide = width >= AppBreakpoints.expanded;
-    // 实色 surface 底条 + 底部 1px 分隔线；左侧 3px 实心 primary 竖条。
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.panel,
-        border: Border(bottom: BorderSide(color: tokens.panelBorder)),
-      ),
+    return GlassSurface(
+      radius: 0,
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           compact ? AppSpacing.pageCompact : AppSpacing.pageWide,
@@ -527,8 +523,13 @@ class LogSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 实色锐利面板；API（child/padding/accent）保持不变，全部调用点零改动。
-    return SolidPanel(padding: padding, accent: accent, child: child);
+    // 统一内容表面；任务行自身仍保持高不透明度，避免滚动列表逐项模糊。
+    return SolidPanel(
+      padding: padding,
+      accent: accent,
+      glass: true,
+      child: child,
+    );
   }
 }
 

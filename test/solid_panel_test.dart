@@ -23,6 +23,24 @@ void main() {
     expect(decoration.color, isNotNull);
   });
 
+  testWidgets('glass surface applies blur and supports a solid fallback', (
+    tester,
+  ) async {
+    GlassConfig.blurEnabled = true;
+    addTearDown(() => GlassConfig.blurEnabled = true);
+
+    await tester.pumpWidget(
+      _host(const GlassSurface(child: SizedBox(width: 100, height: 100))),
+    );
+    expect(find.byType(BackdropFilter), findsOneWidget);
+
+    GlassConfig.blurEnabled = false;
+    await tester.pumpWidget(
+      _host(const GlassSurface(child: SizedBox(width: 100, height: 100))),
+    );
+    expect(find.byType(BackdropFilter), findsNothing);
+  });
+
   testWidgets('elevated panel uses raised shadow depth', (tester) async {
     await tester.pumpWidget(
       _host(

@@ -1,28 +1,28 @@
 # Design System
 
-> 本文档记录当前实现（**v2 翠绿·锐意工作台 / Emerald Precision**，2026-08-21 起），完整设计决策见 `docs/DESIGN_V2_EMERALD_PRECISION.md`。本文仅记录实现背景，不构成后续 UI 开发的强制规范。保留的约束仅限于可读性、无障碍、触控可用性、错误反馈和不遮挡核心内容等产品质量要求。
+> 本文档记录当前实现（**清新绿色玻璃拟态工作台**，2026-08-23 起）。本文是主题、布局和交互组件的实现依据；产品功能、数据语义和平台约束仍以 `PRODUCT.md` 为准。
 
 ## Direction Contract
 
 **THESIS:** 把每日工作呈现为一张可操作的现代工作台面，而不是由等大卡片拼成的通用仪表盘。
-**OWN-WORLD:** 实色锐利面板 × 翠绿气质：约 90% Linear 式工程秩序，10% 翠绿鲜活仪式感。亮色清爽灰白底 + 翠绿主色，暗色深墨绿石墨底 + 亮翠绿；翠绿负责主操作与选中态，暖橙用于状态与成就点缀，琥珀金用于进度与亮点。
+**OWN-WORLD:** 清透绿色玻璃 × 工程秩序：薄荷画布、半透明导航与重点面板、1px 翠绿边框和轻阴影。长列表使用高不透明度内容面板，避免模糊噪声和滚动开销；暖橙用于状态与成就点缀，琥珀金用于进度与亮点。
 **STORY:** 用户先看见今日三项重点与时间线，再收集、安排、执行，最后进入日记和回顾。任务完成即进度推进；专注即沉浸模式。
-**FIRST VIEWPORT:** 桌面为 80px 折叠/220px 展开侧栏、中央今日时间线与右侧重点清单；移动端纵向排列今日重点、下一时间块和任务。快速新增始终可达。
+**FIRST VIEWPORT:** 桌面为 80px 折叠/236px 展开玻璃侧栏、中央今日时间线与右侧重点清单；移动端纵向排列今日重点、下一时间块和任务。快速新增始终可达。
 **FORM:** Operate 模式的自适应工作台；宽屏（≥1200dp）使用导航栏与多栏布局，窄屏（<768dp）使用 Material 3 底部导航、顶部栏和单一主操作。
-**v2 移除项:** 全部玻璃拟态（BackdropFilter）、三色背景光晕、丝纹/网格纹理、全部渐变装饰与渐变强调条。背景 = 纯色 canvas。
+**视觉边界:** 玻璃只用于导航、页头、今日重点、快速新增、弹窗和专注仪式层；禁止离散渐变球、持续漂浮背景、复杂纹理、霓虹外发光和无意义装饰动画。
 
 ## Visual World
 
-界面采用 Linear 式锐利工程风格：干净的实色面板、1px 边框 + 微阴影双保险层次、6px 锐利圆角、收紧的密度。层次不靠透明和模糊，靠边框、阴影与留白。结构依靠列、行、刻度、标签和状态标记；页面标题旁使用 3px 实心翠绿竖条，分区标题使用 3px primary@60% 竖条；装饰仅服务于导航、分组和空态识别，不承载业务信息。
+界面采用清新玻璃拟态工作台：关键面板使用半透明填充、`BackdropFilter` 模糊、1px 翠绿边框、顶部微高光和轻阴影；任务列表、时间线和密集表格使用高不透明度面板。结构依靠列、行、刻度、标签和状态标记；页面标题旁使用 3px 实心翠绿竖条，分区标题使用 3px primary@60% 竖条；装饰仅服务于导航、分组和空态识别，不承载业务信息。
 
 ### Color Roles
 
-语义色沿用 v1 色值（无迁移成本），面板层次令牌全面替换 glass* 四件套：
+语义色采用薄荷画布与深墨绿双主题，玻璃层由 `WorkbenchTokens` 统一提供：
 
-- 浅色：`canvas #EDF5EF`、`panel #FFFFFF`、`raised #FFFFFF`、`subtle #F0F4F2`、`ink #1A1F1C`、`muted #6B7280`、`divider #E5E7EB`、`primary #059669`（翠绿主色）、`primaryContainer #D1FAE5`、`secondary #10B981`、`reward #F97316`（暖橙）、`gold #F59E0B`。
-- 深色：`canvas #071612`（深墨绿）、`panel #151C19`、`raised #1C2420`、`subtle #1C2420`、`ink #F1F5F9`、`muted #94A3B8`、`divider #28322D`、`primary #34D399`（亮翠绿）、`primaryContainer #064E3B`、`secondary #6EE7B7`、`reward #FB923C`（亮暖橙）、`gold #FBBF24`（亮琥珀）。
-- 面板令牌（`WorkbenchTokens`）：`panelBorder #E2E8E5 / #2A342F`（面板 1px 描边，同色系灰绿）、`panelShadow 4-6% / 28%`（blur 10, y+3）、`raisedShadow 8-12% / 40%`（blur 16, y+6）、`focusRing primary@32% / 40%`（键盘焦点 2px 外环）。
-- **已删除**：glassPanel / glassBorder / glassHighlight / glassGlow / glassBlur 全部令牌及 GlassSurface 组件（`lib/ui/widgets/glass.dart` 仅剩兼容 re-export shim）。
+- 浅色：`canvas #EAF5EF`、`surface #F9FDFA`、`raised #FFFFFF`、`subtle #F0F8F3`、`ink #17352A`、`muted #698077`、`divider #CEE2D7`、`primary #159765`、`primaryContainer #D8F1E2`、`reward #F97316`、`gold #F59E0B`。
+- 深色：`canvas #071B14`、`surface #123529`、`raised #1A3E30`、`subtle #173B2D`、`ink #E5F3EA`、`muted #9AB7AA`、`divider #2D5A47`、`primary #5EE0A8`、`primaryContainer #1E523D`、`reward #FB923C`、`gold #FBBF24`。
+- 玻璃令牌：`glassPanel`、`glassRaised`、`glassBorder`、`glassHighlight`、`glassBlur=18`；`GlassConfig.blurEnabled=false` 时保留半透明层级并移除 `BackdropFilter`。
+- 面板令牌：`panelBorder`、`panelShadow`、`raisedShadow`、`focusRing` 继续用于高不透明度列表和浮层。
 
 色彩纪律：强调色仅用于主操作、选中态、关键数据与品牌标识，大面积区域永远中性。正文对比度 ≥ 12:1，次级文字 ≥ 4.5:1，边框相对 surface ≥ 1.15:1（日历网格、习惯矩阵空格、里程碑印章等空单元格不得使用 divider 作描边，用 `mutedText@0.35-0.45`）。深色主题使用相同语义角色，不直接反相。
 
@@ -33,12 +33,13 @@
 ### Shape And Depth
 
 - 圆角标尺（`AppRadius`）：卡片/弹窗/FAB 6px，按钮/输入框/Chip 5px，底部弹层顶部 8px，NavigationBar indicator 6px，Snackbar 6px，Tooltip 4px。
-- 层次体系（`SolidPanel`，见 `lib/ui/widgets/solid_panel.dart`）：
+- 层次体系（`SolidPanel` / `GlassSurface`，见 `lib/ui/widgets/solid_panel.dart`）：
   - 层级 0 canvas：纯色，无边框无阴影
-  - 层级 1 surface 面板：panelBorder 1px + panelShadow
-  - 层级 2 raised 浮层：panelBorder 1px + raisedShadow（`elevated: true`）
+  - 层级 1 内容面板：高不透明度 surface + panelBorder 1px + panelShadow
+  - 层级 1 玻璃面板：glassPanel + BackdropFilter + glassBorder + 顶部高光
+  - 层级 2 raised 浮层：glassRaised + raisedShadow（`elevated: true`）
   - 选中态：左缘 3px 实心 primary 条 + 边框转 primary@40%（`selected: true`）
-- 禁止：背景模糊、外发光、渐变边框、大面积阴影。阴影浅色模式极轻（4-6%），深色模式加深以保证可见性。
+- 禁止：装饰性背景模糊、外发光、渐变边框、大面积阴影；模糊只服务于玻璃导航、页头、重点区和浮层。阴影浅色模式极轻，深色模式加深以保证可见性。
 - 任务行左侧强调条统一状态色：doing=primary、todo=muted@40%、done=primary@30%、cancelled=divider。
 - 空态徽章：56px 圆，1.5px primary@40% 描边 + primary@8% 填充 + 26px Outlined 图标，320ms 缩放淡入。
 
@@ -64,7 +65,7 @@
 
 ## Visual QA
 
-`test/visual_golden_test.dart` 固定宽屏 1536×864、窄屏 412×915 和 2026-08-07 示例日，使用独立内存数据库和系统中文字体生成 Golden；`test/solid_panel_test.dart` 覆盖实色面板无 BackdropFilter、elevated/selected 状态与对话框实色浮层。更新命令：
+`test/visual_golden_test.dart` 固定宽屏 1536×864、窄屏 412×915 和 2026-08-07 示例日，使用独立内存数据库和系统中文字体生成 Golden；`test/solid_panel_test.dart` 覆盖实色列表面板、玻璃面板降级、elevated/selected 状态与对话框浮层。更新命令：
 
 ```powershell
 flutter test test/visual_golden_test.dart test/ui_audit_screenshot_test.dart --update-goldens

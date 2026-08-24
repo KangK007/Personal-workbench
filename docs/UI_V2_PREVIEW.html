@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>清新绿色玻璃拟态工作台 v2.1 — 界面总览</title>
+<style>
+  :root {
+    --bg: #EAF5EF;
+    --panel: rgba(255, 255, 255, 0.78);
+    --border: rgba(21, 151, 101, 0.30);
+    --ink: #17352A;
+    --muted: #698077;
+    --primary: #159765;
+    --accent: #F97316;
+    --mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", "Microsoft YaHei", -apple-system, sans-serif;
+    padding: 32px 40px 64px;
+  }
+  header { max-width: 1280px; margin: 0 auto 28px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--primary);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  h1 { font-size: 26px; font-weight: 650; letter-spacing: -0.01em; margin-bottom: 10px; }
+  .meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px;
+    font-size: 12px; color: var(--muted);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border); }
+  .grid {
+    max-width: 1280px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(10,15,10,0.04);
+    backdrop-filter: blur(18px);
+  }
+  .card .shot { display: block; width: 100%; background: #EDF5EF; }
+  .card .shot img { display: block; width: 100%; height: auto; }
+  .card footer {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .card .name { font-size: 13px; font-weight: 600; }
+  .card .tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .card .tag.mobile { color: var(--accent); }
+  footer.page {
+    max-width: 1280px; margin: 36px auto 0;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    border-top: 1px solid var(--border); padding-top: 14px;
+    display: flex; justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Fresh Glass Workbench · v2.1</div>
+  <h1>清新绿色玻璃拟态工作台 — 改版后界面总览</h1>
+  <div class="meta">
+    <b>17 张</b>全页面审计截图 · 由 <b>ui_audit_screenshot_test</b> 于 2026-08-24 自动生成（与代码同步）<br>
+    关键层玻璃模糊 18px · 圆角 6/5 · 列表行 44px · 动效 120/200/320ms · 断点 768/1200
+  </div>
+  <div class="legend">
+    <span><i class="swatch" style="background:#159765"></i>主色 翠绿 #159765</span>
+    <span><i class="swatch" style="background:#F97316"></i>强调 暖橙 #F97316</span>
+    <span><i class="swatch" style="background:#F59E0B"></i>琥珀金 #F59E0B</span>
+    <span><i class="swatch" style="background:#EAF5EF"></i>浅色底 #EAF5EF</span>
+  </div>
+</header>
+
+<div class="grid">
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/plan_desktop.png"><img src="images/ui_audit/plan_desktop.png" alt="今日计划（桌面）" loading="lazy"></a>
+    <footer><span class="name">今日计划</span><span class="tag">desktop · wide</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/today_mobile.png"><img src="images/ui_audit/today_mobile.png" alt="今日（移动端）" loading="lazy"></a>
+    <footer><span class="name">今日</span><span class="tag mobile">mobile</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/calendar_desktop.png"><img src="images/ui_audit/calendar_desktop.png" alt="日历（桌面）" loading="lazy"></a>
+    <footer><span class="name">日历</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/goals_desktop.png"><img src="images/ui_audit/goals_desktop.png" alt="目标（桌面）" loading="lazy"></a>
+    <footer><span class="name">目标</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/projects_desktop.png"><img src="images/ui_audit/projects_desktop.png" alt="项目（桌面）" loading="lazy"></a>
+    <footer><span class="name">项目</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/habits_desktop.png"><img src="images/ui_audit/habits_desktop.png" alt="习惯（桌面）" loading="lazy"></a>
+    <footer><span class="name">习惯打卡</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/focus_hub_desktop.png"><img src="images/ui_audit/focus_hub_desktop.png" alt="专注中心（桌面）" loading="lazy"></a>
+    <footer><span class="name">专注中心（专注/自律）</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/focus_session_desktop.png"><img src="images/ui_audit/focus_session_desktop.png" alt="全屏计时器（桌面）" loading="lazy"></a>
+    <footer><span class="name">专注计时器</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/protocols_desktop.png"><img src="images/ui_audit/protocols_desktop.png" alt="方案（桌面）" loading="lazy"></a>
+    <footer><span class="name">方案</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/policies_desktop.png"><img src="images/ui_audit/policies_desktop.png" alt="策略（桌面）" loading="lazy"></a>
+    <footer><span class="name">策略树</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/review_desktop.png"><img src="images/ui_audit/review_desktop.png" alt="复盘（桌面）" loading="lazy"></a>
+    <footer><span class="name">复盘</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/growth_desktop.png"><img src="images/ui_audit/growth_desktop.png" alt="成长（桌面）" loading="lazy"></a>
+    <footer><span class="name">成长里程碑</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/inbox_desktop.png"><img src="images/ui_audit/inbox_desktop.png" alt="收件箱（桌面）" loading="lazy"></a>
+    <footer><span class="name">收件箱</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/notes_desktop.png"><img src="images/ui_audit/notes_desktop.png" alt="笔记（桌面）" loading="lazy"></a>
+    <footer><span class="name">知识笔记</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/diary_desktop.png"><img src="images/ui_audit/diary_desktop.png" alt="日记（桌面）" loading="lazy"></a>
+    <footer><span class="name">日记</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/settings_desktop.png"><img src="images/ui_audit/settings_desktop.png" alt="设置（桌面）" loading="lazy"></a>
+    <footer><span class="name">设置</span><span class="tag">desktop</span></footer>
+  </figure>
+  <figure class="card">
+    <a class="shot" href="images/ui_audit/more_mobile.png"><img src="images/ui_audit/more_mobile.png" alt="更多（移动端）" loading="lazy"></a>
+    <footer><span class="name">更多</span><span class="tag mobile">mobile</span></footer>
+  </figure>
+</div>
+
+<footer class="page">
+  <span>docs/UI_V2_PREVIEW.html · screenshots from test/ui_audit_screenshot_test.dart</span>
+  <span>Personal Workbench 0.1.0+4 · 2026-08-24</span>
+</footer>
+
+</body>
+</html>

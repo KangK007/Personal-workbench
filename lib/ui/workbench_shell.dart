@@ -26,6 +26,7 @@ import 'widgets/global_search_dialog.dart';
 import 'widgets/common.dart';
 import 'widgets/ink_decoration.dart';
 import 'widgets/quick_capture_sheet.dart';
+import 'widgets/solid_panel.dart';
 
 enum WorkbenchSection {
   today,
@@ -215,7 +216,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           Row(
             children: [
               AnimatedContainer(
-                width: collapsed ? 80 : 220,
+                width: collapsed ? 80 : 236,
                 duration: MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
                     : const Duration(milliseconds: 300),
@@ -239,9 +240,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                 ),
               ),
               const VerticalDivider(),
-              Expanded(
-                child: SafeArea(child: _pageStack()),
-              ),
+              Expanded(child: SafeArea(child: _pageStack())),
             ],
           ),
         ],
@@ -347,19 +346,13 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               onPressed: () => _openMobileNavigation(context),
             ),
           ],
-          flexibleSpace: DecoratedBox(
-            decoration: BoxDecoration(
-              color: tokens.panel,
-              border: Border(
-                bottom: BorderSide(color: tokens.panelBorder),
-              ),
-            ),
+          flexibleSpace: GlassSurface(
+            radius: 0,
+            padding: EdgeInsets.zero,
+            child: const SizedBox.expand(),
           ),
         ),
-        body: SafeArea(
-          top: false,
-          child: _pageStack(slidable: true),
-        ),
+        body: SafeArea(top: false, child: _pageStack(slidable: true)),
         floatingActionButton: _shouldShowPersistentAdd
             ? FloatingActionButton.small(
                 onPressed: _openCapture,
@@ -375,7 +368,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               height: 26,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: tokens.panel,
+                color: tokens.glassPanel,
                 border: Border(top: BorderSide(color: tokens.panelBorder)),
               ),
               child: Row(
@@ -450,10 +443,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       children: [
         for (final value in WorkbenchSection.values)
           _visitedSections.contains(value)
-              ? TickerMode(
-                  enabled: value == section,
-                  child: _buildPage(value),
-                )
+              ? TickerMode(enabled: value == section, child: _buildPage(value))
               : const SizedBox.shrink(),
       ],
     ),
@@ -864,212 +854,222 @@ class _DesktopNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final expanded =
         MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
-    // 侧栏：实色 surface，右缘由外层 VerticalDivider 提供 1px 分隔。
-    return ColoredBox(
-      color: context.tokens.panel,
+    // 侧栏：半透明玻璃层，内部导航项保持稳定的高对比度。
+    return GlassSurface(
+      radius: 0,
+      padding: EdgeInsets.zero,
       child: SafeArea(
-          child: Column(
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: context.tokens.panelBorder),
-                  ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    collapsed ? 14 : expanded ? 24 : 16,
-                    expanded ? 20 : 12,
-                    collapsed ? 14 : expanded ? 20 : 12,
-                    expanded ? 14 : 10,
-                  ),
-                  child: Row(
-                    children: [
-                      SealLogo(size: expanded ? 48 : 32),
-                      if (!collapsed) ...[
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '个人工作台',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontSize: expanded ? 20 : null),
-                              ),
-                              Text(
-                                controller.profileAlias.isEmpty
-                                    ? '个人工作空间'
-                                    : controller.profileAlias,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: context.tokens.mutedText),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      if (!collapsed && allowCollapseToggle)
-                        IconButton(
-                          onPressed: onToggleCollapsed,
-                          tooltip: '收起导航',
-                          icon: const Icon(Icons.keyboard_double_arrow_left),
-                        ),
-                    ],
-                  ),
+        child: Column(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: context.tokens.glassRaised,
+                border: Border(
+                  bottom: BorderSide(color: context.tokens.panelBorder),
                 ),
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: collapsed
-                      ? 10
-                      : expanded
-                      ? 28
-                      : 14,
-                ),
-                child: collapsed
-                    ? Column(
-                        children: [
-                          if (onCapture != null) ...[
-                            IconButton(
-                              onPressed: onCapture,
-                              tooltip: '快速新增',
-                              icon: const Icon(Icons.add),
-                            ),
-                            const SizedBox(height: 4),
-                          ],
-                          IconButton(
-                            onPressed: onSearch,
-                            tooltip: '全局搜索',
-                            icon: const Icon(Icons.search),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          if (onCapture != null) ...[
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(48),
-                                ),
-                                onPressed: onCapture,
-                                icon: const Icon(Icons.add),
-                                label: const Text('快速新增'),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                          ],
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(48),
-                              ),
-                              onPressed: onSearch,
-                              icon: const Icon(Icons.search),
-                              label: const Text('全局搜索'),
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-              const SizedBox(height: 10),
-              const Divider(),
-              Expanded(
-                child: Scrollbar(
-                  child: ListView(
-                    cacheExtent: 10000,
-                    padding: EdgeInsets.fromLTRB(
-                      collapsed
-                          ? 7
-                          : expanded
-                          ? 20
-                          : 10,
-                      10,
-                      collapsed
-                          ? 7
-                          : expanded
-                          ? 20
-                          : 10,
-                      12,
-                    ),
-                    children: [
-                      Column(
-                        children: [
-                          for (final node in _navigationTree)
-                            _node(context, node),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const Divider(),
-              Padding(
+              child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   collapsed
-                      ? 16
+                      ? 14
                       : expanded
-                      ? 28
-                      : 14,
-                  10,
+                      ? 24
+                      : 16,
+                  expanded ? 20 : 12,
                   collapsed
-                      ? 16
+                      ? 14
                       : expanded
-                      ? 28
-                      : 14,
-                  12,
+                      ? 20
+                      : 12,
+                  expanded ? 14 : 10,
                 ),
-                child: collapsed
-                    ? Tooltip(
-                        message: controller.syncMessage,
-                        child: Icon(
-                          controller.cloudConfigured
-                              ? Icons.cloud_outlined
-                              : Icons.cloud_off_outlined,
-                          size: 19,
-                          color: context.tokens.mutedText,
-                        ),
-                      )
-                    : Row(
-                        children: [
-                          Icon(
-                            controller.cloudConfigured
-                                ? Icons.cloud_outlined
-                                : Icons.cloud_off_outlined,
-                            size: 18,
-                            color: context.tokens.mutedText,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              controller.syncMessage,
-                              maxLines: 2,
+                child: Row(
+                  children: [
+                    SealLogo(size: expanded ? 48 : 32),
+                    if (!collapsed) ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '个人工作台',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontSize: expanded ? 20 : null),
+                            ),
+                            Text(
+                              controller.profileAlias.isEmpty
+                                  ? '个人工作空间'
+                                  : controller.profileAlias,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: context.tokens.mutedText),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-              ),
-              if (collapsed && allowCollapseToggle)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: IconButton(
-                    onPressed: onToggleCollapsed,
-                    tooltip: '展开导航',
-                    icon: const Icon(Icons.keyboard_double_arrow_right),
-                  ),
+                    ],
+                    if (!collapsed && allowCollapseToggle)
+                      IconButton(
+                        onPressed: onToggleCollapsed,
+                        tooltip: '收起导航',
+                        icon: const Icon(Icons.keyboard_double_arrow_left),
+                      ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: collapsed
+                    ? 10
+                    : expanded
+                    ? 28
+                    : 14,
+              ),
+              child: collapsed
+                  ? Column(
+                      children: [
+                        if (onCapture != null) ...[
+                          IconButton(
+                            onPressed: onCapture,
+                            tooltip: '快速新增',
+                            icon: const Icon(Icons.add),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                        IconButton(
+                          onPressed: onSearch,
+                          tooltip: '全局搜索',
+                          icon: const Icon(Icons.search),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        if (onCapture != null) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size.fromHeight(48),
+                              ),
+                              onPressed: onCapture,
+                              icon: const Icon(Icons.add),
+                              label: const Text('快速新增'),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            onPressed: onSearch,
+                            icon: const Icon(Icons.search),
+                            label: const Text('全局搜索'),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 10),
+            const Divider(),
+            Expanded(
+              child: Scrollbar(
+                child: ListView(
+                  cacheExtent: 10000,
+                  padding: EdgeInsets.fromLTRB(
+                    collapsed
+                        ? 7
+                        : expanded
+                        ? 20
+                        : 10,
+                    10,
+                    collapsed
+                        ? 7
+                        : expanded
+                        ? 20
+                        : 10,
+                    12,
+                  ),
+                  children: [
+                    Column(
+                      children: [
+                        for (final node in _navigationTree)
+                          _node(context, node),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                collapsed
+                    ? 16
+                    : expanded
+                    ? 28
+                    : 14,
+                10,
+                collapsed
+                    ? 16
+                    : expanded
+                    ? 28
+                    : 14,
+                12,
+              ),
+              child: collapsed
+                  ? Tooltip(
+                      message: controller.syncMessage,
+                      child: Icon(
+                        controller.cloudConfigured
+                            ? Icons.cloud_outlined
+                            : Icons.cloud_off_outlined,
+                        size: 19,
+                        color: context.tokens.mutedText,
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Icon(
+                          controller.cloudConfigured
+                              ? Icons.cloud_outlined
+                              : Icons.cloud_off_outlined,
+                          size: 18,
+                          color: context.tokens.mutedText,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            controller.syncMessage,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: context.tokens.mutedText),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            if (collapsed && allowCollapseToggle)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: IconButton(
+                  onPressed: onToggleCollapsed,
+                  tooltip: '展开导航',
+                  icon: const Icon(Icons.keyboard_double_arrow_right),
+                ),
+              ),
+          ],
         ),
+      ),
     );
   }
 
@@ -1134,7 +1134,7 @@ class _DesktopNavigation extends StatelessWidget {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               selected: containsSelected,
               selectedColor: Theme.of(context).colorScheme.primary,
-              leading: Icon(node.icon, size: 19),
+              leading: Icon(node.icon, size: AppIconSize.sm),
               title: Text(
                 node.label,
                 style: TextStyle(
@@ -1146,7 +1146,7 @@ class _DesktopNavigation extends StatelessWidget {
               ),
               trailing: Icon(
                 expanded ? Icons.expand_less : Icons.expand_more,
-                size: 19,
+                size: AppIconSize.sm,
               ),
               onTap: () {
                 if (!containsSelected) {
@@ -1205,10 +1205,14 @@ class _DesktopNavigation extends StatelessWidget {
         ),
       );
     }
-    final tile = DecoratedBox(
+    final tile = AnimatedContainer(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : AppMotion.micro,
+      curve: Curves.easeOut,
       decoration: BoxDecoration(
         color: isSelected
-            ? theme.colorScheme.primary.withValues(alpha: 0.08)
+            ? theme.colorScheme.primary.withValues(alpha: 0.12)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.control),
         border: isSelected
@@ -1234,7 +1238,7 @@ class _DesktopNavigation extends StatelessWidget {
                 : theme.colorScheme.onSurfaceVariant,
             leading: Padding(
               padding: EdgeInsets.only(left: nested ? 16 : 0),
-              child: Icon(node.icon, size: 20),
+              child: Icon(node.icon, size: AppIconSize.sm),
             ),
             title: Text(
               node.label,
@@ -1294,7 +1298,7 @@ class _MobileNavigationSheet extends StatelessWidget {
             ListTile(
               key: ValueKey('navigation-leaf:${node.section!.name}'),
               selected: node.section == selected,
-              leading: Icon(node.icon, size: 20),
+              leading: Icon(node.icon, size: AppIconSize.sm),
               title: Text(node.label),
               onTap: () => onSelected(node.section!),
             )
@@ -1322,7 +1326,7 @@ class _MobileNavigationSheet extends StatelessWidget {
                       end: 8,
                     ),
                     selected: child.section == selected,
-                    leading: Icon(child.icon, size: 20),
+                    leading: Icon(child.icon, size: AppIconSize.sm),
                     title: Text(child.label),
                     onTap: () => onSelected(child.section!),
                   ),
@@ -1355,7 +1359,7 @@ class _SectionTransitionState extends State<_SectionTransition>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 240),
+    duration: AppMotion.pageTransition,
   );
   late final CurvedAnimation _curve = CurvedAnimation(
     parent: _controller,

@@ -165,7 +165,7 @@ $distributionDirectory = Join-Path $projectRoot 'dist\apk'
 New-Item -ItemType Directory -Force -Path $distributionDirectory | Out-Null
 $distributionName = "PersonalWorkbench_$versionName`_$versionCode`_$Configuration.apk"
 $distribution = Join-Path $distributionDirectory $distributionName
-Get-ChildItem -LiteralPath $distributionDirectory -Filter 'PersonalWorkbench_*.apk' -File |
+Get-ChildItem -LiteralPath $distributionDirectory -Filter "PersonalWorkbench_*_$Configuration.apk" -File |
     Remove-Item -Force
 Copy-Item -LiteralPath $artifact -Destination $distribution -Force
 

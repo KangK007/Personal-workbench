@@ -1,10 +1,13 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// 实色锐利面板（Emerald Precision v2 基础面板组件）。
+/// 统一面板组件：默认高不透明度，按需启用清新绿色玻璃层。
 ///
 /// 层次手法：底色 + 1px panelBorder 边框 + 微阴影双保险。
+/// - [glass] 仅用于导航、页头、重点区和浮层；长列表默认保持实色。
 /// - [elevated] 为 `false` 时使用 panelShadow（blur 10 / y+3），
 ///   为 `true` 时使用 raisedShadow（blur 16 / y+6），用于对话框/菜单等浮层。
 /// - [selected] 时左缘绘制 3px 实心 primary 条，边框转 primary@40%。
@@ -18,6 +21,8 @@ class SolidPanel extends StatelessWidget {
     this.radius,
     this.elevated = false,
     this.selected = false,
+    this.glass = false,
+    this.blur,
     this.color,
     this.borderColor,
   });
@@ -37,6 +42,12 @@ class SolidPanel extends StatelessWidget {
   /// 选中态：左缘 3px 实心 primary 条 + 边框转 primary@40%。
   final bool selected;
 
+  /// 是否启用半透明玻璃表面。关闭 [GlassConfig.blurEnabled] 时自动降级。
+  final bool glass;
+
+  /// 可选的局部模糊半径；为空时使用主题令牌。
+  final double? blur;
+
   /// 面板底色，默认 tokens.panel。
   final Color? color;
 
@@ -49,13 +60,19 @@ class SolidPanel extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final r = radius ?? AppRadius.card;
     final selectedBorderColor = scheme.primary.withValues(alpha: 0.4);
-    final effectiveBorder = borderColor ??
-        (selected ? selectedBorderColor : tokens.panelBorder);
+    final glassActive = glass && GlassConfig.blurEnabled;
+    final effectiveBorder =
+        borderColor ??
+        (selected
+            ? selectedBorderColor
+            : glass
+            ? tokens.glassBorder
+            : tokens.panelBorder);
     final effectiveAccent = selected ? scheme.primary : accent;
 
-    return DecoratedBox(
+    final panel = DecoratedBox(
       decoration: BoxDecoration(
-        color: color ?? tokens.panel,
+        color: color ?? (glass ? tokens.glassPanel : tokens.panel),
         borderRadius: BorderRadius.circular(r),
         border: Border.all(color: effectiveBorder),
         boxShadow: [
@@ -89,14 +106,34 @@ class SolidPanel extends StatelessWidget {
                 ),
               ),
             ),
+          if (glass)
+            PositionedDirectional(
+              start: r,
+              end: r,
+              top: 0,
+              child: Container(height: 1, color: tokens.glassHighlight),
+            ),
         ],
+      ),
+    );
+
+    if (!glassActive) return panel;
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(r),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: blur ?? tokens.glassBlur,
+            sigmaY: blur ?? tokens.glassBlur,
+          ),
+          child: panel,
+        ),
       ),
     );
   }
 }
 
-/// 兼容别名：v1 玻璃面板迁移期保留，内部完全委托 [SolidPanel]。
-@Deprecated('Use SolidPanel instead. Glass morphism was removed in v2.')
+/// 玻璃面板：用于导航、页头、重点区和弹层，支持性能降级。
 class GlassSurface extends StatelessWidget {
   const GlassSurface({
     super.key,
@@ -107,6 +144,7 @@ class GlassSurface extends StatelessWidget {
     this.blur,
     this.glow = true,
     this.enabled = true,
+    this.elevated = false,
   });
 
   final Widget child;
@@ -114,29 +152,32 @@ class GlassSurface extends StatelessWidget {
   final Color? accent;
   final double? radius;
 
-  @Deprecated('No-op: glass blur was removed in v2.')
+  /// 可选的局部模糊半径；为空时使用主题令牌。
   final double? blur;
 
-  @Deprecated('No-op: glass glow was removed in v2.')
+  /// 保留兼容参数；当前只使用边框和微高光，不添加外发光。
   final bool glow;
 
-  @Deprecated('No-op: always solid in v2.')
+  /// 是否启用玻璃表面；关闭时回退为高不透明度面板。
   final bool enabled;
+  final bool elevated;
 
   @override
   Widget build(BuildContext context) {
-    // ignore: deprecated_member_use_from_same_package
     return SolidPanel(
       padding: padding,
       accent: accent,
       radius: radius,
+      elevated: elevated,
+      glass: enabled,
+      blur: blur,
+      color: enabled ? null : context.tokens.panel,
       child: child,
     );
   }
 }
 
-/// 兼容别名：v1 玻璃降级开关。v2 已全面实色化，此配置不再有视觉效果。
-@Deprecated('No-op: glass morphism was removed in v2.')
+/// 玻璃降级开关：关闭后保留半透明层级，但移除 BackdropFilter。
 abstract final class GlassConfig {
-  static bool blurEnabled = false;
+  static bool blurEnabled = true;
 }

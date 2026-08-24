@@ -1,23 +1,22 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-// ─── 色彩体系：翠绿·锐意工作台（Emerald Precision v2）───
-// 实色锐利面板 + 1px 边框 + 微阴影；无玻璃拟态、无背景装饰、无渐变装饰。
-// 浅色：清爽灰白底 + 翠绿主色 + 暖橙点缀
-// 深色：深墨绿石墨底 + 亮翠绿 + 暖橙点缀
+// ─── 色彩体系：个人工作台 · 清新绿色玻璃拟态 ───
+// 关键层使用半透明玻璃，长列表保留高不透明度面板以控制性能和对比度。
+// 浅色：薄荷画布 + 清透面板 + 翠绿主色；深色：深墨绿画布 + 亮翠绿。
 
 abstract final class AppColors {
   // ═══ 浅色 · 清新绿意工作台 ═══
-  static const lightCanvas = Color(0xFFEDF5EF); // 页面底色（纯平）
-  static const lightSurface = Color(0xFFFFFFFF); // 面板背景
+  static const lightCanvas = Color(0xFFEAF5EF); // 薄荷画布
+  static const lightSurface = Color(0xFFF9FDFA); // 高不透明度内容面板
   static const lightRaised = Color(0xFFFFFFFF); // 浮层背景
-  static const lightInk = Color(0xFF1A1F1C); // 主文字
-  static const lightInkMuted = Color(0xFF6B7280); // 次级文字
-  static const lightDivider = Color(0xFFE5E7EB); // 分隔线
-  static const lightPrimary = Color(0xFF059669); // 翠绿主色
-  static const lightPrimaryContainer = Color(0xFFD1FAE5); // 翠绿容器
-  static const lightSecondary = Color(0xFF10B981); // 次级翠绿
-  static const lightSecondaryContainer = Color(0xFFECFDF5); // 次级背景
+  static const lightInk = Color(0xFF17352A); // 主文字
+  static const lightInkMuted = Color(0xFF698077); // 次级文字
+  static const lightDivider = Color(0xFFCEE2D7); // 分隔线
+  static const lightPrimary = Color(0xFF159765); // 翠绿主色
+  static const lightPrimaryContainer = Color(0xFFD8F1E2); // 翠绿容器
+  static const lightSecondary = Color(0xFF38B989); // 次级翠绿
+  static const lightSecondaryContainer = Color(0xFFE6F6ED); // 次级背景
   static const lightReward = Color(0xFFF97316); // 暖橙状态
   static const lightRewardContainer = Color(0xFFFFF7ED); // 暖橙容器
   static const lightInfo = Color(0xFF0EA5E9); // 信息状态
@@ -25,16 +24,16 @@ abstract final class AppColors {
   static const lightGold = Color(0xFFF59E0B); // 琥珀金
 
   // ═══ 深色 · 深墨绿夜色 ═══
-  static const darkCanvas = Color(0xFF071612); // 深墨绿石墨底色（纯平）
-  static const darkSurface = Color(0xFF151C19); // 墨绿面板
-  static const darkRaised = Color(0xFF1C2420); // 墨绿浮层
-  static const darkInk = Color(0xFFF1F5F9); // 亮白文字
-  static const darkInkMuted = Color(0xFF94A3B8); // 灰绿辅助
-  static const darkDivider = Color(0xFF28322D); // 暗墨绿线
-  static const darkPrimary = Color(0xFF34D399); // 亮翠绿
-  static const darkPrimaryContainer = Color(0xFF064E3B); // 暗翠绿容器
-  static const darkSecondary = Color(0xFF6EE7B7); // 亮翠绿辅助
-  static const darkSecondaryContainer = Color(0xFF022C22); // 暗翠绿容器
+  static const darkCanvas = Color(0xFF071B14); // 深墨绿画布
+  static const darkSurface = Color(0xFF123529); // 墨绿内容面板
+  static const darkRaised = Color(0xFF1A3E30); // 墨绿浮层
+  static const darkInk = Color(0xFFE5F3EA); // 亮绿白文字
+  static const darkInkMuted = Color(0xFF9AB7AA); // 灰绿辅助
+  static const darkDivider = Color(0xFF2D5A47); // 暗墨绿线
+  static const darkPrimary = Color(0xFF5EE0A8); // 亮翠绿
+  static const darkPrimaryContainer = Color(0xFF1E523D); // 暗翠绿容器
+  static const darkSecondary = Color(0xFF8DE8C2); // 亮翠绿辅助
+  static const darkSecondaryContainer = Color(0xFF113827); // 暗翠绿容器
   static const darkReward = Color(0xFFFB923C); // 亮暖橙
   static const darkRewardContainer = Color(0xFF431407); // 暗暖橙容器
   static const darkInfo = Color(0xFF38BDF8); // 亮天蓝
@@ -55,6 +54,14 @@ abstract final class AppRadius {
   static const sheetTop = 8.0; // 底部弹层顶部角
   static const indicator = 6.0; // NavigationBar indicator / Snackbar
   static const tooltip = 4.0; // Tooltip
+}
+
+/// 图标尺寸标尺：功能图标保持同一视觉重量，触控区域由主题控件保证。
+abstract final class AppIconSize {
+  static const xs = 16.0;
+  static const sm = 20.0;
+  static const md = 24.0;
+  static const lg = 32.0;
 }
 
 // ─── 动效标尺（三级时长）───
@@ -110,6 +117,11 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     required this.danger,
     required this.sealColor,
     required this.gold,
+    required this.glassPanel,
+    required this.glassRaised,
+    required this.glassBorder,
+    required this.glassHighlight,
+    required this.glassBlur,
   });
 
   final Color canvas;
@@ -137,6 +149,21 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
   final Color sealColor; // 主品牌强调色
   final Color gold; // 点缀金色
 
+  /// 关键导航、页头和重点区使用的半透明面板。
+  final Color glassPanel;
+
+  /// 弹窗、底部弹层和 raised 玻璃浮层。
+  final Color glassRaised;
+
+  /// 玻璃边框，使用主色低透明度而不是中性灰。
+  final Color glassBorder;
+
+  /// 顶部微高光，用于建立玻璃边缘层次。
+  final Color glassHighlight;
+
+  /// BackdropFilter 的模糊半径；关闭 GlassConfig 后自动回退。
+  final double glassBlur;
+
   @override
   WorkbenchTokens copyWith({
     Color? canvas,
@@ -155,6 +182,11 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     Color? danger,
     Color? sealColor,
     Color? gold,
+    Color? glassPanel,
+    Color? glassRaised,
+    Color? glassBorder,
+    Color? glassHighlight,
+    double? glassBlur,
   }) {
     return WorkbenchTokens(
       canvas: canvas ?? this.canvas,
@@ -173,6 +205,11 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       danger: danger ?? this.danger,
       sealColor: sealColor ?? this.sealColor,
       gold: gold ?? this.gold,
+      glassPanel: glassPanel ?? this.glassPanel,
+      glassRaised: glassRaised ?? this.glassRaised,
+      glassBorder: glassBorder ?? this.glassBorder,
+      glassHighlight: glassHighlight ?? this.glassHighlight,
+      glassBlur: glassBlur ?? this.glassBlur,
     );
   }
 
@@ -196,6 +233,11 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       danger: Color.lerp(danger, other.danger, t)!,
       sealColor: Color.lerp(sealColor, other.sealColor, t)!,
       gold: Color.lerp(gold, other.gold, t)!,
+      glassPanel: Color.lerp(glassPanel, other.glassPanel, t)!,
+      glassRaised: Color.lerp(glassRaised, other.glassRaised, t)!,
+      glassBorder: Color.lerp(glassBorder, other.glassBorder, t)!,
+      glassHighlight: Color.lerp(glassHighlight, other.glassHighlight, t)!,
+      glassBlur: glassBlur + (other.glassBlur - glassBlur) * t,
     );
   }
 }
@@ -214,8 +256,9 @@ TextStyle _sansStyle({
   double? letterSpacing,
 }) {
   // 纪律：负字间距仅用于 ≥18px 标题；小字号禁用。
-  final effectiveSpacing =
-      (letterSpacing ?? 0) < 0 && fontSize < 18 ? 0.0 : (letterSpacing ?? 0);
+  final effectiveSpacing = (letterSpacing ?? 0) < 0 && fontSize < 18
+      ? 0.0
+      : (letterSpacing ?? 0);
   return TextStyle(
     fontSize: fontSize,
     height: height,
@@ -239,19 +282,24 @@ abstract final class AppTheme {
       canvas: AppColors.lightCanvas,
       panel: AppColors.lightSurface,
       raised: AppColors.lightRaised,
-      subtle: Color(0xFFF0F4F2),
-      panelBorder: Color(0xFFE2E8E5),
+      subtle: Color(0xFFF0F8F3),
+      panelBorder: Color(0xFFD8EAE0),
       panelShadow: Color(0x0A0A0F0F), // rgba(10,20,15,0.04)
       raisedShadow: Color(0x140A0F0F), // rgba(10,20,15,0.08)
-      focusRing: Color(0x52059669), // #059669 @ 32%
+      focusRing: Color(0x52159765), // #159765 @ 32%
       mutedText: AppColors.lightInkMuted,
       divider: AppColors.lightDivider,
       reward: AppColors.lightReward,
       rewardContainer: AppColors.lightRewardContainer,
       info: AppColors.lightInfo,
       danger: AppColors.lightDanger,
-      sealColor: Color(0xFF059669), // 翠绿品牌色
+      sealColor: AppColors.lightPrimary, // 翠绿品牌色
       gold: AppColors.lightGold,
+      glassPanel: Color(0xC2FFFFFF),
+      glassRaised: Color(0xE8FFFFFF),
+      glassBorder: Color(0x4D159765),
+      glassHighlight: Color(0x99FFFFFF),
+      glassBlur: 18,
     ),
     scheme: const ColorScheme(
       brightness: Brightness.light,
@@ -273,15 +321,15 @@ abstract final class AppTheme {
       onErrorContainer: Color(0xFF450A0A),
       surface: AppColors.lightSurface,
       onSurface: AppColors.lightInk,
-      surfaceContainerHighest: Color(0xFFF0F4F2),
+      surfaceContainerHighest: Color(0xFFF0F8F3),
       onSurfaceVariant: AppColors.lightInkMuted,
-      outline: Color(0xFF9CA3AF),
+      outline: Color(0xFF7A9C8B),
       outlineVariant: AppColors.lightDivider,
       shadow: Color(0x14000000),
       scrim: Color(0x66000000),
       inverseSurface: AppColors.lightInk,
       onInverseSurface: AppColors.lightCanvas,
-      inversePrimary: Color(0xFF34D399),
+      inversePrimary: AppColors.darkPrimary,
     ),
   );
 
@@ -292,19 +340,24 @@ abstract final class AppTheme {
       canvas: AppColors.darkCanvas,
       panel: AppColors.darkSurface,
       raised: AppColors.darkRaised,
-      subtle: Color(0xFF1C2420),
-      panelBorder: Color(0xFF2A342F),
+      subtle: Color(0xFF173B2D),
+      panelBorder: Color(0xFF2D5A47),
       panelShadow: Color(0x47000000), // rgba(0,0,0,0.28)
       raisedShadow: Color(0x66000000), // rgba(0,0,0,0.40)
-      focusRing: Color(0x6634D399), // #34D399 @ 40%
+      focusRing: Color(0x665EE0A8), // #5EE0A8 @ 40%
       mutedText: AppColors.darkInkMuted,
       divider: AppColors.darkDivider,
       reward: AppColors.darkReward,
       rewardContainer: AppColors.darkRewardContainer,
       info: AppColors.darkInfo,
       danger: AppColors.darkDanger,
-      sealColor: Color(0xFF34D399), // 亮翠绿品牌色
+      sealColor: AppColors.darkPrimary, // 亮翠绿品牌色
       gold: AppColors.darkGold,
+      glassPanel: Color(0xE0123A2C),
+      glassRaised: Color(0xF21A4535),
+      glassBorder: Color(0x665EE0A8),
+      glassHighlight: Color(0x335EE0A8),
+      glassBlur: 18,
     ),
     scheme: const ColorScheme(
       brightness: Brightness.dark,
@@ -328,13 +381,13 @@ abstract final class AppTheme {
       onSurface: AppColors.darkInk,
       surfaceContainerHighest: AppColors.darkRaised,
       onSurfaceVariant: AppColors.darkInkMuted,
-      outline: Color(0xFF64748B),
+      outline: Color(0xFF6F9D87),
       outlineVariant: AppColors.darkDivider,
       shadow: Colors.black,
       scrim: Colors.black,
-      inverseSurface: Color(0xFFF1F5F9),
+      inverseSurface: AppColors.lightSurface,
       onInverseSurface: AppColors.darkCanvas,
-      inversePrimary: Color(0xFF059669),
+      inversePrimary: AppColors.lightPrimary,
     ),
   );
 
@@ -438,26 +491,32 @@ abstract final class AppTheme {
     return base.copyWith(
       extensions: [tokens],
       textTheme: textTheme,
+      iconTheme: IconThemeData(
+        size: AppIconSize.md,
+        color: scheme.onSurfaceVariant,
+      ),
+      primaryIconTheme: IconThemeData(
+        size: AppIconSize.md,
+        color: scheme.onPrimary,
+      ),
       focusColor: scheme.primary.withValues(alpha: 0.1),
       hoverColor: scheme.primary.withValues(alpha: 0.06),
       highlightColor: scheme.primary.withValues(alpha: 0.08),
 
-      // ─── AppBar ───
+      // ─── AppBar：透明玻璃层，具体模糊由壳层/页面组件提供 ───
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: tokens.panel,
+        backgroundColor: tokens.glassPanel,
         surfaceTintColor: Colors.transparent,
       ),
 
-      // ─── Card: 实色面板 + 1px 边框 + 微阴影 ───
+      // ─── Card：高不透明度玻璃色阶 + 1px 主色边框 ───
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
-        color: tokens.panel,
-        shape: cardShape.copyWith(
-          side: BorderSide(color: tokens.panelBorder),
-        ),
+        color: tokens.glassPanel,
+        shape: cardShape.copyWith(side: BorderSide(color: tokens.glassBorder)),
         shadowColor: Colors.transparent,
       ),
 
@@ -470,11 +529,11 @@ abstract final class AppTheme {
       ),
 
       popupMenuTheme: PopupMenuThemeData(
-        color: tokens.raised,
+        color: tokens.glassRaised,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          side: BorderSide(color: tokens.panelBorder),
+          side: BorderSide(color: tokens.glassBorder),
         ),
         labelTextStyle: WidgetStatePropertyAll(textTheme.bodyMedium),
       ),
@@ -482,11 +541,11 @@ abstract final class AppTheme {
       // ─── Dialog: 实色 raised 底 + 1px 边框 + 浮层阴影 ───
       dialogTheme: DialogThemeData(
         elevation: 0,
-        backgroundColor: tokens.raised,
+        backgroundColor: tokens.glassRaised,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          side: BorderSide(color: tokens.panelBorder),
+          side: BorderSide(color: tokens.glassBorder),
         ),
       ),
 
@@ -518,9 +577,9 @@ abstract final class AppTheme {
       // ─── SearchBar ───
       searchBarTheme: SearchBarThemeData(
         elevation: const WidgetStatePropertyAll(0),
-        backgroundColor: WidgetStatePropertyAll(tokens.panel),
+        backgroundColor: WidgetStatePropertyAll(tokens.glassPanel),
         shape: WidgetStatePropertyAll(
-          cardShape.copyWith(side: BorderSide(color: tokens.panelBorder)),
+          cardShape.copyWith(side: BorderSide(color: tokens.glassBorder)),
         ),
       ),
 
@@ -576,6 +635,7 @@ abstract final class AppTheme {
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
           minimumSize: Size.square(isAndroid ? 48 : 40),
+          iconSize: AppIconSize.md,
           shape: shape,
         ),
       ),
@@ -596,20 +656,20 @@ abstract final class AppTheme {
         side: BorderSide(color: scheme.outline, width: 1.5),
       ),
 
-      // ─── ListTile: 44px 行高（v2 密度收紧）───
+      // ─── ListTile：桌面 44px、Android 48px，保证文字和图标有稳定节奏 ───
       listTileTheme: ListTileThemeData(
-        minTileHeight: isAndroid ? 44 : 38,
+        minTileHeight: isAndroid ? 48 : 44,
         shape: shape,
         selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.5),
         selectedColor: scheme.primary,
         iconColor: scheme.onSurfaceVariant,
       ),
 
-      // ─── NavigationBar (移动端): 实色 surface + 顶缘分隔 ───
+      // ─── NavigationBar (移动端): 半透明 surface + 顶缘分隔 ───
       navigationBarTheme: NavigationBarThemeData(
-        height: 68,
+        height: 72,
         elevation: 0,
-        backgroundColor: tokens.panel,
+        backgroundColor: tokens.glassPanel,
         surfaceTintColor: Colors.transparent,
         indicatorColor: scheme.primaryContainer,
         indicatorShape: RoundedRectangleBorder(
@@ -662,10 +722,10 @@ abstract final class AppTheme {
 
       // ─── BottomSheet: 实色 raised + 顶部 8px 圆角 ───
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: tokens.raised,
+        backgroundColor: tokens.glassRaised,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        modalBackgroundColor: tokens.raised,
+        modalBackgroundColor: tokens.glassRaised,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppRadius.sheetTop),

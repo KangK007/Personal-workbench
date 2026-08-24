@@ -1,9 +1,11 @@
-# DESIGN V2 · 翠绿·锐意工作台（Emerald Precision）
+# DESIGN V2 · 清新绿色玻璃拟态工作台
 
-> 版本：v2.0（2026-08-21）
-> 前版：v1.x 绿色系玻璃拟态（2026-08-19），本版全面替代
-> 定位：保留翠绿品牌色与温润气质，结构上转向 Linear 式锐利工程感，体验上保持鲜活仪式感
-> 配套：`design_preview/` HTML 高保真预览稿（CSS 变量与本文令牌一一对应）
+> 版本：v2.1（2026-08-23）
+> 前版：v2.0 翠绿·锐意实色工作台（2026-08-21）
+> 定位：以清新绿色玻璃承载导航、页头、重点和浮层，密集任务内容保持高不透明度以保证可读性与性能
+> 配套：`design_preview/` 示例稿与 `lib/core/theme/app_theme.dart` 主题令牌
+
+> 说明：本文早期章节仍保留部分 v2.0 的历史对照表。当前实现以 `DESIGN.md`、`app_theme.dart` 和 `solid_panel.dart` 为准；当两者描述冲突时，当前实现优先。
 
 ---
 
@@ -11,10 +13,10 @@
 
 | 维度 | 决策 |
 |---|---|
-| 一句话 | 实色锐利面板 × 翠绿气质 × 丰富仪式感动效 |
+| 一句话 | 清新绿色玻璃 × 高对比工作台 × 丰富仪式感动效 |
 | 保留 | 翠绿主色、墨绿暗底、暖橙/琥珀点缀、系统字体+等宽数字、Material Outlined 图标 |
-| 移除 | 全部玻璃拟态（BackdropFilter）、三色背景光晕、丝纹纹理、点阵网格、全部渐变装饰 |
-| 引入 | 1px 边框+微阴影层次体系、6px 锐利圆角、收紧 15-20% 的密度标尺、三级动效标尺 |
+| 移除 | 装饰性渐变球、持续漂浮背景、复杂纹理、霓虹外发光和无意义装饰动画 |
+| 引入 | 关键层玻璃面板、1px 翠绿边框、顶部微高光、6px 锐利圆角、收紧密度标尺、三级动效标尺 |
 | 双主题 | 亮/暗等价投入，跟随系统 |
 
 ---
@@ -25,24 +27,24 @@
 
 | 角色 | 浅色 | 深色 | 用途 |
 |---|---|---|---|
-| canvas | `#EDF5EF` | `#071612` | 页面底色（纯平，无任何装饰叠加） |
-| surface | `#FFFFFF` | `#151C19` | 内容面板底 |
-| raised | `#FFFFFF` | `#1C2420` | 浮层底（对话框/弹层/菜单） |
+| canvas | `#EAF5EF` | `#071B14` | 页面底色 |
+| surface | `#F9FDFA` | `#123529` | 高不透明度内容面板 |
+| raised | `#FFFFFF` | `#1A3E30` | 浮层底（对话框/弹层/菜单） |
 | subtle | `#F0F4F2` | `#1C2420` | 输入框/Chip/骨架填充 |
-| ink | `#1A1F1C` | `#F1F5F9` | 主文字 |
-| inkMuted | `#6B7280` | `#94A3B8` | 次级文字 |
-| divider | `#E5E7EB` | `#28322D` | 分隔线 |
-| primary | `#059669` | `#34D399` | 翠绿主色 |
-| primaryContainer | `#D1FAE5` | `#064E3B` | 主色容器 |
-| secondary | `#10B981` | `#6EE7B7` | 次级翠绿 |
-| secondaryContainer | `#ECFDF5` | `#022C22` | 次级容器 |
+| ink | `#17352A` | `#E5F3EA` | 主文字 |
+| inkMuted | `#698077` | `#9AB7AA` | 次级文字 |
+| divider | `#CEE2D7` | `#2D5A47` | 分隔线 |
+| primary | `#159765` | `#5EE0A8` | 翠绿主色 |
+| primaryContainer | `#D8F1E2` | `#1E523D` | 主色容器 |
+| secondary | `#38B989` | `#8DE8C2` | 次级翠绿 |
+| secondaryContainer | `#E6F6ED` | `#113827` | 次级容器 |
 | reward | `#F97316` | `#FB923C` | 暖橙（tertiary） |
 | rewardContainer | `#FFF7ED` | `#431407` | 暖橙容器 |
 | info | `#0EA5E9` | `#38BDF8` | 信息状态 |
 | danger | `#EF4444` | `#F87171` | 危险状态 |
 | gold | `#F59E0B` | `#FBBF24` | 琥珀点缀 |
 
-### 1.2 新增面板令牌（替代 glass* 四件套）
+### 1.2 面板与玻璃令牌
 
 | 令牌 | 浅色 | 深色 | 说明 |
 |---|---|---|---|
@@ -51,7 +53,7 @@
 | raisedShadow | `rgba(10,20,15,0.08)` | `rgba(0,0,0,0.40)` | 浮层投影：blur 16、offset (0,6) |
 | focusRing | `#059669 @ 32%` | `#34D399 @ 40%` | 键盘焦点 2px 外环（新增强可访问性） |
 
-**删除**：glassPanel / glassBorder / glassHighlight / glassGlow / glassBlur 全部令牌及 GlassSurface 组件。
+**当前实现**：`glassPanel`、`glassRaised`、`glassBorder`、`glassHighlight`、`glassBlur` 和 `GlassSurface` 由主题统一提供；`GlassConfig.blurEnabled=false` 时回退为高不透明度面板。
 
 ### 1.3 色彩使用纪律
 
