@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
@@ -78,18 +76,23 @@ final _auditNow = DateTime(2026, 8, 9, 10);
 Future<void> _loadAuditFonts() async {
   final materialIcons = FontLoader('MaterialIcons')
     ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-  final loaders = <Future<void>>[materialIcons.load()];
-  final systemChinese = File(r'C:\Windows\Fonts\simhei.ttf');
-  if (systemChinese.existsSync()) {
-    final bytes = await systemChinese.readAsBytes();
-    loaders.add(
-      (FontLoader('GoldenCjk')..addFont(
-            Future.value(ByteData.sublistView(Uint8List.fromList(bytes))),
-          ))
-          .load(),
-    );
-  }
-  await Future.wait(loaders);
+  final display = FontLoader(AppFonts.display)
+    ..addFont(rootBundle.load('assets/fonts/LXGWWenKaiGB-Medium.ttf'));
+  final goldenCjk = FontLoader('GoldenCjk')
+    ..addFont(rootBundle.load('assets/fonts/LXGWWenKaiGB-Medium.ttf'));
+  final body = FontLoader(AppFonts.body)
+    ..addFont(rootBundle.load('assets/fonts/IBMPlexSansSC-Regular.otf'))
+    ..addFont(rootBundle.load('assets/fonts/IBMPlexSansSC-Medium.otf'))
+    ..addFont(rootBundle.load('assets/fonts/IBMPlexSansSC-SemiBold.otf'));
+  final numeric = FontLoader(AppFonts.numeric)
+    ..addFont(rootBundle.load('assets/fonts/IBMPlexMono-Medium.ttf'));
+  await Future.wait([
+    materialIcons.load(),
+    display.load(),
+    goldenCjk.load(),
+    body.load(),
+    numeric.load(),
+  ]);
 }
 
 Future<WorkbenchController> _createController() async {

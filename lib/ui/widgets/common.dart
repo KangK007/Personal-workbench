@@ -74,7 +74,7 @@ Future<T?> showWorkbenchSheet<T extends Object?>({
   return showModalBottomSheet<T>(
     context: context,
     builder: builder,
-    backgroundColor: backgroundColor ?? tokens.glassRaised,
+    backgroundColor: backgroundColor ?? tokens.raised,
     elevation: elevation ?? 0,
     shape:
         shape ??
@@ -370,9 +370,10 @@ class PageHeader extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < AppBreakpoints.compact;
     final wide = width >= AppBreakpoints.expanded;
-    return GlassSurface(
+    return SolidPanel(
       radius: 0,
       padding: EdgeInsets.zero,
+      color: tokens.panel,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           compact ? AppSpacing.pageCompact : AppSpacing.pageWide,
@@ -401,7 +402,6 @@ class PageHeader extends StatelessWidget {
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontSize: wide ? 24 : null,
                       height: wide ? 1.25 : null,
-                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   if (subtitle != null)
@@ -509,6 +509,151 @@ class SectionHeading extends StatelessWidget {
   }
 }
 
+enum LogRailState { pending, current, completed, warning }
+
+@immutable
+class LogRailEntry {
+  const LogRailEntry({
+    required this.label,
+    this.detail,
+    this.state = LogRailState.pending,
+    this.trailing,
+  });
+
+  final String label;
+  final String? detail;
+  final LogRailState state;
+  final Widget? trailing;
+}
+
+/// 只用于真实时间、顺序或证据的日志航迹；调用方负责提供已有数据。
+class LogRail extends StatelessWidget {
+  const LogRail({super.key, required this.entries});
+
+  final List<LogRailEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Column(
+      children: [
+        for (var index = 0; index < entries.length; index++)
+          _LogRailRow(
+            entry: entries[index],
+            first: index == 0,
+            last: index == entries.length - 1,
+            tokens: tokens,
+          ),
+      ],
+    );
+  }
+}
+
+class _LogRailRow extends StatelessWidget {
+  const _LogRailRow({
+    required this.entry,
+    required this.first,
+    required this.last,
+    required this.tokens,
+  });
+
+  final LogRailEntry entry;
+  final bool first;
+  final bool last;
+  final WorkbenchTokens tokens;
+
+  Color get color => switch (entry.state) {
+    LogRailState.current => tokens.route,
+    LogRailState.completed => tokens.marker,
+    LogRailState.warning => tokens.signal,
+    LogRailState.pending => tokens.mutedText.withValues(alpha: 0.55),
+  };
+
+  IconData get icon => switch (entry.state) {
+    LogRailState.current => Icons.adjust,
+    LogRailState.completed => Icons.check,
+    LogRailState.warning => Icons.priority_high,
+    LogRailState.pending => Icons.circle_outlined,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final stateLabel = switch (entry.state) {
+      LogRailState.pending => '待进行',
+      LogRailState.current => '进行中',
+      LogRailState.completed => '已完成',
+      LogRailState.warning => '需要注意',
+    };
+    return IntrinsicHeight(
+      child: Semantics(
+        label: '${entry.label}，$stateLabel',
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: compact ? 52 : 44),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 28,
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Positioned(
+                      top: first ? 18 : 0,
+                      bottom: last ? 18 : 0,
+                      child: Container(width: 1, color: tokens.divider),
+                    ),
+                    Positioned(
+                      top: 10,
+                      child: AnimatedContainer(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : AppMotion.standard,
+                        width: 17,
+                        height: 17,
+                        decoration: BoxDecoration(
+                          color: tokens.panel,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: color, width: 1.5),
+                        ),
+                        child: Icon(icon, size: 11, color: color),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 0, 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(entry.label),
+                            if (entry.detail != null)
+                              Text(
+                                entry.detail!,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                      ),
+                      ?entry.trailing,
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class LogSurface extends StatelessWidget {
   const LogSurface({
     super.key,
@@ -523,13 +668,8 @@ class LogSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 统一内容表面；任务行自身仍保持高不透明度，避免滚动列表逐项模糊。
-    return SolidPanel(
-      padding: padding,
-      accent: accent,
-      glass: true,
-      child: child,
-    );
+    // 统一日志表面；长列表与正文始终保持实色和稳定对比度。
+    return SolidPanel(padding: padding, accent: accent, child: child);
   }
 }
 
@@ -723,11 +863,13 @@ class NumericText extends StatelessWidget {
       data,
       style:
           style?.copyWith(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
+            fontFamily: AppFonts.numeric,
             fontFeatures: const [FontFeature.tabularFigures()],
           ) ??
           const TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
+            fontFamily: AppFonts.numeric,
             fontFeatures: [FontFeature.tabularFigures()],
           ),
       textAlign: textAlign,

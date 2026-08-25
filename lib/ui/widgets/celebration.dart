@@ -59,16 +59,20 @@ class _FocusCelebrationState extends State<FocusCelebration>
                   color: scheme.primary,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_rounded, size: 46, color: Colors.white),
+                child: const Icon(
+                  Icons.check_rounded,
+                  size: 46,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 20),
               Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
               if (widget.subtitle != null)
                 Text(
                   widget.subtitle!,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: tokens.mutedText,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: tokens.mutedText),
                 ),
             ],
           ),
@@ -87,8 +91,11 @@ class _FocusCelebrationState extends State<FocusCelebration>
               // 双层扩散光环
               for (final interval in const [(0.0, 0.55), (0.12, 0.7)])
                 () {
-                  final local = ((t - interval.$1) / (interval.$2 - interval.$1))
-                      .clamp(0.0, 1.0);
+                  final local =
+                      ((t - interval.$1) / (interval.$2 - interval.$1)).clamp(
+                        0.0,
+                        1.0,
+                      );
                   if (local <= 0 || local >= 1) return const SizedBox.shrink();
                   return Container(
                     width: 120 + 240 * local,
@@ -112,16 +119,21 @@ class _FocusCelebrationState extends State<FocusCelebration>
                   colors: [
                     scheme.primary,
                     scheme.tertiary,
-                    tokens.gold,
+                    tokens.marker,
                     tokens.reward,
                   ],
                 ),
               ),
               // 对勾徽章：弹性放大 + 轻微上浮
               Transform.translate(
-                offset: Offset(0, -26 - 6 * Curves.easeOutCubic.transform(
-                  ((t - 0.05) / 0.5).clamp(0.0, 1.0),
-                )),
+                offset: Offset(
+                  0,
+                  -26 -
+                      6 *
+                          Curves.easeOutCubic.transform(
+                            ((t - 0.05) / 0.5).clamp(0.0, 1.0),
+                          ),
+                ),
                 child: Transform.scale(
                   scale: Curves.elasticOut.transform(
                     ((t - 0.05) / 0.55).clamp(0.0, 1.0),
@@ -158,18 +170,18 @@ class _FocusCelebrationState extends State<FocusCelebration>
                   child: Transform.translate(
                     offset: Offset(
                       0,
-                      12 * (1 - Curves.easeOut.transform(
-                        ((t - 0.38) / 0.3).clamp(0.0, 1.0),
-                      )),
+                      12 *
+                          (1 -
+                              Curves.easeOut.transform(
+                                ((t - 0.38) / 0.3).clamp(0.0, 1.0),
+                              )),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           widget.title,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
+                          style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         if (widget.subtitle != null) ...[

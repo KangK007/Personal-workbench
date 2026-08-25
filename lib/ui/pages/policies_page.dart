@@ -1993,9 +1993,9 @@ Color _typeColor(BuildContext context, RsipNodeType type) {
   return switch (type) {
     RsipNodeType.policy => scheme.primary,
     RsipNodeType.habit => scheme.tertiary,
-    RsipNodeType.reward => context.tokens.gold,
+    RsipNodeType.reward => context.tokens.marker,
     RsipNodeType.penalty => scheme.error,
-    RsipNodeType.ritual => context.tokens.gold,
+    RsipNodeType.ritual => context.tokens.marker,
     RsipNodeType.goal => context.tokens.info,
     RsipNodeType.trigger => scheme.error,
     RsipNodeType.reminder => scheme.secondary,

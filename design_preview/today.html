@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>桌面 · 今日 · DESIGN V2 预览</title>
+<title>桌面 · 今日 · 个人航行日志</title>
 <link rel="stylesheet" href="assets/tokens.css">
 <style>
   /* 今日页专属 */
@@ -33,31 +33,57 @@
   .tl-card .title { font-size: 14px; font-weight: 600; }
   .tl-card .desc { font-size: 12.5px; color: var(--ink-muted); margin-top: 2px; }
   .tl-item.done .tl-card .title { text-decoration: line-through; color: var(--ink-muted); }
+  .tl-card { background: transparent; border: 0; box-shadow: none; padding-left: 0; }
+  .tl-item.warning .rail .node { border-color: var(--signal); background: var(--signal); }
+  .tl-item.warning .tl-card { background: color-mix(in srgb, var(--signal) 5%, transparent); }
+  .conflict-action { margin-left: 8px; white-space: nowrap; }
 
-  .habit-row { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; border-bottom: 1px solid var(--divider); }
+  .habit-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 14px; border-bottom: 1px solid var(--divider); }
   .habit-row:last-child { border-bottom: none; }
   .habit-row .name { font-size: 13.5px; }
   .habit-row .spacer { flex: 1; }
-  .habit-dots { display: flex; gap: 4px; }
-  .habit-dots .d { width: 12px; height: 12px; border-radius: 3px; background: var(--subtle); border: 1px solid var(--divider); }
-  .habit-dots .d.hit { background: var(--primary); border-color: var(--primary); }
-  .habit-dots .d.miss { background: color-mix(in srgb, var(--danger) 18%, transparent); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+  .habit-dots { display: grid; grid-template-columns: repeat(7, 22px); gap: 4px; }
+  .habit-dots .d { width: 22px; height: 22px; border-radius: 3px; background: var(--subtle); border: 1px solid var(--divider); display: grid; place-items: center; font-size: 11px; color: var(--ink-muted); }
+  .habit-dots .d.hit { background: var(--primary-container); border-color: var(--primary); color: var(--primary); }
+  .habit-dots .d.miss { background: color-mix(in srgb, var(--danger) 18%, transparent); border-color: color-mix(in srgb, var(--danger) 30%, transparent); color: var(--danger); }
+  .habit-axis { display: grid; grid-template-columns: 1fr repeat(7, 22px); gap: 4px; padding: 0 14px 6px; color: var(--ink-muted); font-size: 10px; text-align: center; }
+  .habit-axis span:first-child { text-align: left; }
+  .habit-legend { display: flex; gap: 10px; flex-wrap: wrap; padding: 8px 14px 12px; color: var(--ink-muted); font-size: 11px; }
+  .habit-legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .habit-legend i { width: 12px; height: 12px; display: inline-grid; place-items: center; border: 1px solid var(--divider); border-radius: 2px; font-style: normal; }
+  .habit-legend .yes i { color: var(--primary); border-color: var(--primary); }
+  .habit-legend .no i { color: var(--danger); border-color: var(--danger); }
 
   .stat-card { padding: 14px; display: flex; flex-direction: column; gap: 4px; }
   .stat-card .lbl { font-size: 12px; color: var(--ink-muted); }
-  .stat-card .val { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  .stat-card .val { font-family: "IBM Plex Mono", monospace; font-size: 26px; font-weight: 500; letter-spacing: 0; }
   .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
   .day-end { padding: 14px; display: flex; align-items: center; gap: 12px; }
   .day-end .txt { flex: 1; }
   .day-end .txt b { font-size: 14px; }
   .day-end .txt p { font-size: 12.5px; color: var(--ink-muted); }
+  .icon-button { width: 40px; height: 40px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: var(--r-btn); background: transparent; color: var(--ink-muted); cursor: pointer; }
+  .icon-button:hover { background: var(--subtle); color: var(--ink); }
+  .mobile-fab { display: none; }
+  @media (max-width: 767px) {
+    .preview-bar nav { display: none; }
+    .page-header .btn { display: none; }
+    .main { padding-bottom: calc(136px + env(safe-area-inset-bottom)); }
+    .mobile-fab { display: inline-flex; position: fixed; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 30; box-shadow: var(--raised-shadow); }
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .commit-grid { grid-template-columns: 1fr; }
+    .two-col { gap: 16px; }
+    .tl-item { padding: 0 8px; }
+    .tl-card .row1 { flex-wrap: wrap; }
+    .habit-axis, .habit-row { min-width: 268px; }
+  }
 </style>
 </head>
 <body>
 
 <header class="preview-bar">
-  <div class="brand"><span class="dot"></span>DESIGN V2 · 翠绿·锐意</div>
+  <div class="brand"><span class="dot"></span>个人航行日志</div>
   <nav>
     <a href="index.html">令牌总览</a>
     <a href="today.html" class="active">桌面 · 今日</a>
@@ -79,20 +105,20 @@
     <div class="logo-row">
       <div class="logo"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
       <div class="name">个人工作台</div>
-      <div style="margin-left:auto"><svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px;color:var(--ink-muted)"><path d="M11 19l-7-7 7-7M5 12h14"/></svg></div>
+      <button class="icon-button" style="margin-left:auto" type="button" aria-label="收起导航" title="收起导航"><svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M11 19l-7-7 7-7M5 12h14"/></svg></button>
     </div>
     <nav class="nav">
       <div class="nav-group">工作流</div>
-      <div class="nav-item active"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>今日</div>
-      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>任务<span class="badge-n pill" style="height:18px;font-size:10.5px">12</span></div>
-      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>项目</div>
-      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>专注</div>
-      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>笔记</div>
+      <a class="nav-item active" aria-current="page" href="today.html"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg><span>今日</span></a>
+      <a class="nav-item" href="tasks.html"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>任务</span><span class="badge-n pill" style="height:18px;font-size:10.5px">12</span></a>
+      <a class="nav-item" href="projects.html"><svg class="ic" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>项目</span></a>
+      <a class="nav-item" href="focus.html"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg><span>专注</span></a>
+      <a class="nav-item" href="notes.html"><svg class="ic" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>笔记</span></a>
       <div class="nav-group">复盘</div>
-      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>回顾</div>
-      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8"/></svg>成长</div>
+      <a class="nav-item" href="review.html"><svg class="ic" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg><span>回顾</span></a>
+      <a class="nav-item" href="growth.html"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8"/></svg><span>成长</span></a>
       <div class="nav-group">系统</div>
-      <div class="nav-item"><svg class="ic" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>设置</div>
+      <a class="nav-item" href="settings.html"><svg class="ic" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-.33-1.82v0a1.65 1.65 0 0 0 1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33A1.65 1.65 0 0 0 11 3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51A1.65 1.65 0 0 0 17.82 4l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82A1.65 1.65 0 0 0 21 9h.09a2 2 0 1 1 0 4H21a1.65 1.65 0 0 0-1.6 2z"/></svg><span>设置</span></a>
     </nav>
     <div style="padding:10px 14px;border-top:1px solid var(--divider);display:flex;align-items:center;gap:8px">
       <div style="width:24px;height:24px;border-radius:6px;background:var(--subtle);border:1px solid var(--divider);display:flex;align-items:center;justify-content:center;color:var(--ink-muted)"><svg class="ic" viewBox="0 0 24 24" style="width:13px;height:13px"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></div>
@@ -126,7 +152,7 @@
         <div class="section-head"><span class="bar"></span><h2>今日承诺</h2><span class="pill count num">3 / 3</span><div class="spacer"></div><span class="muted" style="font-size:12px">锁定后仅可带原因替换</span></div>
         <div class="commit-grid">
           <div class="panel commit-card with-accent" data-status="doing">
-            <div class="top"><span class="idx num">01</span><span class="title">完成 DESIGN V2 设计规范文档</span></div>
+            <div class="top"><span class="idx num">01</span><span class="title">整理衍射实验数据与误差记录</span></div>
             <div class="meta-row"><span class="pill primary">进行中</span><span class="pill num">专注 2/3 段</span></div>
             <div class="progress"><div class="fill" style="width:66%"></div></div>
           </div>
@@ -146,27 +172,27 @@
       <div class="two-col">
         <!-- 时间线 -->
         <div>
-          <div class="section-head"><span class="bar"></span><h2>时间线</h2><span class="pill info count num">1 冲突</span></div>
+          <div class="section-head"><span class="bar"></span><h2>时间线</h2><span class="pill danger count num">1 冲突</span><button class="btn ghost sm" type="button">查看冲突</button></div>
           <div class="panel timeline">
             <div class="tl-item done">
               <div class="rail"><div class="node"></div><div class="line"></div></div>
-              <div class="tl-card panel"><div class="row1"><span class="time num muted">09:00 – 09:30</span><span class="title">晨间规划</span></div><div class="desc">锁定今日承诺 · 计分习惯打卡</div></div>
+              <div class="tl-card"><div class="row1"><span class="time num muted">09:00 – 09:30</span><span class="title">晨间规划</span></div><div class="desc">锁定今日承诺 · 计分习惯打卡</div></div>
             </div>
             <div class="tl-item done">
               <div class="rail"><div class="node"></div><div class="line"></div></div>
-              <div class="tl-card panel"><div class="row1"><span class="time num muted">10:00 – 11:30</span><span class="title">设计规范撰写</span></div><div class="desc">专注会话 · 深度工作</div></div>
+              <div class="tl-card"><div class="row1"><span class="time num muted">10:00 – 11:30</span><span class="title">设计规范撰写</span></div><div class="desc">专注会话 · 深度工作</div></div>
             </div>
-            <div class="tl-item now">
+            <div class="tl-item now warning">
               <div class="rail"><div class="node"></div><div class="line"></div></div>
-              <div class="tl-card panel with-accent" data-status="doing"><div class="row1"><span class="time num" style="color:var(--primary)">14:00 – 15:30</span><span class="title">审查报告分级</span><span class="pill primary" style="margin-left:auto">进行中</span></div><div class="desc">与「跨页一致性检查」时间块重叠</div></div>
-            </div>
-            <div class="tl-item">
-              <div class="rail"><div class="node"></div><div class="line"></div></div>
-              <div class="tl-card panel"><div class="row1"><span class="time num muted">16:00 – 16:45</span><span class="title">预览稿构建</span></div><div class="desc">HTML 高保真页面</div></div>
+              <div class="tl-card"><div class="row1"><span class="time num" style="color:var(--primary)">14:00 – 15:30</span><span class="title">审查报告分级</span><span class="pill primary" style="margin-left:auto">进行中</span></div><div class="desc">与「跨页一致性检查」时间块重叠 · <b style="color:var(--signal)">时间冲突</b><button class="btn danger sm conflict-action" type="button">调整安排</button></div></div>
             </div>
             <div class="tl-item">
               <div class="rail"><div class="node"></div><div class="line"></div></div>
-              <div class="tl-card panel"><div class="row1"><span class="time num muted">21:30</span><span class="title">日结收尾</span></div><div class="desc">回顾今日 · 计入连续日结</div></div>
+              <div class="tl-card"><div class="row1"><span class="time num muted">16:00 – 16:45</span><span class="title">预览稿构建</span></div><div class="desc">HTML 高保真页面</div></div>
+            </div>
+            <div class="tl-item">
+              <div class="rail"><div class="node"></div><div class="line"></div></div>
+              <div class="tl-card"><div class="row1"><span class="time num muted">21:30</span><span class="title">日结收尾</span></div><div class="desc">回顾今日 · 计入连续日结</div></div>
             </div>
           </div>
         </div>
@@ -175,11 +201,13 @@
         <div style="display:flex;flex-direction:column;gap:20px">
           <div>
             <div class="section-head"><span class="bar"></span><h2>计分习惯</h2><span class="pill count num">近 7 日</span></div>
-            <div class="panel">
-              <div class="habit-row"><span class="name">晨间规划</span><div class="spacer"></div><div class="habit-dots"><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d miss"></span><span class="d hit"></span></div></div>
-              <div class="habit-row"><span class="name">深度专注 2h</span><div class="spacer"></div><div class="habit-dots"><span class="d hit"></span><span class="d miss"></span><span class="d hit"></span><span class="d hit"></span><span class="d"></span><span class="d hit"></span><span class="d hit"></span></div></div>
-              <div class="habit-row"><span class="name">知识沉淀</span><div class="spacer"></div><div class="habit-dots"><span class="d hit"></span><span class="d hit"></span><span class="d"></span><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d"></span></div></div>
-              <div class="habit-row"><span class="name">日结</span><div class="spacer"></div><div class="habit-dots"><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d"></span></div></div>
+            <div class="panel" aria-label="近 7 日计分习惯">
+              <div class="habit-axis"><span>习惯</span><span>六</span><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span></div>
+              <div class="habit-row"><span class="name">晨间规划</span><div class="spacer"></div><div class="habit-dots"><span class="d hit" aria-label="周六完成">✓</span><span class="d hit" aria-label="周日完成">✓</span><span class="d hit" aria-label="周一完成">✓</span><span class="d hit" aria-label="周二完成">✓</span><span class="d hit" aria-label="周三完成">✓</span><span class="d miss" aria-label="周四漏记">!</span><span class="d hit" aria-label="周五完成">✓</span></div></div>
+              <div class="habit-row"><span class="name">深度专注 2h</span><div class="spacer"></div><div class="habit-dots"><span class="d hit" aria-label="周六完成">✓</span><span class="d miss" aria-label="周日漏记">!</span><span class="d hit" aria-label="周一完成">✓</span><span class="d hit" aria-label="周二完成">✓</span><span class="d" aria-label="周三未记录">·</span><span class="d hit" aria-label="周四完成">✓</span><span class="d hit" aria-label="周五完成">✓</span></div></div>
+              <div class="habit-row"><span class="name">知识沉淀</span><div class="spacer"></div><div class="habit-dots"><span class="d hit" aria-label="周六完成">✓</span><span class="d hit" aria-label="周日完成">✓</span><span class="d" aria-label="周一未记录">·</span><span class="d hit" aria-label="周二完成">✓</span><span class="d hit" aria-label="周三完成">✓</span><span class="d hit" aria-label="周四完成">✓</span><span class="d" aria-label="周五未记录">·</span></div></div>
+              <div class="habit-row"><span class="name">日结</span><div class="spacer"></div><div class="habit-dots"><span class="d hit" aria-label="周六完成">✓</span><span class="d hit" aria-label="周日完成">✓</span><span class="d hit" aria-label="周一完成">✓</span><span class="d hit" aria-label="周二完成">✓</span><span class="d hit" aria-label="周三完成">✓</span><span class="d hit" aria-label="周四完成">✓</span><span class="d" aria-label="周五未记录">·</span></div></div>
+              <div class="habit-legend"><span class="yes"><i>✓</i>完成</span><span class="no"><i>!</i>漏记</span><span><i>·</i>未记录</span></div>
             </div>
           </div>
           <div>
@@ -196,6 +224,15 @@
     </div>
   </main>
 </div>
+
+<nav class="mobile-bottom" aria-label="主要导航">
+  <a class="active" aria-current="page" href="today.html"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg><span>今日</span></a>
+  <a href="tasks.html"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>任务</span></a>
+  <a href="focus.html"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg><span>专注</span></a>
+  <a href="review.html"><svg class="ic" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg><span>回顾</span></a>
+  <a href="settings.html"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3.9a7 7 0 0 0-1.7-1L14.6 3h-4l-.3 2.9a7 7 0 0 0-1.7 1l-2.3-.9-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 1.7 1l.3 2.9h4l.3-2.9a7 7 0 0 0 1.7-1l2.3.9 2-3.4-2-1.5c.1-.3.1-.7.1-1z"/></svg><span>设置</span></a>
+</nav>
+<a class="mobile-fab btn primary" href="tasks.html" aria-label="快速新增"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>快速新增</span></a>
 
 <script src="assets/app.js"></script>
 </body>

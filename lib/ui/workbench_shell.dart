@@ -26,7 +26,6 @@ import 'widgets/global_search_dialog.dart';
 import 'widgets/common.dart';
 import 'widgets/ink_decoration.dart';
 import 'widgets/quick_capture_sheet.dart';
-import 'widgets/solid_panel.dart';
 
 enum WorkbenchSection {
   today,
@@ -325,7 +324,8 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           title: Text(
             title,
             style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
+              fontFamily: AppFonts.display,
             ),
           ),
           actions: [
@@ -346,9 +346,11 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               onPressed: () => _openMobileNavigation(context),
             ),
           ],
-          flexibleSpace: GlassSurface(
-            radius: 0,
-            padding: EdgeInsets.zero,
+          flexibleSpace: DecoratedBox(
+            decoration: BoxDecoration(
+              color: tokens.panel,
+              border: Border(bottom: BorderSide(color: tokens.panelBorder)),
+            ),
             child: const SizedBox.expand(),
           ),
         ),
@@ -368,7 +370,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               height: 26,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: tokens.glassPanel,
+                color: tokens.panel,
                 border: Border(top: BorderSide(color: tokens.panelBorder)),
               ),
               child: Row(
@@ -854,16 +856,15 @@ class _DesktopNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final expanded =
         MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
-    // 侧栏：半透明玻璃层，内部导航项保持稳定的高对比度。
-    return GlassSurface(
-      radius: 0,
-      padding: EdgeInsets.zero,
+    // 侧栏是日志索引，使用稳定实色工作面保持长时间阅读清晰。
+    return ColoredBox(
+      color: context.tokens.panel,
       child: SafeArea(
         child: Column(
           children: [
             DecoratedBox(
               decoration: BoxDecoration(
-                color: context.tokens.glassRaised,
+                color: context.tokens.raised,
                 border: Border(
                   bottom: BorderSide(color: context.tokens.panelBorder),
                 ),
@@ -897,7 +898,11 @@ class _DesktopNavigation extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontSize: expanded ? 20 : null),
+                                  ?.copyWith(
+                                    fontSize: expanded ? 20 : null,
+                                    fontFamily: AppFonts.display,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                             ),
                             Text(
                               controller.profileAlias.isEmpty

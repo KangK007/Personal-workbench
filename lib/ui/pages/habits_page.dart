@@ -144,6 +144,7 @@ class _HabitMatrix extends StatelessWidget {
                     _HabitLabel(habit: habit, controller: controller),
                     for (final day in days)
                       _HabitCell(
+                        label: '${habit.title}，${day.month}月${day.day}日',
                         status: controller
                             .habitLogForDay(habit.id, day)
                             ?.status,
@@ -290,10 +291,12 @@ class _HabitLabel extends StatelessWidget {
 
 class _HabitCell extends StatelessWidget {
   const _HabitCell({
+    required this.label,
     required this.status,
     required this.isToday,
     required this.onPressed,
   });
+  final String label;
   final String? status;
   final bool isToday;
   final VoidCallback onPressed;
@@ -312,9 +315,10 @@ class _HabitCell extends StatelessWidget {
     return Semantics(
       button: true,
       label: switch (status) {
-        WorkStatus.done => '已完成',
-        WorkStatus.skipped => '已跳过',
-        _ => '未记录',
+        WorkStatus.done => '$label，已完成',
+        WorkStatus.skipped => '$label，已跳过',
+        WorkStatus.todo => '$label，待记录',
+        _ => '$label，未记录',
       },
       child: InkWell(
         onTap: onPressed,
@@ -328,7 +332,7 @@ class _HabitCell extends StatelessWidget {
                 ? Colors.transparent
                 : color,
             border: Border.all(
-              color: isToday ? context.tokens.gold : color,
+              color: isToday ? context.tokens.marker : color,
               width: isToday ? 2 : 1,
             ),
             borderRadius: BorderRadius.circular(2),
@@ -338,6 +342,12 @@ class _HabitCell extends StatelessWidget {
                   Icons.check,
                   size: compact ? 10 : 9,
                   color: Theme.of(context).colorScheme.onPrimary,
+                )
+              : status == WorkStatus.skipped
+              ? Icon(
+                  Icons.remove,
+                  size: compact ? 10 : 9,
+                  color: Theme.of(context).colorScheme.onSurface,
                 )
               : null,
         ),

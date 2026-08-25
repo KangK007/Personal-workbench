@@ -4,12 +4,10 @@ import '../../core/theme/app_theme.dart';
 import 'common.dart';
 
 // ══════════════════════════════════════════════════════════════════════════
-// 现代组件集：几何 Logo · 简洁加载动画 · 标签徽章
-// （v2 翠绿·锐意：水墨装饰组件已全部移除，背景 = 纯 canvas）
+// 个人航行日志组件：日志页标记 · 简洁加载动画 · 标签徽章
 // ══════════════════════════════════════════════════════════════════════════
 
-// ─── 几何 Logo ───
-// 左上角项目 Logo，翠绿圆角方形 + 简洁几何图形
+// ─── 日志页 Logo ───
 class SealLogo extends StatelessWidget {
   const SealLogo({super.key, this.size = 48});
 
@@ -17,14 +15,14 @@ class SealLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = context.tokens.sealColor;
+    final color = context.tokens.route;
     return ExcludeSemantics(
       child: CustomPaint(
         size: Size.square(size),
         painter: _SealLogoPainter(
           primaryColor: color,
           surfaceColor: context.tokens.panel,
-          accentColor: context.tokens.gold,
+          accentColor: context.tokens.marker,
         ),
       ),
     );
@@ -50,63 +48,43 @@ class _SealLogoPainter extends CustomPainter {
       Radius.circular(radius),
     );
 
-    // 主背景渐变
-    final bgPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [primaryColor, primaryColor.withValues(alpha: 0.85)],
-      ).createShader(rect.outerRect);
-    canvas.drawRRect(rect, bgPaint);
+    canvas.drawRRect(rect, Paint()..color = primaryColor);
 
-    // 几何图形：重叠圆形（代表工作台的模块化）
-    final center = Offset(size.width * 0.5, size.height * 0.5);
-    final circleRadius = size.width * 0.18;
+    final page = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        size.width * 0.2,
+        size.height * 0.14,
+        size.width * 0.62,
+        size.height * 0.72,
+      ),
+      Radius.circular(size.width * 0.08),
+    );
+    canvas.drawRRect(page, Paint()..color = surfaceColor);
 
-    final outlinePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.9)
-      ..strokeWidth = size.width * 0.04
+    final routePaint = Paint()
+      ..color = primaryColor
+      ..strokeWidth = size.width * 0.055
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
+    final route = Path()
+      ..moveTo(size.width * 0.34, size.height * 0.3)
+      ..lineTo(size.width * 0.61, size.height * 0.48)
+      ..lineTo(size.width * 0.43, size.height * 0.69);
+    canvas.drawPath(route, routePaint);
 
-    // 左上圆
+    final nodePaint = Paint()..color = primaryColor;
+    for (final node in [
+      Offset(size.width * 0.34, size.height * 0.3),
+      Offset(size.width * 0.43, size.height * 0.69),
+    ]) {
+      canvas.drawCircle(node, size.width * 0.055, nodePaint);
+    }
     canvas.drawCircle(
-      Offset(center.dx - size.width * 0.1, center.dy - size.width * 0.1),
-      circleRadius * 0.7,
-      outlinePaint,
+      Offset(size.width * 0.61, size.height * 0.48),
+      size.width * 0.065,
+      Paint()..color = accentColor,
     );
-
-    // 右下圆
-    canvas.drawCircle(
-      Offset(center.dx + size.width * 0.1, center.dy + size.width * 0.1),
-      circleRadius * 0.7,
-      outlinePaint,
-    );
-
-    // 中心点
-    final dotPaint = Paint()
-      ..color = accentColor.withValues(alpha: 0.9)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, size.width * 0.06, dotPaint);
-
-    // 顶部高光
-    final highlightPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.15)
-      ..style = PaintingStyle.fill;
-    final highlightPath = Path()
-      ..moveTo(radius, 0)
-      ..lineTo(size.width - radius, 0)
-      ..arcToPoint(
-        Offset(size.width - radius, 0),
-        radius: Radius.circular(radius),
-      )
-      ..lineTo(size.width, radius)
-      ..arcToPoint(
-        Offset(size.width - radius, 0),
-        radius: Radius.circular(radius),
-        clockwise: false,
-      )
-      ..close();
-    canvas.drawPath(highlightPath, highlightPaint);
   }
 
   @override
@@ -286,7 +264,7 @@ class SealStatusLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = context.tokens.sealColor;
+    final color = context.tokens.route;
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 9),

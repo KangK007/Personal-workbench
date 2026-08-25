@@ -23,20 +23,11 @@ void main() {
     expect(decoration.color, isNotNull);
   });
 
-  testWidgets('glass surface applies blur and supports a solid fallback', (
+  testWidgets('log surface stays solid and never applies backdrop blur', (
     tester,
   ) async {
-    GlassConfig.blurEnabled = true;
-    addTearDown(() => GlassConfig.blurEnabled = true);
-
     await tester.pumpWidget(
-      _host(const GlassSurface(child: SizedBox(width: 100, height: 100))),
-    );
-    expect(find.byType(BackdropFilter), findsOneWidget);
-
-    GlassConfig.blurEnabled = false;
-    await tester.pumpWidget(
-      _host(const GlassSurface(child: SizedBox(width: 100, height: 100))),
+      _host(const LogSurface(child: SizedBox(width: 100, height: 100))),
     );
     expect(find.byType(BackdropFilter), findsNothing);
   });
@@ -104,5 +95,38 @@ void main() {
     expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.byType(SolidPanel), findsNothing);
     expect(find.byType(BackdropFilter), findsNothing);
+  });
+
+  testWidgets('log rail exposes structural status beyond color', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const SizedBox(
+          width: 320,
+          child: LogRail(
+            entries: [
+              LogRailEntry(label: '已完成时段', state: LogRailState.completed),
+              LogRailEntry(label: '当前时段', state: LogRailState.current),
+              LogRailEntry(label: '冲突时段', state: LogRailState.warning),
+              LogRailEntry(label: '下一时段'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final labels = tester
+        .widgetList<Semantics>(find.byType(Semantics))
+        .map((widget) => widget.properties.label)
+        .whereType<String>();
+    expect(labels, contains('已完成时段，已完成'));
+    expect(labels, contains('当前时段，进行中'));
+    expect(labels, contains('冲突时段，需要注意'));
+    expect(labels, contains('下一时段，待进行'));
+    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(find.byIcon(Icons.adjust), findsOneWidget);
+    expect(find.byIcon(Icons.priority_high), findsOneWidget);
+    expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
   });
 }

@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>翠绿·锐意工作台 · DESIGN V2 预览</title>
+<title>个人航行日志 · 设计预览</title>
 <link rel="stylesheet" href="assets/tokens.css">
 <style>
   .hero { padding: 40px 24px 28px; max-width: 1080px; margin: 0 auto; }
   .hero .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--primary); letter-spacing: 1.5px; margin-bottom: 10px; }
   .hero .eyebrow .dot { width: 8px; height: 8px; border-radius: 2px; background: var(--primary); }
-  .hero h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.8px; margin-bottom: 10px; }
+  .hero h1 { font-family: "LXGW WenKai GB", serif; font-size: 32px; font-weight: 500; letter-spacing: 0; margin-bottom: 10px; }
   .hero p.lead { font-size: 15px; color: var(--ink-muted); max-width: 640px; margin-bottom: 20px; }
   .hero .meta { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -65,7 +65,7 @@
   .motion-card h3 { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
   .motion-card .spec { font-size: 11.5px; color: var(--ink-muted); margin-bottom: 14px; }
   .motion-stage { min-height: 70px; display: flex; align-items: center; gap: 12px; }
-  .counter-num { font-size: 34px; font-weight: 700; letter-spacing: -0.5px; }
+  .counter-num { font-size: 34px; font-weight: 500; letter-spacing: 0; }
 
   .g-pages { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
   .page-card { padding: 18px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; }
@@ -84,7 +84,7 @@
 <body>
 
 <header class="preview-bar">
-  <div class="brand"><span class="dot"></span>DESIGN V2 · 翠绿·锐意</div>
+  <div class="brand"><span class="dot"></span>个人航行日志</div>
   <nav>
     <a href="index.html" class="active">令牌总览</a>
     <a href="today.html">桌面 · 今日</a>
@@ -101,15 +101,15 @@
 </header>
 
 <section class="hero stagger">
-  <div class="eyebrow"><span class="dot"></span>EMERALD PRECISION · V2.0 · 2026-08-21</div>
-  <h1>翠绿·锐意工作台</h1>
-  <p class="lead">实色锐利面板 × 翠绿气质 × 丰富仪式感动效。移除全部玻璃拟态与背景装饰，以 1px 边框 + 极轻投影制造层次；圆角收紧至 6px；密度收紧 15-20%；动效三级标尺全覆盖。保留翠绿主色、墨绿暗底与等宽数字体系。</p>
+  <div class="eyebrow"><span class="dot"></span>PERSONAL LOGBOOK · 2026-08-24</div>
+  <h1>个人航行日志</h1>
+  <p class="lead">以真实时间、任务顺序、里程碑与执行证据组织单人科研工作。中性日志画布承载长期阅读，航迹色标记路径，信号色提示冲突，黄铜色标记已沉淀证据。</p>
   <div class="meta">
-    <span class="pill primary">边框+微阴影双保险</span>
-    <span class="pill">卡片 6px / 按钮 5px</span>
-    <span class="pill">列表行 44px</span>
-    <span class="pill reward">120 / 200 / 320ms 动效标尺</span>
-    <span class="pill gold">双主题等价</span>
+    <span class="pill primary">真实数据航迹</span>
+    <span class="pill">面板 6px / 控件 4px</span>
+    <span class="pill">桌面 44px / 移动 52px</span>
+    <span class="pill reward">120 / 180 / 220ms</span>
+    <span class="pill gold">离线字体</span>
   </div>
 </section>
 
@@ -119,20 +119,20 @@
   <section>
     <div class="sec-title"><span class="bar"></span><h2>色彩令牌</h2><span class="note">保留 v1 语义色 · 新增 panel 面板令牌 · 点击右上角切换主题查看双套</span></div>
     <div class="grid g-colors">
-      <div class="swatch"><div class="chip" style="background:var(--canvas);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">canvas</div><div class="val num">#EDF5EF / #071612</div><div class="pair">纯平页面底 · 无任何装饰</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--surface);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">surface</div><div class="val num">#FFFFFF / #151C19</div><div class="pair">内容面板底</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--subtle)"></div><div class="info"><div class="name">subtle</div><div class="val num">#F0F4F2 / #1C2420</div><div class="pair">输入框 / Chip 填充</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--primary)"></div><div class="info"><div class="name">primary</div><div class="val num">#059669 / #34D399</div><div class="pair">翠绿主色 · 唯一强调</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--primary-container)"></div><div class="info"><div class="name">primaryContainer</div><div class="val num">#D1FAE5 / #064E3B</div><div class="pair">主色容器</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--reward)"></div><div class="info"><div class="name">reward</div><div class="val num">#F97316 / #FB923C</div><div class="pair">暖橙 · tertiary</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--gold)"></div><div class="info"><div class="name">gold</div><div class="val num">#F59E0B / #FBBF24</div><div class="pair">琥珀点缀</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--canvas);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">canvas</div><div class="val num">#F1F4F2 / #101614</div><div class="pair">中性日志画布</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--surface);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">surface</div><div class="val num">#FAFBF9 / #18211E</div><div class="pair">稳定阅读面</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--subtle)"></div><div class="info"><div class="name">subtle</div><div class="val num">#E8EFED / #253431</div><div class="pair">输入与次级区域</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--primary)"></div><div class="info"><div class="name">route</div><div class="val num">#256B73 / #64B3BC</div><div class="pair">当前路径与主操作</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--primary-container)"></div><div class="info"><div class="name">routeContainer</div><div class="val num">#DCECEF / #203F43</div><div class="pair">路径容器</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="info"><div class="name">signal</div><div class="val num">#C84F45 / #F07A6F</div><div class="pair">冲突与危险操作</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--gold)"></div><div class="info"><div class="name">marker</div><div class="val num">#B8862D / #DDB65B</div><div class="pair">完成证据与里程碑</div></div></div>
       <div class="swatch"><div class="chip" style="background:var(--info)"></div><div class="info"><div class="name">info</div><div class="val num">#0EA5E9 / #38BDF8</div><div class="pair">信息状态</div></div></div>
       <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="info"><div class="name">danger</div><div class="val num">#EF4444 / #F87171</div><div class="pair">危险状态</div></div></div>
       <div class="swatch"><div class="chip" style="background:var(--ink)"></div><div class="info"><div class="name">ink</div><div class="val num">#1A1F1C / #F1F5F9</div><div class="pair">主文字</div></div></div>
       <div class="swatch"><div class="chip" style="background:var(--ink-muted)"></div><div class="info"><div class="name">inkMuted</div><div class="val num">#6B7280 / #94A3B8</div><div class="pair">次级文字</div></div></div>
       <div class="swatch"><div class="chip" style="background:var(--panel-border)"></div><div class="info"><div class="name">panelBorder ★</div><div class="val num">#E2E8E5 / #2A342F</div><div class="pair">v2 新增 · 1px 面板描边</div></div></div>
     </div>
-    <p class="token-note" style="margin-top:12px">★ panelShadow：亮 rgba(10,20,15,.04) blur10 y3 / 暗 rgba(0,0,0,.28)；raisedShadow：blur16 y6。已删除 glass* 四件套（glassPanel/glassBorder/glassHighlight/glassGlow）。</p>
+    <p class="token-note" style="margin-top:12px">panelShadow：亮 rgba(10,20,15,.04) blur10 y3 / 暗 rgba(0,0,0,.28)；raisedShadow：blur16 y6。所有工作面均为实色，不使用背景模糊。</p>
   </section>
 
   <!-- 形状 -->
@@ -148,7 +148,7 @@
 
   <!-- 层次 -->
   <section>
-    <div class="sec-title"><span class="bar"></span><h2>层次手法 · 边框+微阴影双保险</h2><span class="note">替代玻璃拟态的三级深度</span></div>
+    <div class="sec-title"><span class="bar"></span><h2>层次手法 · 边框与微阴影</h2><span class="note">中性画布上的三级实色深度</span></div>
     <div class="grid g-depth">
       <div class="panel depth-stage" style="background:var(--canvas)">
         <div class="layer" style="background:var(--canvas)">
@@ -252,7 +252,7 @@
 
   <!-- 页面导航 -->
   <section>
-    <div class="sec-title"><span class="bar"></span><h2>页面预览导航</h2><span class="note">7 个高保真页面 · 桌面+移动双形态</span></div>
+    <div class="sec-title"><span class="bar"></span><h2>页面预览导航</h2><span class="note">覆盖全部页面族 · 桌面与移动双形态</span></div>
     <div class="grid g-pages stagger">
       <a class="panel motion-demo-card page-card" href="today.html">
         <div class="thumb"><div class="mini-side"></div><div class="mini-bar"></div><div class="mini-line" style="width:90px;top:30px"></div><div class="mini-line" style="width:60px;top:44px"></div></div>
@@ -264,6 +264,8 @@
         <div class="name">桌面 · 任务</div>
         <div class="desc">批量工具条 + 状态筛选 + 44px 任务行 + 空态</div>
       </a>
+      <a class="panel motion-demo-card page-card" href="projects.html"><div class="thumb"><div class="mini-side"></div><div class="mini-bar"></div><div class="mini-line" style="width:96px;top:32px"></div><div class="mini-line" style="width:72px;top:48px"></div></div><div class="name">项目</div><div class="desc">概览、任务、里程碑、笔记与事实侧轨</div></a>
+      <a class="panel motion-demo-card page-card" href="notes.html"><div class="thumb"><div class="mini-side"></div><div class="mini-bar"></div><div class="mini-line" style="width:110px;top:32px"></div><div class="mini-line" style="width:98px;top:48px"></div></div><div class="name">笔记</div><div class="desc">索引、稳定阅读列与关联事实</div></a>
       <a class="panel motion-demo-card page-card" href="focus.html">
         <div class="thumb"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></div>
         <div class="name">专注</div>
@@ -274,6 +276,10 @@
         <div class="name">回顾</div>
         <div class="desc">日回顾表单 + 事实快照卡 + 计数滚动</div>
       </a>
+      <a class="panel motion-demo-card page-card" href="behavior.html"><div class="thumb"><div class="mini-bar"></div><div class="mini-line" style="width:110px;top:34px"></div><div class="mini-line" style="width:110px;top:52px"></div></div><div class="name">行为</div><div class="desc">28 日矩阵、国策与协议状态</div></a>
+      <a class="panel motion-demo-card page-card" href="growth.html"><div class="thumb"><div class="mini-bar"></div><div class="mini-line" style="width:88px;top:34px"></div><div class="mini-line" style="width:108px;top:52px"></div></div><div class="name">成长</div><div class="desc">XP 证据、签到与连续记录</div></a>
+      <a class="panel motion-demo-card page-card" href="restriction.html"><div class="thumb"><div class="mini-bar"></div><div class="mini-line" style="width:105px;top:34px"></div><div class="mini-line" style="width:90px;top:52px"></div></div><div class="name">自律</div><div class="desc">规则编辑、保护设置与例外记录</div></a>
+      <a class="panel motion-demo-card page-card" href="settings.html"><div class="thumb"><div class="mini-bar"></div><div class="mini-line" style="width:100px;top:34px"></div><div class="mini-line" style="width:80px;top:52px"></div></div><div class="name">设置</div><div class="desc">外观、提醒、同步、本地数据与回收站</div></a>
       <a class="panel motion-demo-card page-card" href="mobile.html">
         <div class="thumb"><svg class="ic" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div>
         <div class="name">移动端</div>

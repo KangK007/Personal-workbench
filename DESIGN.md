@@ -1,80 +1,89 @@
-# Design System
+# 个人工作台设计系统
 
-> 本文档记录当前实现（**清新绿色玻璃拟态工作台**，2026-08-23 起）。本文是主题、布局和交互组件的实现依据；产品功能、数据语义和平台约束仍以 `PRODUCT.md` 为准。
+> 本文档记录当前“个人航行日志”界面实现（2026-08-24 起）。产品功能、数据语义和平台边界仍以 `PRODUCT.md` 为准。
 
-## Direction Contract
+> 项目级设计令牌、页面族、响应式规则和可访问性验收以根目录 `MASTER.md` 为准；本文保留实现说明与迁移记录。
 
-**THESIS:** 把每日工作呈现为一张可操作的现代工作台面，而不是由等大卡片拼成的通用仪表盘。
-**OWN-WORLD:** 清透绿色玻璃 × 工程秩序：薄荷画布、半透明导航与重点面板、1px 翠绿边框和轻阴影。长列表使用高不透明度内容面板，避免模糊噪声和滚动开销；暖橙用于状态与成就点缀，琥珀金用于进度与亮点。
-**STORY:** 用户先看见今日三项重点与时间线，再收集、安排、执行，最后进入日记和回顾。任务完成即进度推进；专注即沉浸模式。
-**FIRST VIEWPORT:** 桌面为 80px 折叠/236px 展开玻璃侧栏、中央今日时间线与右侧重点清单；移动端纵向排列今日重点、下一时间块和任务。快速新增始终可达。
-**FORM:** Operate 模式的自适应工作台；宽屏（≥1200dp）使用导航栏与多栏布局，窄屏（<768dp）使用 Material 3 底部导航、顶部栏和单一主操作。
-**视觉边界:** 玻璃只用于导航、页头、今日重点、快速新增、弹窗和专注仪式层；禁止离散渐变球、持续漂浮背景、复杂纹理、霓虹外发光和无意义装饰动画。
+## 用户、任务与内容
 
-## Visual World
+- 目标用户：在 Windows 进行完整规划与回顾、在 Android 快速记录和执行的单人科研学习用户。
+- 核心任务：收集事项、组织项目、确定今日重点、安排时间、进入专注、沉淀笔记、回顾执行证据。
+- 内容特点：中文信息密集、时间与顺序明确、状态变化频繁，并可能包含私密研究和个人记录。
+- 设计目标：适合长时间阅读和重复操作；所有状态具有文字、图标或结构提示，不只依赖颜色。
 
-界面采用清新玻璃拟态工作台：关键面板使用半透明填充、`BackdropFilter` 模糊、1px 翠绿边框、顶部微高光和轻阴影；任务列表、时间线和密集表格使用高不透明度面板。结构依靠列、行、刻度、标签和状态标记；页面标题旁使用 3px 实心翠绿竖条，分区标题使用 3px primary@60% 竖条；装饰仅服务于导航、分组和空态识别，不承载业务信息。
+## 视觉方向
 
-### Color Roles
+视觉概念为“个人航行日志”。界面借用日志页、航迹、时刻和航标的组织逻辑，但不添加船舶、海浪、虚构坐标或装饰编号。
 
-语义色采用薄荷画布与深墨绿双主题，玻璃层由 `WorkbenchTokens` 统一提供：
+标志性元素“日志航迹线”只允许承载真实时间、任务顺序、里程碑、周期或执行证据。当前节点使用航迹色，完成节点使用黄铜标记色，冲突节点使用信号色；设置等无序内容不绘制航迹。
 
-- 浅色：`canvas #EAF5EF`、`surface #F9FDFA`、`raised #FFFFFF`、`subtle #F0F8F3`、`ink #17352A`、`muted #698077`、`divider #CEE2D7`、`primary #159765`、`primaryContainer #D8F1E2`、`reward #F97316`、`gold #F59E0B`。
-- 深色：`canvas #071B14`、`surface #123529`、`raised #1A3E30`、`subtle #173B2D`、`ink #E5F3EA`、`muted #9AB7AA`、`divider #2D5A47`、`primary #5EE0A8`、`primaryContainer #1E523D`、`reward #FB923C`、`gold #FBBF24`。
-- 玻璃令牌：`glassPanel`、`glassRaised`、`glassBorder`、`glassHighlight`、`glassBlur=18`；`GlassConfig.blurEnabled=false` 时保留半透明层级并移除 `BackdropFilter`。
-- 面板令牌：`panelBorder`、`panelShadow`、`raisedShadow`、`focusRing` 继续用于高不透明度列表和浮层。
+应用标记由“日志页 + 路径节点”组成，保留“个人工作台”名称与原有导航行为。
 
-色彩纪律：强调色仅用于主操作、选中态、关键数据与品牌标识，大面积区域永远中性。正文对比度 ≥ 12:1，次级文字 ≥ 4.5:1，边框相对 surface ≥ 1.15:1（日历网格、习惯矩阵空格、里程碑印章等空单元格不得使用 divider 作描边，用 `mutedText@0.35-0.45`）。深色主题使用相同语义角色，不直接反相。
+## 颜色令牌
 
-### Typography
+| 角色 | 浅色 | 深色 | 用途 |
+| --- | --- | --- | --- |
+| `canvas` | `#F1F4F2` | `#101614` | 页面背景 |
+| `surface` | `#FAFBF9` | `#18211E` | 稳定阅读面 |
+| `ink` | `#1B2521` | `#E9EFEB` | 主文字 |
+| `route` | `#256B73` | `#64B3BC` | 当前路径、主操作与焦点 |
+| `signal` | `#C84F45` | `#F07A6F` | 冲突、失败与危险操作 |
+| `marker` | `#B8862D` | `#DDB65B` | 完成证据、XP 与里程碑 |
 
-系统字体链（Noto Sans CJK SC → Microsoft YaHei UI → Microsoft YaHei），无自定义字体。H1: 28px Bold（ls -0.5）、H2: 22px w600（ls -0.3）、H3: 18px w600、H4: 16px w600、正文: 15px、辅助: 13px。标题负字间距仅用于 ≥18px；小标签（≤12px）禁用负间距。时间、日期、等级、计时器等数字使用 `NumericText`（w600 + tabularFigures 等宽特性）。
+`WorkbenchTokens` 同时提供 `panel`、`raised`、`subtle`、`panelBorder`、`divider`、`focusRing` 等结构令牌。所有工作面均为实色，不使用 `BackdropFilter` 或背景模糊。
 
-### Shape And Depth
+## 字体
 
-- 圆角标尺（`AppRadius`）：卡片/弹窗/FAB 6px，按钮/输入框/Chip 5px，底部弹层顶部 8px，NavigationBar indicator 6px，Snackbar 6px，Tooltip 4px。
-- 层次体系（`SolidPanel` / `GlassSurface`，见 `lib/ui/widgets/solid_panel.dart`）：
-  - 层级 0 canvas：纯色，无边框无阴影
-  - 层级 1 内容面板：高不透明度 surface + panelBorder 1px + panelShadow
-  - 层级 1 玻璃面板：glassPanel + BackdropFilter + glassBorder + 顶部高光
-  - 层级 2 raised 浮层：glassRaised + raisedShadow（`elevated: true`）
-  - 选中态：左缘 3px 实心 primary 条 + 边框转 primary@40%（`selected: true`）
-- 禁止：装饰性背景模糊、外发光、渐变边框、大面积阴影；模糊只服务于玻璃导航、页头、重点区和浮层。阴影浅色模式极轻，深色模式加深以保证可见性。
-- 任务行左侧强调条统一状态色：doing=primary、todo=muted@40%、done=primary@30%、cancelled=divider。
-- 空态徽章：56px 圆，1.5px primary@40% 描边 + primary@8% 填充 + 26px Outlined 图标，320ms 缩放淡入。
+- 页名与少量章节标题：`LXGW WenKai GB Medium`，体现私人日志感。
+- 正文、表单和控件：`IBM Plex Sans SC`，保持高密度中文界面的稳定可读性。
+- 时间、XP、序号与参数：`IBM Plex Mono Medium`，使用等宽数字和 `tabularFigures`。
+- 字体文件位于 `assets/fonts/`，由 Flutter 与 `design_preview/` 离线加载；许可证分别保存为 `OFL-LXGW-WenKai-GB.txt` 和 `OFL-IBM-Plex.txt`。
+- 字间距统一为 `0`，不随视口缩放字号。
 
-## Layout
+## 形状、密度与层级
 
-- `< 768 dp`（`AppBreakpoints.compact`）：Android/窄屏布局，底部导航保持"今日、任务、回顾、国策、设置"五项。
-- `768-1199 dp`：导航栏或紧凑侧栏，内容保持单主列加辅助抽屉。
-- `>= 1200 dp`（`AppBreakpoints.expanded`）：宽屏完整侧栏，今日页为中央时间线和右侧重点区域。
-- **断点纪律**：页面局部布局切换只允许使用 compact=768 / expanded=1200 两个断点，禁止新硬编码阈值。
-- 密度标尺：列表行 44px、行内边距 14px、分区间距 20px、页面边距 24（wide）/14（compact）、卡片内边距 14px；间距标尺 4/8/12/14/20/24/32（`AppSpacing`）。
-- 固定格式控件使用稳定高度与约束，加载、计时和状态变化不得推动周围布局。窄屏触控区域不小于 48dp。
+- 面板圆角 `6px`，控件 `4px`，对话框和底部弹层 `8px`。
+- 桌面内容行最小高度 `44px`，移动端内容行最小高度 `52px`，交互触控区域至少 `48dp`。
+- 间距使用 `4 / 8 / 12 / 16 / 24 / 32`。
+- 页面分区保持无框；卡片只用于重复记录、弹窗和确有边界的工具，不在卡片内嵌套卡片。
+- 面板使用中性 `1px` 分隔线与克制阴影建立层次。状态强调使用左缘标记、航迹节点或图标，不制造装饰性表面。
 
-## Interaction
+## 页面布局
 
-- 快速新增先收标题，再以可选字段补充日期、项目、优先级和类型。
-- 创建任务和习惯在窄屏使用全屏编辑器。标题、CTDP 触发标志和 RSIP 最小动作在字段内校验；高级协议字段按组逐步呈现，不用 Snackbar 替代输入错误说明。
-- 临时成功或撤销使用 Snackbar；永久删除和恢复备份使用确认对话框。
-- 专注模式只保留当前任务、计时器、暂停/完成和退出。
-- 窄屏所有触控目标至少 48 dp，并遵循系统返回、键盘和安全区。
-- 完成承诺使用约 `220ms` 线性折叠，XP（成长）进入右侧刻度尺。
-- 动效标尺（`AppMotion`）：micro 120ms easeOut（按压/悬停/焦点环）、standard 200ms easeOutCubic（淡入/尺寸/Snackbar/弹层入场）、emphasized 320ms emphasizedDecelerate（页面切换/庆祝编排）、页面切换 240ms 淡入+8px 上移、列表入场 20ms 交错（`StaggeredEntrance`，最多前 8 项）。
-- **无障碍**：所有动效必须检查 `MediaQuery.disableAnimations`，禁用时退化为静态终态；彩纸/涟漪类装饰动效不播放。不使用连续闪烁或声音。
+- `<768dp`：移动单列，保留今日、任务、回顾、行为、设置五个底部主入口、FAB 和 Android 系统返回。
+- `768-1199dp`：折叠索引导航，主工作面与必要侧轨并存。
+- `>=1200dp`：236px 索引导航；今日、任务、项目与工作周采用“主工作区 + 证据侧轨”。
+- 笔记和回顾采用稳定阅读列；专注页为不嵌卡片的沉浸式计时工作面；自律页保持高密度规则编辑。
+- 所有 `WorkbenchSection` 路由、控制器调用、键盘操作、数据模型和真实文案保持不变。
 
-## Visual QA
+## 动效与无障碍
 
-`test/visual_golden_test.dart` 固定宽屏 1536×864、窄屏 412×915 和 2026-08-07 示例日，使用独立内存数据库和系统中文字体生成 Golden；`test/solid_panel_test.dart` 覆盖实色列表面板、玻璃面板降级、elevated/selected 状态与对话框浮层。更新命令：
+- 控件反馈 `120ms`，状态变化 `180ms`，页面切换 `220ms`。
+- 任务完成时只推进对应真实航迹节点；开始专注时工作面收束到计时器；不使用持续环境动画。
+- `MediaQuery.disableAnimationsOf(context)` 和 `prefers-reduced-motion` 直接显示静态终态。
+- 键盘焦点使用明确 `2px` 外环；正文对比度目标至少 `4.5:1`；状态同时提供非颜色提示。
+
+## 静态预览
+
+`design_preview/` 保留原有 `index.html`、`today.html`、`tasks.html`、`focus.html`、`review.html`、`mobile.html`、`components.html` 和 `glass_today.html`，并新增：
+
+- `projects.html`
+- `notes.html`
+- `behavior.html`
+- `growth.html`
+- `restriction.html`
+- `settings.html`
+
+`glass_today.html` 仅保留历史路径名，内容是新方向的亮暗主题验收页。`generate_glass_today.py` 使用项目离线字体生成 `glass_today_light.png` 与 `glass_today_dark.png`。
+
+## 验证
 
 ```powershell
-flutter test test/visual_golden_test.dart test/ui_audit_screenshot_test.dart --update-goldens
+dart format lib test
+flutter analyze
+flutter test
+flutter test --update-goldens test/visual_golden_test.dart
+python design_preview/generate_glass_today.py
 ```
 
-## States
-
-每个主要页面必须覆盖首次空状态、加载、离线、同步中、同步失败和内容溢出。被拒绝的通知权限显示应用内解释，不阻塞任务与日记功能。删除进入回收站；永久删除明确说明不可恢复。空态统一使用 EmptyState 徽章组件（Inbox/Goals/Focus/Growth 等全部页面）。
-
-## Content Rules
-
-使用具体动作作为按钮文案，例如"安排到今天""开始专注""移入回收站"。不展示未经验证的效率结论、科研结果或虚构数据。示例内容使用明显的通用个人任务，并可一键清空。
+Golden 固定覆盖 1536×864 和 412×915 等关键工作面；静态预览还需检查 390px 横向溢出、亮暗主题、减少动效、长文案与链接有效性。

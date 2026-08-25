@@ -1255,44 +1255,51 @@ class _Timeline extends StatelessWidget {
         conflicts.add(blocks[index].id);
       }
     }
+    final now = controller.currentTime();
+    LogRailState stateFor(WorkspaceRecord block) {
+      if (conflicts.contains(block.id)) return LogRailState.warning;
+      if (block.isDone) return LogRailState.completed;
+      final start = block.scheduledFor!;
+      final end = start.add(
+        Duration(
+          minutes: (block.data['durationMinutes'] as num?)?.toInt() ?? 25,
+        ),
+      );
+      if (!now.isBefore(start) && now.isBefore(end)) {
+        return LogRailState.current;
+      }
+      return LogRailState.pending;
+    }
+
     return LogSurface(
-      child: Column(
-        children: [
-          for (var index = 0; index < blocks.length; index++) ...[
-            ListTile(
-              leading: SizedBox(
-                width: 48,
-                child: NumericText(
-                  formatTime(blocks[index].scheduledFor!),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: context.tokens.reward,
-                  ),
-                ),
-              ),
-              title: Text(
-                blocks[index].title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                '${blocks[index].data['durationMinutes'] ?? 25} 分钟${conflicts.contains(blocks[index].id) ? ' · 时间冲突' : ''}',
-              ),
-              trailing: conflicts.contains(blocks[index].id)
-                  ? Tooltip(
-                      message: '此时间块与相邻安排重叠',
-                      child: Icon(
-                        Icons.warning_amber,
-                        color: context.tokens.reward,
+      padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
+      child: LogRail(
+        entries: [
+          for (final block in blocks)
+            LogRailEntry(
+              label: block.title,
+              detail:
+                  '${formatTime(block.scheduledFor!)} · ${block.data['durationMinutes'] ?? 25} 分钟${conflicts.contains(block.id) ? ' · 时间冲突' : ''}',
+              state: stateFor(block),
+              trailing: conflicts.contains(block.id)
+                  ? Semantics(
+                      button: true,
+                      label: '调整时间安排：${block.title}',
+                      child: TextButton(
+                        onPressed: () => _showEditTimeBlockDialog(
+                          context,
+                          controller,
+                          block,
+                        ),
+                        child: const Text('调整'),
                       ),
                     )
                   : IconButton(
-                      onPressed: () => controller.moveToTrash(blocks[index]),
+                      onPressed: () => controller.moveToTrash(block),
                       tooltip: '删除时间块',
                       icon: const Icon(Icons.close),
                     ),
             ),
-            if (index < blocks.length - 1) const Divider(),
-          ],
         ],
       ),
     );
@@ -1874,6 +1881,96 @@ Future<void> _showTimeBlockDialog(
               if (context.mounted) Navigator.pop(context);
             },
             child: const Text('安排'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Future<void> _showEditTimeBlockDialog(
+  BuildContext context,
+  WorkbenchController controller,
+  WorkspaceRecord block,
+) async {
+  var start = block.scheduledFor ?? controller.currentTime();
+  const durations = [15, 25, 45, 50, 60, 90];
+  final storedMinutes = (block.data['durationMinutes'] as num?)?.toInt() ?? 25;
+  var minutes = durations.contains(storedMinutes) ? storedMinutes : 25;
+  await showWorkbenchDialog<void>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text('调整时间安排'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(block.title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.schedule_outlined),
+                title: NumericText(formatTime(start)),
+                subtitle: const Text('开始时间 · 5 分钟吸附'),
+                onTap: () async {
+                  final value = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(start),
+                  );
+                  if (value != null) {
+                    setState(
+                      () => start = DateTime(
+                        start.year,
+                        start.month,
+                        start.day,
+                        value.hour,
+                        (value.minute / 5).round() * 5,
+                      ),
+                    );
+                  }
+                },
+              ),
+              DropdownButtonFormField<int>(
+                initialValue: minutes,
+                decoration: const InputDecoration(labelText: '时长'),
+                items: durations
+                    .map(
+                      (value) => DropdownMenuItem(
+                        value: value,
+                        child: Text('$value 分钟'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => minutes = value);
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              await controller.updateTimeBlock(
+                block: block,
+                start: start,
+                minutes: minutes,
+              );
+              if (!context.mounted) return;
+              Navigator.pop(context);
+              showWorkbenchSnackBar(
+                context,
+                const SnackBar(content: Text('时间安排已更新')),
+              );
+            },
+            child: const Text('更新安排'),
           ),
         ],
       ),

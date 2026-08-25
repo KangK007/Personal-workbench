@@ -700,10 +700,10 @@ class _Stamp extends StatelessWidget {
   Widget build(BuildContext context) {
     // 未解锁印章：边框与说明文字提高对比度（≥1.15:1 边框基准），去掉低对比渐变。
     final borderColor = unlocked
-        ? context.tokens.gold
+        ? context.tokens.marker
         : context.tokens.mutedText.withValues(alpha: 0.45);
     final detailColor = unlocked
-        ? context.tokens.gold
+        ? context.tokens.marker
         : context.tokens.mutedText.withValues(alpha: 0.85);
     final titleColor = Theme.of(context).colorScheme.onSurface;
     return Semantics(
@@ -713,7 +713,9 @@ class _Stamp extends StatelessWidget {
         height: 72,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: unlocked ? context.tokens.gold.withValues(alpha: 0.1) : context.tokens.subtle,
+          color: unlocked
+              ? context.tokens.marker.withValues(alpha: 0.1)
+              : context.tokens.subtle,
           border: Border.all(color: borderColor, width: 2),
         ),
         child: Column(
@@ -726,9 +728,7 @@ class _Stamp extends StatelessWidget {
             ),
             NumericText(
               '$target',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: titleColor,
               ),

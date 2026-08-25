@@ -36,15 +36,23 @@ final _visualDate = DateTime(2026, 8, 7, 12);
 Future<void> _loadGoldenFonts() async {
   final materialIcons = FontLoader('MaterialIcons')
     ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-  await materialIcons.load();
-
-  final systemChinese = File(r'C:\Windows\Fonts\simhei.ttf');
-  if (systemChinese.existsSync()) {
-    final bytes = await systemChinese.readAsBytes();
-    final chinese = FontLoader('GoldenCjk')
-      ..addFont(Future.value(ByteData.sublistView(Uint8List.fromList(bytes))));
-    await chinese.load();
-  }
+  final display = FontLoader(AppFonts.display)
+    ..addFont(rootBundle.load('assets/fonts/LXGWWenKaiGB-Medium.ttf'));
+  final goldenCjk = FontLoader('GoldenCjk')
+    ..addFont(rootBundle.load('assets/fonts/LXGWWenKaiGB-Medium.ttf'));
+  final body = FontLoader(AppFonts.body)
+    ..addFont(rootBundle.load('assets/fonts/IBMPlexSansSC-Regular.otf'))
+    ..addFont(rootBundle.load('assets/fonts/IBMPlexSansSC-Medium.otf'))
+    ..addFont(rootBundle.load('assets/fonts/IBMPlexSansSC-SemiBold.otf'));
+  final numeric = FontLoader(AppFonts.numeric)
+    ..addFont(rootBundle.load('assets/fonts/IBMPlexMono-Medium.ttf'));
+  await Future.wait([
+    materialIcons.load(),
+    display.load(),
+    goldenCjk.load(),
+    body.load(),
+    numeric.load(),
+  ]);
 }
 
 var _fixtureCounter = 0;

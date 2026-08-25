@@ -254,8 +254,7 @@ class _FocusTab extends StatelessWidget {
               ],
             ),
           ),
-        if (candidates.length + recent.length < 5)
-          const SizedBox(height: 12),
+        if (candidates.length + recent.length < 5) const SizedBox(height: 12),
       ],
     );
   }
@@ -726,7 +725,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                           const SizedBox(height: 32),
                           SolidPanel(
                             padding: const EdgeInsets.all(4),
-                            radius: 24,
+                            radius: AppRadius.card,
                             child: SegmentedButton<FocusMode>(
                               segments: const [
                                 ButtonSegment(
@@ -767,7 +766,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                                 const PulseRing(
                                   duration: Duration(milliseconds: 900),
                                 ),
-                              SolidPanel(
+                              Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
                                   vertical: 12,
@@ -781,7 +780,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                                           width: 5,
                                           height: 5,
                                           decoration: BoxDecoration(
-                                            color: context.tokens.gold,
+                                            color: context.tokens.marker,
                                             shape: BoxShape.circle,
                                           ),
                                         ),

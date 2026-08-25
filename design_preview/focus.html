@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>专注 · DESIGN V2 预览</title>
+<title>专注 · 个人航行日志</title>
 <link rel="stylesheet" href="assets/tokens.css">
 <style>
   body { overflow-x: hidden; }
@@ -14,7 +14,7 @@
   }
   .focus-card { width: 100%; max-width: 560px; padding: 36px 32px; text-align: center; }
   .mode-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 26px; }
-  .timer { font-size: 84px; font-weight: 700; letter-spacing: -2px; line-height: 1; margin-bottom: 8px; }
+  .timer { font-family: "IBM Plex Mono", monospace; font-size: 84px; font-weight: 500; letter-spacing: 0; line-height: 1; margin-bottom: 8px; }
   .timer .sep { opacity: .35; }
   .timer-sub { font-size: 13px; color: var(--ink-muted); margin-bottom: 26px; }
   .presets { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
@@ -31,10 +31,9 @@
 
   /* ---- 完成庆祝仪式：FocusCelebration（精修版） ---- */
   .celebration-overlay {
-    position: fixed; inset: 0; z-index: 200;
+    position: fixed; inset: 0; z-index: 100;
     background: color-mix(in srgb, var(--canvas) 82%, transparent);
     display: none; align-items: center; justify-content: center; flex-direction: column;
-    backdrop-filter: none; /* v2 无模糊 */
   }
   .celebration-overlay.show { display: flex; }
   .cele-badge {
@@ -47,11 +46,11 @@
   }
   html[data-theme="dark"] .cele-badge { color: #06281D; }
   .cele-badge svg.ic { width: 44px; height: 44px; stroke-width: 2.5; }
-  .cele-ring { position: absolute; inset: 0; border-radius: 22px; border: 2px solid var(--primary); animation: ringOut 1.2s ease-out infinite; }
-  .cele-ring.r2 { animation-delay: .4s; }
+  .cele-ring { position: absolute; inset: 0; border-radius: 22px; border: 2px solid var(--primary); animation: ringOut 900ms ease-out both; }
+  .cele-ring.r2 { animation-delay: .18s; }
   @keyframes ringOut { from { transform: scale(1); opacity: .55; } to { transform: scale(1.9); opacity: 0; } }
   @keyframes badgeIn { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .cele-title { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin-top: 24px; animation: rise .32s ease .15s both; }
+  .cele-title { font-family: "LXGW WenKai GB", serif; font-size: 22px; font-weight: 500; letter-spacing: 0; margin-top: 24px; animation: rise .22s ease .15s both; }
   .cele-sub { font-size: 14px; color: var(--ink-muted); margin-top: 6px; animation: rise .32s ease .22s both; }
   .cele-stats { display: flex; gap: 10px; margin-top: 26px; animation: rise .32s ease .3s both; }
   .confetti { position: absolute; width: 7px; height: 7px; border-radius: 2px; animation: confettiFall 1.6s ease-in both; }
@@ -62,7 +61,7 @@
 <body>
 
 <header class="preview-bar">
-  <div class="brand"><span class="dot"></span>DESIGN V2 · 翠绿·锐意</div>
+  <div class="brand"><span class="dot"></span>个人航行日志</div>
   <nav>
     <a href="index.html">令牌总览</a>
     <a href="today.html">桌面 · 今日</a>
@@ -79,7 +78,7 @@
 </header>
 
 <div class="focus-stage stagger">
-  <div class="panel focus-card">
+  <div class="focus-card">
     <div class="mode-row">
       <span class="pill primary">正计时</span>
       <span class="pill">倒计时</span>
@@ -87,7 +86,7 @@
 
     <!-- 等宽数字计时器（tabular-nums + w700） -->
     <div class="timer num">00:47<span class="sep">:</span>23</div>
-    <div class="timer-sub">深度专注 · 与「DESIGN V2 规范」关联 · 开始于 14:02</div>
+    <div class="timer-sub">深度专注 · 与「校对论文图 3 的坐标轴与单位」关联 · 开始于 14:02</div>
 
     <div class="presets">
       <span class="chip" style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:var(--r-btn);font-size:12.5px;font-weight:600;background:var(--subtle);color:var(--ink-muted)">番茄 25m</span>

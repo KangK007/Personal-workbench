@@ -1,415 +1,62 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>个人工作台 · 今日 · 玻璃拟态预览</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>今日 · 亮暗主题验收 · 个人航行日志</title>
+  <link rel="stylesheet" href="assets/tokens.css">
   <style>
-    :root {
-      color-scheme: light;
-      --canvas: #eaf5ef;
-      --canvas-2: #f4fbf7;
-      --ink: #17352a;
-      --muted: #698077;
-      --faint: #91a79e;
-      --line: rgba(34, 110, 78, .16);
-      --line-strong: rgba(22, 142, 91, .30);
-      --glass: rgba(255, 255, 255, .62);
-      --glass-strong: rgba(255, 255, 255, .78);
-      --glass-soft: rgba(226, 244, 235, .64);
-      --primary: #159765;
-      --primary-strong: #087749;
-      --primary-soft: rgba(21, 151, 101, .13);
-      --success: #1a9d72;
-      --warn: #c6842f;
-      --shadow: 0 16px 40px rgba(33, 101, 72, .12), 0 2px 8px rgba(24, 75, 53, .06);
-      --shadow-soft: 0 8px 24px rgba(33, 101, 72, .08);
-      --radius: 8px;
-      --radius-sm: 6px;
-      --blur: 18px;
-      --sidebar: 236px;
-      --font: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
-    }
-
-    [data-theme="dark"] {
-      color-scheme: dark;
-      --canvas: #071b14;
-      --canvas-2: #0b241b;
-      --ink: #e5f3ea;
-      --muted: #9ab7aa;
-      --faint: #719485;
-      --line: rgba(131, 221, 180, .18);
-      --line-strong: rgba(96, 220, 163, .42);
-      --glass: rgba(17, 47, 36, .72);
-      --glass-strong: rgba(26, 62, 48, .84);
-      --glass-soft: rgba(18, 58, 43, .72);
-      --primary: #5ee0a8;
-      --primary-strong: #98f0c8;
-      --primary-soft: rgba(94, 224, 168, .14);
-      --success: #63ddb0;
-      --warn: #e7b66a;
-      --shadow: 0 18px 42px rgba(0, 0, 0, .26), 0 2px 8px rgba(0, 0, 0, .18);
-      --shadow-soft: 0 8px 24px rgba(0, 0, 0, .18);
-    }
-
-    * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; }
-    body {
-      min-width: 1160px;
-      background: var(--canvas);
-      color: var(--ink);
-      font-family: var(--font);
-      letter-spacing: 0;
-    }
-
-    button { font: inherit; color: inherit; }
-    .app {
-      min-height: 864px;
-      display: grid;
-      grid-template-columns: var(--sidebar) minmax(0, 1fr);
-      background: var(--canvas);
-    }
-
-    .glass {
-      background: var(--glass);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow-soft);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-    }
-
-    .sidebar {
-      position: relative;
-      z-index: 3;
-      display: flex;
-      flex-direction: column;
-      min-height: 864px;
-      padding: 22px 14px 18px;
-      border-right: 1px solid var(--line);
-      background: var(--glass);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 0 10px 24px;
-    }
-    .brand-mark {
-      width: 34px;
-      height: 34px;
-      border: 1px solid var(--line-strong);
-      border-radius: 10px;
-      display: grid;
-      place-items: center;
-      color: var(--primary-strong);
-      background: var(--primary-soft);
-      font-weight: 800;
-      font-size: 13px;
-    }
-    .brand-name { font-size: 15px; font-weight: 700; letter-spacing: .01em; }
-    .brand-sub { margin-top: 2px; color: var(--muted); font-size: 11px; }
-
-    .nav-label {
-      padding: 16px 12px 7px;
-      color: var(--faint);
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .11em;
-      text-transform: uppercase;
-    }
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      min-height: 42px;
-      padding: 0 12px;
-      border: 1px solid transparent;
-      border-radius: var(--radius-sm);
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .nav-item.active {
-      border-color: var(--line-strong);
-      color: var(--primary-strong);
-      background: var(--primary-soft);
-      font-weight: 700;
-    }
-    .nav-icon { width: 18px; text-align: center; font-size: 17px; line-height: 1; }
-    .sidebar-spacer { flex: 1; }
-    .side-bottom {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 10px 0;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px var(--primary-soft); }
-
-    .content { min-width: 0; padding: 18px 24px 28px; }
-    .topbar {
-      min-height: 58px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 16px 0 18px;
-      border-radius: var(--radius);
-    }
-    .crumb { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
-    .crumb strong { color: var(--ink); font-size: 14px; }
-    .top-actions { display: flex; align-items: center; gap: 8px; }
-    .icon-btn, .action-btn {
-      min-width: 40px;
-      height: 40px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: rgba(255,255,255,.18);
-      cursor: default;
-    }
-    .icon-btn { font-size: 18px; color: var(--muted); }
-    .action-btn {
-      gap: 7px;
-      padding: 0 13px;
-      color: #fff;
-      border-color: transparent;
-      background: var(--primary);
-      box-shadow: 0 5px 14px rgba(21, 151, 101, .22);
-      font-size: 12px;
-      font-weight: 700;
-    }
-    .sync-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      min-height: 32px;
-      padding: 0 10px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      color: var(--muted);
-      font-size: 11px;
-      background: var(--glass-soft);
-    }
-
-    .page-head {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 20px;
-      padding: 26px 2px 18px;
-    }
-    .eyebrow { color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: .09em; }
-    h1 { margin: 6px 0 5px; font-size: 28px; line-height: 1.2; letter-spacing: -.02em; }
-    .subtitle { color: var(--muted); font-size: 13px; }
-    .head-meta { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
-    .date-chip { padding: 8px 11px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--glass-soft); }
-
-    .workspace-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 306px;
-      gap: 16px;
-      align-items: start;
-    }
-    .main-column, .rail { display: grid; gap: 16px; min-width: 0; }
-    .panel { border-radius: var(--radius); padding: 16px; }
-    .panel.opaque { background: var(--glass-strong); }
-    .panel-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 13px;
-    }
-    .panel-title h2 { margin: 0; font-size: 15px; }
-    .panel-title span { color: var(--muted); font-size: 11px; }
-    .section-bar { width: 3px; height: 17px; border-radius: 3px; background: var(--primary); }
-    .title-with-bar { display: flex; align-items: center; gap: 9px; }
-
-    .commitments { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-    .commitment {
-      min-height: 106px;
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: rgba(255,255,255,.26);
-    }
-    .commitment.active { border-color: var(--line-strong); background: var(--primary-soft); }
-    .commitment.done { opacity: .72; }
-    .commitment-top { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 11px; }
-    .check { color: var(--primary); font-size: 17px; }
-    .commitment h3 { margin: 16px 0 7px; font-size: 13px; line-height: 1.45; }
-    .commitment-meta { color: var(--muted); font-size: 11px; }
-
-    .next-block {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 12px 14px;
-      border: 1px solid var(--line-strong);
-      border-radius: var(--radius-sm);
-      background: var(--primary-soft);
-    }
-    .time-box { min-width: 60px; color: var(--primary-strong); font-size: 15px; font-weight: 800; }
-    .next-copy { flex: 1; min-width: 0; }
-    .next-copy strong { display: block; font-size: 13px; }
-    .next-copy span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
-    .mini-btn { border: 0; border-radius: 5px; padding: 8px 10px; color: var(--primary-strong); background: var(--glass-strong); font-size: 11px; font-weight: 700; }
-
-    .timeline { display: grid; gap: 0; }
-    .timeline-row { display: grid; grid-template-columns: 62px 18px minmax(0, 1fr); min-height: 68px; }
-    .timeline-time { padding-top: 2px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-    .timeline-track { position: relative; display: flex; justify-content: center; }
-    .timeline-track::before { content: ""; position: absolute; top: 0; bottom: -1px; width: 1px; background: var(--line); }
-    .timeline-dot { position: relative; z-index: 1; width: 9px; height: 9px; margin-top: 3px; border: 2px solid var(--primary); border-radius: 50%; background: var(--canvas-2); }
-    .timeline-row.done .timeline-dot { border-color: var(--success); background: var(--success); }
-    .timeline-row.upcoming .timeline-dot { border-color: var(--faint); }
-    .timeline-copy { padding: 0 0 18px 12px; }
-    .timeline-copy strong { display: block; font-size: 13px; }
-    .timeline-copy span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
-    .timeline-tag { display: inline-block; margin-top: 7px; padding: 3px 7px; border-radius: 4px; color: var(--primary-strong); background: var(--primary-soft); font-size: 10px; }
-
-    .progress-row { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; }
-    .progress-track { flex: 1; height: 7px; overflow: hidden; border-radius: 99px; background: var(--primary-soft); }
-    .progress-fill { width: 78%; height: 100%; border-radius: inherit; background: var(--primary); }
-    .progress-value { color: var(--primary-strong); font-size: 12px; font-weight: 800; }
-    .habit-list { display: grid; gap: 10px; }
-    .habit-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
-    .habit-row .name { flex: 1; }
-    .habit-days { display: flex; gap: 4px; }
-    .habit-day { width: 17px; height: 17px; border: 1px solid var(--line); border-radius: 4px; }
-    .habit-day.on { border-color: var(--primary); background: var(--primary); }
-    .habit-day.today { box-shadow: 0 0 0 2px var(--primary-soft); }
-
-    .closing { display: grid; gap: 11px; }
-    .closing-line { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; }
-    .closing-line strong { color: var(--ink); font-size: 13px; }
-    .closing-action { width: 100%; height: 38px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); color: var(--primary-strong); background: var(--primary-soft); font-size: 12px; font-weight: 700; }
-    .tip { color: var(--muted); font-size: 11px; line-height: 1.55; }
-
-    .legend { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
-    .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
-    .legend-dot.done { background: var(--success); }
-    .legend-dot.muted { background: var(--faint); }
-
-    @media (max-width: 1280px) {
-      .content { padding-left: 18px; padding-right: 18px; }
-      .workspace-grid { grid-template-columns: minmax(0, 1fr) 270px; }
-      .commitments { grid-template-columns: 1fr; }
-      .commitment { min-height: 78px; }
-      .commitment h3 { margin-top: 9px; }
-    }
+    .acceptance { min-width: 1120px; }
+    .acceptance .sidebar { width: 236px; }
+    .today-grid { display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:calc(100vh - 105px); }
+    .today-work { padding:20px 24px 56px; }
+    .today-aside { padding:20px 18px;border-left:1px solid var(--divider); }
+    .commitments { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px; }
+    .commitment { min-height:112px;padding:12px;border:1px solid var(--panel-border);border-radius:6px;background:var(--surface); }
+    .commitment.current { border-left:3px solid var(--route); }
+    .commitment.done { border-left:3px solid var(--marker); }
+    .commitment.warning { border-left:3px solid var(--signal); }
+    .commitment .state { color:var(--ink-muted);font-size:11px; }
+    .commitment h3 { font-size:14px;font-weight:500;margin:16px 0 6px; }
+    .commitment p { color:var(--ink-muted);font-size:11.5px; }
+    .next-block { display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--divider);border-bottom:1px solid var(--divider); }
+    .next-block .time { color:var(--route); }
+    @media (max-width:767px) { .acceptance { min-width:0; }.today-grid{display:block}.today-aside{border-left:0;border-top:1px solid var(--divider)}.commitments{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
-  <div class="app" id="app">
+  <header class="preview-bar"><div class="brand"><span class="dot"></span>个人航行日志 · 主题验收</div><nav><a href="index.html">设计令牌</a><a class="active" href="glass_today.html">今日验收</a><a href="today.html">今日页面</a></nav><button class="theme-toggle" onclick="toggleTheme()"><span class="label">切换暗色</span></button></header>
+  <div class="shell acceptance">
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">PW</div>
-        <div><div class="brand-name">个人工作台</div><div class="brand-sub">本地优先 · 演示工作区</div></div>
-      </div>
-
-      <div class="nav-label">工作台</div>
-      <div class="nav-item active"><span class="nav-icon">⌂</span><span>今日</span></div>
-      <div class="nav-item"><span class="nav-icon">□</span><span>任务</span></div>
-      <div class="nav-item"><span class="nav-icon">◷</span><span>计划</span></div>
-      <div class="nav-item"><span class="nav-icon">▦</span><span>项目</span></div>
-      <div class="nav-item"><span class="nav-icon">◉</span><span>专注</span></div>
-
-      <div class="nav-label">记录与回顾</div>
-      <div class="nav-item"><span class="nav-icon">▤</span><span>笔记</span></div>
-      <div class="nav-item"><span class="nav-icon">◫</span><span>日记</span></div>
-      <div class="nav-item"><span class="nav-icon">⌁</span><span>回顾</span></div>
-
-      <div class="nav-label">成长</div>
-      <div class="nav-item"><span class="nav-icon">◇</span><span>目标</span></div>
-      <div class="nav-item"><span class="nav-icon">○</span><span>习惯</span></div>
-      <div class="nav-item"><span class="nav-icon">↗</span><span>成长</span></div>
-
-      <div class="sidebar-spacer"></div>
-      <div class="side-bottom"><span class="status-dot"></span><span>已同步 · 本地可用</span></div>
-      <div class="nav-item" style="margin-top:8px"><span class="nav-icon">⚙</span><span>设置</span></div>
+      <div class="logo-row"><div class="logo"></div><div class="name">个人工作台</div></div>
+      <div style="padding:12px 10px"><button class="btn primary" style="width:100%">快速新增</button></div>
+      <nav class="nav"><div class="nav-group">工作索引</div><a class="nav-item active"><span>今日</span></a><a class="nav-item"><span>任务</span></a><a class="nav-item"><span>项目</span></a><a class="nav-item"><span>专注</span></a><div class="nav-group">记录与回顾</div><a class="nav-item"><span>笔记</span></a><a class="nav-item"><span>回顾</span></a><div class="nav-group">成长与约束</div><a class="nav-item"><span>行为</span></a><a class="nav-item"><span>成长</span></a><a class="nav-item"><span>自律</span></a></nav>
+      <div class="record-detail" style="padding:12px 14px;border-top:1px solid var(--divider)">纯本地模式</div>
     </aside>
-
-    <main class="content">
-      <div class="topbar glass">
-        <div class="crumb"><strong>今日</strong><span>/</span><span>执行工作台</span></div>
-        <div class="top-actions">
-          <span class="sync-chip"><span class="status-dot"></span>刚刚同步</span>
-          <button class="icon-btn" title="全局搜索">⌕</button>
-          <button class="icon-btn" title="切换主题" id="themeToggle">◐</button>
-          <button class="action-btn"><span>＋</span><span>快速新增</span></button>
+    <main class="main">
+      <div class="page-header"><span class="accent-bar"></span><div><h1>今日</h1><div class="sub">2026年8月7日 · 星期五</div></div><span class="spacer"></span><button class="btn ghost">搜索</button><button class="btn primary">新增</button></div>
+      <div class="today-grid">
+        <div class="today-work">
+          <section class="workspace-section"><div class="section-head"><span class="bar"></span><h2>今日重点</h2><span class="spacer"></span><span class="pill primary">已锁定 3 项</span></div><div class="commitments">
+            <article class="commitment done"><span class="state">01 · 已完成</span><h3>整理衍射实验数据与误差记录</h3><p>预计 50 分钟 · 证据已记录</p></article>
+            <article class="commitment current"><span class="state">02 · 进行中</span><h3>校对论文图 3 的坐标轴与单位</h3><p>预计 35 分钟 · 当前重点</p></article>
+            <article class="commitment"><span class="state">03 · 待开始</span><h3>阅读角谱传播采样条件笔记</h3><p>预计 25 分钟</p></article>
+          </div></section>
+          <section class="workspace-section"><div class="section-head"><span class="bar"></span><h2>下一时间块</h2><span class="spacer"></span><span class="pill">14:00</span></div><div class="next-block"><span class="time num">14:00</span><div><b>文献阅读</b><div class="record-detail">50 分钟 · 与今日重点关联</div></div><button class="btn outline sm">安排专注</button></div></section>
+          <section class="workspace-section"><div class="section-head"><span class="bar"></span><h2>今日时间线</h2></div><div class="log-rail">
+            <div class="rail-row done"><span class="rail-node">✓</span><div class="rail-title">实验数据清洗</div><div class="rail-detail"><span class="num">09:00</span> · 90 分钟 · 已完成</div></div>
+            <div class="rail-row warning"><span class="rail-node">!</span><div class="rail-title">论文图复核</div><div class="rail-detail"><span class="num">10:00</span> · 75 分钟 · 时间冲突</div></div>
+            <div class="rail-row current"><span class="rail-node">●</span><div class="rail-title">文献阅读</div><div class="rail-detail"><span class="num">14:00</span> · 50 分钟 · 进行中</div></div>
+          </div></section>
         </div>
-      </div>
-
-      <header class="page-head">
-        <div><div class="eyebrow">MONDAY · 08/23</div><h1>今天，先完成最重要的三件事</h1><div class="subtitle">把注意力留给当前这一项，其他安排会在时间线上等你。</div></div>
-        <div class="head-meta"><span class="date-chip">2026年8月23日 · 星期日</span><span class="date-chip">完成度 2 / 6</span></div>
-      </header>
-
-      <div class="workspace-grid">
-        <div class="main-column">
-          <section class="panel glass">
-            <div class="panel-title"><div class="title-with-bar"><span class="section-bar"></span><h2>今日重点</h2></div><span>已锁定 3 项</span></div>
-            <div class="commitments">
-              <article class="commitment active"><div class="commitment-top"><span>01 · 进行中</span><span class="check">◉</span></div><h3>整理本周实验笔记</h3><div class="commitment-meta">专注 45 分钟 · 项目「光学仿真」</div></article>
-              <article class="commitment"><div class="commitment-top"><span>02 · 待开始</span><span class="check">○</span></div><h3>完成论文图表的误差分析</h3><div class="commitment-meta">预计 60 分钟 · 下午时间块</div></article>
-              <article class="commitment done"><div class="commitment-top"><span>03 · 已完成</span><span class="check">✓</span></div><h3>清理收集箱中的待处理记录</h3><div class="commitment-meta">完成于 09:20 · 留下执行记录</div></article>
-            </div>
-          </section>
-
-          <section class="panel glass">
-            <div class="panel-title"><div class="title-with-bar"><span class="section-bar"></span><h2>下一时间块</h2></div><span>距离开始 18 分钟</span></div>
-            <div class="next-block"><div class="time-box">14:00</div><div class="next-copy"><strong>论文图表的误差分析</strong><span>60 分钟 · 安静工作 · 与当前重点关联</span></div><button class="mini-btn">安排专注</button></div>
-          </section>
-
-          <section class="panel glass opaque">
-            <div class="panel-title"><div class="title-with-bar"><span class="section-bar"></span><h2>今日时间线</h2></div><div class="legend"><span class="legend-dot"></span>进行中 <span class="legend-dot done"></span>已完成 <span class="legend-dot muted"></span>待开始</div></div>
-            <div class="timeline">
-              <div class="timeline-row"><div class="timeline-time">09:00</div><div class="timeline-track"><span class="timeline-dot"></span></div><div class="timeline-copy"><strong>整理本周实验笔记</strong><span>45 分钟 · 当前专注任务</span><span class="timeline-tag">进行中</span></div></div>
-              <div class="timeline-row done"><div class="timeline-time">11:00</div><div class="timeline-track"><span class="timeline-dot"></span></div><div class="timeline-copy"><strong>回顾今日计划并清理收集箱</strong><span>30 分钟 · 已留下执行记录</span><span class="timeline-tag">已完成</span></div></div>
-              <div class="timeline-row upcoming"><div class="timeline-time">14:00</div><div class="timeline-track"><span class="timeline-dot"></span></div><div class="timeline-copy"><strong>论文图表的误差分析</strong><span>60 分钟 · 下午时间块</span><span class="timeline-tag">待开始</span></div></div>
-            </div>
-          </section>
-        </div>
-
-        <aside class="rail">
-          <section class="panel glass">
-            <div class="panel-title"><div class="title-with-bar"><span class="section-bar"></span><h2>习惯摘要</h2></div><span>今天 4 / 5</span></div>
-            <div class="progress-row"><div class="progress-track"><div class="progress-fill"></div></div><div class="progress-value">80%</div></div>
-            <div class="habit-list" style="margin-top:14px">
-              <div class="habit-row"><span class="name">晨间拉伸</span><div class="habit-days"><span class="habit-day on"></span><span class="habit-day on"></span><span class="habit-day on"></span><span class="habit-day today"></span></div><span>4d</span></div>
-              <div class="habit-row"><span class="name">阅读 20 分钟</span><div class="habit-days"><span class="habit-day on"></span><span class="habit-day on"></span><span class="habit-day today"></span><span class="habit-day"></span></div><span>2d</span></div>
-              <div class="habit-row"><span class="name">记录实验观察</span><div class="habit-days"><span class="habit-day on"></span><span class="habit-day on"></span><span class="habit-day on"></span><span class="habit-day today"></span></div><span>4d</span></div>
-            </div>
-          </section>
-
-          <section class="panel glass">
-            <div class="panel-title"><div class="title-with-bar"><span class="section-bar"></span><h2>每日收尾</h2></div><span>未完成 2 项</span></div>
-            <div class="closing"><div class="closing-line"><span>已完成重点</span><strong>2 / 3</strong></div><div class="closing-line"><span>待处理承诺</span><strong>2 项</strong></div><button class="closing-action">查看收尾清单</button><div class="tip">今天结束前记录未完成原因，明天的安排会更清楚。</div></div>
-          </section>
-
-          <section class="panel glass" style="background:var(--primary-soft);border-color:var(--line-strong)">
-            <div class="panel-title"><div class="title-with-bar"><span class="section-bar"></span><h2>当前节奏</h2></div><span>稳定</span></div>
-            <div style="font-size:13px;line-height:1.55">专注正在进行。下一次切换前，还有足够时间把这一项收好。</div>
-            <button class="action-btn" style="width:100%;margin-top:14px">打开专注计时</button>
-          </section>
+        <aside class="today-aside">
+          <div class="section-head"><span class="bar"></span><h2>执行证据</h2></div><div class="metric"><div class="value">01 / 03</div><div class="label">今日承诺</div></div><dl class="facts"><div class="fact"><dt>完成承诺 1</dt><dd class="num">+20 XP</dd></div><div class="fact"><dt>完成计分习惯</dt><dd class="num">+5 XP</dd></div></dl>
+          <div class="section-head" style="margin-top:24px"><span class="bar"></span><h2>每日收尾</h2></div><div class="record-row"><div class="record-copy"><div class="record-title">今日尚未日结</div><div class="record-detail">处理剩余事项，并为明天留下清晰起点。</div></div></div><button class="btn outline" style="width:100%;margin-top:12px">查看清单</button>
         </aside>
       </div>
     </main>
   </div>
-  <script>
-    const params = new URLSearchParams(location.search);
-    const theme = params.get('theme') || 'light';
-    document.documentElement.dataset.theme = theme;
-    document.getElementById('themeToggle').addEventListener('click', () => {
-      document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    });
-  </script>
+  <script src="assets/app.js"></script>
+  <script>const q=new URLSearchParams(location.search).get('theme');if(q)document.documentElement.dataset.theme=q;</script>
 </body>
 </html>

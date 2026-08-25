@@ -483,7 +483,7 @@ class _BlockTile extends StatelessWidget {
       excludeSemantics: conflict,
       child: Material(
         color: conflict
-            ? context.tokens.rewardContainer
+            ? context.tokens.signal.withValues(alpha: 0.12)
             : Theme.of(context).colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(5),
         child: InkWell(
@@ -496,7 +496,7 @@ class _BlockTile extends StatelessWidget {
               border: Border(
                 left: BorderSide(
                   color: conflict
-                      ? context.tokens.reward
+                      ? context.tokens.signal
                       : Theme.of(context).colorScheme.primary,
                   width: 3,
                 ),
@@ -523,7 +523,7 @@ class _BlockTile extends StatelessWidget {
                       Text(
                         '冲突',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: context.tokens.reward,
+                          color: context.tokens.signal,
                         ),
                       ),
                   ],
