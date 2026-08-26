@@ -100,12 +100,23 @@
     restriction: {
       title: "自律",
       subtitle: "高密度规则编辑与保护状态",
+      action: "编辑规则",
       main: `
-        <section class="workspace-section"><div class="section-head"><span class="bar"></span><h2>规则</h2><span class="spacer"></span><button class="btn primary sm">新增规则</button></div>
-          <div class="record-list"><div class="record-row"><div class="record-copy"><div class="record-title">时段规则</div><div class="record-detail">黑名单：命中后限制 · 默认动作：提醒</div></div><span class="toggle on" aria-label="已启用"></span></div><div class="record-row"><div class="record-copy"><div class="record-title">网站拦截</div><div class="record-detail">Windows hosts</div></div><span class="pill">Windows</span></div></div>
+        <section class="restriction-summary" aria-label="当前自律状态">
+          <div class="restriction-stat"><span>当前状态</span><strong>等待时段</strong></div>
+          <div class="restriction-stat"><span>当前规则</span><strong>论文冲刺自律</strong></div>
+          <div class="restriction-stat"><span>下一次切换</span><strong class="num">8/10 09:00</strong></div>
+          <div class="restriction-stat"><span>今日拦截</span><strong class="num">1 次</strong></div>
+          <div class="restriction-stat"><span>hosts</span><strong>未生效</strong></div>
+        </section>
+        <section class="workspace-section"><div class="section-head"><span class="bar"></span><h2>规则</h2></div>
+          <div class="record-list"><div class="record-row"><div class="record-copy"><div class="record-title">时段规则</div><div class="record-detail">黑名单：命中后限制 · 默认动作：提醒</div></div><span class="toggle on" role="img" aria-label="规则已启用"></span></div><div class="record-row"><div class="record-copy"><div class="record-title">网站拦截</div><div class="record-detail">Windows hosts</div></div><span class="pill">Windows</span></div></div>
         </section>
         <section class="workspace-section"><div class="section-head"><span class="bar"></span><h2>保护设置</h2></div>
-          <div class="setting-group"><div class="setting-row"><div class="setting-copy"><b>强保护</b><p>限制时段内固定活动快照，其他设备的削弱修改待时段结束后应用</p></div><span class="toggle on"></span></div><div class="setting-row"><div class="setting-copy"><b>敏感操作冷静期</b><p>固定为 5 分钟；一次性紧急恢复码可立即执行</p></div><span class="pill danger">5 分钟</span></div><div class="setting-row"><div class="setting-copy"><b>紧急恢复码</b><p>一次性、本机保存，生成新码会替换旧码</p></div><button class="btn outline sm">生成</button></div></div>
+          <div class="setting-group"><div class="setting-row"><div class="setting-copy"><b>强保护</b><p>限制时段内固定活动快照，其他设备的削弱修改待时段结束后应用</p></div><span class="toggle on" role="img" aria-label="强保护已启用"></span></div><div class="setting-row"><div class="setting-copy"><b>敏感操作冷静期</b><p>固定为 5 分钟；一次性紧急恢复码可立即执行</p></div><span class="pill danger">5 分钟</span></div><div class="setting-row"><div class="setting-copy"><b>紧急恢复码</b><p>一次性、本机保存，生成新码会替换旧码</p></div><button class="btn outline sm">生成</button></div></div>
+        </section>
+        <section class="workspace-section"><div class="section-head"><span class="bar"></span><h2>日志与统计</h2></div>
+          <div class="record-list"><div class="record-row"><div class="record-copy"><div class="record-title">video.exe</div><div class="record-detail">窗口标题命中：短视频 · <span class="num">8/9 09:42</span></div></div><span class="pill danger">强制结束</span></div></div>
         </section>`,
       aside: `
         <div class="section-head"><span class="bar"></span><h2>保护状态</h2></div>
@@ -142,7 +153,7 @@
     <header class="preview-bar"><div class="brand"><span class="dot"></span>个人航行日志</div><nav><a href="index.html">设计令牌</a><a href="today.html">今日</a><a href="projects.html">项目</a><a href="notes.html">笔记</a><a href="behavior.html">行为</a><a href="growth.html">成长</a><a href="restriction.html">自律</a><a href="settings.html">设置</a><a href="mobile.html">移动端</a><a href="components.html">组件</a></nav><button class="theme-toggle" onclick="toggleTheme()"><span class="label">切换暗色</span></button></header>
     <div class="shell family-shell">
       <aside class="sidebar"><div class="logo-row"><div class="logo"></div><div class="name">个人工作台</div></div><div style="padding:12px 10px"><button class="btn primary" style="width:100%">快速新增</button></div><nav class="nav"><div class="nav-group">工作索引</div>${navItems}</nav><div class="record-detail" style="padding:12px 14px;border-top:1px solid var(--divider)">纯本地模式</div></aside>
-      <main class="main family-main"><div class="page-header"><span class="accent-bar"></span><div><h1>${current.title}</h1><div class="sub">${current.subtitle}</div></div><span class="spacer"></span><button class="btn ghost">搜索</button><button class="btn primary">新增</button></div><div class="family-grid"><div class="work-column">${current.main}</div><aside class="evidence-rail">${current.aside}</aside></div></main>
+      <main class="main family-main"><div class="page-header"><span class="accent-bar"></span><div><h1>${current.title}</h1><div class="sub">${current.subtitle}</div></div><span class="spacer"></span><button class="btn ghost">搜索</button><button class="btn primary">${current.action || "新增"}</button></div><div class="family-grid"><div class="work-column">${current.main}</div><aside class="evidence-rail">${current.aside}</aside></div></main>
     </div>
     <nav class="mobile-bottom"><a href="today.html">今日</a><a href="tasks.html">任务</a><a href="review.html">回顾</a><a class="${page === 'behavior' ? 'active' : ''}" href="behavior.html">行为</a><a class="${page === 'settings' ? 'active' : ''}" href="settings.html">设置</a></nav>`;
 })();

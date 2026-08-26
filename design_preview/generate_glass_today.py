@@ -67,15 +67,15 @@ def text(
 def render(theme: str, output: Path) -> None:
     dark = theme == "dark"
     colors = {
-        "canvas": "#101614" if dark else "#F1F4F2",
-        "surface": "#18211E" if dark else "#FAFBF9",
-        "raised": "#202B27" if dark else "#FFFFFF",
-        "subtle": "#253431" if dark else "#E8EFED",
-        "ink": "#E9EFEB" if dark else "#1B2521",
-        "muted": "#A5B4AE" if dark else "#687772",
-        "divider": "#34433E" if dark else "#D5DEDA",
-        "route": "#64B3BC" if dark else "#256B73",
-        "route_soft": "#203F43" if dark else "#DCECEF",
+        "canvas": "#0F1712" if dark else "#F2F7F3",
+        "surface": "#16231B" if dark else "#FBFDFB",
+        "raised": "#1D2D23" if dark else "#FFFFFF",
+        "subtle": "#263C2E" if dark else "#E8F1EA",
+        "ink": "#E8F2EA" if dark else "#1B2B20",
+        "muted": "#A5B8AA" if dark else "#617268",
+        "divider": "#31443A" if dark else "#D6E3D8",
+        "route": "#76C893" if dark else "#2F7D57",
+        "route_soft": "#21452F" if dark else "#DDEFE4",
         "signal": "#F07A6F" if dark else "#C84F45",
         "marker": "#DDB65B" if dark else "#B8862D",
     }

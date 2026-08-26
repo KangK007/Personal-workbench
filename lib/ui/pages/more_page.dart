@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
+
 class MorePage extends StatelessWidget {
   const MorePage({super.key, required this.onSelected});
 
@@ -34,7 +36,7 @@ class MorePage extends StatelessWidget {
             border: Border.all(
               color: Theme.of(context).colorScheme.outlineVariant,
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
           child: Column(
             children: [

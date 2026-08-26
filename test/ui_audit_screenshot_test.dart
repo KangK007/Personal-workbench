@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_workbench/core/models/attachment.dart';
+import 'package:personal_workbench/core/models/restriction_models.dart';
 import 'package:personal_workbench/core/models/workspace_record.dart';
 import 'package:personal_workbench/core/theme/app_theme.dart';
 import 'package:personal_workbench/data/app_database.dart';
@@ -27,6 +28,7 @@ import 'package:personal_workbench/ui/pages/policies_page.dart';
 import 'package:personal_workbench/ui/pages/projects_page.dart';
 import 'package:personal_workbench/ui/pages/protocols_page.dart';
 import 'package:personal_workbench/ui/pages/review_page.dart';
+import 'package:personal_workbench/ui/pages/restriction_page.dart';
 import 'package:personal_workbench/ui/pages/settings_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
 
@@ -192,6 +194,52 @@ Future<WorkbenchController> _createController() async {
   for (final record in records) {
     await controller.addRecord(record);
   }
+  await controller.addRecord(
+    const RestrictionProfile(
+      id: 'restriction-profile-audit',
+      title: '论文冲刺自律',
+      enabled: true,
+      schedules: [
+        RestrictionScheduleRule(
+          id: 'weekday-daytime',
+          label: '工作日实验与写作',
+          days: [1, 2, 3, 4, 5],
+          startMinutes: 9 * 60,
+          endMinutes: 18 * 60,
+        ),
+        RestrictionScheduleRule(
+          id: 'evening-review',
+          label: '晚间论文复核',
+          days: [1, 3, 5],
+          startMinutes: 19 * 60 + 30,
+          endMinutes: 22 * 60,
+        ),
+      ],
+      blockedApps: ['game.exe', 'video.exe'],
+      blockedTitleKeywords: ['短视频', '游戏直播'],
+      websiteBlocking: true,
+      blockedWebsites: ['example-video.test', 'example-game.test'],
+      allowBreak: true,
+      strongProtection: true,
+    ).toRecord(),
+  );
+  await controller.addRecord(
+    WorkspaceRecord(
+      id: 'restriction-event-audit',
+      kind: RecordKind.protocolEvent,
+      title: 'video.exe',
+      body: '',
+      status: WorkStatus.done,
+      scheduledFor: _auditNow.subtract(const Duration(minutes: 18)),
+      createdAt: _auditNow.subtract(const Duration(minutes: 18)),
+      updatedAt: _auditNow.subtract(const Duration(minutes: 18)),
+      data: const {
+        'recordType': 'restrictionEvent',
+        'reason': '窗口标题命中：短视频',
+        'action': 'forceClose',
+      },
+    ),
+  );
   return controller;
 }
 
@@ -225,6 +273,32 @@ Future<void> _capture(
   tester.view.devicePixelRatio = 1;
   await tester.pumpWidget(_host(child));
   await tester.pump(const Duration(milliseconds: 600));
+  expect(tester.takeException(), isNull);
+  await expectLater(
+    find.byType(MaterialApp),
+    matchesGoldenFile('../docs/images/ui_audit/$name.png'),
+  );
+}
+
+Future<void> _captureRestrictionEditor(
+  WidgetTester tester,
+  WorkbenchController controller,
+  String name, {
+  required Size size,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  final compact = size.width < AppBreakpoints.compact;
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
+  await tester.pumpWidget(
+    _host(RestrictionPage(controller: controller, showHeader: !compact)),
+  );
+  await tester.pump(const Duration(milliseconds: 600));
+  await tester.tap(
+    compact ? find.byTooltip('编辑自律规则') : find.byTooltip('编辑规则').first,
+  );
+  await tester.pumpAndSettle();
   expect(tester.takeException(), isNull);
   await expectLater(
     find.byType(MaterialApp),
@@ -289,6 +363,29 @@ void main() {
       tester,
       'protocols_desktop',
       ProtocolsPage(controller: controller),
+    );
+    await _capture(
+      tester,
+      'restriction_desktop',
+      RestrictionPage(controller: controller),
+    );
+    await _capture(
+      tester,
+      'restriction_mobile',
+      RestrictionPage(controller: controller, showHeader: false),
+      size: const Size(412, 915),
+    );
+    await _captureRestrictionEditor(
+      tester,
+      controller,
+      'restriction_editor_desktop',
+      size: const Size(1200, 900),
+    );
+    await _captureRestrictionEditor(
+      tester,
+      controller,
+      'restriction_editor_mobile',
+      size: const Size(412, 915),
     );
     await _capture(
       tester,

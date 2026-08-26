@@ -33,7 +33,7 @@
   .shape-card { padding: 18px 16px; text-align: center; }
   .shape-card .demo { height: 56px; margin: 0 auto 12px; width: 100px; background: var(--surface); border: 1px solid var(--panel-border); }
   .shape-card .demo.r6 { border-radius: 6px; box-shadow: var(--panel-shadow); }
-  .shape-card .demo.r5 { border-radius: 5px; width: 84px; }
+  .shape-card .demo.r4-control { border-radius: 4px; width: 84px; }
   .shape-card .demo.r8 { border-radius: 8px; width: 110px; }
   .shape-card .demo.r4 { border-radius: 4px; width: 70px; }
   .shape-card .name { font-size: 13px; font-weight: 600; }
@@ -119,18 +119,18 @@
   <section>
     <div class="sec-title"><span class="bar"></span><h2>色彩令牌</h2><span class="note">保留 v1 语义色 · 新增 panel 面板令牌 · 点击右上角切换主题查看双套</span></div>
     <div class="grid g-colors">
-      <div class="swatch"><div class="chip" style="background:var(--canvas);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">canvas</div><div class="val num">#F1F4F2 / #101614</div><div class="pair">中性日志画布</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--surface);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">surface</div><div class="val num">#FAFBF9 / #18211E</div><div class="pair">稳定阅读面</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--subtle)"></div><div class="info"><div class="name">subtle</div><div class="val num">#E8EFED / #253431</div><div class="pair">输入与次级区域</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--primary)"></div><div class="info"><div class="name">route</div><div class="val num">#256B73 / #64B3BC</div><div class="pair">当前路径与主操作</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--primary-container)"></div><div class="info"><div class="name">routeContainer</div><div class="val num">#DCECEF / #203F43</div><div class="pair">路径容器</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--canvas);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">canvas</div><div class="val num">#F2F7F3 / #0F1712</div><div class="pair">清新浅绿日志画布</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--surface);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">surface</div><div class="val num">#FBFDFB / #16231B</div><div class="pair">稳定阅读面</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--subtle)"></div><div class="info"><div class="name">subtle</div><div class="val num">#E8F1EA / #263C2E</div><div class="pair">输入与次级区域</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--primary)"></div><div class="info"><div class="name">route</div><div class="val num">#2F7D57 / #76C893</div><div class="pair">当前路径与主操作</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--primary-container)"></div><div class="info"><div class="name">routeContainer</div><div class="val num">#DDEFE4 / #21452F</div><div class="pair">路径容器</div></div></div>
       <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="info"><div class="name">signal</div><div class="val num">#C84F45 / #F07A6F</div><div class="pair">冲突与危险操作</div></div></div>
       <div class="swatch"><div class="chip" style="background:var(--gold)"></div><div class="info"><div class="name">marker</div><div class="val num">#B8862D / #DDB65B</div><div class="pair">完成证据与里程碑</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--info)"></div><div class="info"><div class="name">info</div><div class="val num">#0EA5E9 / #38BDF8</div><div class="pair">信息状态</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="info"><div class="name">danger</div><div class="val num">#EF4444 / #F87171</div><div class="pair">危险状态</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--ink)"></div><div class="info"><div class="name">ink</div><div class="val num">#1A1F1C / #F1F5F9</div><div class="pair">主文字</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--ink-muted)"></div><div class="info"><div class="name">inkMuted</div><div class="val num">#6B7280 / #94A3B8</div><div class="pair">次级文字</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--panel-border)"></div><div class="info"><div class="name">panelBorder ★</div><div class="val num">#E2E8E5 / #2A342F</div><div class="pair">v2 新增 · 1px 面板描边</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--info)"></div><div class="info"><div class="name">info</div><div class="val num">#3F7FA0 / #7EA9D0</div><div class="pair">信息状态</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="info"><div class="name">danger</div><div class="val num">#B53D3A / #F07A6F</div><div class="pair">危险状态</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink)"></div><div class="info"><div class="name">ink</div><div class="val num">#1B2B20 / #E8F2EA</div><div class="pair">主文字</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink-muted)"></div><div class="info"><div class="name">inkMuted</div><div class="val num">#617268 / #A5B8AA</div><div class="pair">次级文字</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--panel-border)"></div><div class="info"><div class="name">panelBorder ★</div><div class="val num">#D6E3D8 / #31443A</div><div class="pair">v2 新增 · 1px 面板描边</div></div></div>
     </div>
     <p class="token-note" style="margin-top:12px">panelShadow：亮 rgba(10,20,15,.04) blur10 y3 / 暗 rgba(0,0,0,.28)；raisedShadow：blur16 y6。所有工作面均为实色，不使用背景模糊。</p>
   </section>
@@ -139,9 +139,9 @@
   <section>
     <div class="sec-title"><span class="bar"></span><h2>形状语言 · 锐利化</h2><span class="note">整体从柔和圆润转向硬朗锐意</span></div>
     <div class="grid g-shape">
-      <div class="panel shape-card"><div class="demo r6"></div><div class="name">卡片 / 弹窗 / FAB</div><div class="val num">6px</div><div class="delta">v1 12px → 收紧 50%</div></div>
-      <div class="panel shape-card"><div class="demo r5"></div><div class="name">按钮 / 输入 / Chip</div><div class="val num">5px</div><div class="delta">v1 8px</div></div>
-      <div class="panel shape-card"><div class="demo r8"></div><div class="name">底部弹层顶部</div><div class="val num">8px</div><div class="delta">v1 16px</div></div>
+      <div class="panel shape-card"><div class="demo r6"></div><div class="name">卡片 / FAB</div><div class="val num">6px</div><div class="delta">内容面保持紧凑</div></div>
+      <div class="panel shape-card"><div class="demo r4-control"></div><div class="name">按钮 / 输入 / Chip</div><div class="val num">4px</div><div class="delta">内层小于外层面板</div></div>
+      <div class="panel shape-card"><div class="demo r8"></div><div class="name">对话框 / 底部弹层</div><div class="val num">8px</div><div class="delta">仅用于独立浮层</div></div>
       <div class="panel shape-card"><div class="demo r4"></div><div class="name">Tooltip / 胶囊</div><div class="val num">4px</div><div class="delta">v1 6px</div></div>
     </div>
   </section>

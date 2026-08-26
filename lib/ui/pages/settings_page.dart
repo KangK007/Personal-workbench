@@ -533,27 +533,9 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-// 设置行统一图标：翠绿圆角容器 + 描边图标，保证与标题文字对齐
-class _SettingsIcon extends StatelessWidget {
-  const _SettingsIcon(this.icon, {this.color});
-
-  final IconData icon;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final tint = color ?? scheme.primary;
-    return Container(
-      width: 34,
-      height: 34,
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(icon, size: 18, color: tint),
-    );
-  }
+// 保留本页名称兼容；视觉实现由共享 SurfaceIcon 统一。
+class _SettingsIcon extends SurfaceIcon {
+  const _SettingsIcon(super.icon, {super.color});
 }
 
 class _AccentPreview extends StatelessWidget {
@@ -706,7 +688,7 @@ class _Section extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -21,24 +21,31 @@ if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'emergency_recovery.ps
     throw 'The package is incomplete: emergency_recovery.ps1 is missing.'
 }
 
-Get-Process personal_workbench -ErrorAction SilentlyContinue |
-    Where-Object {
-        $_.Path -and $_.Path.StartsWith(
-            $installDirectory,
-            [System.StringComparison]::OrdinalIgnoreCase
-        )
-    } |
-    Stop-Process -Force
+Get-Process -Name personal_workbench -ErrorAction SilentlyContinue |
+    Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 500
 
 New-Item -ItemType Directory -Force -Path $installDirectory | Out-Null
-Copy-Item -Path (Join-Path $source '*') -Destination $installDirectory -Recurse -Force
+for ($attempt = 1; $attempt -le 8; $attempt++) {
+    try {
+        Copy-Item -Path (Join-Path $source '*') -Destination $installDirectory -Recurse -Force
+        break
+    } catch {
+        if ($attempt -eq 8) {
+            throw
+        }
+        Start-Sleep -Milliseconds (250 * $attempt)
+    }
+}
 Copy-Item -Path (Join-Path $PSScriptRoot 'emergency_recovery.ps1') -Destination $installDirectory -Force
 Copy-Item -Path (Join-Path $PSScriptRoot 'emergency_recovery.cmd') -Destination $installDirectory -Force
 
 $shell = New-Object -ComObject WScript.Shell
 $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+$chineseName = -join ([char[]](0x4E2A, 0x4EBA, 0x5DE5, 0x4F5C, 0x53F0))
 $shortcutPaths = @(
     (Join-Path $startMenu 'Personal Workbench.lnk'),
+    (Join-Path $startMenu ($chineseName + '.lnk')),
     (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Personal Workbench.lnk')
 )
 foreach ($shortcutPath in $shortcutPaths) {

@@ -53,7 +53,7 @@
     transition: transform .12s ease;
   }
   .fab:active { transform: scale(0.94); }
-  html[data-theme="dark"] .fab { color: #06281D; }
+  html[data-theme="dark"] .fab { color: #0B2A18; }
 
   /* 快速捕获底部弹层：实色 raised + 顶部 8px 圆角 + 把手 */
   .sheet-mask { position: absolute; inset: 0; background: rgba(0,0,0,.32); display: flex; align-items: flex-end; }
@@ -63,18 +63,20 @@
     border-radius: var(--r-sheet) var(--r-sheet) 0 0;
     box-shadow: var(--raised-shadow);
     padding: 10px 16px 22px;
-    animation: sheetUp .28s cubic-bezier(0.2, 0, 0, 1) both;
+    animation: sheetUp .22s cubic-bezier(0.2, 0, 0, 1) both;
   }
   @keyframes sheetUp { from { transform: translateY(60%); opacity: .5; } to { transform: translateY(0); opacity: 1; } }
+  .sheet.is-exiting { animation: sheetDown .15s ease-in both; }
+  @keyframes sheetDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(30%); opacity: 0; } }
   .sheet .handle { width: 36px; height: 4px; border-radius: 2px; background: var(--divider); margin: 4px auto 14px; }
   .sheet h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
   .quick-types { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
-  .qtype { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: var(--r-btn); background: var(--subtle); border: 1px solid transparent; cursor: pointer; transition: all .12s ease; }
+  .qtype { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: var(--r-btn); background: var(--subtle); border: 1px solid transparent; cursor: pointer; transition: background-color .12s ease, border-color .12s ease, color .12s ease, transform .12s ease; }
   .qtype:active { transform: scale(.96); }
   .qtype span { font-size: 11px; color: var(--ink-muted); }
   .qtype.on { background: color-mix(in srgb, var(--primary) 10%, transparent); border-color: color-mix(in srgb, var(--primary) 30%, transparent); }
   .qtype.on span { color: var(--primary); }
-  .qtype .ic-box { width: 32px; height: 32px; border-radius: 8px; background: var(--surface); border: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: center; color: var(--ink); }
+  .qtype .ic-box { width: 32px; height: 32px; border-radius: 3px; background: var(--surface); border: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: center; color: var(--ink); }
   .qtype.on .ic-box { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
 
   .m-card { padding: 12px; margin-bottom: 10px; }
@@ -110,7 +112,7 @@
       <div class="m-appbar">
         <div class="bar"></div>
         <div class="t"><b>今日</b><span class="num">8月21日 星期五</span></div>
-        <button class="btn ghost icon" style="width:32px;height:32px"><svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
+        <button class="btn ghost icon" aria-label="筛选" style="width:44px;height:44px"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
       </div>
       <div class="m-body stagger">
         <div class="panel m-card with-accent" data-status="doing">
@@ -134,7 +136,7 @@
           <div class="m-habits"><span style="font-size:12.5px;flex:1">日结</span><div class="habit-dots"><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d hit"></span><span class="d"></span></div></div>
         </div>
         <div class="panel m-card" style="display:flex;align-items:center;gap:10px">
-          <div style="width:32px;height:32px;border-radius:8px;background:var(--reward-container);color:var(--reward);display:flex;align-items:center;justify-content:center;flex:none"><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></div>
+          <div style="width:32px;height:32px;border-radius:4px;background:var(--reward-container);color:var(--reward);display:flex;align-items:center;justify-content:center;flex:none"><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></div>
           <div style="flex:1"><b style="font-size:12.5px;display:block">今日尚未日结</b><span style="font-size:11px;color:var(--ink-muted)">21:30 后开放</span></div>
           <button class="btn outline sm" style="height:26px;font-size:11.5px">清单</button>
         </div>

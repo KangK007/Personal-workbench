@@ -29,8 +29,14 @@ class RestrictionSection extends StatelessWidget {
     final profile = controller.restrictionProfile;
     final monitor = controller.restrictionMonitorState;
     final windows = Platform.isWindows;
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 132),
+      padding: EdgeInsets.fromLTRB(
+        compact ? AppSpacing.pageCompact : AppSpacing.pageMedium,
+        0,
+        compact ? AppSpacing.pageCompact : AppSpacing.pageMedium,
+        132,
+      ),
       children: [
         if (controller.restrictionExitRequested)
           _ExitRequestBanner(controller: controller),
@@ -72,6 +78,7 @@ class RestrictionSection extends StatelessWidget {
           );
     return LogSurface(
       accent: statusColor,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Wrap(
         spacing: 24,
         runSpacing: 18,
@@ -84,10 +91,12 @@ class RestrictionSection extends StatelessWidget {
           _Metric(
             label: '下一次切换',
             value: next?.at == null ? '暂无计划' : _dateTime(next!.at!),
+            numeric: next?.at != null,
           ),
           _Metric(
             label: '今日拦截',
             value: '${controller.todayRestrictionEventCount} 次',
+            numeric: true,
           ),
           _Metric(
             label: 'hosts',
@@ -113,7 +122,9 @@ class RestrictionSection extends StatelessWidget {
       child: Column(
         children: [
           SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
             value: profile.enabled,
             onChanged: (value) async {
               try {
@@ -134,14 +145,16 @@ class RestrictionSection extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             subtitle: Text(_profileSummary(profile)),
-            secondary: Icon(
+            secondary: SurfaceIcon(
               profile.enabled ? Icons.shield : Icons.shield_outlined,
             ),
           ),
           const Divider(height: 1),
           ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.schedule_outlined),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
+            leading: const SurfaceIcon(Icons.schedule_outlined),
             title: const Text('时段规则'),
             subtitle: Text(
               profile.schedules.isEmpty
@@ -155,8 +168,10 @@ class RestrictionSection extends StatelessWidget {
             ),
           ),
           ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.apps_outlined),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
+            leading: const SurfaceIcon(Icons.apps_outlined),
             title: Text(
               profile.blockMode == RestrictionBlockMode.blacklist
                   ? '应用黑名单'
@@ -169,8 +184,10 @@ class RestrictionSection extends StatelessWidget {
             ),
           ),
           ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.public_outlined),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
+            leading: const SurfaceIcon(Icons.public_outlined),
             title: const Text('网站拦截'),
             subtitle: Text(
               profile.websiteBlocking
@@ -194,7 +211,9 @@ class RestrictionSection extends StatelessWidget {
       child: Column(
         children: [
           SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
             value: security.hasPassword,
             onChanged: (value) => value
                 ? _setPassword(context, controller)
@@ -203,10 +222,12 @@ class RestrictionSection extends StatelessWidget {
             subtitle: Text(
               security.hasPassword ? '敏感修改需要密码并进入 5 分钟冷静期' : '未设置本机保护密码',
             ),
-            secondary: const Icon(Icons.lock_outline),
+            secondary: const SurfaceIcon(Icons.lock_outline),
           ),
           SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
             value: profile?.strongProtection == true,
             onChanged: monitor.active
                 ? null
@@ -228,18 +249,22 @@ class RestrictionSection extends StatelessWidget {
                   },
             title: const Text('强保护'),
             subtitle: const Text('限制时段内固定活动快照，其他设备的削弱修改待时段结束后应用'),
-            secondary: const Icon(Icons.gpp_maybe_outlined),
+            secondary: const SurfaceIcon(Icons.gpp_maybe_outlined),
           ),
           ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.hourglass_bottom_outlined),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
+            leading: const SurfaceIcon(Icons.hourglass_bottom_outlined),
             title: const Text('敏感操作冷静期'),
             subtitle: const Text('固定为 5 分钟；一次性紧急恢复码可立即执行'),
           ),
           if (monitor.active && monitor.activeSnapshot?.allowBreak == true)
             ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.free_breakfast_outlined),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+              ),
+              leading: const SurfaceIcon(Icons.free_breakfast_outlined),
               title: Text(
                 monitor.isPaused(controller.currentTime()) ? '临时休息中' : '临时休息',
               ),
@@ -259,8 +284,10 @@ class RestrictionSection extends StatelessWidget {
                     ),
             ),
           ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.vpn_key_outlined),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
+            leading: const SurfaceIcon(Icons.vpn_key_outlined),
             title: const Text('紧急恢复码'),
             subtitle: const Text('一次性、本机保存，生成新码会替换旧码'),
             trailing: TextButton(
@@ -270,8 +297,10 @@ class RestrictionSection extends StatelessWidget {
           ),
           if (pending != null)
             ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.hourglass_top_outlined),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+              ),
+              leading: const SurfaceIcon(Icons.hourglass_top_outlined),
               title: const Text('冷静期进行中'),
               subtitle: Text('将在 ${_dateTime(pending)} 应用待定操作'),
               trailing: TextButton(
@@ -297,8 +326,10 @@ class RestrictionSection extends StatelessWidget {
       child: Column(
         children: [
           ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
+            leading: SurfaceIcon(
               profile?.strongProtection == true
                   ? Icons.gpp_good_outlined
                   : Icons.gpp_maybe_outlined,
@@ -307,8 +338,10 @@ class RestrictionSection extends StatelessWidget {
             subtitle: Text(profile?.strongProtection == true ? '已启用' : '未启用'),
           ),
           ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.power_outlined),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
+            leading: const SurfaceIcon(Icons.power_outlined),
             title: const Text('Windows 后台行为'),
             subtitle: Text(
               '开机启动：${controller.startupEnabled ? '已开启' : '未开启'} · '
@@ -316,11 +349,16 @@ class RestrictionSection extends StatelessWidget {
             ),
           ),
           ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+            ),
+            leading: SurfaceIcon(
               hosts.active
                   ? Icons.check_circle_outline
                   : Icons.cloud_off_outlined,
+              color: hosts.error.isEmpty
+                  ? null
+                  : Theme.of(context).colorScheme.error,
             ),
             title: const Text('hosts 与系统诊断'),
             subtitle: Text(
@@ -389,13 +427,18 @@ class RestrictionPage extends StatelessWidget {
             ],
           )
         else
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              onPressed: () =>
-                  showRestrictionProfileEditor(context, controller),
-              tooltip: '编辑自律规则',
-              icon: const Icon(Icons.edit_outlined),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.pageCompact,
+            ),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                onPressed: () =>
+                    showRestrictionProfileEditor(context, controller),
+                tooltip: '编辑自律规则',
+                icon: const Icon(Icons.edit_outlined),
+              ),
             ),
           ),
         Expanded(
@@ -646,228 +689,436 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('编辑自律规则'),
-      content: SizedBox(
-        width: 620,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final editorContent = SingleChildScrollView(
+      padding: compact
+          ? const EdgeInsets.fromLTRB(16, 12, 16, 24)
+          : EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionLabel(context, '规则', topPadding: false),
+          TextField(
+            controller: _title,
+            decoration: const InputDecoration(labelText: '规则名称'),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _enabled,
+            onChanged: (v) => setState(() => _enabled = v),
+            title: const Text('启用规则'),
+          ),
+          DropdownButtonFormField<RestrictionBlockMode>(
+            isExpanded: true,
+            initialValue: _mode,
+            decoration: const InputDecoration(labelText: '应用匹配模式'),
+            items: const [
+              DropdownMenuItem(
+                value: RestrictionBlockMode.blacklist,
+                child: Text('黑名单：命中后限制', overflow: TextOverflow.ellipsis),
+              ),
+              DropdownMenuItem(
+                value: RestrictionBlockMode.whitelist,
+                child: Text('白名单：未命中后限制', overflow: TextOverflow.ellipsis),
+              ),
+            ],
+            onChanged: (v) => setState(() => _mode = v ?? _mode),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<RestrictionAction>(
+            isExpanded: true,
+            initialValue: _action,
+            decoration: const InputDecoration(labelText: '默认动作'),
+            items: const [
+              DropdownMenuItem(
+                value: RestrictionAction.warn,
+                child: Text('提醒', overflow: TextOverflow.ellipsis),
+              ),
+              DropdownMenuItem(
+                value: RestrictionAction.forceClose,
+                child: Text('强制结束进程', overflow: TextOverflow.ellipsis),
+              ),
+            ],
+            onChanged: (v) => setState(() => _action = v ?? _action),
+          ),
+          _sectionLabel(context, '时段'),
+          Row(
             children: [
-              TextField(
-                controller: _title,
-                decoration: const InputDecoration(labelText: '规则名称'),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _enabled,
-                onChanged: (v) => setState(() => _enabled = v),
-                title: const Text('启用规则'),
-              ),
-              DropdownButtonFormField<RestrictionBlockMode>(
-                initialValue: _mode,
-                decoration: const InputDecoration(labelText: '应用匹配模式'),
-                items: const [
-                  DropdownMenuItem(
-                    value: RestrictionBlockMode.blacklist,
-                    child: Text('黑名单：命中后限制'),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    children: _schedules.isEmpty
+                        ? const [TextSpan(text: '未设置时段')]
+                        : [
+                            TextSpan(
+                              text: '${_schedules.length}',
+                              style: const TextStyle(
+                                fontFamily: AppFonts.numeric,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                            const TextSpan(text: ' 个时段'),
+                          ],
                   ),
-                  DropdownMenuItem(
-                    value: RestrictionBlockMode.whitelist,
-                    child: Text('白名单：未命中后限制'),
-                  ),
-                ],
-                onChanged: (v) => setState(() => _mode = v ?? _mode),
+                ),
               ),
-              DropdownButtonFormField<RestrictionAction>(
-                initialValue: _action,
-                decoration: const InputDecoration(labelText: '默认动作'),
-                items: const [
-                  DropdownMenuItem(
-                    value: RestrictionAction.warn,
-                    child: Text('提醒'),
-                  ),
-                  DropdownMenuItem(
-                    value: RestrictionAction.forceClose,
-                    child: Text('强制结束进程'),
-                  ),
-                ],
-                onChanged: (v) => setState(() => _action = v ?? _action),
+              IconButton(
+                onPressed: () async {
+                  final rule = await _editSchedule(context);
+                  if (rule != null) {
+                    setState(() => _schedules.add(rule));
+                  }
+                },
+                tooltip: '添加时段',
+                icon: const Icon(Icons.add),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text('时段'),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () async {
-                      final rule = await _editSchedule(context);
-                      if (rule != null) {
-                        setState(() => _schedules.add(rule));
-                      }
-                    },
-                    tooltip: '添加时段',
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
+            ],
+          ),
+          for (final rule in _schedules)
+            ListTile(
+              key: ValueKey(rule.id),
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: Text(
+                rule.label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              for (final rule in _schedules)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(_scheduleSummary(rule)),
-                  subtitle: Text(rule.label),
-                  trailing: Wrap(
-                    children: [
-                      IconButton(
-                        onPressed: () async {
-                          final edited = await _editSchedule(
-                            context,
-                            initial: rule,
+              subtitle: Text(
+                _scheduleSummary(rule),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+              trailing: SizedBox(
+                width: 96,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: () async {
+                        final edited = await _editSchedule(
+                          context,
+                          initial: rule,
+                        );
+                        if (edited != null) {
+                          setState(
+                            () => _schedules[_schedules.indexOf(rule)] = edited,
                           );
-                          if (edited != null) {
-                            setState(
-                              () =>
-                                  _schedules[_schedules.indexOf(rule)] = edited,
-                            );
-                          }
-                        },
-                        tooltip: '编辑时段',
-                        icon: const Icon(Icons.edit_outlined),
+                        }
+                      },
+                      tooltip: '编辑时段',
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                    IconButton(
+                      onPressed: () => setState(() => _schedules.remove(rule)),
+                      tooltip: '删除时段',
+                      style: IconButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
                       ),
-                      IconButton(
-                        onPressed: () =>
-                            setState(() => _schedules.remove(rule)),
-                        tooltip: '删除时段',
-                        icon: const Icon(Icons.delete_outline),
-                      ),
-                    ],
-                  ),
-                ),
-              TextField(
-                controller: _apps,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: '阻止应用（每行一个进程名）'),
-              ),
-              TextField(
-                controller: _allowed,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: '允许应用（白名单或豁免）'),
-              ),
-              TextField(
-                controller: _appActions,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: '动作覆盖（每行：进程名=warn 或 forceClose）',
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
                 ),
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _titleBlocking,
-                onChanged: (v) => setState(() => _titleBlocking = v),
-                title: const Text('窗口标题关键词'),
-              ),
-              if (_titleBlocking) ...[
+            ),
+          _sectionLabel(context, '应用'),
+          TextField(
+            controller: _apps,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: '阻止应用',
+              helperText: '每行一个进程名',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: _allowed,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: '允许应用',
+              helperText: '白名单或豁免',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: _appActions,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: '动作覆盖',
+              helperText: '每行：进程名=warn 或 forceClose',
+              helperMaxLines: 2,
+            ),
+          ),
+          _sectionLabel(context, '窗口标题与网站'),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _titleBlocking,
+            onChanged: (v) => setState(() => _titleBlocking = v),
+            title: const Text('窗口标题关键词'),
+          ),
+          _animatedSettings(
+            context,
+            visible: _titleBlocking,
+            child: Column(
+              children: [
                 TextField(
                   controller: _keywordProcesses,
                   maxLines: 2,
                   decoration: const InputDecoration(labelText: '检查的进程（可选）'),
                 ),
+                const SizedBox(height: AppSpacing.md),
                 TextField(
                   controller: _keywords,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: '标题关键词（每行一个）'),
+                  decoration: const InputDecoration(
+                    labelText: '标题关键词',
+                    helperText: '每行一个',
+                  ),
                 ),
-              ],
-              if (_titleBlocking)
+                const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<RestrictionAction>(
+                  isExpanded: true,
                   initialValue: _titleAction,
                   decoration: const InputDecoration(labelText: '标题命中动作'),
                   items: const [
                     DropdownMenuItem(
                       value: RestrictionAction.warn,
-                      child: Text('提醒'),
+                      child: Text('提醒', overflow: TextOverflow.ellipsis),
                     ),
                     DropdownMenuItem(
                       value: RestrictionAction.forceClose,
-                      child: Text('强制结束进程'),
+                      child: Text('强制结束进程', overflow: TextOverflow.ellipsis),
                     ),
                   ],
                   onChanged: (v) =>
                       setState(() => _titleAction = v ?? _titleAction),
                 ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _websiteBlocking,
-                onChanged: (v) => setState(() => _websiteBlocking = v),
-                title: const Text('网站拦截（Windows hosts）'),
+              ],
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _websiteBlocking,
+            onChanged: (v) => setState(() => _websiteBlocking = v),
+            title: const Text('网站拦截（Windows hosts）'),
+          ),
+          _animatedSettings(
+            context,
+            visible: _websiteBlocking,
+            child: TextField(
+              controller: _websites,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: '网站域名',
+                helperText: '每行一个',
               ),
-              if (_websiteBlocking)
-                TextField(
-                  controller: _websites,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: '网站域名（每行一个）'),
-                ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _allowBreak,
-                onChanged: (v) => setState(() => _allowBreak = v),
-                title: const Text('允许临时休息'),
-              ),
-              if (_allowBreak)
-                Row(
+            ),
+          ),
+          _sectionLabel(context, '休息与保护'),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _allowBreak,
+            onChanged: (v) => setState(() => _allowBreak = v),
+            title: const Text('允许临时休息'),
+          ),
+          _animatedSettings(
+            context,
+            visible: _allowBreak,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final fields = [
+                  TextFormField(
+                    initialValue: '$_breakMinutes',
+                    decoration: const InputDecoration(labelText: '休息分钟'),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.numeric,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                    onChanged: (v) =>
+                        _breakMinutes = int.tryParse(v) ?? _breakMinutes,
+                  ),
+                  TextFormField(
+                    initialValue: '$_maxBreaks',
+                    decoration: const InputDecoration(labelText: '每日次数'),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.numeric,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                    onChanged: (v) =>
+                        _maxBreaks = int.tryParse(v) ?? _maxBreaks,
+                  ),
+                ];
+                if (constraints.maxWidth < 360) {
+                  return Column(
+                    children: [
+                      fields.first,
+                      const SizedBox(height: AppSpacing.md),
+                      fields.last,
+                    ],
+                  );
+                }
+                return Row(
                   children: [
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: '$_breakMinutes',
-                        decoration: const InputDecoration(labelText: '休息分钟'),
-                        keyboardType: TextInputType.number,
-                        onChanged: (v) =>
-                            _breakMinutes = int.tryParse(v) ?? _breakMinutes,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: '$_maxBreaks',
-                        decoration: const InputDecoration(labelText: '每日次数'),
-                        keyboardType: TextInputType.number,
-                        onChanged: (v) =>
-                            _maxBreaks = int.tryParse(v) ?? _maxBreaks,
-                      ),
-                    ),
+                    Expanded(child: fields.first),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: fields.last),
+                  ],
+                );
+              },
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _strong,
+            onChanged: (v) => setState(() => _strong = v),
+            title: const Text('强保护'),
+          ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final fieldWidth = constraints.maxWidth > 420
+                  ? 420.0
+                  : constraints.maxWidth;
+              return Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: fieldWidth,
+                  child: DropdownButtonFormField<int>(
+                    isExpanded: true,
+                    initialValue: _poll,
+                    decoration: const InputDecoration(labelText: '检测间隔'),
+                    items: [1, 3, 5, 10, 30, 60]
+                        .map(
+                          (v) => DropdownMenuItem(
+                            value: v,
+                            child: Text(
+                              '$v 秒',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: AppFonts.numeric,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _poll = v ?? _poll),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+    final cancelAction = TextButton(
+      onPressed: () => Navigator.pop(context),
+      child: const Text('取消'),
+    );
+    final saveAction = FilledButton(
+      onPressed: () => Navigator.pop(context, _result()),
+      child: const Text('保存'),
+    );
+    if (compact) {
+      return Dialog.fullscreen(
+        child: Scaffold(
+          resizeToAvoidBottomInset: true,
+          appBar: AppBar(
+            leading: IconButton(
+              onPressed: () => Navigator.pop(context),
+              tooltip: '关闭',
+              icon: const Icon(Icons.close),
+            ),
+            title: const Text('编辑自律规则'),
+            bottom: const PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: Divider(height: 1),
+            ),
+          ),
+          body: SafeArea(top: false, child: editorContent),
+          bottomNavigationBar: SafeArea(
+            top: false,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border(top: BorderSide(color: context.tokens.divider)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                child: Row(
+                  children: [
+                    Expanded(child: cancelAction),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: saveAction),
                   ],
                 ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _strong,
-                onChanged: (v) => setState(() => _strong = v),
-                title: const Text('强保护'),
               ),
-              DropdownButtonFormField<int>(
-                initialValue: _poll,
-                decoration: const InputDecoration(labelText: '检测间隔'),
-                items: [1, 3, 5, 10, 30, 60]
-                    .map((v) => DropdownMenuItem(value: v, child: Text('$v 秒')))
-                    .toList(),
-                onChanged: (v) => setState(() => _poll = v ?? _poll),
-              ),
-            ],
+            ),
           ),
         ),
+      );
+    }
+    return AlertDialog(
+      title: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('编辑自律规则'),
+          SizedBox(height: AppSpacing.sm),
+          Divider(),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _result()),
-          child: const Text('保存'),
-        ),
-      ],
+      content: SizedBox(width: 620, child: editorContent),
+      actions: [cancelAction, saveAction],
     );
   }
+
+  Widget _sectionLabel(
+    BuildContext context,
+    String text, {
+    bool topPadding = true,
+  }) => Padding(
+    padding: EdgeInsets.only(
+      top: topPadding ? AppSpacing.lg : 0,
+      bottom: AppSpacing.sm,
+    ),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+        color: Theme.of(context).colorScheme.primary,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+
+  Widget _animatedSettings(
+    BuildContext context, {
+    required bool visible,
+    required Widget child,
+  }) => ClipRect(
+    child: AnimatedSize(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : visible
+          ? AppMotion.standard
+          : AppMotion.exit,
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      // 浮动标签会越过输入框上缘；预留 4dp，避免展开裁剪遮住文字。
+      child: visible
+          ? Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: child,
+            )
+          : const SizedBox.shrink(),
+    ),
+  );
 
   RestrictionProfile _result() => widget.initial.copyWith(
     title: _title.text.trim().isEmpty
@@ -950,44 +1201,75 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('时段规则'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextField(
-          controller: _label,
-          decoration: const InputDecoration(labelText: '名称'),
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _start,
-                decoration: const InputDecoration(labelText: '开始 HH:MM'),
-              ),
+    content: SizedBox(
+      width: 420,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _label,
+            decoration: const InputDecoration(labelText: '名称'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final fields = [
+                TextField(
+                  controller: _start,
+                  keyboardType: TextInputType.datetime,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.numeric,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                  decoration: const InputDecoration(labelText: '开始 HH:MM'),
+                ),
+                TextField(
+                  controller: _end,
+                  keyboardType: TextInputType.datetime,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.numeric,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                  decoration: const InputDecoration(labelText: '结束 HH:MM'),
+                ),
+              ];
+              if (constraints.maxWidth < 320) {
+                return Column(
+                  children: [
+                    fields.first,
+                    const SizedBox(height: AppSpacing.md),
+                    fields.last,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: fields.first),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(child: fields.last),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                for (final day in List.generate(7, (i) => i + 1))
+                  FilterChip(
+                    label: Text(_dayLabel(day)),
+                    selected: _days.contains(day),
+                    onSelected: (v) =>
+                        setState(() => v ? _days.add(day) : _days.remove(day)),
+                  ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _end,
-                decoration: const InputDecoration(labelText: '结束 HH:MM'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 4,
-          children: [
-            for (final day in List.generate(7, (i) => i + 1))
-              FilterChip(
-                label: Text(_dayLabel(day)),
-                selected: _days.contains(day),
-                onSelected: (v) =>
-                    setState(() => v ? _days.add(day) : _days.remove(day)),
-              ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     ),
     actions: [
       TextButton(
@@ -1028,6 +1310,7 @@ class _PlatformNotice extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 12),
     child: LogSurface(
       accent: Theme.of(context).colorScheme.tertiary,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: const Row(
         children: [
           Icon(Icons.info_outline),
@@ -1048,42 +1331,65 @@ class _ExitRequestBanner extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 12),
     child: LogSurface(
       accent: Theme.of(context).colorScheme.error,
-      child: Row(
-        children: [
-          const Icon(Icons.lock_clock_outlined),
-          const SizedBox(width: 10),
-          const Expanded(child: Text('应用关闭请求已拦截。强保护期间需要密码并进入冷静期，紧急恢复码可立即退出。')),
-          TextButton(
-            onPressed: () async {
-              final credential = await _askInlineCredential(context);
-              if (credential == null) return;
-              try {
-                final at = await controller.requestRestrictionExit(credential);
-                if (context.mounted) {
-                  showWorkbenchSnackBar(
-                    context,
-                    SnackBar(
-                      content: Text(
-                        at == null ? '正在退出' : '退出将在 ${_dateTime(at)} 执行',
-                      ),
-                    ),
-                  );
-                }
-              } catch (error) {
-                if (context.mounted) {
-                  showWorkbenchSnackBar(
-                    context,
-                    SnackBar(content: Text('$error')),
-                  );
-                }
-              }
-            },
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final message = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Icon(Icons.lock_clock_outlined),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text('应用关闭请求已拦截。强保护期间需要密码并进入冷静期，紧急恢复码可立即退出。'),
+              ),
+            ],
+          );
+          final action = TextButton(
+            onPressed: () => _handleExitRequest(context),
             child: const Text('处理'),
-          ),
-        ],
+          );
+          if (constraints.maxWidth < 460) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                message,
+                Align(alignment: Alignment.centerRight, child: action),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: message),
+              action,
+            ],
+          );
+        },
       ),
     ),
   );
+
+  Future<void> _handleExitRequest(BuildContext context) async {
+    final credential = await _askInlineCredential(context);
+    if (credential == null) return;
+    try {
+      final at = await controller.requestRestrictionExit(credential);
+      if (context.mounted) {
+        showWorkbenchSnackBar(
+          context,
+          SnackBar(
+            content: Text(at == null ? '正在退出' : '退出将在 ${_dateTime(at)} 执行'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        showWorkbenchSnackBar(context, SnackBar(content: Text('$error')));
+      }
+    }
+  }
 }
 
 Future<String?> _askInlineCredential(BuildContext context) async {
@@ -1115,10 +1421,16 @@ Future<String?> _askInlineCredential(BuildContext context) async {
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric({required this.label, required this.value, this.color});
+  const _Metric({
+    required this.label,
+    required this.value,
+    this.color,
+    this.numeric = false,
+  });
   final String label;
   final String value;
   final Color? color;
+  final bool numeric;
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 150,
@@ -1132,13 +1444,32 @@ class _Metric extends StatelessWidget {
           ).textTheme.labelMedium?.copyWith(color: context.tokens.mutedText),
         ),
         const SizedBox(height: 3),
-        Text(
-          value,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: AnimatedSwitcher(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : AppMotion.standard,
+            reverseDuration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : AppMotion.exit,
+            child: Align(
+              key: ValueKey(value),
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: color,
+                  fontFamily: numeric ? AppFonts.numeric : null,
+                  fontFeatures: numeric
+                      ? const [FontFeature.tabularFigures()]
+                      : null,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
         ),
       ],
@@ -1177,77 +1508,91 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
           ..sort();
     final events = widget.events.where(_matches).take(50).toList();
     return LogSurface(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              SizedBox(
-                width: 180,
-                child: TextField(
-                  controller: _process,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: '进程',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 150,
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: _period,
-                  decoration: const InputDecoration(labelText: '日期'),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('全部')),
-                    DropdownMenuItem(value: 'today', child: Text('今天')),
-                    DropdownMenuItem(value: 'week', child: Text('近 7 天')),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _period = value ?? 'all'),
-                ),
-              ),
-              SizedBox(
-                width: 190,
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: _reason,
-                  decoration: const InputDecoration(labelText: '原因'),
-                  items: [
-                    const DropdownMenuItem(value: 'all', child: Text('全部')),
-                    ...reasons.map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(
-                          value,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 520;
+              final processWidth = compact ? constraints.maxWidth : 180.0;
+              final periodWidth = compact ? constraints.maxWidth : 150.0;
+              final reasonWidth = compact ? constraints.maxWidth : 190.0;
+              final actionWidth = compact ? constraints.maxWidth : 165.0;
+              return Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  SizedBox(
+                    width: processWidth,
+                    child: TextField(
+                      controller: _process,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: '进程',
+                        prefixIcon: Icon(Icons.search),
                       ),
                     ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _reason = value ?? 'all'),
-                ),
-              ),
-              SizedBox(
-                width: 165,
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: _action,
-                  decoration: const InputDecoration(labelText: '动作'),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('全部')),
-                    DropdownMenuItem(value: 'warn', child: Text('提醒')),
-                    DropdownMenuItem(value: 'forceClose', child: Text('强制结束')),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _action = value ?? 'all'),
-                ),
-              ),
-            ],
+                  ),
+                  SizedBox(
+                    width: periodWidth,
+                    child: DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: _period,
+                      decoration: const InputDecoration(labelText: '日期'),
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text('全部')),
+                        DropdownMenuItem(value: 'today', child: Text('今天')),
+                        DropdownMenuItem(value: 'week', child: Text('近 7 天')),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _period = value ?? 'all'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: reasonWidth,
+                    child: DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: _reason,
+                      decoration: const InputDecoration(labelText: '原因'),
+                      items: [
+                        const DropdownMenuItem(value: 'all', child: Text('全部')),
+                        ...reasons.map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(
+                              value,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _reason = value ?? 'all'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: actionWidth,
+                    child: DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: _action,
+                      decoration: const InputDecoration(labelText: '动作'),
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text('全部')),
+                        DropdownMenuItem(value: 'warn', child: Text('提醒')),
+                        DropdownMenuItem(
+                          value: 'forceClose',
+                          child: Text('强制结束'),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _action = value ?? 'all'),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 8),
           if (events.isEmpty)
@@ -1257,20 +1602,7 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
               message: '规则触发后会记录进程、原因、动作和执行结果。',
             )
           else
-            for (final event in events)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  event.status == WorkStatus.done
-                      ? Icons.check_circle_outline
-                      : Icons.error_outline,
-                ),
-                title: Text(event.title),
-                subtitle: Text(
-                  '${event.data['reason'] ?? '规则命中'} · ${_dateTime(event.scheduledFor ?? event.createdAt)}',
-                ),
-                trailing: Text(event.data['action']?.toString() ?? 'warn'),
-              ),
+            for (final event in events) _RestrictionEventTile(event: event),
         ],
       ),
     );
@@ -1298,6 +1630,60 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
       return false;
     }
     return true;
+  }
+}
+
+class _RestrictionEventTile extends StatelessWidget {
+  const _RestrictionEventTile({required this.event});
+
+  final WorkspaceRecord event;
+
+  @override
+  Widget build(BuildContext context) {
+    final succeeded = event.status == WorkStatus.done;
+    final action = event.data['action']?.toString() ?? 'warn';
+    final actionLabel = action == RestrictionAction.forceClose.name
+        ? '强制结束'
+        : '提醒';
+    final actionPill = StatusPill(
+      label: actionLabel,
+      icon: action == RestrictionAction.forceClose.name
+          ? Icons.block_outlined
+          : Icons.notifications_none_outlined,
+      color: action == RestrictionAction.forceClose.name
+          ? Theme.of(context).colorScheme.error
+          : Theme.of(context).colorScheme.primary,
+    );
+    final detail = Text(
+      '${event.data['reason'] ?? '规则命中'} · ${_dateTime(event.scheduledFor ?? event.createdAt)}',
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 460;
+        return ListTile(
+          key: ValueKey(event.id),
+          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          leading: SurfaceIcon(
+            succeeded ? Icons.check_circle_outline : Icons.error_outline,
+            color: succeeded
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.error,
+          ),
+          title: Text(event.title),
+          subtitle: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    detail,
+                    const SizedBox(height: AppSpacing.sm),
+                    actionPill,
+                  ],
+                )
+              : detail,
+          trailing: compact ? null : actionPill,
+        );
+      },
+    );
   }
 }
 

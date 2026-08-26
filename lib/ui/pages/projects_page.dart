@@ -532,7 +532,7 @@ class _ProjectList extends StatelessWidget {
             selected: project.id == selectedId,
             selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             leading: Icon(
               project.favorite
@@ -686,7 +686,7 @@ class _KanbanColumn extends StatelessWidget {
             color: candidates.isEmpty
                 ? scheme.surfaceContainerHighest
                 : scheme.primaryContainer,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
           child: Padding(
             padding: const EdgeInsets.all(10),
@@ -722,7 +722,7 @@ class _KanbanColumn extends StatelessWidget {
                         data: task,
                         feedback: Material(
                           elevation: 8,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(AppRadius.card),
                           child: SizedBox(
                             width: 260,
                             child: Card(

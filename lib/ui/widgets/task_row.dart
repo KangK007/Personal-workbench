@@ -169,19 +169,47 @@ class TaskRow extends StatelessWidget {
                                           color: context.tokens.mutedText,
                                         ),
                                   ),
-                                  if (task.isDone && completionXp != null) ...[
-                                    const SizedBox(width: 8),
-                                    _AnimatedXpBadge(
-                                      visible: true,
-                                      child: NumericText(
-                                        '+$completionXp XP',
-                                        style: theme.textTheme.labelMedium
-                                            ?.copyWith(
-                                              color: context.tokens.reward,
+                                  AnimatedSwitcher(
+                                    duration:
+                                        MediaQuery.disableAnimationsOf(context)
+                                        ? Duration.zero
+                                        : AppMotion.standard,
+                                    reverseDuration:
+                                        MediaQuery.disableAnimationsOf(context)
+                                        ? Duration.zero
+                                        : AppMotion.exit,
+                                    switchInCurve: Curves.easeOutCubic,
+                                    switchOutCurve: Curves.easeInCubic,
+                                    transitionBuilder: (child, animation) =>
+                                        FadeTransition(
+                                          opacity: animation,
+                                          child: ScaleTransition(
+                                            scale: Tween<double>(
+                                              begin: 0.96,
+                                              end: 1,
+                                            ).animate(animation),
+                                            child: child,
+                                          ),
+                                        ),
+                                    child: task.isDone && completionXp != null
+                                        ? Padding(
+                                            key: ValueKey(completionXp),
+                                            padding: const EdgeInsets.only(
+                                              left: 8,
                                             ),
-                                      ),
-                                    ),
-                                  ],
+                                            child: NumericText(
+                                              '+$completionXp XP',
+                                              style: theme.textTheme.labelMedium
+                                                  ?.copyWith(
+                                                    color:
+                                                        context.tokens.reward,
+                                                  ),
+                                            ),
+                                          )
+                                        : const SizedBox.shrink(
+                                            key: ValueKey('xp-hidden'),
+                                          ),
+                                  ),
                                 ],
                               ),
                             ],
@@ -471,66 +499,6 @@ class _Meta extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// XP 徽章浮入动画：任务完成时 +XP 徽章上浮渐显，强化打卡成就感。
-class _AnimatedXpBadge extends StatefulWidget {
-  const _AnimatedXpBadge({required this.visible, required this.child});
-
-  final bool visible;
-  final Widget child;
-
-  @override
-  State<_AnimatedXpBadge> createState() => _AnimatedXpBadgeState();
-}
-
-class _AnimatedXpBadgeState extends State<_AnimatedXpBadge>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 450),
-  );
-  late final CurvedAnimation _curve = CurvedAnimation(
-    parent: _controller,
-    curve: Curves.easeOutBack,
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.visible) _controller.forward(from: 0);
-  }
-
-  @override
-  void didUpdateWidget(_AnimatedXpBadge oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.visible && !oldWidget.visible) {
-      _controller.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _curve.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!widget.visible) return const SizedBox.shrink();
-    if (MediaQuery.disableAnimationsOf(context)) return widget.child;
-    return FadeTransition(
-      opacity: _curve,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.5),
-          end: Offset.zero,
-        ).animate(_curve),
-        child: widget.child,
-      ),
     );
   }
 }

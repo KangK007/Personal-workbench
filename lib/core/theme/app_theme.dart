@@ -2,38 +2,38 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // ─── 色彩体系：个人工作台 · 个人航行日志 ───
-// 中性记录纸张承载长期工作，航迹蓝标记路径，信号红标记风险，黄铜色标记证据。
+// 清新叶绿承载行动，信号红标记风险，黄铜色标记证据；画布和文字保持中性。
 
 abstract final class AppColors {
   // ═══ 浅色 · 记录纸张 ═══
-  static const lightCanvas = Color(0xFFF1F4F2);
-  static const lightSurface = Color(0xFFFAFBF9);
+  static const lightCanvas = Color(0xFFF2F7F3);
+  static const lightSurface = Color(0xFFFBFDFB);
   static const lightRaised = Color(0xFFFFFFFF);
-  static const lightInk = Color(0xFF1B2521);
-  static const lightInkMuted = Color(0xFF687772);
-  static const lightDivider = Color(0xFFD5DEDA);
-  static const lightPrimary = Color(0xFF256B73); // 航迹蓝绿
-  static const lightPrimaryContainer = Color(0xFFDCECEF);
-  static const lightSecondary = Color(0xFF5B7C78);
-  static const lightSecondaryContainer = Color(0xFFE8EFED);
+  static const lightInk = Color(0xFF1B2B20);
+  static const lightInkMuted = Color(0xFF617268);
+  static const lightDivider = Color(0xFFD6E3D8);
+  static const lightPrimary = Color(0xFF2F7D57); // 叶片绿行动色
+  static const lightPrimaryContainer = Color(0xFFDDEFE4);
+  static const lightSecondary = Color(0xFF4F7561);
+  static const lightSecondaryContainer = Color(0xFFE9F3EC);
   static const lightSignal = Color(0xFFC84F45); // 信号红
   static const lightReward = Color(0xFFB8862D); // 黄铜证据
   static const lightRewardContainer = Color(0xFFF4EBD8);
-  static const lightInfo = Color(0xFF4A7DA8);
+  static const lightInfo = Color(0xFF3F7FA0);
   static const lightDanger = Color(0xFFB53D3A);
   static const lightGold = Color(0xFFB8862D); // 黄铜证据
 
   // ═══ 深色 · 夜间记录台 ═══
-  static const darkCanvas = Color(0xFF101614);
-  static const darkSurface = Color(0xFF18211E);
-  static const darkRaised = Color(0xFF202B27);
-  static const darkInk = Color(0xFFE9EFEB);
-  static const darkInkMuted = Color(0xFFA5B4AE);
-  static const darkDivider = Color(0xFF34433E);
-  static const darkPrimary = Color(0xFF64B3BC);
-  static const darkPrimaryContainer = Color(0xFF203F43);
-  static const darkSecondary = Color(0xFF9ABBB5);
-  static const darkSecondaryContainer = Color(0xFF253431);
+  static const darkCanvas = Color(0xFF0F1712);
+  static const darkSurface = Color(0xFF16231B);
+  static const darkRaised = Color(0xFF1D2D23);
+  static const darkInk = Color(0xFFE8F2EA);
+  static const darkInkMuted = Color(0xFFA5B8AA);
+  static const darkDivider = Color(0xFF31443A);
+  static const darkPrimary = Color(0xFF76C893);
+  static const darkPrimaryContainer = Color(0xFF21452F);
+  static const darkSecondary = Color(0xFF9BC4A8);
+  static const darkSecondaryContainer = Color(0xFF263C2E);
   static const darkSignal = Color(0xFFF07A6F);
   static const darkReward = Color(0xFFDDB65B);
   static const darkRewardContainer = Color(0xFF4A3D22);
@@ -50,8 +50,9 @@ abstract final class AppBreakpoints {
 
 // ─── 圆角标尺（v2 锐利几何）───
 abstract final class AppRadius {
-  static const card = 6.0; // 卡片/弹窗/FAB
+  static const card = 6.0; // 卡片/FAB
   static const control = 4.0; // 按钮/输入框/Chip
+  static const dialog = 8.0; // 对话框/底部弹层
   static const sheetTop = 8.0; // 底部弹层顶部角
   static const indicator = 6.0; // NavigationBar indicator / Snackbar
   static const tooltip = 4.0; // Tooltip
@@ -72,6 +73,9 @@ abstract final class AppMotion {
 
   /// 淡入淡出、尺寸变化、Snackbar、弹层入场。
   static const standard = Duration(milliseconds: 180);
+
+  /// 元素退场，短于入场以减少等待感。
+  static const exit = Duration(milliseconds: 150);
 
   /// 页面切换、庆祝仪式、大面积编排。
   static const emphasized = Duration(milliseconds: 220);
@@ -279,11 +283,11 @@ abstract final class AppTheme {
       canvas: AppColors.lightCanvas,
       panel: AppColors.lightSurface,
       raised: AppColors.lightRaised,
-      subtle: Color(0xFFE8EFED),
-      panelBorder: Color(0xFFD5DEDA),
-      panelShadow: Color(0x0A17211D),
-      raisedShadow: Color(0x1A17211D),
-      focusRing: Color(0x52256B73),
+      subtle: Color(0xFFE8F1EA),
+      panelBorder: Color(0xFFD6E3D8),
+      panelShadow: Color(0x0A17251A),
+      raisedShadow: Color(0x1A17251A),
+      focusRing: Color(0x522F7D57),
       mutedText: AppColors.lightInkMuted,
       divider: AppColors.lightDivider,
       reward: AppColors.lightReward,
@@ -299,11 +303,11 @@ abstract final class AppTheme {
       primary: AppColors.lightPrimary,
       onPrimary: Color(0xFFFFFFFF),
       primaryContainer: AppColors.lightPrimaryContainer,
-      onPrimaryContainer: Color(0xFF064E3B),
+      onPrimaryContainer: Color(0xFF123C26),
       secondary: AppColors.lightSecondary,
       onSecondary: Color(0xFFFFFFFF),
       secondaryContainer: AppColors.lightSecondaryContainer,
-      onSecondaryContainer: Color(0xFF064E3B),
+      onSecondaryContainer: Color(0xFF123C26),
       tertiary: AppColors.lightSignal,
       onTertiary: Color(0xFFFFFFFF),
       tertiaryContainer: Color(0xFFF8E5E2),
@@ -314,7 +318,7 @@ abstract final class AppTheme {
       onErrorContainer: Color(0xFF450A0A),
       surface: AppColors.lightSurface,
       onSurface: AppColors.lightInk,
-      surfaceContainerHighest: Color(0xFFE8EFED),
+      surfaceContainerHighest: Color(0xFFE8F1EA),
       onSurfaceVariant: AppColors.lightInkMuted,
       outline: Color(0xFF758781),
       outlineVariant: AppColors.lightDivider,
@@ -333,11 +337,11 @@ abstract final class AppTheme {
       canvas: AppColors.darkCanvas,
       panel: AppColors.darkSurface,
       raised: AppColors.darkRaised,
-      subtle: Color(0xFF253431),
-      panelBorder: Color(0xFF34433E),
+      subtle: Color(0xFF263C2E),
+      panelBorder: Color(0xFF31443A),
       panelShadow: Color(0x47000000), // rgba(0,0,0,0.28)
       raisedShadow: Color(0x66000000), // rgba(0,0,0,0.40)
-      focusRing: Color(0x6664B3BC),
+      focusRing: Color(0x6676C893),
       mutedText: AppColors.darkInkMuted,
       divider: AppColors.darkDivider,
       reward: AppColors.darkReward,
@@ -351,13 +355,13 @@ abstract final class AppTheme {
     scheme: const ColorScheme(
       brightness: Brightness.dark,
       primary: AppColors.darkPrimary,
-      onPrimary: Color(0xFF022C22),
+      onPrimary: Color(0xFF0B2A18),
       primaryContainer: AppColors.darkPrimaryContainer,
-      onPrimaryContainer: Color(0xFFD1FAE5),
+      onPrimaryContainer: Color(0xFFD8F4DF),
       secondary: AppColors.darkSecondary,
-      onSecondary: Color(0xFF022C22),
+      onSecondary: Color(0xFF0B2A18),
       secondaryContainer: AppColors.darkSecondaryContainer,
-      onSecondaryContainer: Color(0xFFD1FAE5),
+      onSecondaryContainer: Color(0xFFD8F4DF),
       tertiary: AppColors.darkSignal,
       onTertiary: Color(0xFF321312),
       tertiaryContainer: Color(0xFF4A2725),
@@ -529,7 +533,7 @@ abstract final class AppTheme {
         backgroundColor: tokens.raised,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
+          borderRadius: BorderRadius.circular(AppRadius.dialog),
           side: BorderSide(color: tokens.panelBorder),
         ),
       ),
@@ -570,11 +574,24 @@ abstract final class AppTheme {
 
       // ─── FilledButton: 翠绿主按钮 ───
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: Size(0, controlHeight),
-          shape: shape,
-          elevation: 0,
-        ),
+        style:
+            FilledButton.styleFrom(
+              minimumSize: Size(0, controlHeight),
+              shape: shape,
+              elevation: 0,
+              alignment: Alignment.center,
+            ).copyWith(
+              overlayColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return scheme.onPrimary.withValues(alpha: 0.16);
+                }
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return scheme.onPrimary.withValues(alpha: 0.08);
+                }
+                return null;
+              }),
+            ),
       ),
 
       // ─── OutlinedButton: 翠绿边框次按钮 ───
@@ -584,6 +601,7 @@ abstract final class AppTheme {
               minimumSize: Size(0, controlHeight),
               shape: shape,
               foregroundColor: scheme.primary,
+              alignment: Alignment.center,
             ).copyWith(
               side: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.disabled)) {
@@ -609,20 +627,46 @@ abstract final class AppTheme {
 
       // ─── TextButton ───
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          minimumSize: Size(0, controlHeight),
-          shape: shape,
-          foregroundColor: scheme.primary,
-        ),
+        style:
+            TextButton.styleFrom(
+              minimumSize: Size(0, controlHeight),
+              shape: shape,
+              foregroundColor: scheme.primary,
+              alignment: Alignment.center,
+            ).copyWith(
+              overlayColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return scheme.primary.withValues(alpha: 0.14);
+                }
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return scheme.primary.withValues(alpha: 0.08);
+                }
+                return null;
+              }),
+            ),
       ),
 
       // ─── IconButton ───
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(
-          minimumSize: Size.square(isAndroid ? 48 : 40),
-          iconSize: AppIconSize.md,
-          shape: shape,
-        ),
+        style:
+            IconButton.styleFrom(
+              minimumSize: Size.square(isAndroid ? 48 : 40),
+              iconSize: AppIconSize.md,
+              shape: shape,
+              alignment: Alignment.center,
+            ).copyWith(
+              overlayColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return scheme.primary.withValues(alpha: 0.16);
+                }
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return scheme.primary.withValues(alpha: 0.08);
+                }
+                return null;
+              }),
+            ),
       ),
 
       floatingActionButtonTheme: FloatingActionButtonThemeData(

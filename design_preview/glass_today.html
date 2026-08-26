@@ -13,15 +13,16 @@
     .today-aside { padding:20px 18px;border-left:1px solid var(--divider); }
     .commitments { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px; }
     .commitment { min-height:112px;padding:12px;border:1px solid var(--panel-border);border-radius:6px;background:var(--surface); }
-    .commitment.current { border-left:3px solid var(--route); }
-    .commitment.done { border-left:3px solid var(--marker); }
-    .commitment.warning { border-left:3px solid var(--signal); }
+    .commitment.current { box-shadow: inset 2px 0 var(--route); }
+    .commitment.done { box-shadow: inset 2px 0 var(--marker); }
+    .commitment.warning { box-shadow: inset 2px 0 var(--signal); }
     .commitment .state { color:var(--ink-muted);font-size:11px; }
     .commitment h3 { font-size:14px;font-weight:500;margin:16px 0 6px; }
     .commitment p { color:var(--ink-muted);font-size:11.5px; }
     .next-block { display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--divider);border-bottom:1px solid var(--divider); }
     .next-block .time { color:var(--route); }
-    @media (max-width:767px) { .acceptance { min-width:0; }.today-grid{display:block}.today-aside{border-left:0;border-top:1px solid var(--divider)}.commitments{grid-template-columns:1fr} }
+    @media (max-width:1199px) { .acceptance { min-width:0; }.today-grid{display:block}.today-aside{border-left:0;border-top:1px solid var(--divider)} }
+    @media (max-width:767px) { .commitments{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
@@ -30,7 +31,7 @@
     <aside class="sidebar">
       <div class="logo-row"><div class="logo"></div><div class="name">个人工作台</div></div>
       <div style="padding:12px 10px"><button class="btn primary" style="width:100%">快速新增</button></div>
-      <nav class="nav"><div class="nav-group">工作索引</div><a class="nav-item active"><span>今日</span></a><a class="nav-item"><span>任务</span></a><a class="nav-item"><span>项目</span></a><a class="nav-item"><span>专注</span></a><div class="nav-group">记录与回顾</div><a class="nav-item"><span>笔记</span></a><a class="nav-item"><span>回顾</span></a><div class="nav-group">成长与约束</div><a class="nav-item"><span>行为</span></a><a class="nav-item"><span>成长</span></a><a class="nav-item"><span>自律</span></a></nav>
+      <nav class="nav"><div class="nav-group">工作索引</div><a class="nav-item active" aria-current="page" href="today.html"><span>今日</span></a><a class="nav-item" href="tasks.html"><span>任务</span></a><a class="nav-item" href="projects.html"><span>项目</span></a><a class="nav-item" href="focus.html"><span>专注</span></a><div class="nav-group">记录与回顾</div><a class="nav-item" href="notes.html"><span>笔记</span></a><a class="nav-item" href="review.html"><span>回顾</span></a><div class="nav-group">成长与约束</div><a class="nav-item" href="behavior.html"><span>行为</span></a><a class="nav-item" href="growth.html"><span>成长</span></a><a class="nav-item" href="restriction.html"><span>自律</span></a></nav>
       <div class="record-detail" style="padding:12px 14px;border-top:1px solid var(--divider)">纯本地模式</div>
     </aside>
     <main class="main">

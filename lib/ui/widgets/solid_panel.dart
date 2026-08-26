@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 /// 层次手法：底色 + 1px 中性边框 + 克制阴影。
 /// - [elevated] 为 `false` 时使用 panelShadow（blur 10 / y+3），
 ///   为 `true` 时使用 raisedShadow（blur 16 / y+6），用于对话框/菜单等浮层。
+/// - [radius] 为 0 的布局面（例如页头）不额外投影，避免与内容面叠加成阴影带。
 /// - [selected] 时左缘绘制 3px 航迹色，边框转 route@40%。
 /// - [accent] 保留 LogSurface 的左侧强调条语义（自定义色）。
 class SolidPanel extends StatelessWidget {
@@ -58,13 +59,15 @@ class SolidPanel extends StatelessWidget {
         color: color ?? tokens.panel,
         borderRadius: BorderRadius.circular(r),
         border: Border.all(color: effectiveBorder),
-        boxShadow: [
-          BoxShadow(
-            color: elevated ? tokens.raisedShadow : tokens.panelShadow,
-            blurRadius: elevated ? 16 : 10,
-            offset: Offset(0, elevated ? 6 : 3),
-          ),
-        ],
+        boxShadow: r == 0
+            ? const <BoxShadow>[]
+            : [
+                BoxShadow(
+                  color: elevated ? tokens.raisedShadow : tokens.panelShadow,
+                  blurRadius: elevated ? 16 : 10,
+                  offset: Offset(0, elevated ? 6 : 3),
+                ),
+              ],
       ),
       child: Stack(
         children: [

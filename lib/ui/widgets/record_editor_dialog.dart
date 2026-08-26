@@ -552,7 +552,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                       onTap: _pickRecurrenceEnd,
                       child: InputDecorator(
                         decoration: InputDecoration(
@@ -869,7 +869,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
           if (isTask || isGoal || isMilestone) ...[
             const SizedBox(height: 12),
             InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               onTap: _pickDate,
               child: InputDecorator(
                 decoration: InputDecoration(
@@ -890,7 +890,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
           if (isTask && showMoreOptions) ...[
             const SizedBox(height: 12),
             InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               onTap: _pickTaskDueDate,
               child: InputDecorator(
                 decoration: InputDecoration(

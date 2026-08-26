@@ -11,6 +11,28 @@ void showWorkbenchSnackBar(BuildContext context, SnackBar snackBar) {
   messenger.showSnackBar(snackBar);
 }
 
+/// 列表行统一图标底：为描边图标提供稳定尺寸、留白和主题色状态。
+class SurfaceIcon extends StatelessWidget {
+  const SurfaceIcon(this.icon, {super.key, this.color});
+
+  final IconData icon;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = color ?? Theme.of(context).colorScheme.primary;
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: Icon(icon, size: 18, color: tint),
+    );
+  }
+}
+
 /// 统一对话框入口：品牌遮罩色 + 淡入缩放入场，替代散落各处的默认 showDialog。
 Future<T?> showWorkbenchDialog<T extends Object?>({
   required BuildContext context,
@@ -41,6 +63,7 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
       final curved = CurvedAnimation(
         parent: animation,
         curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
       );
       return FadeTransition(
         opacity: curved,
@@ -79,7 +102,9 @@ Future<T?> showWorkbenchSheet<T extends Object?>({
     shape:
         shape ??
         const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheetTop),
+          ),
           side: BorderSide(color: Color(0x00000000)),
         ),
     isScrollControlled: isScrollControlled,
@@ -120,24 +145,29 @@ class AnimatedNumber extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final numberStyle = (style ?? const TextStyle()).copyWith(
+      fontFamily: AppFonts.numeric,
+      fontFeatures: const [FontFeature.tabularFigures()],
+      fontWeight: style?.fontWeight ?? FontWeight.w500,
+    );
     if (MediaQuery.disableAnimationsOf(context)) {
-      return Text(_format(value), style: style);
+      return Text(_format(value), style: numberStyle);
     }
     return TweenAnimationBuilder<num>(
       tween: Tween(end: value),
       duration: duration,
       curve: Curves.easeOutCubic,
       builder: (context, current, child) =>
-          Text(_format(current), style: style),
+          Text(_format(current), style: numberStyle),
       child: null,
     );
   }
 }
 
-/// 按压缩放反馈：包裹任意可点按钮/卡片，按下时缩至 0.97。
+/// 按压缩放反馈：包裹任意可点按钮/卡片，按下时缩至 0.96。
 /// 使用 Listener 不参与手势竞技场，不干扰内部按钮的点击逻辑。
 class PressScale extends StatefulWidget {
-  const PressScale({super.key, required this.child, this.pressedScale = 0.97});
+  const PressScale({super.key, required this.child, this.pressedScale = 0.96});
 
   final Widget child;
   final double pressedScale;
@@ -407,12 +437,12 @@ class PageHeader extends StatelessWidget {
                   if (subtitle != null)
                     Text(
                       subtitle!,
-                      maxLines: 1,
+                      maxLines: compact ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: tokens.mutedText,
                         fontFeatures: _numericFeaturesIfUseful(subtitle!),
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.normal,
                       ),
                     ),
                 ],
@@ -447,7 +477,9 @@ class SectionHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = context.tokens;
-    final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = width < AppBreakpoints.compact;
+    final wide = width >= AppBreakpoints.expanded;
     return Padding(
       padding: EdgeInsets.only(top: wide ? 20 : 16, bottom: 8),
       child: Row(
@@ -467,6 +499,7 @@ class SectionHeading extends StatelessWidget {
                 Flexible(
                   child: Text(
                     title,
+                    maxLines: compact ? 2 : 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontSize: 18,
@@ -484,7 +517,7 @@ class SectionHeading extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: tokens.subtle,
-                      borderRadius: BorderRadius.circular(5),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                       border: Border.all(color: tokens.panelBorder),
                     ),
                     child: Text(
@@ -625,11 +658,8 @@ class _LogRailRow extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(4, 8, 0, 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
+                  child: compact && entry.trailing != null
+                      ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(entry.label),
@@ -638,12 +668,31 @@ class _LogRailRow extends StatelessWidget {
                                 entry.detail!,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
+                            const SizedBox(height: AppSpacing.sm),
+                            entry.trailing!,
+                          ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(entry.label),
+                                  if (entry.detail != null)
+                                    Text(
+                                      entry.detail!,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            ?entry.trailing,
                           ],
                         ),
-                      ),
-                      ?entry.trailing,
-                    ],
-                  ),
                 ),
               ),
             ],
@@ -874,6 +923,7 @@ class NumericText extends StatelessWidget {
           ),
       textAlign: textAlign,
       maxLines: maxLines,
+      overflow: maxLines == null ? null : TextOverflow.ellipsis,
     );
   }
 }
