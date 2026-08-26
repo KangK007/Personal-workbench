@@ -14,6 +14,12 @@ import 'package:personal_workbench/services/share_capture_service.dart';
 import 'package:personal_workbench/services/supabase_sync_service.dart';
 import 'package:personal_workbench/state/workbench_controller.dart';
 import 'package:personal_workbench/ui/pages/policies_page.dart';
+import 'package:personal_workbench/ui/widgets/common.dart';
+
+Finder _textFieldWithLabel(String label) => find.descendant(
+  of: find.widgetWithText(ExternalField, label),
+  matching: find.byType(TextField),
+);
 
 String _key(WorkspaceRecord record) => '${record.kind.name}:${record.id}';
 
@@ -98,11 +104,8 @@ void main() {
 
     await tester.tap(find.text('添加国策'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, '标题 *'), '实验后记录');
-    await tester.enterText(
-      find.widgetWithText(TextField, '精准规则 *'),
-      '实验结束后十分钟内记录关键参数',
-    );
+    await tester.enterText(_textFieldWithLabel('标题 *'), '实验后记录');
+    await tester.enterText(_textFieldWithLabel('精准规则 *'), '实验结束后十分钟内记录关键参数');
     await tester.tap(find.widgetWithText(FilledButton, '保存'));
     await tester.pumpAndSettle();
 
@@ -138,7 +141,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('容错耗尽'), findsOneWidget);
     expect(find.textContaining('将归档：固定记录'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, '违反原因 *'), '未在离开前保存');
+    await tester.enterText(_textFieldWithLabel('违反原因 *'), '未在离开前保存');
     await tester.tap(find.widgetWithText(FilledButton, '确认违反'));
     await tester.pumpAndSettle();
 

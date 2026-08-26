@@ -510,15 +510,21 @@ Future<void> _setPassword(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (controller.restrictionSecurityState.hasPassword)
-            TextField(
-              controller: current,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: '当前密码'),
+            ExternalField(
+              label: '当前密码',
+              child: TextField(
+                controller: current,
+                obscureText: true,
+                decoration: const InputDecoration(),
+              ),
             ),
-          TextField(
-            controller: next,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: '新密码（至少 8 位）'),
+          ExternalField(
+            label: '新密码（至少 8 位）',
+            child: TextField(
+              controller: next,
+              obscureText: true,
+              decoration: const InputDecoration(),
+            ),
           ),
         ],
       ),
@@ -602,11 +608,14 @@ Future<String?> _credential(BuildContext context, String title) async {
     context: context,
     builder: (context) => AlertDialog(
       title: Text(title),
-      content: TextField(
-        controller: field,
-        obscureText: true,
-        autofocus: true,
-        decoration: const InputDecoration(labelText: '密码或紧急恢复码'),
+      content: ExternalField(
+        label: '密码或紧急恢复码',
+        child: TextField(
+          controller: field,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(),
+        ),
       ),
       actions: [
         TextButton(
@@ -698,9 +707,12 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _sectionLabel(context, '规则', topPadding: false),
-          TextField(
-            controller: _title,
-            decoration: const InputDecoration(labelText: '规则名称'),
+          ExternalField(
+            label: '规则名称',
+            child: TextField(
+              controller: _title,
+              decoration: const InputDecoration(),
+            ),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -708,38 +720,44 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
             onChanged: (v) => setState(() => _enabled = v),
             title: const Text('启用规则'),
           ),
-          DropdownButtonFormField<RestrictionBlockMode>(
-            isExpanded: true,
-            initialValue: _mode,
-            decoration: const InputDecoration(labelText: '应用匹配模式'),
-            items: const [
-              DropdownMenuItem(
-                value: RestrictionBlockMode.blacklist,
-                child: Text('黑名单：命中后限制', overflow: TextOverflow.ellipsis),
-              ),
-              DropdownMenuItem(
-                value: RestrictionBlockMode.whitelist,
-                child: Text('白名单：未命中后限制', overflow: TextOverflow.ellipsis),
-              ),
-            ],
-            onChanged: (v) => setState(() => _mode = v ?? _mode),
+          ExternalField(
+            label: '应用匹配模式',
+            child: DropdownButtonFormField<RestrictionBlockMode>(
+              isExpanded: true,
+              initialValue: _mode,
+              decoration: const InputDecoration(),
+              items: const [
+                DropdownMenuItem(
+                  value: RestrictionBlockMode.blacklist,
+                  child: Text('黑名单：命中后限制', overflow: TextOverflow.ellipsis),
+                ),
+                DropdownMenuItem(
+                  value: RestrictionBlockMode.whitelist,
+                  child: Text('白名单：未命中后限制', overflow: TextOverflow.ellipsis),
+                ),
+              ],
+              onChanged: (v) => setState(() => _mode = v ?? _mode),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          DropdownButtonFormField<RestrictionAction>(
-            isExpanded: true,
-            initialValue: _action,
-            decoration: const InputDecoration(labelText: '默认动作'),
-            items: const [
-              DropdownMenuItem(
-                value: RestrictionAction.warn,
-                child: Text('提醒', overflow: TextOverflow.ellipsis),
-              ),
-              DropdownMenuItem(
-                value: RestrictionAction.forceClose,
-                child: Text('强制结束进程', overflow: TextOverflow.ellipsis),
-              ),
-            ],
-            onChanged: (v) => setState(() => _action = v ?? _action),
+          ExternalField(
+            label: '默认动作',
+            child: DropdownButtonFormField<RestrictionAction>(
+              isExpanded: true,
+              initialValue: _action,
+              decoration: const InputDecoration(),
+              items: const [
+                DropdownMenuItem(
+                  value: RestrictionAction.warn,
+                  child: Text('提醒', overflow: TextOverflow.ellipsis),
+                ),
+                DropdownMenuItem(
+                  value: RestrictionAction.forceClose,
+                  child: Text('强制结束进程', overflow: TextOverflow.ellipsis),
+                ),
+              ],
+              onChanged: (v) => setState(() => _action = v ?? _action),
+            ),
           ),
           _sectionLabel(context, '时段'),
           Row(
@@ -828,31 +846,33 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
               ),
             ),
           _sectionLabel(context, '应用'),
-          TextField(
-            controller: _apps,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: '阻止应用',
-              helperText: '每行一个进程名',
+          ExternalField(
+            label: '阻止应用',
+            child: TextField(
+              controller: _apps,
+              maxLines: 3,
+              decoration: const InputDecoration(helperText: '每行一个进程名'),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _allowed,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: '允许应用',
-              helperText: '白名单或豁免',
+          ExternalField(
+            label: '允许应用',
+            child: TextField(
+              controller: _allowed,
+              maxLines: 3,
+              decoration: const InputDecoration(helperText: '白名单或豁免'),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _appActions,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: '动作覆盖',
-              helperText: '每行：进程名=warn 或 forceClose',
-              helperMaxLines: 2,
+          ExternalField(
+            label: '动作覆盖',
+            child: TextField(
+              controller: _appActions,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                helperText: '每行：进程名=warn 或 forceClose',
+                helperMaxLines: 2,
+              ),
             ),
           ),
           _sectionLabel(context, '窗口标题与网站'),
@@ -867,37 +887,43 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
             visible: _titleBlocking,
             child: Column(
               children: [
-                TextField(
-                  controller: _keywordProcesses,
-                  maxLines: 2,
-                  decoration: const InputDecoration(labelText: '检查的进程（可选）'),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextField(
-                  controller: _keywords,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: '标题关键词',
-                    helperText: '每行一个',
+                ExternalField(
+                  label: '检查的进程（可选）',
+                  child: TextField(
+                    controller: _keywordProcesses,
+                    maxLines: 2,
+                    decoration: const InputDecoration(),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                DropdownButtonFormField<RestrictionAction>(
-                  isExpanded: true,
-                  initialValue: _titleAction,
-                  decoration: const InputDecoration(labelText: '标题命中动作'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: RestrictionAction.warn,
-                      child: Text('提醒', overflow: TextOverflow.ellipsis),
-                    ),
-                    DropdownMenuItem(
-                      value: RestrictionAction.forceClose,
-                      child: Text('强制结束进程', overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                  onChanged: (v) =>
-                      setState(() => _titleAction = v ?? _titleAction),
+                ExternalField(
+                  label: '标题关键词',
+                  child: TextField(
+                    controller: _keywords,
+                    maxLines: 3,
+                    decoration: const InputDecoration(helperText: '每行一个'),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ExternalField(
+                  label: '标题命中动作',
+                  child: DropdownButtonFormField<RestrictionAction>(
+                    isExpanded: true,
+                    initialValue: _titleAction,
+                    decoration: const InputDecoration(),
+                    items: const [
+                      DropdownMenuItem(
+                        value: RestrictionAction.warn,
+                        child: Text('提醒', overflow: TextOverflow.ellipsis),
+                      ),
+                      DropdownMenuItem(
+                        value: RestrictionAction.forceClose,
+                        child: Text('强制结束进程', overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _titleAction = v ?? _titleAction),
+                  ),
                 ),
               ],
             ),
@@ -911,12 +937,12 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
           _animatedSettings(
             context,
             visible: _websiteBlocking,
-            child: TextField(
-              controller: _websites,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: '网站域名',
-                helperText: '每行一个',
+            child: ExternalField(
+              label: '网站域名',
+              child: TextField(
+                controller: _websites,
+                maxLines: 3,
+                decoration: const InputDecoration(helperText: '每行一个'),
               ),
             ),
           ),
@@ -933,27 +959,33 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final fields = [
-                  TextFormField(
-                    initialValue: '$_breakMinutes',
-                    decoration: const InputDecoration(labelText: '休息分钟'),
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(
-                      fontFamily: AppFonts.numeric,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                  ExternalField(
+                    label: '休息分钟',
+                    child: TextFormField(
+                      initialValue: '$_breakMinutes',
+                      decoration: const InputDecoration(),
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(
+                        fontFamily: AppFonts.numeric,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                      onChanged: (v) =>
+                          _breakMinutes = int.tryParse(v) ?? _breakMinutes,
                     ),
-                    onChanged: (v) =>
-                        _breakMinutes = int.tryParse(v) ?? _breakMinutes,
                   ),
-                  TextFormField(
-                    initialValue: '$_maxBreaks',
-                    decoration: const InputDecoration(labelText: '每日次数'),
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(
-                      fontFamily: AppFonts.numeric,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                  ExternalField(
+                    label: '每日次数',
+                    child: TextFormField(
+                      initialValue: '$_maxBreaks',
+                      decoration: const InputDecoration(),
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(
+                        fontFamily: AppFonts.numeric,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                      onChanged: (v) =>
+                          _maxBreaks = int.tryParse(v) ?? _maxBreaks,
                     ),
-                    onChanged: (v) =>
-                        _maxBreaks = int.tryParse(v) ?? _maxBreaks,
                   ),
                 ];
                 if (constraints.maxWidth < 360) {
@@ -990,26 +1022,29 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
                 alignment: Alignment.center,
                 child: SizedBox(
                   width: fieldWidth,
-                  child: DropdownButtonFormField<int>(
-                    isExpanded: true,
-                    initialValue: _poll,
-                    decoration: const InputDecoration(labelText: '检测间隔'),
-                    items: [1, 3, 5, 10, 30, 60]
-                        .map(
-                          (v) => DropdownMenuItem(
-                            value: v,
-                            child: Text(
-                              '$v 秒',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontFamily: AppFonts.numeric,
-                                fontFeatures: [FontFeature.tabularFigures()],
+                  child: ExternalField(
+                    label: '检测间隔',
+                    child: DropdownButtonFormField<int>(
+                      isExpanded: true,
+                      initialValue: _poll,
+                      decoration: const InputDecoration(),
+                      items: [1, 3, 5, 10, 30, 60]
+                          .map(
+                            (v) => DropdownMenuItem(
+                              value: v,
+                              child: Text(
+                                '$v 秒',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: AppFonts.numeric,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
                               ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _poll = v ?? _poll),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _poll = v ?? _poll),
+                    ),
                   ),
                 ),
               );
@@ -1206,31 +1241,40 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            controller: _label,
-            decoration: const InputDecoration(labelText: '名称'),
+          ExternalField(
+            label: '名称',
+            child: TextField(
+              controller: _label,
+              decoration: const InputDecoration(),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           LayoutBuilder(
             builder: (context, constraints) {
               final fields = [
-                TextField(
-                  controller: _start,
-                  keyboardType: TextInputType.datetime,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.numeric,
-                    fontFeatures: [FontFeature.tabularFigures()],
+                ExternalField(
+                  label: '开始 HH:MM',
+                  child: TextField(
+                    controller: _start,
+                    keyboardType: TextInputType.datetime,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.numeric,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                    decoration: const InputDecoration(),
                   ),
-                  decoration: const InputDecoration(labelText: '开始 HH:MM'),
                 ),
-                TextField(
-                  controller: _end,
-                  keyboardType: TextInputType.datetime,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.numeric,
-                    fontFeatures: [FontFeature.tabularFigures()],
+                ExternalField(
+                  label: '结束 HH:MM',
+                  child: TextField(
+                    controller: _end,
+                    keyboardType: TextInputType.datetime,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.numeric,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                    decoration: const InputDecoration(),
                   ),
-                  decoration: const InputDecoration(labelText: '结束 HH:MM'),
                 ),
               ];
               if (constraints.maxWidth < 320) {
@@ -1398,11 +1442,14 @@ Future<String?> _askInlineCredential(BuildContext context) async {
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('确认退出保护'),
-      content: TextField(
-        controller: field,
-        obscureText: true,
-        autofocus: true,
-        decoration: const InputDecoration(labelText: '密码或紧急恢复码'),
+      content: ExternalField(
+        label: '密码或紧急恢复码',
+        child: TextField(
+          controller: field,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(),
+        ),
       ),
       actions: [
         TextButton(
@@ -1525,69 +1572,83 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
                 children: [
                   SizedBox(
                     width: processWidth,
-                    child: TextField(
-                      controller: _process,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        labelText: '进程',
-                        prefixIcon: Icon(Icons.search),
+                    child: ExternalField(
+                      label: '进程',
+                      child: TextField(
+                        controller: _process,
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.search),
+                        ),
                       ),
                     ),
                   ),
                   SizedBox(
                     width: periodWidth,
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: _period,
-                      decoration: const InputDecoration(labelText: '日期'),
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text('全部')),
-                        DropdownMenuItem(value: 'today', child: Text('今天')),
-                        DropdownMenuItem(value: 'week', child: Text('近 7 天')),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => _period = value ?? 'all'),
+                    child: ExternalField(
+                      label: '日期',
+                      child: DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _period,
+                        decoration: const InputDecoration(),
+                        items: const [
+                          DropdownMenuItem(value: 'all', child: Text('全部')),
+                          DropdownMenuItem(value: 'today', child: Text('今天')),
+                          DropdownMenuItem(value: 'week', child: Text('近 7 天')),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _period = value ?? 'all'),
+                      ),
                     ),
                   ),
                   SizedBox(
                     width: reasonWidth,
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: _reason,
-                      decoration: const InputDecoration(labelText: '原因'),
-                      items: [
-                        const DropdownMenuItem(value: 'all', child: Text('全部')),
-                        ...reasons.map(
-                          (value) => DropdownMenuItem(
-                            value: value,
-                            child: Text(
-                              value,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                    child: ExternalField(
+                      label: '原因',
+                      child: DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _reason,
+                        decoration: const InputDecoration(),
+                        items: [
+                          const DropdownMenuItem(
+                            value: 'all',
+                            child: Text('全部'),
+                          ),
+                          ...reasons.map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(
+                                value,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => _reason = value ?? 'all'),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _reason = value ?? 'all'),
+                      ),
                     ),
                   ),
                   SizedBox(
                     width: actionWidth,
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: _action,
-                      decoration: const InputDecoration(labelText: '动作'),
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text('全部')),
-                        DropdownMenuItem(value: 'warn', child: Text('提醒')),
-                        DropdownMenuItem(
-                          value: 'forceClose',
-                          child: Text('强制结束'),
-                        ),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => _action = value ?? 'all'),
+                    child: ExternalField(
+                      label: '动作',
+                      child: DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _action,
+                        decoration: const InputDecoration(),
+                        items: const [
+                          DropdownMenuItem(value: 'all', child: Text('全部')),
+                          DropdownMenuItem(value: 'warn', child: Text('提醒')),
+                          DropdownMenuItem(
+                            value: 'forceClose',
+                            child: Text('强制结束'),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _action = value ?? 'all'),
+                      ),
                     ),
                   ),
                 ],

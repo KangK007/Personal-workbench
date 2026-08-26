@@ -22,22 +22,26 @@ class AppDatabase {
   Future<Database> get database async {
     if (_database != null) return _database!;
 
+    final DatabaseFactory factory;
     if (_factoryOverride != null) {
-      databaseFactory = _factoryOverride;
+      factory = _factoryOverride;
     } else if (Platform.isWindows || Platform.isLinux) {
       sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
+      factory = databaseFactoryFfi;
+    } else {
+      factory = databaseFactory;
     }
 
     final path = _pathOverride ?? await _defaultPath();
-    _database = await openDatabase(
+    _database = await factory.openDatabase(
       path,
-      version: schemaVersion,
-      onConfigure: (db) async {
-        await db.execute('PRAGMA foreign_keys = ON');
-      },
-      onCreate: (db, version) async {
-        await db.execute('''
+      options: OpenDatabaseOptions(
+        version: schemaVersion,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+        onCreate: (db, version) async {
+          await db.execute('''
           CREATE TABLE workspace_records (
             id TEXT NOT NULL,
             kind TEXT NOT NULL,
@@ -48,44 +52,45 @@ class AppDatabase {
             PRIMARY KEY (id, kind)
           )
         ''');
-        await db.execute(
-          'CREATE INDEX record_kind_index ON workspace_records(kind)',
-        );
-        await db.execute(
-          'CREATE INDEX record_updated_index ON workspace_records(updated_at)',
-        );
-        await db.execute('''
+          await db.execute(
+            'CREATE INDEX record_kind_index ON workspace_records(kind)',
+          );
+          await db.execute(
+            'CREATE INDEX record_updated_index ON workspace_records(updated_at)',
+          );
+          await db.execute('''
           CREATE TABLE app_metadata (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
           )
         ''');
-        await _createVersionTwoTables(db);
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
           await _createVersionTwoTables(db);
-          await db.insert('app_metadata', {
-            'key': 'schema_migration_v2',
-            'value': jsonEncode({
-              'from': oldVersion,
-              'to': newVersion,
-              'migratedAt': DateTime.now().toUtc().toIso8601String(),
-            }),
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
-        }
-        if (oldVersion < 3) {
-          await _createVersionTwoTables(db);
-          await db.insert('app_metadata', {
-            'key': 'schema_migration_v3',
-            'value': jsonEncode({
-              'from': oldVersion,
-              'to': newVersion,
-              'migratedAt': DateTime.now().toUtc().toIso8601String(),
-            }),
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
-        }
-      },
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await _createVersionTwoTables(db);
+            await db.insert('app_metadata', {
+              'key': 'schema_migration_v2',
+              'value': jsonEncode({
+                'from': oldVersion,
+                'to': newVersion,
+                'migratedAt': DateTime.now().toUtc().toIso8601String(),
+              }),
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+          if (oldVersion < 3) {
+            await _createVersionTwoTables(db);
+            await db.insert('app_metadata', {
+              'key': 'schema_migration_v3',
+              'value': jsonEncode({
+                'from': oldVersion,
+                'to': newVersion,
+                'migratedAt': DateTime.now().toUtc().toIso8601String(),
+              }),
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        },
+      ),
     );
     return _database!;
   }

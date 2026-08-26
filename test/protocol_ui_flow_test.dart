@@ -12,6 +12,7 @@ import 'package:personal_workbench/services/supabase_sync_service.dart';
 import 'package:personal_workbench/state/workbench_controller.dart';
 import 'package:personal_workbench/ui/pages/habits_page.dart';
 import 'package:personal_workbench/ui/pages/protocols_page.dart';
+import 'package:personal_workbench/ui/widgets/common.dart';
 import 'package:personal_workbench/ui/widgets/record_editor_dialog.dart';
 import 'package:personal_workbench/ui/widgets/task_row.dart';
 
@@ -47,16 +48,24 @@ WorkbenchController _newController({AppDatabase? database}) {
 }
 
 Finder _textFieldWithLabel(String label) {
-  return find.byWidgetPredicate(
-    (widget) => widget is TextField && widget.decoration?.labelText == label,
+  return find.descendant(
+    of: find.ancestor(
+      of: find.text(label),
+      matching: find.byType(ExternalField),
+    ),
+    matching: find.byType(TextField),
   );
 }
 
 Finder _dropdownWithLabel(String label) {
-  return find.byWidgetPredicate(
-    (widget) =>
-        widget is DropdownButtonFormField &&
-        widget.decoration.labelText == label,
+  return find.descendant(
+    of: find.ancestor(
+      of: find.text(label),
+      matching: find.byType(ExternalField),
+    ),
+    matching: find.byWidgetPredicate(
+      (widget) => widget is DropdownButtonFormField,
+    ),
   );
 }
 

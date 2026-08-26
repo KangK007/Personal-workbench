@@ -5,6 +5,20 @@ import 'package:personal_workbench/data/app_database.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  test('factory override does not initialize the process default', () async {
+    sqfliteFfiInit();
+    expect(() => databaseFactory, throwsStateError);
+    final database = AppDatabase(
+      factory: databaseFactoryFfi,
+      overridePath: inMemoryDatabasePath,
+    );
+
+    await database.database;
+
+    expect(() => databaseFactory, throwsStateError);
+    await database.close();
+  });
+
   test('local database persists and restores soft-deleted records', () async {
     sqfliteFfiInit();
     final database = AppDatabase(

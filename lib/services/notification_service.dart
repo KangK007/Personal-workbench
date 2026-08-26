@@ -49,12 +49,14 @@ class NotificationService {
 
   Future<void> _initialize() async {
     tz_data.initializeTimeZones();
-    try {
-      final zone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(zone.identifier));
-    } catch (error) {
-      debugPrint('Unable to resolve local timezone: $error');
-      // The bundled timezone database stays usable even if platform lookup fails.
+    if (Platform.isAndroid) {
+      try {
+        final zone = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(zone.identifier));
+      } catch (error) {
+        debugPrint('Unable to resolve local timezone: $error');
+        // The bundled timezone database stays usable if platform lookup fails.
+      }
     }
 
     const settings = InitializationSettings(

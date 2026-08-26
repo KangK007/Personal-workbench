@@ -184,19 +184,24 @@ class _DiaryPageState extends State<DiaryPage> {
           ],
         ),
         const SizedBox(height: 18),
-        TextField(
-          controller: titleController,
-          decoration: const InputDecoration(labelText: '标题'),
+        ExternalField(
+          label: '标题',
+          child: TextField(
+            controller: titleController,
+            decoration: const InputDecoration(),
+          ),
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: bodyController,
-          minLines: 5,
-          maxLines: 12,
-          decoration: const InputDecoration(
-            labelText: '正文',
-            hintText: '自由记录今天发生的事',
-            alignLabelWithHint: true,
+        ExternalField(
+          label: '正文',
+          child: TextField(
+            controller: bodyController,
+            minLines: 5,
+            maxLines: 12,
+            decoration: const InputDecoration(
+              hintText: '自由记录今天发生的事',
+              alignLabelWithHint: true,
+            ),
           ),
         ),
         const SizedBox(height: 18),
@@ -217,33 +222,33 @@ class _DiaryPageState extends State<DiaryPage> {
               setState(() => mood = value.firstOrNull),
         ),
         const SizedBox(height: 18),
-        TextField(
-          controller: completedController,
-          minLines: 2,
-          maxLines: 6,
-          decoration: const InputDecoration(
-            labelText: '今日完成',
-            alignLabelWithHint: true,
+        ExternalField(
+          label: '今日完成',
+          child: TextField(
+            controller: completedController,
+            minLines: 2,
+            maxLines: 6,
+            decoration: const InputDecoration(alignLabelWithHint: true),
           ),
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: blockersController,
-          minLines: 2,
-          maxLines: 6,
-          decoration: const InputDecoration(
-            labelText: '遇到的问题',
-            alignLabelWithHint: true,
+        ExternalField(
+          label: '遇到的问题',
+          child: TextField(
+            controller: blockersController,
+            minLines: 2,
+            maxLines: 6,
+            decoration: const InputDecoration(alignLabelWithHint: true),
           ),
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: tomorrowController,
-          minLines: 2,
-          maxLines: 6,
-          decoration: const InputDecoration(
-            labelText: '明日计划',
-            alignLabelWithHint: true,
+        ExternalField(
+          label: '明日计划',
+          child: TextField(
+            controller: tomorrowController,
+            minLines: 2,
+            maxLines: 6,
+            decoration: const InputDecoration(alignLabelWithHint: true),
           ),
         ),
         const SizedBox(height: 18),

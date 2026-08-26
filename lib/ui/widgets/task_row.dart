@@ -412,12 +412,12 @@ class TaskRow extends StatelessWidget {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('记录 CTDP 判例'),
-            content: TextField(
-              autofocus: true,
-              onChanged: (value) => precedentDraft = value,
-              decoration: const InputDecoration(
-                labelText: '本次允许的例外行为',
-                hintText: '例如：接听紧急电话',
+            content: ExternalField(
+              label: '本次允许的例外行为',
+              child: TextField(
+                autofocus: true,
+                onChanged: (value) => precedentDraft = value,
+                decoration: const InputDecoration(hintText: '例如：接听紧急电话'),
               ),
             ),
             actions: [

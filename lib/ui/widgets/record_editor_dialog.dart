@@ -289,22 +289,24 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            controller: titleController,
-            autofocus: true,
-            inputFormatters: [LengthLimitingTextInputFormatter(200)],
-            textInputAction: TextInputAction.next,
-            onChanged: (_) {
-              if (showTitleError || formError != null) {
-                setState(() {
-                  showTitleError = false;
-                  formError = null;
-                });
-              }
-            },
-            decoration: InputDecoration(
-              labelText: '标题',
-              errorText: showTitleError ? '请输入标题' : null,
+          ExternalField(
+            label: '标题',
+            child: TextField(
+              controller: titleController,
+              autofocus: true,
+              inputFormatters: [LengthLimitingTextInputFormatter(200)],
+              textInputAction: TextInputAction.next,
+              onChanged: (_) {
+                if (showTitleError || formError != null) {
+                  setState(() {
+                    showTitleError = false;
+                    formError = null;
+                  });
+                }
+              },
+              decoration: InputDecoration(
+                errorText: showTitleError ? '请输入标题' : null,
+              ),
             ),
           ),
           if (formError != null) ...[
@@ -337,14 +339,14 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
             ),
           ],
           const SizedBox(height: 12),
-          TextField(
-            controller: bodyController,
-            minLines: widget.kind == RecordKind.note ? 6 : 3,
-            maxLines: 12,
-            inputFormatters: [LengthLimitingTextInputFormatter(5000)],
-            decoration: InputDecoration(
-              labelText: isHabit ? '执行说明' : '说明',
-              alignLabelWithHint: true,
+          ExternalField(
+            label: isHabit ? '执行说明' : '说明',
+            child: TextField(
+              controller: bodyController,
+              minLines: widget.kind == RecordKind.note ? 6 : 3,
+              maxLines: 12,
+              inputFormatters: [LengthLimitingTextInputFormatter(5000)],
+              decoration: InputDecoration(alignLabelWithHint: true),
             ),
           ),
           if (isTask || isHabit) ...[
@@ -382,35 +384,41 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
           ],
           if (isLink) ...[
             const SizedBox(height: 12),
-            TextField(
-              controller: urlController,
-              keyboardType: TextInputType.url,
-              inputFormatters: [LengthLimitingTextInputFormatter(2048)],
-              onChanged: (_) {
-                if (formError != null) setState(() => formError = null);
-              },
-              decoration: const InputDecoration(
-                labelText: '网页或云盘链接',
-                prefixIcon: Icon(Icons.link),
+            ExternalField(
+              label: '网页或云盘链接',
+              child: TextField(
+                controller: urlController,
+                keyboardType: TextInputType.url,
+                inputFormatters: [LengthLimitingTextInputFormatter(2048)],
+                onChanged: (_) {
+                  if (formError != null) setState(() => formError = null);
+                },
+                decoration: const InputDecoration(prefixIcon: Icon(Icons.link)),
               ),
             ),
           ],
           if (showMoreOptions &&
               (isTask || widget.kind == RecordKind.note || isLink)) ...[
             const SizedBox(height: 12),
-            DropdownButtonFormField<String?>(
-              initialValue: projectId,
-              decoration: const InputDecoration(labelText: '关联项目'),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('不关联项目')),
-                ...projects.map(
-                  (project) => DropdownMenuItem(
-                    value: project.id,
-                    child: Text(project.title, overflow: TextOverflow.ellipsis),
+            ExternalField(
+              label: '关联项目',
+              child: DropdownButtonFormField<String?>(
+                initialValue: projectId,
+                decoration: const InputDecoration(),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('不关联项目')),
+                  ...projects.map(
+                    (project) => DropdownMenuItem(
+                      value: project.id,
+                      child: Text(
+                        project.title,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-              onChanged: (value) => setState(() => projectId = value),
+                ],
+                onChanged: (value) => setState(() => projectId = value),
+              ),
             ),
           ],
           if (isTask && showMoreOptions) ...[
@@ -418,50 +426,56 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: status,
-                    decoration: const InputDecoration(labelText: '状态'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: WorkStatus.inbox,
-                        child: Text('收集箱'),
-                      ),
-                      DropdownMenuItem(
-                        value: WorkStatus.todo,
-                        child: Text('待办'),
-                      ),
-                      DropdownMenuItem(
-                        value: WorkStatus.doing,
-                        child: Text('进行中'),
-                      ),
-                      DropdownMenuItem(
-                        value: WorkStatus.done,
-                        child: Text('已完成'),
-                      ),
-                      DropdownMenuItem(
-                        value: WorkStatus.cancelled,
-                        child: Text('已取消'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) setState(() => status = value);
-                    },
+                  child: ExternalField(
+                    label: '状态',
+                    child: DropdownButtonFormField<String>(
+                      initialValue: status,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(
+                          value: WorkStatus.inbox,
+                          child: Text('收集箱'),
+                        ),
+                        DropdownMenuItem(
+                          value: WorkStatus.todo,
+                          child: Text('待办'),
+                        ),
+                        DropdownMenuItem(
+                          value: WorkStatus.doing,
+                          child: Text('进行中'),
+                        ),
+                        DropdownMenuItem(
+                          value: WorkStatus.done,
+                          child: Text('已完成'),
+                        ),
+                        DropdownMenuItem(
+                          value: WorkStatus.cancelled,
+                          child: Text('已取消'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => status = value);
+                      },
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButtonFormField<int>(
-                    initialValue: priority,
-                    decoration: const InputDecoration(labelText: '优先级'),
-                    items: const [
-                      DropdownMenuItem(value: 0, child: Text('普通')),
-                      DropdownMenuItem(value: 1, child: Text('低')),
-                      DropdownMenuItem(value: 2, child: Text('中')),
-                      DropdownMenuItem(value: 3, child: Text('高')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) setState(() => priority = value);
-                    },
+                  child: ExternalField(
+                    label: '优先级',
+                    child: DropdownButtonFormField<int>(
+                      initialValue: priority,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(value: 0, child: Text('普通')),
+                        DropdownMenuItem(value: 1, child: Text('低')),
+                        DropdownMenuItem(value: 2, child: Text('中')),
+                        DropdownMenuItem(value: 3, child: Text('高')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => priority = value);
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -470,31 +484,34 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: estimateController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: '预计分钟',
-                      suffixText: 'min',
+                  child: ExternalField(
+                    label: '预计分钟',
+                    child: TextField(
+                      controller: estimateController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(suffixText: 'min'),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: recurrence,
-                    decoration: const InputDecoration(labelText: '循环'),
-                    items: const [
-                      DropdownMenuItem(value: 'none', child: Text('不循环')),
-                      DropdownMenuItem(value: 'daily', child: Text('每天')),
-                      DropdownMenuItem(value: 'weekdays', child: Text('工作日')),
-                      DropdownMenuItem(value: 'weekly', child: Text('每周')),
-                      DropdownMenuItem(value: 'monthly', child: Text('每月')),
-                      DropdownMenuItem(value: 'yearly', child: Text('每年')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) setState(() => recurrence = value);
-                    },
+                  child: ExternalField(
+                    label: '循环',
+                    child: DropdownButtonFormField<String>(
+                      initialValue: recurrence,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(value: 'none', child: Text('不循环')),
+                        DropdownMenuItem(value: 'daily', child: Text('每天')),
+                        DropdownMenuItem(value: 'weekdays', child: Text('工作日')),
+                        DropdownMenuItem(value: 'weekly', child: Text('每周')),
+                        DropdownMenuItem(value: 'monthly', child: Text('每月')),
+                        DropdownMenuItem(value: 'yearly', child: Text('每年')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => recurrence = value);
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -540,36 +557,38 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: completionWindowController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: '完成窗口',
-                        suffixText: 'min',
+                    child: ExternalField(
+                      label: '完成窗口',
+                      child: TextField(
+                        controller: completionWindowController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(suffixText: 'min'),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(AppRadius.control),
-                      onTap: _pickRecurrenceEnd,
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: '周期结束',
-                          suffixIcon: recurrenceEndAt == null
-                              ? null
-                              : IconButton(
-                                  onPressed: () =>
-                                      setState(() => recurrenceEndAt = null),
-                                  tooltip: '清除周期结束日期',
-                                  icon: const Icon(Icons.close),
-                                ),
-                        ),
-                        child: Text(
-                          recurrenceEndAt == null
-                              ? '持续执行'
-                              : formatShortDate(recurrenceEndAt!),
+                    child: ExternalField(
+                      label: '周期结束',
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.control),
+                        onTap: _pickRecurrenceEnd,
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            suffixIcon: recurrenceEndAt == null
+                                ? null
+                                : IconButton(
+                                    onPressed: () =>
+                                        setState(() => recurrenceEndAt = null),
+                                    tooltip: '清除周期结束日期',
+                                    icon: const Icon(Icons.close),
+                                  ),
+                          ),
+                          child: Text(
+                            recurrenceEndAt == null
+                                ? '持续执行'
+                                : formatShortDate(recurrenceEndAt!),
+                          ),
                         ),
                       ),
                     ),
@@ -582,95 +601,111 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
               Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: ctdpUnitType,
-                      decoration: const InputDecoration(labelText: 'CTDP 类型'),
-                      items: const [
-                        DropdownMenuItem(value: 'unit', child: Text('执行单元')),
-                        DropdownMenuItem(value: 'group', child: Text('任务组')),
-                        DropdownMenuItem(value: 'assault', child: Text('突击单元')),
-                        DropdownMenuItem(value: 'recon', child: Text('侦察单元')),
-                        DropdownMenuItem(value: 'command', child: Text('指挥单元')),
-                        DropdownMenuItem(
-                          value: 'special_ops',
-                          child: Text('特勤单元'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'engineering',
-                          child: Text('工程单元'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'quartermaster',
-                          child: Text('保障单元'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => ctdpUnitType = value);
-                        }
-                      },
+                    child: ExternalField(
+                      label: 'CTDP 类型',
+                      child: DropdownButtonFormField<String>(
+                        initialValue: ctdpUnitType,
+                        decoration: const InputDecoration(),
+                        items: const [
+                          DropdownMenuItem(value: 'unit', child: Text('执行单元')),
+                          DropdownMenuItem(value: 'group', child: Text('任务组')),
+                          DropdownMenuItem(
+                            value: 'assault',
+                            child: Text('突击单元'),
+                          ),
+                          DropdownMenuItem(value: 'recon', child: Text('侦察单元')),
+                          DropdownMenuItem(
+                            value: 'command',
+                            child: Text('指挥单元'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'special_ops',
+                            child: Text('特勤单元'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'engineering',
+                            child: Text('工程单元'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'quartermaster',
+                            child: Text('保障单元'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => ctdpUnitType = value);
+                          }
+                        },
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: DropdownButtonFormField<String?>(
-                      initialValue: ctdpParentId,
-                      decoration: const InputDecoration(labelText: '所属任务组'),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('不属于任务组'),
-                        ),
-                        ...ctdpGroups.map(
-                          (group) => DropdownMenuItem<String?>(
-                            value: group.id,
-                            child: Text(
-                              group.title,
-                              overflow: TextOverflow.ellipsis,
+                    child: ExternalField(
+                      label: '所属任务组',
+                      child: DropdownButtonFormField<String?>(
+                        initialValue: ctdpParentId,
+                        decoration: const InputDecoration(),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('不属于任务组'),
+                          ),
+                          ...ctdpGroups.map(
+                            (group) => DropdownMenuItem<String?>(
+                              value: group.id,
+                              child: Text(
+                                group.title,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => ctdpParentId = value),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => ctdpParentId = value),
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: ctdpTriggerController,
-                onChanged: (_) {
-                  if (showCtdpTriggerError) {
-                    setState(() => showCtdpTriggerError = false);
-                  }
-                },
-                decoration: InputDecoration(
-                  labelText: '触发标志',
-                  hintText: '例如：戴上蓝色帽子后开始',
-                  prefixIcon: const Icon(Icons.touch_app_outlined),
-                  errorText: showCtdpTriggerError ? '请先定义触发标志' : null,
+              ExternalField(
+                label: '触发标志',
+                child: TextField(
+                  controller: ctdpTriggerController,
+                  onChanged: (_) {
+                    if (showCtdpTriggerError) {
+                      setState(() => showCtdpTriggerError = false);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    hintText: '例如：戴上蓝色帽子后开始',
+                    prefixIcon: const Icon(Icons.touch_app_outlined),
+                    errorText: showCtdpTriggerError ? '请先定义触发标志' : null,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: ctdpAuxSignalController,
-                      decoration: const InputDecoration(
-                        labelText: '辅助信号',
-                        hintText: '例如：闹钟响起',
+                    child: ExternalField(
+                      label: '辅助信号',
+                      child: TextField(
+                        controller: ctdpAuxSignalController,
+                        decoration: const InputDecoration(hintText: '例如：闹钟响起'),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
-                      controller: ctdpAuxCompletionController,
-                      decoration: const InputDecoration(
-                        labelText: '辅助链完成条件',
-                        hintText: '例如：截止前执行触发标志',
+                    child: ExternalField(
+                      label: '辅助链完成条件',
+                      child: TextField(
+                        controller: ctdpAuxCompletionController,
+                        decoration: const InputDecoration(
+                          hintText: '例如：截止前执行触发标志',
+                        ),
                       ),
                     ),
                   ),
@@ -680,23 +715,23 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: ctdpSessionController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: '主链时长',
-                        suffixText: 'min',
+                    child: ExternalField(
+                      label: '主链时长',
+                      child: TextField(
+                        controller: ctdpSessionController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(suffixText: 'min'),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
-                      controller: ctdpDelayController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: '预约缓冲',
-                        suffixText: 'min',
+                    child: ExternalField(
+                      label: '预约缓冲',
+                      child: TextField(
+                        controller: ctdpDelayController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(suffixText: 'min'),
                       ),
                     ),
                   ),
@@ -704,13 +739,15 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
               ),
               if (ctdpUnitType == 'group') ...[
                 const SizedBox(height: 12),
-                TextField(
-                  controller: ctdpGroupHoursController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: '任务组完成时限',
-                    suffixText: 'h（0 表示不限时）',
-                    prefixIcon: Icon(Icons.account_tree_outlined),
+                ExternalField(
+                  label: '任务组完成时限',
+                  child: TextField(
+                    controller: ctdpGroupHoursController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      suffixText: 'h（0 表示不限时）',
+                      prefixIcon: Icon(Icons.account_tree_outlined),
+                    ),
                   ),
                 ),
               ] else ...[
@@ -723,12 +760,12 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
                       setState(() => ctdpDurationless = value),
                 ),
                 if (ctdpDurationless)
-                  TextField(
-                    controller: ctdpMinimumController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: '最低有效时长',
-                      suffixText: 'min',
+                  ExternalField(
+                    label: '最低有效时长',
+                    child: TextField(
+                      controller: ctdpMinimumController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(suffixText: 'min'),
                     ),
                   ),
               ],
@@ -761,61 +798,72 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
           ],
           if (isHabit && showMoreOptions) ...[
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: frequency,
-              decoration: const InputDecoration(labelText: '频率'),
-              items: const [
-                DropdownMenuItem(value: 'daily', child: Text('每天')),
-                DropdownMenuItem(value: 'weekdays', child: Text('工作日')),
-                DropdownMenuItem(value: 'weekly', child: Text('每周一次')),
-                DropdownMenuItem(value: 'monthly', child: Text('每月一次')),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => frequency = value);
-              },
+            ExternalField(
+              label: '频率',
+              child: DropdownButtonFormField<String>(
+                initialValue: frequency,
+                decoration: const InputDecoration(),
+                items: const [
+                  DropdownMenuItem(value: 'daily', child: Text('每天')),
+                  DropdownMenuItem(value: 'weekdays', child: Text('工作日')),
+                  DropdownMenuItem(value: 'weekly', child: Text('每周一次')),
+                  DropdownMenuItem(value: 'monthly', child: Text('每月一次')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => frequency = value);
+                },
+              ),
             ),
             if (protocolEnabled) ...[
               const SizedBox(height: 12),
-              TextField(
-                controller: rsipMinimumController,
-                onChanged: (_) {
-                  if (showRsipMinimumError) {
-                    setState(() => showRsipMinimumError = false);
-                  }
-                },
-                decoration: InputDecoration(
-                  labelText: '最小动作',
-                  hintText: '例如：只读一页论文',
-                  prefixIcon: const Icon(Icons.flag_outlined),
-                  helperText: '写到状态很差时也能开始的程度',
-                  errorText: showRsipMinimumError ? '请先定义最小动作' : null,
+              ExternalField(
+                label: '最小动作',
+                child: TextField(
+                  controller: rsipMinimumController,
+                  onChanged: (_) {
+                    if (showRsipMinimumError) {
+                      setState(() => showRsipMinimumError = false);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    hintText: '例如：只读一页论文',
+                    prefixIcon: const Icon(Icons.flag_outlined),
+                    helperText: '写到状态很差时也能开始的程度',
+                    errorText: showRsipMinimumError ? '请先定义最小动作' : null,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: rsipTriggerController,
-                decoration: const InputDecoration(
-                  labelText: '触发条件',
-                  hintText: '例如：晚饭后坐到书桌前',
-                  prefixIcon: Icon(Icons.alt_route_outlined),
+              ExternalField(
+                label: '触发条件',
+                child: TextField(
+                  controller: rsipTriggerController,
+                  decoration: const InputDecoration(
+                    hintText: '例如：晚饭后坐到书桌前',
+                    prefixIcon: Icon(Icons.alt_route_outlined),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: rsipRuleController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: '精确规则',
-                  hintText: '写清何时算完成、何时算失败，不留临场解释空间',
-                  prefixIcon: Icon(Icons.rule_outlined),
+              ExternalField(
+                label: '精确规则',
+                child: TextField(
+                  controller: rsipRuleController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: '写清何时算完成、何时算失败，不留临场解释空间',
+                    prefixIcon: Icon(Icons.rule_outlined),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: rsipGroupController,
-                decoration: const InputDecoration(
-                  labelText: '国策组',
-                  prefixIcon: Icon(Icons.folder_outlined),
+              ExternalField(
+                label: '国策组',
+                child: TextField(
+                  controller: rsipGroupController,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.folder_outlined),
+                  ),
                 ),
               ),
               SwitchListTile(
@@ -826,35 +874,40 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
                 onChanged: (value) => setState(() => rsipUseTimer = value),
               ),
               if (rsipUseTimer) ...[
-                TextField(
-                  controller: rsipTimerController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: '计时分钟',
-                    suffixText: 'min',
+                ExternalField(
+                  label: '计时分钟',
+                  child: TextField(
+                    controller: rsipTimerController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(suffixText: 'min'),
                   ),
                 ),
                 const SizedBox(height: 12),
               ],
-              DropdownButtonFormField<String?>(
-                initialValue: rsipParentId,
-                decoration: const InputDecoration(
-                  labelText: '父节点（国策树）',
-                  prefixIcon: Icon(Icons.account_tree_outlined),
-                ),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('根节点'),
+              ExternalField(
+                label: '父节点（国策树）',
+                child: DropdownButtonFormField<String?>(
+                  initialValue: rsipParentId,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.account_tree_outlined),
                   ),
-                  ...rsipParents.map(
-                    (habit) => DropdownMenuItem<String?>(
-                      value: habit.id,
-                      child: Text(habit.title, overflow: TextOverflow.ellipsis),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('根节点'),
                     ),
-                  ),
-                ],
-                onChanged: (value) => setState(() => rsipParentId = value),
+                    ...rsipParents.map(
+                      (habit) => DropdownMenuItem<String?>(
+                        value: habit.id,
+                        child: Text(
+                          habit.title,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) => setState(() => rsipParentId = value),
+                ),
               ),
               const SizedBox(height: 6),
               Align(
@@ -868,56 +921,65 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
           ],
           if (isTask || isGoal || isMilestone) ...[
             const SizedBox(height: 12),
-            InkWell(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              onTap: _pickDate,
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: isGoal || isMilestone ? '截止日期' : '安排日期',
-                  prefixIcon: const Icon(Icons.calendar_today_outlined),
-                  suffixIcon: date == null
-                      ? null
-                      : IconButton(
-                          onPressed: () => setState(() => date = null),
-                          tooltip: '清除日期',
-                          icon: const Icon(Icons.close),
-                        ),
+            ExternalField(
+              label: isGoal || isMilestone ? '截止日期' : '安排日期',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.control),
+                onTap: _pickDate,
+                child: InputDecorator(
+                  decoration:
+                      const InputDecoration(
+                        prefixIcon: Icon(Icons.calendar_today_outlined),
+                      ).copyWith(
+                        suffixIcon: date == null
+                            ? null
+                            : IconButton(
+                                onPressed: () => setState(() => date = null),
+                                tooltip: '清除日期',
+                                icon: const Icon(Icons.close),
+                              ),
+                      ),
+                  child: Text(date == null ? '未设置' : formatShortDate(date!)),
                 ),
-                child: Text(date == null ? '未设置' : formatShortDate(date!)),
               ),
             ),
           ],
           if (isTask && showMoreOptions) ...[
             const SizedBox(height: 12),
-            InkWell(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              onTap: _pickTaskDueDate,
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: '明确截止日期',
-                  prefixIcon: const Icon(Icons.event_busy_outlined),
-                  suffixIcon: taskDueAt == null
-                      ? null
-                      : IconButton(
-                          onPressed: () => setState(() => taskDueAt = null),
-                          tooltip: '清除截止日期',
-                          icon: const Icon(Icons.close),
-                        ),
-                ),
-                child: Text(
-                  taskDueAt == null ? '使用完成窗口' : formatShortDate(taskDueAt!),
+            ExternalField(
+              label: '明确截止日期',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.control),
+                onTap: _pickTaskDueDate,
+                child: InputDecorator(
+                  decoration:
+                      const InputDecoration(
+                        prefixIcon: Icon(Icons.event_busy_outlined),
+                      ).copyWith(
+                        suffixIcon: taskDueAt == null
+                            ? null
+                            : IconButton(
+                                onPressed: () =>
+                                    setState(() => taskDueAt = null),
+                                tooltip: '清除截止日期',
+                                icon: const Icon(Icons.close),
+                              ),
+                      ),
+                  child: Text(
+                    taskDueAt == null ? '使用完成窗口' : formatShortDate(taskDueAt!),
+                  ),
                 ),
               ),
             ),
           ],
           if (showMoreOptions) ...[
             const SizedBox(height: 12),
-            TextField(
-              controller: tagsController,
-              inputFormatters: [LengthLimitingTextInputFormatter(500)],
-              decoration: const InputDecoration(
-                labelText: '标签',
-                hintText: '使用逗号分隔',
+            ExternalField(
+              label: '标签',
+              child: TextField(
+                controller: tagsController,
+                inputFormatters: [LengthLimitingTextInputFormatter(500)],
+                decoration: const InputDecoration(hintText: '使用逗号分隔'),
               ),
             ),
           ],

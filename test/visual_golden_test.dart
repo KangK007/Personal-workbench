@@ -27,6 +27,7 @@ import 'package:personal_workbench/ui/pages/protocols_page.dart';
 import 'package:personal_workbench/ui/pages/review_page.dart';
 import 'package:personal_workbench/ui/pages/restriction_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
+import 'package:personal_workbench/ui/widgets/common.dart';
 import 'package:personal_workbench/ui/widgets/record_editor_dialog.dart';
 import 'package:personal_workbench/ui/workbench_shell.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -438,8 +439,9 @@ Future<void> _pumpGolden(
   );
 }
 
-Finder _textFieldWithLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is TextField && widget.decoration?.labelText == label,
+Finder _textFieldWithLabel(String label) => find.descendant(
+  of: find.widgetWithText(ExternalField, label),
+  matching: find.byType(TextField),
 );
 
 Future<void> _pumpDocumentationForm(

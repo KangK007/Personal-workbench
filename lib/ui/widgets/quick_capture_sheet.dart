@@ -122,43 +122,47 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
             ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<RecordKind>(
-            initialValue: kind,
-            decoration: const InputDecoration(
-              labelText: '类型',
-              prefixIcon: Icon(Icons.category_outlined),
+          ExternalField(
+            label: '类型',
+            child: DropdownButtonFormField<RecordKind>(
+              initialValue: kind,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.category_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: RecordKind.task, child: Text('任务')),
+                DropdownMenuItem(value: RecordKind.note, child: Text('笔记')),
+                DropdownMenuItem(value: RecordKind.diary, child: Text('今日记录')),
+                DropdownMenuItem(value: RecordKind.link, child: Text('链接')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => kind = value);
+              },
             ),
-            items: const [
-              DropdownMenuItem(value: RecordKind.task, child: Text('任务')),
-              DropdownMenuItem(value: RecordKind.note, child: Text('笔记')),
-              DropdownMenuItem(value: RecordKind.diary, child: Text('今日记录')),
-              DropdownMenuItem(value: RecordKind.link, child: Text('链接')),
-            ],
-            onChanged: (value) {
-              if (value != null) setState(() => kind = value);
-            },
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: textController,
-            autofocus: true,
-            inputFormatters: [LengthLimitingTextInputFormatter(2000)],
-            minLines: kind == RecordKind.note || kind == RecordKind.diary
-                ? 3
-                : 1,
-            maxLines: 6,
-            textInputAction: TextInputAction.newline,
-            decoration: InputDecoration(
-              labelText: kind == RecordKind.link ? '网页或云盘链接' : '写下内容',
-              hintText: kind == RecordKind.task ? '例如：整理本周实验记录' : null,
-              prefixIcon: Icon(iconForKind(kind)),
+          ExternalField(
+            label: kind == RecordKind.link ? '网页或云盘链接' : '写下内容',
+            child: TextField(
+              controller: textController,
+              autofocus: true,
+              inputFormatters: [LengthLimitingTextInputFormatter(2000)],
+              minLines: kind == RecordKind.note || kind == RecordKind.diary
+                  ? 3
+                  : 1,
+              maxLines: 6,
+              textInputAction: TextInputAction.newline,
+              decoration: InputDecoration(
+                hintText: kind == RecordKind.task ? '例如：整理本周实验记录' : null,
+                prefixIcon: Icon(iconForKind(kind)),
+              ),
+              onSubmitted: (_) {
+                if (kind == RecordKind.task || kind == RecordKind.link) _save();
+              },
+              onChanged: (_) {
+                if (errorMessage != null) setState(() => errorMessage = null);
+              },
             ),
-            onSubmitted: (_) {
-              if (kind == RecordKind.task || kind == RecordKind.link) _save();
-            },
-            onChanged: (_) {
-              if (errorMessage != null) setState(() => errorMessage = null);
-            },
           ),
           if (errorMessage != null) ...[
             const SizedBox(height: 8),

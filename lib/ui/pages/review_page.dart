@@ -228,13 +228,16 @@ class _ReviewPageState extends State<ReviewPage> {
                 ),
               ],
             ),
-          TextField(
-            controller: titleController,
-            decoration: const InputDecoration(labelText: '标题'),
+          ExternalField(
+            label: '标题',
+            child: TextField(
+              controller: titleController,
+              decoration: const InputDecoration(),
+            ),
           ),
           const SizedBox(height: 12),
-          InputDecorator(
-            decoration: const InputDecoration(labelText: '今日心情'),
+          ExternalField(
+            label: '今日心情',
             child: SegmentedButton<int>(
               emptySelectionAllowed: true,
               showSelectedIcon: false,
@@ -432,11 +435,13 @@ class _ReviewPageState extends State<ReviewPage> {
           child: Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: searchController,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
-                    labelText: '搜索标题或正文',
+                child: ExternalField(
+                  label: '搜索标题或正文',
+                  child: TextField(
+                    controller: searchController,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                    ),
                   ),
                 ),
               ),
@@ -550,13 +555,13 @@ class _ReviewPageState extends State<ReviewPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('刷新事实快照'),
-        content: TextField(
-          controller: field,
-          autofocus: true,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: '刷新原因（必填）',
-            hintText: '例如：任务结算已留痕更正',
+        content: ExternalField(
+          label: '刷新原因（必填）',
+          child: TextField(
+            controller: field,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(hintText: '例如：任务结算已留痕更正'),
           ),
         ),
         actions: [
@@ -588,10 +593,13 @@ class _ReviewPageState extends State<ReviewPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('跳过本期回顾'),
-        content: TextField(
-          controller: field,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: '跳过原因（必填）'),
+        content: ExternalField(
+          label: '跳过原因（必填）',
+          child: TextField(
+            controller: field,
+            autofocus: true,
+            decoration: const InputDecoration(),
+          ),
         ),
         actions: [
           TextButton(
@@ -1116,16 +1124,18 @@ class _DailyReviewField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      minLines: 2,
-      maxLines: 5,
-      decoration: InputDecoration(
-        labelText: label,
-        alignLabelWithHint: true,
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(bottom: 32),
-          child: Icon(icon),
+    return ExternalField(
+      label: label,
+      child: TextField(
+        controller: controller,
+        minLines: 2,
+        maxLines: 5,
+        decoration: InputDecoration(
+          alignLabelWithHint: true,
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(bottom: 32),
+            child: Icon(icon),
+          ),
         ),
       ),
     );

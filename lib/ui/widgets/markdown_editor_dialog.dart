@@ -62,10 +62,13 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: titleController,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: '标题'),
+            ExternalField(
+              label: '标题',
+              child: TextField(
+                controller: titleController,
+                autofocus: true,
+                decoration: const InputDecoration(),
+              ),
             ),
             const SizedBox(height: 12),
             Row(

@@ -555,73 +555,88 @@ class _ProtocolsPageState extends State<ProtocolsPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: name,
-                    autofocus: true,
-                    decoration: const InputDecoration(labelText: '判例名称'),
+                  ExternalField(
+                    label: '判例名称',
+                    child: TextField(
+                      controller: name,
+                      autofocus: true,
+                      decoration: const InputDecoration(),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: description,
-                    minLines: 2,
-                    maxLines: 4,
-                    decoration: const InputDecoration(labelText: '适用条件'),
+                  ExternalField(
+                    label: '适用条件',
+                    child: TextField(
+                      controller: description,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: type,
-                    decoration: const InputDecoration(labelText: '允许行为'),
-                    items: const [
-                      DropdownMenuItem(value: 'pause', child: Text('暂停')),
-                      DropdownMenuItem(
-                        value: 'early_completion',
-                        child: Text('提前完成'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'interruption',
-                        child: Text('允许中断'),
-                      ),
-                    ],
-                    onChanged: (value) => setDialogState(() => type = value!),
+                  ExternalField(
+                    label: '允许行为',
+                    child: DropdownButtonFormField<String>(
+                      initialValue: type,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(value: 'pause', child: Text('暂停')),
+                        DropdownMenuItem(
+                          value: 'early_completion',
+                          child: Text('提前完成'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'interruption',
+                          child: Text('允许中断'),
+                        ),
+                      ],
+                      onChanged: (value) => setDialogState(() => type = value!),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: scope,
-                    decoration: const InputDecoration(labelText: '作用范围'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'global',
-                        child: Text('所有 CTDP 链'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'chain',
-                        child: Text('指定 CTDP 链'),
-                      ),
-                    ],
-                    onChanged: (value) => setDialogState(() {
-                      scope = value!;
-                      if (scope == 'global') chainId = null;
-                    }),
+                  ExternalField(
+                    label: '作用范围',
+                    child: DropdownButtonFormField<String>(
+                      initialValue: scope,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'global',
+                          child: Text('所有 CTDP 链'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'chain',
+                          child: Text('指定 CTDP 链'),
+                        ),
+                      ],
+                      onChanged: (value) => setDialogState(() {
+                        scope = value!;
+                        if (scope == 'global') chainId = null;
+                      }),
+                    ),
                   ),
                   if (scope == 'chain') ...[
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: chainId,
-                      decoration: const InputDecoration(labelText: '适用任务'),
-                      items: widget.controller.ctdpTasks
-                          .where((task) => !task.ctdpIsGroup)
-                          .map(
-                            (task) => DropdownMenuItem(
-                              value: task.id,
-                              child: Text(
-                                task.title,
-                                overflow: TextOverflow.ellipsis,
+                    ExternalField(
+                      label: '适用任务',
+                      child: DropdownButtonFormField<String>(
+                        initialValue: chainId,
+                        decoration: const InputDecoration(),
+                        items: widget.controller.ctdpTasks
+                            .where((task) => !task.ctdpIsGroup)
+                            .map(
+                              (task) => DropdownMenuItem(
+                                value: task.id,
+                                child: Text(
+                                  task.title,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setDialogState(() => chainId = value),
+                            )
+                            .toList(),
+                        onChanged: (value) =>
+                            setDialogState(() => chainId = value),
+                      ),
                     ),
                   ],
                 ],
@@ -677,10 +692,13 @@ class _ProtocolsPageState extends State<ProtocolsPage>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: title,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: '今天赢在哪里'),
+                ExternalField(
+                  label: '今天赢在哪里',
+                  child: TextField(
+                    controller: title,
+                    autofocus: true,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 SegmentedButton<String>(
@@ -694,11 +712,14 @@ class _ProtocolsPageState extends State<ProtocolsPage>
                       setDialogState(() => grade = value.first),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: notes,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(labelText: '证据或复盘'),
+                ExternalField(
+                  label: '证据或复盘',
+                  child: TextField(
+                    controller: notes,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
               ],
             ),

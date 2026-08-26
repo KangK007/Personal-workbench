@@ -471,35 +471,46 @@ class _TodayStatusTask extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButtonFormField<String?>(
-                    initialValue: template,
-                    decoration: const InputDecoration(labelText: '常用原因模板'),
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('自定义')),
-                      DropdownMenuItem(
-                        value: '外部依赖未完成',
-                        child: Text('外部依赖未完成'),
-                      ),
-                      DropdownMenuItem(value: '时间估计不足', child: Text('时间估计不足')),
-                      DropdownMenuItem(
-                        value: '设备或环境不可用',
-                        child: Text('设备或环境不可用'),
-                      ),
-                      DropdownMenuItem(value: '任务定义不清', child: Text('任务定义不清')),
-                    ],
-                    onChanged: (value) {
-                      setDialogState(() => template = value);
-                      if (value != null) field.text = value;
-                    },
+                  ExternalField(
+                    label: '常用原因模板',
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: template,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('自定义')),
+                        DropdownMenuItem(
+                          value: '外部依赖未完成',
+                          child: Text('外部依赖未完成'),
+                        ),
+                        DropdownMenuItem(
+                          value: '时间估计不足',
+                          child: Text('时间估计不足'),
+                        ),
+                        DropdownMenuItem(
+                          value: '设备或环境不可用',
+                          child: Text('设备或环境不可用'),
+                        ),
+                        DropdownMenuItem(
+                          value: '任务定义不清',
+                          child: Text('任务定义不清'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setDialogState(() => template = value);
+                        if (value != null) field.text = value;
+                      },
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: field,
-                    autofocus: true,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: '原因（必填，可补充说明）',
-                      hintText: '例如：仪器占用、外部依赖未完成',
+                  ExternalField(
+                    label: '原因（必填，可补充说明）',
+                    child: TextField(
+                      controller: field,
+                      autofocus: true,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        hintText: '例如：仪器占用、外部依赖未完成',
+                      ),
                     ),
                   ),
                 ],
@@ -534,22 +545,24 @@ class _TodayStatusTask extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: note,
-                    autofocus: true,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: '结果说明（可选）',
-                      hintText: '记录产出、结论或保存位置',
+                  ExternalField(
+                    label: '结果说明（可选）',
+                    child: TextField(
+                      controller: note,
+                      autofocus: true,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        hintText: '记录产出、结论或保存位置',
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: link,
-                    keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(
-                      labelText: '结果链接（可选）',
-                      hintText: 'https://',
+                  ExternalField(
+                    label: '结果链接（可选）',
+                    child: TextField(
+                      controller: link,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(hintText: 'https://'),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -648,42 +661,51 @@ class _TodayStatusTask extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: status,
-                  decoration: const InputDecoration(labelText: '更正后的状态'),
-                  items: const [
-                    DropdownMenuItem(value: WorkStatus.done, child: Text('完成')),
-                    DropdownMenuItem(
-                      value: WorkStatus.failed,
-                      child: Text('失败'),
-                    ),
-                    DropdownMenuItem(
-                      value: WorkStatus.skipped,
-                      child: Text('跳过'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setDialogState(() => status = value);
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: reason,
-                  autofocus: true,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: '更正原因（必填）',
-                    hintText: '说明为什么需要修正原结算事实',
+                ExternalField(
+                  label: '更正后的状态',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: status,
+                    decoration: const InputDecoration(),
+                    items: const [
+                      DropdownMenuItem(
+                        value: WorkStatus.done,
+                        child: Text('完成'),
+                      ),
+                      DropdownMenuItem(
+                        value: WorkStatus.failed,
+                        child: Text('失败'),
+                      ),
+                      DropdownMenuItem(
+                        value: WorkStatus.skipped,
+                        child: Text('跳过'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setDialogState(() => status = value);
+                    },
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: detail,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    labelText: status == WorkStatus.failed
-                        ? '失败原因（不填则使用更正原因）'
-                        : '结果说明（可选）',
+                ExternalField(
+                  label: '更正原因（必填）',
+                  child: TextField(
+                    controller: reason,
+                    autofocus: true,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      hintText: '说明为什么需要修正原结算事实',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ExternalField(
+                  label: status == WorkStatus.failed
+                      ? '失败原因（不填则使用更正原因）'
+                      : '结果说明（可选）',
+                  child: TextField(
+                    controller: detail,
+                    maxLines: 3,
+                    decoration: InputDecoration(),
                   ),
                 ),
               ],
@@ -1589,37 +1611,43 @@ Future<void> _showReplacementDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<WorkspaceRecord>(
-                initialValue: replacement,
-                decoration: const InputDecoration(labelText: '替换为'),
-                items: candidates
-                    .map(
-                      (task) => DropdownMenuItem(
-                        value: task,
-                        child: Text(
-                          task.title,
-                          overflow: TextOverflow.ellipsis,
+              ExternalField(
+                label: '替换为',
+                child: DropdownButtonFormField<WorkspaceRecord>(
+                  initialValue: replacement,
+                  decoration: const InputDecoration(),
+                  items: candidates
+                      .map(
+                        (task) => DropdownMenuItem(
+                          value: task,
+                          child: Text(
+                            task.title,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => replacement = value);
-                },
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setState(() => replacement = value);
+                  },
+                ),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: reason,
-                decoration: const InputDecoration(labelText: '调整原因'),
-                items: const ['优先级变化', '估时偏差', '外部阻塞', '临时中断', '任务已失效']
-                    .map(
-                      (value) =>
-                          DropdownMenuItem(value: value, child: Text(value)),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => reason = value);
-                },
+              ExternalField(
+                label: '调整原因',
+                child: DropdownButtonFormField<String>(
+                  initialValue: reason,
+                  decoration: const InputDecoration(),
+                  items: const ['优先级变化', '估时偏差', '外部阻塞', '临时中断', '任务已失效']
+                      .map(
+                        (value) =>
+                            DropdownMenuItem(value: value, child: Text(value)),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setState(() => reason = value);
+                  },
+                ),
               ),
             ],
           ),
@@ -1683,29 +1711,35 @@ Future<void> _showCloseDialog(
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: dispositions[task.id],
-                    decoration: const InputDecoration(labelText: '结算方式'),
-                    items: const [
-                      DropdownMenuItem(value: 'failed', child: Text('失败')),
-                      DropdownMenuItem(value: 'skipped', child: Text('跳过')),
-                      DropdownMenuItem(value: 'rescheduled', child: Text('改期')),
-                      DropdownMenuItem(value: 'inbox', child: Text('退回收集箱')),
-                    ],
-                    onChanged: (value) {
-                      setState(() => dispositions[task.id] = value ?? '');
-                    },
+                  ExternalField(
+                    label: '结算方式',
+                    child: DropdownButtonFormField<String>(
+                      initialValue: dispositions[task.id],
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(value: 'failed', child: Text('失败')),
+                        DropdownMenuItem(value: 'skipped', child: Text('跳过')),
+                        DropdownMenuItem(
+                          value: 'rescheduled',
+                          child: Text('改期'),
+                        ),
+                        DropdownMenuItem(value: 'inbox', child: Text('退回收集箱')),
+                      ],
+                      onChanged: (value) {
+                        setState(() => dispositions[task.id] = value ?? '');
+                      },
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  TextFormField(
-                    initialValue: reasons[task.id],
-                    decoration: InputDecoration(
-                      labelText: dispositions[task.id] == 'failed'
-                          ? '原因（必填）'
-                          : '原因或说明（可选）',
-                      hintText: '例如：外部阻塞、估时偏差',
+                  ExternalField(
+                    label: dispositions[task.id] == 'failed'
+                        ? '原因（必填）'
+                        : '原因或说明（可选）',
+                    child: TextFormField(
+                      initialValue: reasons[task.id],
+                      decoration: InputDecoration(hintText: '例如：外部阻塞、估时偏差'),
+                      onChanged: (value) => reasons[task.id] = value,
                     ),
-                    onChanged: (value) => reasons[task.id] = value,
                   ),
                   if (dispositions[task.id] == 'rescheduled') ...[
                     const SizedBox(height: 8),
@@ -1732,13 +1766,15 @@ Future<void> _showCloseDialog(
                   const SizedBox(height: 12),
                 ],
                 const SizedBox(height: 10),
-                TextField(
-                  controller: reflection,
-                  minLines: 2,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    labelText: '日回顾草稿（可选）',
-                    hintText: '收尾后会自动转到日回顾继续编辑',
+                ExternalField(
+                  label: '日回顾草稿（可选）',
+                  child: TextField(
+                    controller: reflection,
+                    minLines: 2,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      hintText: '收尾后会自动转到日回顾继续编辑',
+                    ),
                   ),
                 ),
               ],
@@ -1806,23 +1842,26 @@ Future<void> _showTimeBlockDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<WorkspaceRecord>(
-                initialValue: selectedTask,
-                decoration: const InputDecoration(labelText: '任务'),
-                items: controller.todayTasks
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(
-                          value.title,
-                          overflow: TextOverflow.ellipsis,
+              ExternalField(
+                label: '任务',
+                child: DropdownButtonFormField<WorkspaceRecord>(
+                  initialValue: selectedTask,
+                  decoration: const InputDecoration(),
+                  items: controller.todayTasks
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(
+                            value.title,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => selectedTask = value);
-                },
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setState(() => selectedTask = value);
+                  },
+                ),
               ),
               const SizedBox(height: 12),
               ListTile(
@@ -1848,20 +1887,23 @@ Future<void> _showTimeBlockDialog(
                   }
                 },
               ),
-              DropdownButtonFormField<int>(
-                initialValue: minutes,
-                decoration: const InputDecoration(labelText: '时长'),
-                items: const [15, 25, 45, 50, 60, 90]
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text('$value 分钟'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => minutes = value);
-                },
+              ExternalField(
+                label: '时长',
+                child: DropdownButtonFormField<int>(
+                  initialValue: minutes,
+                  decoration: const InputDecoration(),
+                  items: const [15, 25, 45, 50, 60, 90]
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text('$value 分钟'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setState(() => minutes = value);
+                  },
+                ),
               ),
             ],
           ),
@@ -1933,20 +1975,23 @@ Future<void> _showEditTimeBlockDialog(
                   }
                 },
               ),
-              DropdownButtonFormField<int>(
-                initialValue: minutes,
-                decoration: const InputDecoration(labelText: '时长'),
-                items: durations
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text('$value 分钟'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => minutes = value);
-                },
+              ExternalField(
+                label: '时长',
+                child: DropdownButtonFormField<int>(
+                  initialValue: minutes,
+                  decoration: const InputDecoration(),
+                  items: durations
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text('$value 分钟'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setState(() => minutes = value);
+                  },
+                ),
               ),
             ],
           ),

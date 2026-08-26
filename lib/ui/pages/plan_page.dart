@@ -465,9 +465,12 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: title,
-                decoration: const InputDecoration(labelText: '名称'),
+              ExternalField(
+                label: '名称',
+                child: TextField(
+                  controller: title,
+                  decoration: const InputDecoration(),
+                ),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -476,12 +479,14 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
                 subtitle: const Text('关闭时为并行任务群'),
                 onChanged: (value) => setDialogState(() => sequential = value),
               ),
-              TextField(
-                controller: timeLimit,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: '总时限（分钟，可选）',
-                  hintText: '每个子任务的 CTDP 配置保持独立',
+              ExternalField(
+                label: '总时限（分钟，可选）',
+                child: TextField(
+                  controller: timeLimit,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    hintText: '每个子任务的 CTDP 配置保持独立',
+                  ),
                 ),
               ),
             ],
@@ -534,9 +539,12 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: title,
-                decoration: const InputDecoration(labelText: '名称'),
+              ExternalField(
+                label: '名称',
+                child: TextField(
+                  controller: title,
+                  decoration: const InputDecoration(),
+                ),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -547,10 +555,13 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
                     ? null
                     : (value) => setDialogState(() => sequential = value),
               ),
-              TextField(
-                controller: timeLimit,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '总时限（分钟，可选）'),
+              ExternalField(
+                label: '总时限（分钟，可选）',
+                child: TextField(
+                  controller: timeLimit,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(),
+                ),
               ),
             ],
           ),
@@ -693,13 +704,13 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('调整任务链顺序'),
-        content: TextField(
-          controller: reason,
-          autofocus: true,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: '调整原因（必填）',
-            hintText: '顺序变更会记录到任务群历史',
+        content: ExternalField(
+          label: '调整原因（必填）',
+          child: TextField(
+            controller: reason,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(hintText: '顺序变更会记录到任务群历史'),
           ),
         ),
         actions: [

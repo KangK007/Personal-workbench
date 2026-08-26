@@ -302,21 +302,21 @@ Future<void> _editBetLimits(
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            controller: single,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: '单次上限',
-              helperText: '留空表示不限制',
+          ExternalField(
+            label: '单次上限',
+            child: TextField(
+              controller: single,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(helperText: '留空表示不限制'),
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: daily,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: '每日上限',
-              helperText: '留空表示不限制',
+          ExternalField(
+            label: '每日上限',
+            child: TextField(
+              controller: daily,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(helperText: '留空表示不限制'),
             ),
           ),
         ],

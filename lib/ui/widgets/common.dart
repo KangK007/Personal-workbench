@@ -33,6 +33,33 @@ class SurfaceIcon extends StatelessWidget {
   }
 }
 
+/// 输入控件的外置顶部标签：标签不参与输入框边框绘制，避免浮动标签
+/// 与边框重叠，并通过 Semantics 保留控件的可访问名称。
+class ExternalField extends StatelessWidget {
+  const ExternalField({super.key, required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
+      color: context.tokens.mutedText,
+      fontWeight: FontWeight.w600,
+      height: 1.2,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 可见标签保留视觉层级，读屏名称由实际控件统一提供，避免重复朗读。
+        ExcludeSemantics(child: Text(label, style: labelStyle)),
+        const SizedBox(height: AppSpacing.xs),
+        Semantics(label: label, container: true, child: child),
+      ],
+    );
+  }
+}
+
 /// 统一对话框入口：品牌遮罩色 + 淡入缩放入场，替代散落各处的默认 showDialog。
 Future<T?> showWorkbenchDialog<T extends Object?>({
   required BuildContext context,

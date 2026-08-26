@@ -677,23 +677,26 @@ Future<_BlockDialogResult?> _showBlockDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<WorkspaceRecord>(
-                initialValue: task,
-                decoration: const InputDecoration(labelText: '任务'),
-                items: tasks
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(
-                          value.title,
-                          overflow: TextOverflow.ellipsis,
+              ExternalField(
+                label: '任务',
+                child: DropdownButtonFormField<WorkspaceRecord>(
+                  initialValue: task,
+                  decoration: const InputDecoration(),
+                  items: tasks
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(
+                            value.title,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: tasks.length == 1
-                    ? null
-                    : (value) => setState(() => task = value!),
+                      )
+                      .toList(),
+                  onChanged: tasks.length == 1
+                      ? null
+                      : (value) => setState(() => task = value!),
+                ),
               ),
               const SizedBox(height: 10),
               ListTile(
@@ -728,18 +731,21 @@ Future<_BlockDialogResult?> _showBlockDialog(
                   }
                 },
               ),
-              DropdownButtonFormField<int>(
-                initialValue: minutes,
-                decoration: const InputDecoration(labelText: '时长'),
-                items: const [15, 25, 30, 45, 50, 60, 90, 120]
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text('$value 分钟'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => minutes = value!),
+              ExternalField(
+                label: '时长',
+                child: DropdownButtonFormField<int>(
+                  initialValue: minutes,
+                  decoration: const InputDecoration(),
+                  items: const [15, 25, 30, 45, 50, 60, 90, 120]
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text('$value 分钟'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() => minutes = value!),
+                ),
               ),
             ],
           ),

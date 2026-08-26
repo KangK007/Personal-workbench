@@ -362,65 +362,85 @@ Future<void> _showPresetEditor(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: title,
-                  decoration: const InputDecoration(labelText: '预设名称'),
+                ExternalField(
+                  label: '预设名称',
+                  child: TextField(
+                    controller: title,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<FocusMode>(
-                  initialValue: mode,
-                  decoration: const InputDecoration(labelText: '计时模式'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: FocusMode.stopwatch,
-                      child: Text('正计时'),
-                    ),
-                    DropdownMenuItem(
-                      value: FocusMode.custom,
-                      child: Text('自定义倒计时'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setDialogState(() => mode = value ?? mode),
+                ExternalField(
+                  label: '计时模式',
+                  child: DropdownButtonFormField<FocusMode>(
+                    initialValue: mode,
+                    decoration: const InputDecoration(),
+                    items: const [
+                      DropdownMenuItem(
+                        value: FocusMode.stopwatch,
+                        child: Text('正计时'),
+                      ),
+                      DropdownMenuItem(
+                        value: FocusMode.custom,
+                        child: Text('自定义倒计时'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setDialogState(() => mode = value ?? mode),
+                  ),
                 ),
                 if (mode != FocusMode.stopwatch) ...[
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: minutes,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: '时长（分钟）'),
+                  ExternalField(
+                    label: '时长（分钟）',
+                    child: TextField(
+                      controller: minutes,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(),
+                    ),
                   ),
                 ],
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String?>(
-                  initialValue: taskId,
-                  decoration: const InputDecoration(labelText: '主任务（可空）'),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('临时专注')),
-                    for (final task in controller.tasks)
-                      DropdownMenuItem(value: task.id, child: Text(task.title)),
-                  ],
-                  onChanged: (value) => setDialogState(() => taskId = value),
+                ExternalField(
+                  label: '主任务（可空）',
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: taskId,
+                    decoration: const InputDecoration(),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('临时专注')),
+                      for (final task in controller.tasks)
+                        DropdownMenuItem(
+                          value: task.id,
+                          child: Text(task.title),
+                        ),
+                    ],
+                    onChanged: (value) => setDialogState(() => taskId = value),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: listMode,
-                  decoration: const InputDecoration(labelText: '应用检测模式'),
-                  items: const [
-                    DropdownMenuItem(value: 'none', child: Text('不使用名单')),
-                    DropdownMenuItem(value: 'allow', child: Text('白名单')),
-                    DropdownMenuItem(value: 'block', child: Text('黑名单')),
-                  ],
-                  onChanged: (value) =>
-                      setDialogState(() => listMode = value ?? 'none'),
+                ExternalField(
+                  label: '应用检测模式',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: listMode,
+                    decoration: const InputDecoration(),
+                    items: const [
+                      DropdownMenuItem(value: 'none', child: Text('不使用名单')),
+                      DropdownMenuItem(value: 'allow', child: Text('白名单')),
+                      DropdownMenuItem(value: 'block', child: Text('黑名单')),
+                    ],
+                    onChanged: (value) =>
+                        setDialogState(() => listMode = value ?? 'none'),
+                  ),
                 ),
                 if (listMode != 'none') ...[
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: applications,
-                    decoration: const InputDecoration(
-                      labelText: '应用进程名',
-                      hintText: 'chrome.exe, matlab.exe',
+                  ExternalField(
+                    label: '应用进程名',
+                    child: TextField(
+                      controller: applications,
+                      decoration: const InputDecoration(
+                        hintText: 'chrome.exe, matlab.exe',
+                      ),
                     ),
                   ),
                   SwitchListTile(
@@ -432,22 +452,25 @@ Future<void> _showPresetEditor(
                   ),
                 ],
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: scheduleMode,
-                  decoration: const InputDecoration(labelText: '定时启动提醒'),
-                  items: const [
-                    DropdownMenuItem(value: 'none', child: Text('不定时')),
-                    DropdownMenuItem(value: 'once', child: Text('单次')),
-                    DropdownMenuItem(value: 'weekly', child: Text('每周指定日')),
-                  ],
-                  onChanged: (value) => setDialogState(() {
-                    scheduleMode = value ?? 'none';
-                    if (scheduleMode != 'none') {
-                      scheduledAt ??= DateTime.now().add(
-                        const Duration(hours: 1),
-                      );
-                    }
-                  }),
+                ExternalField(
+                  label: '定时启动提醒',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: scheduleMode,
+                    decoration: const InputDecoration(),
+                    items: const [
+                      DropdownMenuItem(value: 'none', child: Text('不定时')),
+                      DropdownMenuItem(value: 'once', child: Text('单次')),
+                      DropdownMenuItem(value: 'weekly', child: Text('每周指定日')),
+                    ],
+                    onChanged: (value) => setDialogState(() {
+                      scheduleMode = value ?? 'none';
+                      if (scheduleMode != 'none') {
+                        scheduledAt ??= DateTime.now().add(
+                          const Duration(hours: 1),
+                        );
+                      }
+                    }),
+                  ),
                 ),
                 if (scheduleMode != 'none') ...[
                   SwitchListTile(
@@ -1236,13 +1259,13 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
               '余额 ${profile.points} 积分 · 今日已用 ${widget.controller.todayBetUsed} 积分',
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: field,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '押注金额',
-                suffixText: '积分',
+            ExternalField(
+              label: '押注金额',
+              child: TextField(
+                controller: field,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(suffixText: '积分'),
               ),
             ),
             const SizedBox(height: 8),
@@ -1362,20 +1385,23 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: description,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: requireDescription ? '完成内容（必填）' : '完成内容',
-                    errorText: error,
+                ExternalField(
+                  label: requireDescription ? '完成内容（必填）' : '完成内容',
+                  child: TextField(
+                    controller: description,
+                    autofocus: true,
+                    decoration: InputDecoration(errorText: error),
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: notes,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(labelText: '备注'),
+                ExternalField(
+                  label: '备注',
+                  child: TextField(
+                    controller: notes,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
               ],
             ),

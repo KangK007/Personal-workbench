@@ -689,96 +689,111 @@ class _PoliciesPageState extends State<PoliciesPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: title,
-                    autofocus: true,
-                    decoration: const InputDecoration(labelText: '标题 *'),
+                  ExternalField(
+                    label: '标题 *',
+                    child: TextField(
+                      controller: title,
+                      autofocus: true,
+                      decoration: const InputDecoration(),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: rule,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: '精准规则 *',
-                      hintText: '写成可观察、可结算的动作',
+                  ExternalField(
+                    label: '精准规则 *',
+                    child: TextField(
+                      controller: rule,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        hintText: '写成可观察、可结算的动作',
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<RsipNodeType>(
-                          initialValue: type,
-                          decoration: const InputDecoration(labelText: '节点类型'),
-                          items: [
-                            for (final value in RsipNodeType.values)
-                              DropdownMenuItem(
-                                value: value,
-                                child: Text(_typeLabel(value)),
-                              ),
-                          ],
-                          onChanged: (value) => setDialogState(() {
-                            type = value ?? type;
-                            emoji.text = _typeEmoji(type);
-                          }),
+                        child: ExternalField(
+                          label: '节点类型',
+                          child: DropdownButtonFormField<RsipNodeType>(
+                            initialValue: type,
+                            decoration: const InputDecoration(),
+                            items: [
+                              for (final value in RsipNodeType.values)
+                                DropdownMenuItem(
+                                  value: value,
+                                  child: Text(_typeLabel(value)),
+                                ),
+                            ],
+                            onChanged: (value) => setDialogState(() {
+                              type = value ?? type;
+                              emoji.text = _typeEmoji(type);
+                            }),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       SizedBox(
                         width: 110,
-                        child: TextField(
-                          controller: emoji,
-                          decoration: const InputDecoration(
-                            labelText: 'Emoji/标记',
+                        child: ExternalField(
+                          label: 'Emoji/标记',
+                          child: TextField(
+                            controller: emoji,
+                            decoration: const InputDecoration(),
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: parentId ?? '',
-                    decoration: const InputDecoration(labelText: '父节点'),
-                    items: [
-                      const DropdownMenuItem(value: '', child: Text('作为根节点')),
-                      for (final candidate
-                          in widget.controller.activeRsipHabits.where(
-                            (candidate) =>
-                                existing == null ||
-                                widget.controller.canUseRsipParent(
-                                  recordId: existing.id,
-                                  parentId: candidate.id,
-                                ),
-                          ))
-                        DropdownMenuItem(
-                          value: candidate.id,
-                          child: Text(candidate.title),
-                        ),
-                    ],
-                    onChanged: (value) => setDialogState(
-                      () => parentId = value == null || value.isEmpty
-                          ? null
-                          : value,
+                  ExternalField(
+                    label: '父节点',
+                    child: DropdownButtonFormField<String>(
+                      initialValue: parentId ?? '',
+                      decoration: const InputDecoration(),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('作为根节点')),
+                        for (final candidate
+                            in widget.controller.activeRsipHabits.where(
+                              (candidate) =>
+                                  existing == null ||
+                                  widget.controller.canUseRsipParent(
+                                    recordId: existing.id,
+                                    parentId: candidate.id,
+                                  ),
+                            ))
+                          DropdownMenuItem(
+                            value: candidate.id,
+                            child: Text(candidate.title),
+                          ),
+                      ],
+                      onChanged: (value) => setDialogState(
+                        () => parentId = value == null || value.isEmpty
+                            ? null
+                            : value,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: groupId ?? '',
-                    decoration: const InputDecoration(labelText: '国策组'),
-                    items: [
-                      const DropdownMenuItem(value: '', child: Text('不分组')),
-                      for (final group in widget.controller.rsipNodeGroups)
-                        DropdownMenuItem(
-                          value: group.record.id,
-                          child: Text(
-                            '${group.emoji} ${group.record.title} · 容错 ${group.remainingTolerance}/${group.initialTolerance}',
+                  ExternalField(
+                    label: '国策组',
+                    child: DropdownButtonFormField<String>(
+                      initialValue: groupId ?? '',
+                      decoration: const InputDecoration(),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('不分组')),
+                        for (final group in widget.controller.rsipNodeGroups)
+                          DropdownMenuItem(
+                            value: group.record.id,
+                            child: Text(
+                              '${group.emoji} ${group.record.title} · 容错 ${group.remainingTolerance}/${group.initialTolerance}',
+                            ),
                           ),
-                        ),
-                    ],
-                    onChanged: (value) => setDialogState(
-                      () => groupId = value == null || value.isEmpty
-                          ? null
-                          : value,
+                      ],
+                      onChanged: (value) => setDialogState(
+                        () => groupId = value == null || value.isEmpty
+                            ? null
+                            : value,
+                      ),
                     ),
                   ),
                   SwitchListTile(
@@ -796,11 +811,12 @@ class _PoliciesPageState extends State<PoliciesPage> {
                         setDialogState(() => useTimer = value),
                   ),
                   if (useTimer)
-                    TextField(
-                      controller: timer,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: '计时分钟（1–180）',
+                    ExternalField(
+                      label: '计时分钟（1–180）',
+                      child: TextField(
+                        controller: timer,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(),
                       ),
                     ),
                   if (error != null) ...[
@@ -871,23 +887,31 @@ class _PoliciesPageState extends State<PoliciesPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: title,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: '组名称 *'),
+                ExternalField(
+                  label: '组名称 *',
+                  child: TextField(
+                    controller: title,
+                    autofocus: true,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: emoji,
-                  decoration: const InputDecoration(labelText: 'Emoji/标记'),
+                ExternalField(
+                  label: 'Emoji/标记',
+                  child: TextField(
+                    controller: emoji,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: tolerance,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: '每轮初始容错次数',
-                    helperText: '消耗至 0 时，整组活动节点及其子树归档',
+                ExternalField(
+                  label: '每轮初始容错次数',
+                  child: TextField(
+                    controller: tolerance,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      helperText: '消耗至 0 时，整组活动节点及其子树归档',
+                    ),
                   ),
                 ),
                 if (error != null) ...[
@@ -949,58 +973,64 @@ class _PoliciesPageState extends State<PoliciesPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextField(
-                    controller: goal,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: '目标说明 *',
-                      hintText: '例如：建立稳定作息',
+                  ExternalField(
+                    label: '目标说明 *',
+                    child: TextField(
+                      controller: goal,
+                      autofocus: true,
+                      decoration: const InputDecoration(hintText: '例如：建立稳定作息'),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: '',
-                          decoration: const InputDecoration(labelText: '共同父节点'),
-                          items: [
-                            const DropdownMenuItem(
-                              value: '',
-                              child: Text('作为同级根节点'),
-                            ),
-                            for (final node
-                                in widget.controller.activeRsipHabits)
-                              DropdownMenuItem(
-                                value: node.id,
-                                child: Text(node.title),
+                        child: ExternalField(
+                          label: '共同父节点',
+                          child: DropdownButtonFormField<String>(
+                            initialValue: '',
+                            decoration: const InputDecoration(),
+                            items: [
+                              const DropdownMenuItem(
+                                value: '',
+                                child: Text('作为同级根节点'),
                               ),
-                          ],
-                          onChanged: (value) => parentId =
-                              value == null || value.isEmpty ? null : value,
+                              for (final node
+                                  in widget.controller.activeRsipHabits)
+                                DropdownMenuItem(
+                                  value: node.id,
+                                  child: Text(node.title),
+                                ),
+                            ],
+                            onChanged: (value) => parentId =
+                                value == null || value.isEmpty ? null : value,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: '',
-                          decoration: const InputDecoration(labelText: '共同国策组'),
-                          items: [
-                            const DropdownMenuItem(
-                              value: '',
-                              child: Text('不分组'),
-                            ),
-                            for (final group
-                                in widget.controller.rsipNodeGroups)
-                              DropdownMenuItem(
-                                value: group.record.id,
-                                child: Text(
-                                  '${group.emoji} ${group.record.title}',
-                                ),
+                        child: ExternalField(
+                          label: '共同国策组',
+                          child: DropdownButtonFormField<String>(
+                            initialValue: '',
+                            decoration: const InputDecoration(),
+                            items: [
+                              const DropdownMenuItem(
+                                value: '',
+                                child: Text('不分组'),
                               ),
-                          ],
-                          onChanged: (value) => groupId =
-                              value == null || value.isEmpty ? null : value,
+                              for (final group
+                                  in widget.controller.rsipNodeGroups)
+                                DropdownMenuItem(
+                                  value: group.record.id,
+                                  child: Text(
+                                    '${group.emoji} ${group.record.title}',
+                                  ),
+                                ),
+                            ],
+                            onChanged: (value) => groupId =
+                                value == null || value.isEmpty ? null : value,
+                          ),
                         ),
                       ),
                     ],
@@ -1117,10 +1147,11 @@ class _PoliciesPageState extends State<PoliciesPage> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: row.title,
-                    decoration: InputDecoration(
-                      labelText: '子国策 ${index + 1} 标题 *',
+                  child: ExternalField(
+                    label: '子国策 ${index + 1} 标题 *',
+                    child: TextField(
+                      controller: row.title,
+                      decoration: InputDecoration(),
                     ),
                   ),
                 ),
@@ -1147,9 +1178,12 @@ class _PoliciesPageState extends State<PoliciesPage> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: row.rule,
-                    decoration: const InputDecoration(labelText: '精准规则 *'),
+                  child: ExternalField(
+                    label: '精准规则 *',
+                    child: TextField(
+                      controller: row.rule,
+                      decoration: const InputDecoration(),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1209,17 +1243,23 @@ class _PoliciesPageState extends State<PoliciesPage> {
                   ),
                 ],
                 const SizedBox(height: 14),
-                TextField(
-                  controller: reason,
-                  autofocus: true,
-                  maxLines: 2,
-                  decoration: const InputDecoration(labelText: '违反原因 *'),
+                ExternalField(
+                  label: '违反原因 *',
+                  child: TextField(
+                    controller: reason,
+                    autofocus: true,
+                    maxLines: 2,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: repair,
-                  maxLines: 2,
-                  decoration: const InputDecoration(labelText: '修复建议（可选）'),
+                ExternalField(
+                  label: '修复建议（可选）',
+                  child: TextField(
+                    controller: repair,
+                    maxLines: 2,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
                 if (error != null)
                   Padding(
@@ -1315,29 +1355,38 @@ class _PoliciesPageState extends State<PoliciesPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<RsipExecutionStatus>(
-                  initialValue: status,
-                  decoration: const InputDecoration(labelText: '更正为'),
-                  items: [
-                    for (final value in RsipExecutionStatus.values)
-                      DropdownMenuItem(
-                        value: value,
-                        child: Text(_executionLabel(value)),
-                      ),
-                  ],
-                  onChanged: (value) =>
-                      setDialogState(() => status = value ?? status),
+                ExternalField(
+                  label: '更正为',
+                  child: DropdownButtonFormField<RsipExecutionStatus>(
+                    initialValue: status,
+                    decoration: const InputDecoration(),
+                    items: [
+                      for (final value in RsipExecutionStatus.values)
+                        DropdownMenuItem(
+                          value: value,
+                          child: Text(_executionLabel(value)),
+                        ),
+                    ],
+                    onChanged: (value) =>
+                        setDialogState(() => status = value ?? status),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: reason,
-                  decoration: const InputDecoration(labelText: '结算说明/违反原因'),
+                ExternalField(
+                  label: '结算说明/违反原因',
+                  child: TextField(
+                    controller: reason,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: correction,
-                  maxLines: 2,
-                  decoration: const InputDecoration(labelText: '更正原因 *'),
+                ExternalField(
+                  label: '更正原因 *',
+                  child: TextField(
+                    controller: correction,
+                    maxLines: 2,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 const Text('更正会保留原状态和时间。若原结算已导致结构崩塌，系统不会静默恢复节点，请在国策库中明确恢复。'),
@@ -1412,10 +1461,13 @@ class _PoliciesPageState extends State<PoliciesPage> {
             children: [
               Text('将把当前节点及 ${subtree.length - 1} 个活动子节点放入国策库，历史不会删除。'),
               const SizedBox(height: 12),
-              TextField(
-                controller: reason,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: '结束原因 *'),
+              ExternalField(
+                label: '结束原因 *',
+                child: TextField(
+                  controller: reason,
+                  autofocus: true,
+                  decoration: const InputDecoration(),
+                ),
               ),
             ],
           ),
@@ -1450,25 +1502,29 @@ class _PoliciesPageState extends State<PoliciesPage> {
           title: Text('恢复「${record.title}」'),
           content: SizedBox(
             width: 480,
-            child: DropdownButtonFormField<String>(
-              initialValue: '',
-              decoration: const InputDecoration(labelText: '恢复位置'),
-              items: [
-                const DropdownMenuItem(value: '', child: Text('作为新根节点')),
-                for (final candidate
-                    in widget.controller.activeRsipHabits.where(
-                      (candidate) => widget.controller.canUseRsipParent(
-                        recordId: record.id,
-                        parentId: candidate.id,
-                      ),
-                    ))
-                  DropdownMenuItem(
-                    value: candidate.id,
-                    child: Text(candidate.title),
-                  ),
-              ],
-              onChanged: (value) => setDialogState(
-                () => parentId = value == null || value.isEmpty ? null : value,
+            child: ExternalField(
+              label: '恢复位置',
+              child: DropdownButtonFormField<String>(
+                initialValue: '',
+                decoration: const InputDecoration(),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('作为新根节点')),
+                  for (final candidate
+                      in widget.controller.activeRsipHabits.where(
+                        (candidate) => widget.controller.canUseRsipParent(
+                          recordId: record.id,
+                          parentId: candidate.id,
+                        ),
+                      ))
+                    DropdownMenuItem(
+                      value: candidate.id,
+                      child: Text(candidate.title),
+                    ),
+                ],
+                onChanged: (value) => setDialogState(
+                  () =>
+                      parentId = value == null || value.isEmpty ? null : value,
+                ),
               ),
             ),
           ),
@@ -1509,33 +1565,39 @@ class _PoliciesPageState extends State<PoliciesPage> {
               children: [
                 Text('此操作将同时移动 ${subtree.length} 个节点。不会改变历史结算。'),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: parentId ?? '',
-                  decoration: const InputDecoration(labelText: '新父节点'),
-                  items: [
-                    const DropdownMenuItem(value: '', child: Text('作为根节点')),
-                    for (final candidate
-                        in widget.controller.activeRsipHabits.where(
-                          (candidate) => widget.controller.canUseRsipParent(
-                            recordId: node.id,
-                            parentId: candidate.id,
-                          ),
-                        ))
-                      DropdownMenuItem(
-                        value: candidate.id,
-                        child: Text(candidate.title),
-                      ),
-                  ],
-                  onChanged: (value) => setDialogState(
-                    () => parentId = value == null || value.isEmpty
-                        ? null
-                        : value,
+                ExternalField(
+                  label: '新父节点',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: parentId ?? '',
+                    decoration: const InputDecoration(),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('作为根节点')),
+                      for (final candidate
+                          in widget.controller.activeRsipHabits.where(
+                            (candidate) => widget.controller.canUseRsipParent(
+                              recordId: node.id,
+                              parentId: candidate.id,
+                            ),
+                          ))
+                        DropdownMenuItem(
+                          value: candidate.id,
+                          child: Text(candidate.title),
+                        ),
+                    ],
+                    onChanged: (value) => setDialogState(
+                      () => parentId = value == null || value.isEmpty
+                          ? null
+                          : value,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: reason,
-                  decoration: const InputDecoration(labelText: '调整原因 *'),
+                ExternalField(
+                  label: '调整原因 *',
+                  child: TextField(
+                    controller: reason,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
               ],
             ),
@@ -1610,18 +1672,21 @@ class _PoliciesPageState extends State<PoliciesPage> {
                       }),
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedId,
-                      decoration: const InputDecoration(labelText: '关联对象'),
-                      items: [
-                        for (final option in options)
-                          DropdownMenuItem(
-                            value: option.id,
-                            child: Text(option.title),
-                          ),
-                      ],
-                      onChanged: (value) =>
-                          setDialogState(() => selectedId = value),
+                    ExternalField(
+                      label: '关联对象',
+                      child: DropdownButtonFormField<String>(
+                        initialValue: selectedId,
+                        decoration: const InputDecoration(),
+                        items: [
+                          for (final option in options)
+                            DropdownMenuItem(
+                              value: option.id,
+                              child: Text(option.title),
+                            ),
+                        ],
+                        onChanged: (value) =>
+                            setDialogState(() => selectedId = value),
+                      ),
                     ),
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
@@ -1649,23 +1714,24 @@ class _PoliciesPageState extends State<PoliciesPage> {
                           setDialogState(() => reverse = value ?? false),
                     ),
                     if (reverse)
-                      DropdownButtonFormField<RsipTaskLinkEffect>(
-                        initialValue: reverseEffect,
-                        decoration: const InputDecoration(
-                          labelText: '确认后的任务动作',
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: RsipTaskLinkEffect.promptStartChain,
-                            child: Text('开始任务/任务群'),
+                      ExternalField(
+                        label: '确认后的任务动作',
+                        child: DropdownButtonFormField<RsipTaskLinkEffect>(
+                          initialValue: reverseEffect,
+                          decoration: const InputDecoration(),
+                          items: const [
+                            DropdownMenuItem(
+                              value: RsipTaskLinkEffect.promptStartChain,
+                              child: Text('开始任务/任务群'),
+                            ),
+                            DropdownMenuItem(
+                              value: RsipTaskLinkEffect.promptScheduleChain,
+                              child: Text('安排到今天'),
+                            ),
+                          ],
+                          onChanged: (value) => setDialogState(
+                            () => reverseEffect = value ?? reverseEffect,
                           ),
-                          DropdownMenuItem(
-                            value: RsipTaskLinkEffect.promptScheduleChain,
-                            child: Text('安排到今天'),
-                          ),
-                        ],
-                        onChanged: (value) => setDialogState(
-                          () => reverseEffect = value ?? reverseEffect,
                         ),
                       ),
                     if (error != null)

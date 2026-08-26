@@ -156,18 +156,21 @@ class _ProjectsPageState extends State<ProjectsPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: DropdownButtonFormField<String>(
-            initialValue: selected.id,
-            decoration: const InputDecoration(labelText: '当前项目'),
-            items: projects
-                .map(
-                  (project) => DropdownMenuItem(
-                    value: project.id,
-                    child: Text(project.title),
-                  ),
-                )
-                .toList(),
-            onChanged: _selectProject,
+          child: ExternalField(
+            label: '当前项目',
+            child: DropdownButtonFormField<String>(
+              initialValue: selected.id,
+              decoration: const InputDecoration(),
+              items: projects
+                  .map(
+                    (project) => DropdownMenuItem(
+                      value: project.id,
+                      child: Text(project.title),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _selectProject,
+            ),
           ),
         ),
         Expanded(child: _projectDetail(context, selected)),

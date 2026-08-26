@@ -420,15 +420,15 @@ class SettingsPage extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('个人别名'),
-        content: TextField(
-          controller: field,
-          autofocus: true,
-          maxLength: 24,
-          decoration: const InputDecoration(
-            labelText: '别名',
-            hintText: '显示在侧栏标题下方',
+        content: ExternalField(
+          label: '别名',
+          child: TextField(
+            controller: field,
+            autofocus: true,
+            maxLength: 24,
+            decoration: const InputDecoration(hintText: '显示在侧栏标题下方'),
+            onSubmitted: (value) => Navigator.pop(context, value),
           ),
-          onSubmitted: (value) => Navigator.pop(context, value),
         ),
         actions: [
           TextButton(
@@ -782,16 +782,22 @@ class _CloudSectionState extends State<_CloudSection> {
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Column(
               children: [
-                TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: '邮箱'),
+                ExternalField(
+                  label: '邮箱',
+                  child: TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: '密码'),
+                ExternalField(
+                  label: '密码',
+                  child: TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(),
+                  ),
                 ),
               ],
             ),
@@ -1168,11 +1174,14 @@ Future<String?> _askPassword(
     context: context,
     builder: (context) => AlertDialog(
       title: Text(title),
-      content: TextField(
-        controller: passwordController,
-        autofocus: true,
-        obscureText: true,
-        decoration: const InputDecoration(labelText: '备份密码'),
+      content: ExternalField(
+        label: '备份密码',
+        child: TextField(
+          controller: passwordController,
+          autofocus: true,
+          obscureText: true,
+          decoration: const InputDecoration(),
+        ),
       ),
       actions: [
         TextButton(
