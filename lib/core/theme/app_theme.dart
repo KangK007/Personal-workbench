@@ -48,14 +48,15 @@ abstract final class AppBreakpoints {
   static const expanded = 1200.0; // ≥1200: 完整展开
 }
 
-// ─── 圆角标尺（v2 锐利几何）───
+// ─── 圆角标尺：外层工作面柔和，内层控件保持同心层级 ───
 abstract final class AppRadius {
-  static const card = 6.0; // 卡片/FAB
-  static const control = 4.0; // 按钮/输入框/Chip
-  static const dialog = 8.0; // 对话框/底部弹层
-  static const sheetTop = 8.0; // 底部弹层顶部角
-  static const indicator = 6.0; // NavigationBar indicator / Snackbar
-  static const tooltip = 4.0; // Tooltip
+  static const card = 12.0; // 卡片/FAB
+  static const control = 8.0; // 按钮/输入框/Chip
+  static const dialog = 16.0; // 对话框
+  static const sheetTop = 16.0; // 底部弹层顶部角
+  static const indicator = 12.0; // NavigationBar indicator / Snackbar
+  static const tooltip = 8.0; // Tooltip
+  static const pill = 999.0; // 短状态标签
 }
 
 /// 图标尺寸标尺：功能图标保持同一视觉重量，触控区域由主题控件保证。
@@ -133,7 +134,7 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
   /// 面板 1px 描边，保持中性，不参与状态编码。
   final Color panelBorder;
 
-  /// 面板投影色（配合 blur 10 / offset(0,3)）。
+  /// 保留给悬停等短暂抬升反馈；普通面板默认不使用投影。
   final Color panelShadow;
 
   /// 浮层投影色（配合 blur 16 / offset(0,6)）。
@@ -527,14 +528,14 @@ abstract final class AppTheme {
         labelTextStyle: WidgetStatePropertyAll(textTheme.bodyMedium),
       ),
 
-      // ─── Dialog: 实色 raised 底 + 1px 边框 + 浮层阴影 ───
+      // ─── Dialog: 实色 raised 底 + 单一柔和阴影 ───
       dialogTheme: DialogThemeData(
-        elevation: 0,
+        elevation: 2,
+        shadowColor: tokens.raisedShadow,
         backgroundColor: tokens.raised,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.dialog),
-          side: BorderSide(color: tokens.panelBorder),
         ),
       ),
 
@@ -581,6 +582,7 @@ abstract final class AppTheme {
               elevation: 0,
               alignment: Alignment.center,
             ).copyWith(
+              animationDuration: AppMotion.micro,
               overlayColor: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.pressed)) {
                   return scheme.onPrimary.withValues(alpha: 0.16);
@@ -603,6 +605,7 @@ abstract final class AppTheme {
               foregroundColor: scheme.primary,
               alignment: Alignment.center,
             ).copyWith(
+              animationDuration: AppMotion.micro,
               side: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.disabled)) {
                   return BorderSide(
@@ -616,6 +619,9 @@ abstract final class AppTheme {
                 return BorderSide(color: tokens.panelBorder);
               }),
               overlayColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return scheme.primary.withValues(alpha: 0.12);
+                }
                 if (states.contains(WidgetState.hovered) ||
                     states.contains(WidgetState.focused)) {
                   return scheme.primary.withValues(alpha: 0.08);
@@ -634,6 +640,7 @@ abstract final class AppTheme {
               foregroundColor: scheme.primary,
               alignment: Alignment.center,
             ).copyWith(
+              animationDuration: AppMotion.micro,
               overlayColor: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.pressed)) {
                   return scheme.primary.withValues(alpha: 0.14);
@@ -656,6 +663,7 @@ abstract final class AppTheme {
               shape: shape,
               alignment: Alignment.center,
             ).copyWith(
+              animationDuration: AppMotion.micro,
               overlayColor: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.pressed)) {
                   return scheme.primary.withValues(alpha: 0.16);
@@ -689,6 +697,9 @@ abstract final class AppTheme {
       listTileTheme: ListTileThemeData(
         minTileHeight: isAndroid ? 48 : 44,
         shape: shape,
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        minLeadingWidth: 36,
+        horizontalTitleGap: AppSpacing.md,
         selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.5),
         selectedColor: scheme.primary,
         iconColor: scheme.onSurfaceVariant,
@@ -749,7 +760,7 @@ abstract final class AppTheme {
         textStyle: TextStyle(color: scheme.onInverseSurface),
       ),
 
-      // ─── BottomSheet: 实色 raised + 顶部 8px 圆角 ───
+      // ─── BottomSheet: 实色 raised + 顶部 16px 圆角 ───
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: tokens.raised,
         surfaceTintColor: Colors.transparent,

@@ -15,11 +15,11 @@ void main() {
       _host(const SolidPanel(child: SizedBox(width: 100, height: 100))),
     );
     expect(find.byType(BackdropFilter), findsNothing);
-    // 实色面板：1px 边框 + 微阴影双保险。
+    // 普通实色面板只使用 1px 边框，避免边框与宽阴影重复表达层级。
     final box = tester.widget<DecoratedBox>(find.byType(DecoratedBox).first);
     final decoration = box.decoration as BoxDecoration;
     expect(decoration.border, isNotNull);
-    expect(decoration.boxShadow, isNotEmpty);
+    expect(decoration.boxShadow, isEmpty);
     expect(decoration.color, isNotNull);
   });
 

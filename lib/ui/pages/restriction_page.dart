@@ -78,34 +78,51 @@ class RestrictionSection extends StatelessWidget {
           );
     return LogSurface(
       accent: statusColor,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Wrap(
-        spacing: 24,
-        runSpacing: 18,
-        children: [
-          _Metric(label: '当前状态', value: status, color: statusColor),
-          _Metric(
-            label: '当前规则',
-            value: monitor.activeSnapshot?.title ?? profile?.title ?? '未配置',
-          ),
-          _Metric(
-            label: '下一次切换',
-            value: next?.at == null ? '暂无计划' : _dateTime(next!.at!),
-            numeric: next?.at != null,
-          ),
-          _Metric(
-            label: '今日拦截',
-            value: '${controller.todayRestrictionEventCount} 次',
-            numeric: true,
-          ),
-          _Metric(
-            label: 'hosts',
-            value: controller.restrictionHostsStatus.active ? '已生效' : '未生效',
-            color: controller.restrictionHostsStatus.error.isEmpty
-                ? null
-                : Theme.of(context).colorScheme.error,
-          ),
-        ],
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactMetrics = constraints.maxWidth < 720;
+          final metricWidth = compactMetrics
+              ? (constraints.maxWidth - AppSpacing.md) / 2
+              : 150.0;
+          return Wrap(
+            spacing: compactMetrics ? AppSpacing.md : AppSpacing.xl,
+            runSpacing: AppSpacing.md,
+            children: [
+              _Metric(
+                width: metricWidth,
+                label: '当前状态',
+                value: status,
+                color: statusColor,
+              ),
+              _Metric(
+                width: metricWidth,
+                label: '当前规则',
+                value: monitor.activeSnapshot?.title ?? profile?.title ?? '未配置',
+              ),
+              _Metric(
+                width: metricWidth,
+                label: '下一次切换',
+                value: next?.at == null ? '暂无计划' : _dateTime(next!.at!),
+                numeric: next?.at != null,
+              ),
+              _Metric(
+                width: metricWidth,
+                label: '今日拦截',
+                value: '${controller.todayRestrictionEventCount} 次',
+                numeric: true,
+              ),
+              _Metric(
+                width: metricWidth,
+                label: 'hosts',
+                value: controller.restrictionHostsStatus.active ? '已生效' : '未生效',
+                color: controller.restrictionHostsStatus.error.isEmpty
+                    ? null
+                    : Theme.of(context).colorScheme.error,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -123,7 +140,7 @@ class RestrictionSection extends StatelessWidget {
         children: [
           SwitchListTile.adaptive(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             value: profile.enabled,
             onChanged: (value) async {
@@ -152,7 +169,7 @@ class RestrictionSection extends StatelessWidget {
           const Divider(height: 1),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             leading: const SurfaceIcon(Icons.schedule_outlined),
             title: const Text('时段规则'),
@@ -169,7 +186,7 @@ class RestrictionSection extends StatelessWidget {
           ),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             leading: const SurfaceIcon(Icons.apps_outlined),
             title: Text(
@@ -185,7 +202,7 @@ class RestrictionSection extends StatelessWidget {
           ),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             leading: const SurfaceIcon(Icons.public_outlined),
             title: const Text('网站拦截'),
@@ -212,7 +229,7 @@ class RestrictionSection extends StatelessWidget {
         children: [
           SwitchListTile.adaptive(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             value: security.hasPassword,
             onChanged: (value) => value
@@ -226,7 +243,7 @@ class RestrictionSection extends StatelessWidget {
           ),
           SwitchListTile.adaptive(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             value: profile?.strongProtection == true,
             onChanged: monitor.active
@@ -253,7 +270,7 @@ class RestrictionSection extends StatelessWidget {
           ),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             leading: const SurfaceIcon(Icons.hourglass_bottom_outlined),
             title: const Text('敏感操作冷静期'),
@@ -262,7 +279,7 @@ class RestrictionSection extends StatelessWidget {
           if (monitor.active && monitor.activeSnapshot?.allowBreak == true)
             ListTile(
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
+                horizontal: AppSpacing.lg,
               ),
               leading: const SurfaceIcon(Icons.free_breakfast_outlined),
               title: Text(
@@ -285,7 +302,7 @@ class RestrictionSection extends StatelessWidget {
             ),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             leading: const SurfaceIcon(Icons.vpn_key_outlined),
             title: const Text('紧急恢复码'),
@@ -298,7 +315,7 @@ class RestrictionSection extends StatelessWidget {
           if (pending != null)
             ListTile(
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
+                horizontal: AppSpacing.lg,
               ),
               leading: const SurfaceIcon(Icons.hourglass_top_outlined),
               title: const Text('冷静期进行中'),
@@ -327,7 +344,7 @@ class RestrictionSection extends StatelessWidget {
         children: [
           ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             leading: SurfaceIcon(
               profile?.strongProtection == true
@@ -339,7 +356,7 @@ class RestrictionSection extends StatelessWidget {
           ),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             leading: const SurfaceIcon(Icons.power_outlined),
             title: const Text('Windows 后台行为'),
@@ -350,7 +367,7 @@ class RestrictionSection extends StatelessWidget {
           ),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
             ),
             leading: SurfaceIcon(
               hosts.active
@@ -1145,7 +1162,7 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
           : AppMotion.exit,
       curve: Curves.easeOutCubic,
       alignment: Alignment.topCenter,
-      // 浮动标签会越过输入框上缘；预留 4dp，避免展开裁剪遮住文字。
+      // 外置标签在展开动画中需要保留上缘空间，避免文字被 ClipRect 裁切。
       child: visible
           ? Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -1354,7 +1371,7 @@ class _PlatformNotice extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 12),
     child: LogSurface(
       accent: Theme.of(context).colorScheme.tertiary,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: const Row(
         children: [
           Icon(Icons.info_outline),
@@ -1375,7 +1392,7 @@ class _ExitRequestBanner extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 12),
     child: LogSurface(
       accent: Theme.of(context).colorScheme.error,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final message = Row(
@@ -1469,18 +1486,20 @@ Future<String?> _askInlineCredential(BuildContext context) async {
 
 class _Metric extends StatelessWidget {
   const _Metric({
+    required this.width,
     required this.label,
     required this.value,
     this.color,
     this.numeric = false,
   });
+  final double width;
   final String label;
   final String value;
   final Color? color;
   final bool numeric;
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 150,
+    width: width,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1555,7 +1574,7 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
           ..sort();
     final events = widget.events.where(_matches).take(50).toList();
     return LogSurface(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1723,7 +1742,7 @@ class _RestrictionEventTile extends StatelessWidget {
         final compact = constraints.maxWidth < 460;
         return ListTile(
           key: ValueKey(event.id),
-          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          contentPadding: EdgeInsets.zero,
           leading: SurfaceIcon(
             succeeded ? Icons.check_circle_outline : Icons.error_outline,
             color: succeeded

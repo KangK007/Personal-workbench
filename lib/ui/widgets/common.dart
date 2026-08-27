@@ -22,8 +22,8 @@ class SurfaceIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final tint = color ?? Theme.of(context).colorScheme.primary;
     return Container(
-      width: 34,
-      height: 34,
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
         color: tint.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppRadius.control),
@@ -52,7 +52,10 @@ class ExternalField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // 可见标签保留视觉层级，读屏名称由实际控件统一提供，避免重复朗读。
-        ExcludeSemantics(child: Text(label, style: labelStyle)),
+        Padding(
+          padding: const EdgeInsetsDirectional.only(start: 2),
+          child: ExcludeSemantics(child: Text(label, style: labelStyle)),
+        ),
         const SizedBox(height: AppSpacing.xs),
         Semantics(label: label, container: true, child: child),
       ],
@@ -191,10 +194,10 @@ class AnimatedNumber extends StatelessWidget {
   }
 }
 
-/// 按压缩放反馈：包裹任意可点按钮/卡片，按下时缩至 0.96。
+/// 按压缩放反馈：包裹任意可点按钮/卡片，按下时轻微缩放。
 /// 使用 Listener 不参与手势竞技场，不干扰内部按钮的点击逻辑。
 class PressScale extends StatefulWidget {
-  const PressScale({super.key, required this.child, this.pressedScale = 0.96});
+  const PressScale({super.key, required this.child, this.pressedScale = 0.98});
 
   final Widget child;
   final double pressedScale;
@@ -896,7 +899,7 @@ class StatusPill extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
             color: background,
-            borderRadius: BorderRadius.circular(AppRadius.control),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -935,8 +938,9 @@ class NumericText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
+    final text = Text(
       data,
+      key: ValueKey(data),
       style:
           style?.copyWith(
             fontWeight: FontWeight.w500,
@@ -951,6 +955,20 @@ class NumericText extends StatelessWidget {
       textAlign: textAlign,
       maxLines: maxLines,
       overflow: maxLines == null ? null : TextOverflow.ellipsis,
+    );
+    if (MediaQuery.disableAnimationsOf(context)) return text;
+    return AnimatedSwitcher(
+      duration: AppMotion.standard,
+      reverseDuration: AppMotion.exit,
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: AlignmentDirectional.centerStart,
+        children: [...previousChildren, ?currentChild],
+      ),
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
+      child: text,
     );
   }
 }

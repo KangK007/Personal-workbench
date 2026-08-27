@@ -10,6 +10,8 @@ PROJECT = ROOT.parent
 SCALE = 2
 WIDTH, HEIGHT = 1536, 864
 FONT_DIR = PROJECT / "assets" / "fonts"
+CARD_RADIUS = 12
+CONTROL_RADIUS = 8
 
 
 def sc(value: float) -> int:
@@ -93,14 +95,14 @@ def render(theme: str, output: Path) -> None:
     text(draw, (64, 43), "纯本地模式", 11, colors["muted"])
     draw.line((sc(0), sc(66), sc(sidebar_w), sc(66)), fill=colors["divider"], width=sc(1))
 
-    rect(draw, (14, 82, 222, 118), colors["route"], radius=4)
+    rect(draw, (14, 82, 222, 118), colors["route"], radius=CONTROL_RADIUS)
     text(draw, (118, 100), "＋  快速新增", 12, "#FFFFFF", role="medium", anchor="mm")
     text(draw, (24, 144), "工作索引", 10, colors["muted"], role="medium")
     nav = ["今日", "任务", "项目", "专注", "笔记", "回顾", "行为", "成长", "自律", "设置"]
     for index, label in enumerate(nav):
         y = 162 + index * 42
         if index == 0:
-            rect(draw, (12, y, 224, y + 36), colors["route_soft"], radius=4)
+            rect(draw, (12, y, 224, y + 36), colors["route_soft"], radius=CONTROL_RADIUS)
             rect(draw, (12, y + 8, 15, y + 28), colors["route"], radius=1)
         text(draw, (30, y + 18), label, 13, colors["route"] if index == 0 else colors["muted"], role="medium" if index == 0 else "body", anchor="lm")
     draw.line((sc(14), sc(806), sc(222), sc(806)), fill=colors["divider"], width=sc(1))
@@ -112,9 +114,9 @@ def render(theme: str, output: Path) -> None:
     rect(draw, (260, 20, 263, 54), colors["route"], radius=1)
     text(draw, (278, 25), "今日", 23, colors["ink"], role="display")
     text(draw, (278, 53), "2026年8月7日 · 星期五", 11, colors["muted"])
-    rect(draw, (1350, 20, 1440, 55), colors["canvas"], radius=4, outline=colors["divider"])
+    rect(draw, (1350, 20, 1440, 55), colors["canvas"], radius=CONTROL_RADIUS, outline=colors["divider"])
     text(draw, (1395, 38), "搜索", 12, colors["muted"], anchor="mm")
-    rect(draw, (1448, 20, 1512, 55), colors["route"], radius=4)
+    rect(draw, (1448, 20, 1512, 55), colors["route"], radius=CONTROL_RADIUS)
     text(draw, (1480, 38), "新增", 12, "#FFFFFF", role="medium", anchor="mm")
 
     main_x = 260
@@ -131,7 +133,7 @@ def render(theme: str, output: Path) -> None:
     card_w = 300
     for index, (state, title, detail, accent) in enumerate(tasks):
         x = main_x + index * (card_w + 12)
-        rect(draw, (x, 136, x + card_w, 250), colors["surface"], radius=6, outline=colors["divider"])
+        rect(draw, (x, 136, x + card_w, 250), colors["surface"], radius=CARD_RADIUS, outline=colors["divider"])
         rect(draw, (x, 136, x + 3, 250), colors[accent], radius=1)
         text(draw, (x + 16, 151), state, 11, colors["muted"])
         text(draw, (x + 16, 184), title, 13, colors["ink"], role="medium")
@@ -142,7 +144,7 @@ def render(theme: str, output: Path) -> None:
     text(draw, (main_x, 344), "14:00", 13, colors["route"], role="mono")
     text(draw, (main_x + 76, 340), "文献阅读", 13, colors["ink"], role="medium")
     text(draw, (main_x + 76, 364), "50 分钟 · 与今日重点关联", 11, colors["muted"])
-    rect(draw, (1090, 334, 1198, 368), colors["surface"], radius=4, outline=colors["divider"])
+    rect(draw, (1090, 334, 1198, 368), colors["surface"], radius=CONTROL_RADIUS, outline=colors["divider"])
     text(draw, (1144, 351), "安排专注", 11, colors["route"], anchor="mm")
     draw.line((sc(main_x), sc(388), sc(1198), sc(388)), fill=colors["divider"], width=sc(1))
 
@@ -177,7 +179,7 @@ def render(theme: str, output: Path) -> None:
     text(draw, (aside_left, 408), "今日尚未日结", 13, colors["ink"], role="medium")
     text(draw, (aside_left, 438), "处理剩余事项，并为明天", 11, colors["muted"])
     text(draw, (aside_left, 458), "留下清晰起点。", 11, colors["muted"])
-    rect(draw, (aside_left, 492, 1514, 530), colors["surface"], radius=4, outline=colors["divider"])
+    rect(draw, (aside_left, 492, 1514, 530), colors["surface"], radius=CONTROL_RADIUS, outline=colors["divider"])
     text(draw, ((aside_left + 1514) / 2, 511), "查看清单", 12, colors["route"], role="medium", anchor="mm")
 
     image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS).save(output)

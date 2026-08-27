@@ -185,7 +185,7 @@ void main() {
     expect(find.byType(SurfaceIcon), findsWidgets);
     expect(
       tester.getTopLeft(find.byType(SurfaceIcon).first).dx,
-      greaterThanOrEqualTo(AppSpacing.pageCompact + AppSpacing.md),
+      greaterThanOrEqualTo(AppSpacing.pageCompact + AppSpacing.lg),
     );
     expect(tester.takeException(), isNull);
 

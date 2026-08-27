@@ -32,10 +32,10 @@
   .g-shape { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
   .shape-card { padding: 18px 16px; text-align: center; }
   .shape-card .demo { height: 56px; margin: 0 auto 12px; width: 100px; background: var(--surface); border: 1px solid var(--panel-border); }
-  .shape-card .demo.r6 { border-radius: 6px; box-shadow: var(--panel-shadow); }
-  .shape-card .demo.r4-control { border-radius: 4px; width: 84px; }
-  .shape-card .demo.r8 { border-radius: 8px; width: 110px; }
-  .shape-card .demo.r4 { border-radius: 4px; width: 70px; }
+  .shape-card .demo.r6 { border-radius: var(--r-card); }
+  .shape-card .demo.r4-control { border-radius: var(--r-btn); width: 84px; }
+  .shape-card .demo.r8 { border: 0; border-radius: var(--r-dialog); box-shadow: var(--raised-shadow); width: 110px; }
+  .shape-card .demo.r4 { border-radius: var(--r-pill); width: 70px; }
   .shape-card .name { font-size: 13px; font-weight: 600; }
   .shape-card .val { font-size: 11.5px; color: var(--ink-muted); }
   .shape-card .delta { font-size: 11px; color: var(--reward); margin-top: 2px; }
@@ -106,7 +106,7 @@
   <p class="lead">以真实时间、任务顺序、里程碑与执行证据组织单人科研工作。中性日志画布承载长期阅读，航迹色标记路径，信号色提示冲突，黄铜色标记已沉淀证据。</p>
   <div class="meta">
     <span class="pill primary">真实数据航迹</span>
-    <span class="pill">面板 6px / 控件 4px</span>
+    <span class="pill">面板 12px / 控件 8px</span>
     <span class="pill">桌面 44px / 移动 52px</span>
     <span class="pill reward">120 / 180 / 220ms</span>
     <span class="pill gold">离线字体</span>
@@ -132,23 +132,23 @@
       <div class="swatch"><div class="chip" style="background:var(--ink-muted)"></div><div class="info"><div class="name">inkMuted</div><div class="val num">#617268 / #A5B8AA</div><div class="pair">次级文字</div></div></div>
       <div class="swatch"><div class="chip" style="background:var(--panel-border)"></div><div class="info"><div class="name">panelBorder ★</div><div class="val num">#D6E3D8 / #31443A</div><div class="pair">v2 新增 · 1px 面板描边</div></div></div>
     </div>
-    <p class="token-note" style="margin-top:12px">panelShadow：亮 rgba(10,20,15,.04) blur10 y3 / 暗 rgba(0,0,0,.28)；raisedShadow：blur16 y6。所有工作面均为实色，不使用背景模糊。</p>
+    <p class="token-note" style="margin-top:12px">普通工作面使用 panelBorder 1px；raisedShadow 使用 blur24 / y10，仅用于对话框、弹层和菜单。所有工作面均为实色，不使用背景模糊。</p>
   </section>
 
   <!-- 形状 -->
   <section>
-    <div class="sec-title"><span class="bar"></span><h2>形状语言 · 锐利化</h2><span class="note">整体从柔和圆润转向硬朗锐意</span></div>
+    <div class="sec-title"><span class="bar"></span><h2>形状语言 · 柔和同心</h2><span class="note">外层半径大于内层控件，避免嵌套圆角争抢</span></div>
     <div class="grid g-shape">
-      <div class="panel shape-card"><div class="demo r6"></div><div class="name">卡片 / FAB</div><div class="val num">6px</div><div class="delta">内容面保持紧凑</div></div>
-      <div class="panel shape-card"><div class="demo r4-control"></div><div class="name">按钮 / 输入 / Chip</div><div class="val num">4px</div><div class="delta">内层小于外层面板</div></div>
-      <div class="panel shape-card"><div class="demo r8"></div><div class="name">对话框 / 底部弹层</div><div class="val num">8px</div><div class="delta">仅用于独立浮层</div></div>
-      <div class="panel shape-card"><div class="demo r4"></div><div class="name">Tooltip / 胶囊</div><div class="val num">4px</div><div class="delta">v1 6px</div></div>
+      <div class="panel shape-card"><div class="demo r6"></div><div class="name">卡片 / FAB</div><div class="val num">12px</div><div class="delta">外层工作面</div></div>
+      <div class="panel shape-card"><div class="demo r4-control"></div><div class="name">按钮 / 输入 / Chip</div><div class="val num">8px</div><div class="delta">内层小于外层面板</div></div>
+      <div class="panel shape-card"><div class="demo r8"></div><div class="name">对话框 / 底部弹层</div><div class="val num">16px</div><div class="delta">独立 raised 浮层</div></div>
+      <div class="panel shape-card"><div class="demo r4"></div><div class="name">状态标签</div><div class="val num">pill</div><div class="delta">仅用于短状态文字</div></div>
     </div>
   </section>
 
   <!-- 层次 -->
   <section>
-    <div class="sec-title"><span class="bar"></span><h2>层次手法 · 边框与微阴影</h2><span class="note">中性画布上的三级实色深度</span></div>
+    <div class="sec-title"><span class="bar"></span><h2>层次手法 · 单一深度</h2><span class="note">普通工作面用边框，raised 浮层用阴影</span></div>
     <div class="grid g-depth">
       <div class="panel depth-stage" style="background:var(--canvas)">
         <div class="layer" style="background:var(--canvas)">
@@ -159,13 +159,13 @@
       <div class="panel depth-stage">
         <div class="layer panel">
           <b>层级 1 · surface</b>
-          <div class="spec">panelBorder 1px<br>panelShadow<br>blur10 · y3 · 4-6%</div>
+          <div class="spec">panelBorder 1px<br>无阴影<br>稳定工作面边界</div>
         </div>
       </div>
       <div class="panel depth-stage">
         <div class="layer panel elevated">
           <b>层级 2 · raised</b>
-          <div class="spec">raisedShadow<br>blur16 · y6 · 8-12%<br>对话框 / 弹层 / 菜单</div>
+          <div class="spec">raisedShadow<br>blur24 · y10 · 12%<br>对话框 / 弹层 / 菜单</div>
         </div>
       </div>
       <div class="panel depth-stage">
@@ -183,16 +183,16 @@
     <div class="grid g-spacing">
       <div class="panel spacing-card">
         <div class="row"><span class="lbl">列表行高</span><div class="blk" style="width:88px"></div><span class="num muted">48 → 44px</span></div>
-        <div class="row"><span class="lbl">行内边距</span><div class="blk" style="width:56px"></div><span class="num muted">16 → 14px</span></div>
-        <div class="row"><span class="lbl">分区间距</span><div class="blk" style="width:80px"></div><span class="num muted">24 → 20px</span></div>
-        <div class="row"><span class="lbl">页面边距 wide</span><div class="blk" style="width:96px"></div><span class="num muted">28 → 24px</span></div>
-        <div class="row"><span class="lbl">卡片内边距</span><div class="blk" style="width:56px"></div><span class="num muted">16 → 14px</span></div>
+        <div class="row"><span class="lbl">行内边距</span><div class="blk" style="width:64px"></div><span class="num muted">16px</span></div>
+        <div class="row"><span class="lbl">分区间距</span><div class="blk" style="width:96px"></div><span class="num muted">24px</span></div>
+        <div class="row"><span class="lbl">页面边距 wide</span><div class="blk" style="width:96px"></div><span class="num muted">24px</span></div>
+        <div class="row"><span class="lbl">卡片内边距</span><div class="blk" style="width:64px"></div><span class="num muted">16px</span></div>
       </div>
       <div class="panel spacing-card">
-        <div class="row"><span class="lbl">间距标尺</span><span class="num muted" style="margin-left:auto">4/8/12/14/20/24/32</span></div>
+        <div class="row"><span class="lbl">间距标尺</span><span class="num muted" style="margin-left:auto">4/8/12/16/24/32</span></div>
         <div class="row"><span class="lbl">响应式断点</span><span class="num muted" style="margin-left:auto">768 / 1200 仅两个</span></div>
         <div class="row"><span class="lbl">视觉密度</span><span class="num muted" style="margin-left:auto">桌面 (-1,-1) 不变</span></div>
-        <div class="row"><span class="lbl">H1 字号</span><span class="num muted" style="margin-left:auto">28px · ls -0.5</span></div>
+        <div class="row"><span class="lbl">H1 字号</span><span class="num muted" style="margin-left:auto">28px · ls 0</span></div>
         <div class="row"><span class="lbl">数字</span><span class="num muted" style="margin-left:auto">tabular-nums + w600</span></div>
       </div>
     </div>
@@ -232,7 +232,7 @@
         </div>
       </div>
       <div class="panel motion-card">
-        <h3>standard · 200ms easeOutCubic</h3>
+        <h3>standard · 180ms easeOutCubic</h3>
         <div class="spec">淡入 / 尺寸变化 / 弹层 / 列表入场（本页卡片即交错 stagger 演示）</div>
         <div class="motion-stage">
           <div class="skeleton" style="width:60%;height:12px"></div>
@@ -240,8 +240,8 @@
         </div>
       </div>
       <div class="panel motion-card">
-        <h3>emphasized · 320ms + 计数滚动</h3>
-        <div class="spec">页面切换 240ms 淡入+8px 上移 · AnimatedNumber 350ms</div>
+        <h3>emphasized · 220ms + 计数滚动</h3>
+        <div class="spec">页面切换 220ms 淡入+轻位移 · AnimatedNumber 350ms</div>
         <div class="motion-stage">
           <span class="counter-num num" id="demo-counter">0</span>
           <button class="btn outline sm" id="count-btn">重播计数</button>

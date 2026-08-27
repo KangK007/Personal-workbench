@@ -271,6 +271,9 @@ Future<void> _capture(
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
+  // 每张页面截图使用全新的 Navigator，避免前一张图的弹窗路由残留。
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
   await tester.pumpWidget(_host(child));
   await tester.pump(const Duration(milliseconds: 600));
   expect(tester.takeException(), isNull);

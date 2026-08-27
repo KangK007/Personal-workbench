@@ -13,7 +13,7 @@
 
   /* 对话框演示 */
   .dialog-stage { padding: 34px 20px; display: flex; justify-content: center; background: var(--canvas); border-radius: var(--r-card); }
-  .dialog { width: 380px; background: var(--raised); border: 1px solid var(--panel-border); border-radius: var(--r-card); box-shadow: var(--raised-shadow); padding: 18px; }
+  .dialog { width: 380px; background: var(--raised); border: 0; border-radius: var(--r-dialog); box-shadow: var(--raised-shadow); padding: 18px; }
   .dialog h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
   .dialog p { font-size: 13px; color: var(--ink-muted); margin-bottom: 16px; line-height: 1.6; }
   .dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
@@ -21,8 +21,8 @@
   /* Snackbar 演示 */
   .snack-stage { padding: 30px 20px; display: flex; justify-content: center; background: var(--canvas); border-radius: var(--r-card); }
 
-  .switch { width: 40px; height: 22px; border-radius: 5px; background: var(--subtle); border: 1px solid var(--divider); position: relative; cursor: pointer; transition: background-color .12s ease, border-color .12s ease; }
-  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 4px; background: var(--ink-muted); transition: left .12s ease, background-color .12s ease; }
+  .switch { width: 40px; height: 22px; border-radius: 999px; background: var(--subtle); border: 1px solid var(--divider); position: relative; cursor: pointer; transition: background-color .12s ease, border-color .12s ease; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink-muted); transition: left .12s ease, background-color .12s ease; }
   .switch.on { background: var(--primary); border-color: var(--primary); }
   .switch.on::after { left: 20px; background: #fff; }
 

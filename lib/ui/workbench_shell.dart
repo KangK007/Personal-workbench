@@ -649,10 +649,9 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   Future<void> _openMobileNavigation(BuildContext context) async {
-    await showModalBottomSheet<void>(
+    await showWorkbenchSheet<void>(
       context: context,
       useSafeArea: true,
-      showDragHandle: true,
       builder: (context) => _MobileNavigationSheet(
         selected: section,
         controller: widget.controller,
