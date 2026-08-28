@@ -24,24 +24,52 @@ try {
     $sha256.Dispose()
 }
 $projectKey = -join ($digest[0..5] | ForEach-Object { $_.ToString('x2') })
-$aliasRoot = Join-Path $env:LOCALAPPDATA "PersonalWorkbenchBuild\$projectKey"
-$sourceLink = Join-Path $aliasRoot 'source'
+$buildBase = Join-Path $env:SystemDrive 'Temp\PersonalWorkbenchBuild'
+$aliasRoot = Join-Path $buildBase $projectKey
+$buildSource = Join-Path $aliasRoot 'source'
+$buildTemp = Join-Path $aliasRoot 'temp'
+$buildBasePath = [System.IO.Path]::GetFullPath($buildBase).TrimEnd('\') + '\'
+$buildSourcePath = [System.IO.Path]::GetFullPath($buildSource)
+if (-not $buildSourcePath.StartsWith(
+        $buildBasePath,
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+    throw "Build source is outside the managed temporary directory: $buildSource"
+}
 
-New-Item -ItemType Directory -Force -Path $aliasRoot | Out-Null
-if (Test-Path -LiteralPath $sourceLink) {
-    $link = Get-Item -LiteralPath $sourceLink -Force
-    $target = (Resolve-Path -LiteralPath $link.Target).Path
-    if ($link.LinkType -ne 'Junction' -or
-        -not [string]::Equals(
-            $target,
-            $projectRoot,
-            [System.StringComparison]::OrdinalIgnoreCase
-        )) {
-        throw "Build alias already exists but points elsewhere: $sourceLink"
+New-Item -ItemType Directory -Force -Path $aliasRoot, $buildTemp | Out-Null
+
+# Java 21 uses a local IPC pipe while Gradle starts its single-use daemon.
+# Keep that pipe in the short, local build directory instead of the host temp path.
+$env:TEMP = $buildTemp
+$env:TMP = $buildTemp
+
+if (Test-Path -LiteralPath $buildSource) {
+    $existingBuildSource = Get-Item -LiteralPath $buildSource -Force
+    if ($existingBuildSource.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        throw "Refusing to replace a linked build source directory: $buildSource"
     }
-} else {
-    New-Item -ItemType Junction -Path $sourceLink -Target $projectRoot |
-        Out-Null
+    Remove-Item -LiteralPath $buildSource -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $buildSource | Out-Null
+
+$copyArguments = @(
+    $projectRoot,
+    $buildSource,
+    '/E',
+    '/XD', '.git', '.dart_tool', 'build', 'dist', 'coverage',
+    '.idea', '.vscode',
+    (Join-Path $projectRoot 'raw'),
+    (Join-Path $projectRoot 'data'),
+    (Join-Path $projectRoot 'original'),
+    (Join-Path $projectRoot 'experiment'),
+    (Join-Path $projectRoot 'measurements'),
+    '/XF', 'flutter_*.log',
+    '/NFL', '/NDL', '/NJH', '/NJS', '/NP'
+)
+& robocopy @copyArguments | Out-Null
+if ($LASTEXITCODE -ge 8) {
+    throw "Source copy failed with robocopy exit code $LASTEXITCODE"
 }
 
 $javaCandidates = @(
@@ -56,7 +84,7 @@ if (-not $javaHome) {
 }
 $env:JAVA_HOME = (Resolve-Path -LiteralPath $javaHome).Path
 $env:PERSONAL_WORKBENCH_BUILD_ROOT = Join-Path $aliasRoot 'build'
-$env:PERSONAL_WORKBENCH_SOURCE_ROOT = $sourceLink
+$env:PERSONAL_WORKBENCH_SOURCE_ROOT = $buildSource
 
 $gradleCacheRoot = Join-Path $env:USERPROFILE '.gradle\wrapper\dists\gradle-8.14-bin'
 $gradle = Get-ChildItem -LiteralPath $gradleCacheRoot -Filter 'gradle.bat' -File -Recurse -ErrorAction SilentlyContinue |
@@ -72,7 +100,7 @@ $gradleTask = switch ($Configuration) {
     'release' { 'assembleRelease' }
 }
 
-Push-Location -LiteralPath $sourceLink
+Push-Location -LiteralPath $buildSource
 try {
     if ($Clean.IsPresent) {
         & flutter clean
@@ -103,7 +131,7 @@ try {
         throw "Android build number must be a positive integer: $versionCode"
     }
 
-    $localPropertiesPath = Join-Path $sourceLink 'android\local.properties'
+    $localPropertiesPath = Join-Path $buildSource 'android\local.properties'
     $localProperties = ConvertFrom-StringData (
         Get-Content -Raw -LiteralPath $localPropertiesPath
     )
@@ -122,7 +150,7 @@ try {
         [System.Text.UTF8Encoding]::new($false)
     )
 
-    Push-Location -LiteralPath (Join-Path $sourceLink 'android')
+    Push-Location -LiteralPath (Join-Path $buildSource 'android')
     try {
         & $gradle.FullName $gradleTask '--offline' '--no-daemon' '--stacktrace'
         if ($LASTEXITCODE -ne 0) {
