@@ -1,6 +1,6 @@
 # 个人工作台发布级缺陷台账
 
-> 基线提交：`05f1827ae654637954395df8d453136837950606`  
+> 基线提交：`052487c`（本轮 QA 修复在该提交后的工作树中）
 > 状态流：`OPEN` → `FIXED` → `VERIFIED`；高风险且无法自行决定的事项使用 `BLOCKED`。
 
 ## BUG-001
@@ -36,7 +36,7 @@
 
 验证方式：重新执行格式检查、`flutter analyze` 和完整 `flutter test`。
 
-回归结果：最���格式检查、`flutter analyze` 和 229 项完整测试均通过。
+回归结果：最终格式检查、`flutter analyze` 和 233 项完整测试均通过。
 
 状态：VERIFIED
 
@@ -93,7 +93,7 @@
 
 修复方式：日期条高度在 68px 下限基础上按文字比例增长，不改变日期、选择或时间块逻辑。
 
-验证方式：重新运行包含 39 个页面表面的 200% 文字缩放全矩阵。
+验证方式：重新运行包含 37 个当前可构建页面表面的 200% 文字缩放全矩阵。
 
 回归结果：`375×812` 及其余全部视口通过，无 RenderFlex overflow。
 
@@ -191,7 +191,7 @@
 2. 不带 `--update-goldens` 单独运行截图测试。
 3. 重新运行完整 `flutter test`。
 
-回归结果：21 张 UI 审计基线已迁入 `test/goldens/ui_audit/`；默认完整测试包含 33 张 Golden，229/229 通过。
+回归结果：21 张 UI 审计基线已迁入 `test/goldens/ui_audit/`；默认完整测试包含 33 张 Golden，233/233 通过。
 
 状态：VERIFIED
 
@@ -393,7 +393,7 @@
 1. 定向运行手机横屏与桌面最低高度测试。
 2. 重建 Android Debug APK。
 3. 在同一模拟器重新安装，旋转后采集截图、UIAutomator 语义树和 logcat。
-4. 运行最终 229 项完整测试。
+4. 运行最终 233 项完整测试。
 
 回归结果：横屏显示 5 个移动导航语义节点，无红色溢出条；logcat 无 `RenderFlex overflowed`、`E/flutter` 或应用崩溃；完整测试通过。
 
@@ -430,7 +430,79 @@
 
 验证方式：使用内存数据库执行新建、编辑、取消、校验失败、重复提交和退出动画 Widget 回归，并运行完整 Flutter 测试与隔离 Windows 启动。
 
-回归结果：任务群生命周期定向回归通过；最终 229 项完整测试、静态分析和 Windows Debug 隔离启动通过，未再出现 `_dependents.isEmpty`。
+回归结果：任务群生命周期定向回归通过；最终 233 项完整测试、静态分析和 Windows Debug 隔离启动通过，未再出现 `_dependents.isEmpty`。
+
+状态：VERIFIED
+
+## BUG-014
+
+模块：共享 Dialog 基础设施
+页面：全局搜索、快速新增、记录编辑器、任务群编辑器、关联选择器、Markdown 编辑器
+严重程度：P2
+类型：Accessibility / Interaction / Keyboard
+
+复现步骤：
+
+1. 通过 `showWorkbenchDialog` 打开一个 `barrierDismissible: false` 的共享 Dialog。
+2. 将焦点移入输入框并按 `Tab` 多次。
+3. 按 `Escape`，并在 375×812、1200×864、1536×864 与 200% 字号下重复。
+
+预期：Dialog 路由取得焦点，Tab 不逃出 Dialog，Escape 在允许关闭时只关闭当前 Dialog；保存中的任务群 Dialog 仍服从 `PopScope` 禁止关闭。
+
+实际：共享 `showGeneralDialog` 没有显式请求路由焦点；不可点遮罩的 Dialog 缺少一致的 Escape 路径。初版修复若使用可遍历的根 `Focus`，还会改变 Tab 顺序并导致焦点陷阱回归。
+
+根本原因：共享 Dialog 封装只配置了动画和遮罩，没有统一承担键盘焦点及 Escape 语义；根 `Focus` 节点若参与遍历，会成为额外 Tab 停靠点。
+
+修改文件：
+
+- `lib/ui/widgets/common.dart`
+- `test/ui_audit_screenshot_test.dart`
+- `test/theme_accessibility_test.dart`
+
+修复方式：让 `showGeneralDialog` 显式 `requestFocus`；使用 `skipTraversal: true` 的根 `Focus` 捕获 Escape，通过 `Navigator.maybePop` 保留 `PopScope` 业务约束，并在路由已反向/结束动画时避免重复 pop。
+
+验证方式：
+
+1. 定向运行 `Ctrl+K opens global search from the workbench shell`，验证原焦点陷阱和关闭路径。
+2. 对 6 个共享 Dialog 执行 4 个尺寸/字号场景，共 24 个 Focus/Tab/Escape/长文本组合。
+3. 对 37 个表面在 3 个窗口尺寸触发 Hover、Pressed、Focus、Keyboard，并开关全部实际存在的 Popup/Dropdown。
+4. 运行 Golden/UI 子集 28/28、`flutter analyze` 和完整测试 233/233。
+
+回归结果：定向焦点陷阱、24 个 Dialog 场景、222 个页面交互-尺寸场景、28 个 Golden/UI 测试和 233 项完整测试均通过。
+
+状态：VERIFIED
+
+## BUG-015
+
+模块：QA 覆盖统计
+页面：`PROJECT_MAP.md`、`TEST_MATRIX.md` 与最终报告
+严重程度：P2
+类型：Documentation / Test Governance
+
+复现步骤：
+
+1. 从 `test/ui_audit_screenshot_test.dart` 实际展开 `_auditSurfaces`。
+2. 逐行解析 `TEST_MATRIX.md` 的 Case ID 与状态。
+3. 将结果与文档中的 39 个表面、208 个 Case 比较。
+
+预期：项目地图、矩阵正文和统计表一致，且所有合法 Case ID 都参与计数。
+
+实际：当前可构建表面实际为 37 个；旧 Case 统计正则只接受纯字母前缀，漏计了 7 条 `A11Y-*`，把 215 条既有 Case 写成 208 条。
+
+根本原因：页面枚举调整后统计未从代码重新生成；Case 计数脚本假设 ID 前缀不含数字。
+
+修改文件：
+
+- `docs/qa/PROJECT_MAP.md`
+- `docs/qa/TEST_MATRIX.md`
+- `docs/qa/FINAL_QA_REPORT.md`
+- `docs/qa/UI_UX_AUDIT_FINAL.md`
+
+修复方式：按当前枚举明确列出 37 个表面；Case 解析允许 `[A-Z0-9]+-[0-9]+`，重新统计为 253 条：242 PASS、11 BLOCKED、0 FAIL。
+
+验证方式：机器逐行解析 Case ID、状态与重复项；核对 38 条 `U4D-*`；扫描项目地图和矩阵的未执行标记。
+
+回归结果：253 个唯一 Case，242 PASS、11 BLOCKED；38 条 `U4D-*`；无重复 ID、无未执行项。
 
 状态：VERIFIED
 

@@ -32,6 +32,12 @@ import 'package:personal_workbench/ui/pages/review_page.dart';
 import 'package:personal_workbench/ui/pages/restriction_page.dart';
 import 'package:personal_workbench/ui/pages/settings_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
+import 'package:personal_workbench/ui/widgets/global_search_dialog.dart';
+import 'package:personal_workbench/ui/widgets/markdown_editor_dialog.dart';
+import 'package:personal_workbench/ui/widgets/quick_capture_sheet.dart';
+import 'package:personal_workbench/ui/widgets/record_editor_dialog.dart';
+import 'package:personal_workbench/ui/widgets/relation_picker_dialog.dart';
+import 'package:personal_workbench/ui/widgets/task_group_editor_dialog.dart';
 
 class _MemoryDatabase extends AppDatabase {
   final Map<String, WorkspaceRecord> records = {};
@@ -519,6 +525,190 @@ Future<void> _verifySurface(
   );
 }
 
+Finder _enabledActions() => find.byWidgetPredicate((widget) {
+  if (widget is ButtonStyleButton) return widget.onPressed != null;
+  if (widget is IconButton) return widget.onPressed != null;
+  if (widget is FloatingActionButton) return widget.onPressed != null;
+  return false;
+});
+
+Finder _openableMenuControls() => find.byWidgetPredicate((widget) {
+  if (widget is PopupMenuButton) return widget.enabled;
+  final type = widget.runtimeType.toString();
+  return type.startsWith('DropdownButton<') ||
+      type.startsWith('DropdownButtonFormField<');
+});
+
+Future<void> _verifyInteractiveStates(
+  WidgetTester tester,
+  _AuditSurface surface,
+  Size size,
+) async {
+  await _verifySurface(tester, surface, size, scenario: 'interaction');
+  final actions = _enabledActions();
+  if (actions.evaluate().isEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    return;
+  }
+  final action = actions.first;
+  final center = tester.getCenter(action);
+  await tester.sendEventToBinding(PointerHoverEvent(position: center));
+  await tester.pump();
+  expect(tester.takeException(), isNull);
+  final gesture = await tester.startGesture(center);
+  await tester.pump();
+  await gesture.up();
+  await tester.pump(const Duration(milliseconds: 80));
+  expect(tester.takeException(), isNull);
+  if (find.byType(ModalBarrier).evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+  }
+  expect(tester.takeException(), isNull);
+  await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+  await tester.pump();
+  expect(tester.takeException(), isNull);
+}
+
+Future<void> _verifyOpenMenus(
+  WidgetTester tester,
+  _AuditSurface surface,
+  Size size,
+) async {
+  await _verifySurface(tester, surface, size, scenario: 'menu');
+  final controls = _openableMenuControls().evaluate().toList();
+  for (final element in controls) {
+    final control = find.byWidget(element.widget);
+    await tester.ensureVisible(control);
+    await tester.pump();
+    final baseline = find.byType(ModalBarrier).evaluate().length;
+    await tester.tap(control);
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(
+      find.byType(ModalBarrier).evaluate().length,
+      greaterThan(baseline),
+      reason: '${surface.name} menu did not open at $size',
+    );
+    expect(tester.takeException(), isNull);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(
+      find.byType(ModalBarrier).evaluate().length,
+      baseline,
+      reason: '${surface.name} menu did not close at $size',
+    );
+    expect(tester.takeException(), isNull);
+  }
+}
+
+class _DialogAudit {
+  const _DialogAudit(this.name, this.open);
+
+  final String name;
+  final Future<void> Function(
+    BuildContext context,
+    WorkbenchController controller,
+  )
+  open;
+}
+
+List<_DialogAudit> _dialogAudits() => [
+  _DialogAudit('record-editor', (context, controller) async {
+    await showRecordEditor(
+      context,
+      controller,
+      kind: RecordKind.task,
+      initialTitle: '超长标题 ' * 30,
+      initialBody: '长文本内容 ' * 500,
+    );
+  }),
+  _DialogAudit('task-group-editor', (context, controller) async {
+    await showTaskGroupEditor(context: context, controller: controller);
+  }),
+  _DialogAudit('relation-picker', (context, controller) async {
+    await showRelationPickerDialog(
+      context: context,
+      controller: controller,
+      initialTaskIds: const [],
+      initialProjectIds: const [],
+    );
+  }),
+  _DialogAudit('markdown-note-editor', (context, controller) async {
+    await showMarkdownNoteEditor(
+      context,
+      controller,
+      initialProjectId: controller.projects.firstOrNull?.id,
+    );
+  }),
+  _DialogAudit('global-search', (context, controller) async {
+    await showGlobalSearch(context, controller);
+  }),
+  _DialogAudit('quick-capture', (context, controller) async {
+    await showQuickCapture(context, controller);
+  }),
+];
+
+Future<void> _verifyDialogState(
+  WidgetTester tester,
+  _DialogAudit dialog,
+  WorkbenchController controller,
+  Size size, {
+  TextScaler textScaler = TextScaler.noScaling,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
+  await tester.pumpWidget(
+    _host(
+      Builder(
+        builder: (context) => Center(
+          child: FilledButton(
+            onPressed: () => dialog.open(context, controller),
+            child: const Text('打开审查窗口'),
+          ),
+        ),
+      ),
+      textScaler: textScaler,
+    ),
+  );
+  await tester.pump();
+  final baseline = find.byType(ModalBarrier).evaluate().length;
+  await tester.tap(find.text('打开审查窗口'));
+  await tester.pump(const Duration(milliseconds: 350));
+  expect(
+    find.byType(ModalBarrier).evaluate().length,
+    greaterThan(baseline),
+    reason: '${dialog.name} did not open at $size',
+  );
+  expect(tester.takeException(), isNull);
+  final editable = find.byType(EditableText);
+  if (editable.evaluate().isNotEmpty) {
+    await tester.showKeyboard(editable.first);
+  } else {
+    final buttons = find.byType(FilledButton);
+    if (buttons.evaluate().isNotEmpty) {
+      await tester.tap(buttons.last);
+    }
+  }
+  await tester.pump();
+  for (var index = 0; index < 4; index++) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  }
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+  expect(
+    find.byType(ModalBarrier).evaluate().length,
+    baseline,
+    reason: '${dialog.name} did not close with Escape at $size',
+  );
+  expect(tester.takeException(), isNull);
+}
+
 void main() {
   setUpAll(_loadAuditFonts);
 
@@ -703,4 +893,66 @@ void main() {
       }
     }
   });
+
+  testWidgets(
+    'all mapped surfaces exercise hover pressed focus and keyboard states',
+    (tester) async {
+      final controller = await _createController();
+      addTearDown(controller.dispose);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      for (final surface in _auditSurfaces(controller)) {
+        for (final size in const [
+          Size(375, 812),
+          Size(1200, 864),
+          Size(1536, 864),
+        ]) {
+          await _verifyInteractiveStates(tester, surface, size);
+        }
+      }
+    },
+  );
+
+  testWidgets('all mapped surfaces open and close every popup and dropdown', (
+    tester,
+  ) async {
+    final controller = await _createController();
+    addTearDown(controller.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    for (final surface in _auditSurfaces(controller)) {
+      for (final size in const [
+        Size(375, 812),
+        Size(1200, 864),
+        Size(1536, 864),
+      ]) {
+        await _verifyOpenMenus(tester, surface, size);
+      }
+    }
+  });
+
+  testWidgets(
+    'shared dialogs survive focus and Escape across the window matrix',
+    (tester) async {
+      final scenarios = [
+        (const Size(375, 812), TextScaler.noScaling),
+        (const Size(375, 812), const TextScaler.linear(2)),
+        (const Size(1200, 864), TextScaler.noScaling),
+        (const Size(1536, 864), TextScaler.noScaling),
+      ];
+      for (final scenario in scenarios) {
+        for (final dialog in _dialogAudits()) {
+          final controller = await _createController();
+          addTearDown(controller.dispose);
+          await _verifyDialogState(
+            tester,
+            dialog,
+            controller,
+            scenario.$1,
+            textScaler: scenario.$2,
+          );
+        }
+      }
+    },
+  );
 }

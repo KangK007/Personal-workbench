@@ -1,9 +1,9 @@
 # 个人工作台发布级项目地图
 
-> 基线提交：`05f1827ae654637954395df8d453136837950606`  
-> 建立日期：2026-08-28；最终复核：2026-08-29（Asia/Shanghai）  
+> 基线提交：`052487c`（本轮 QA 修复在该提交后的工作树中）
+> 建立日期：2026-08-28；最终复核：2026-08-31（Asia/Shanghai）
 > 覆盖规则：本文件同时记录真实导航面、条件入口、兼容别名、平台集成和仅由组合页调用的子页面。测试状态以 `docs/qa/TEST_MATRIX.md` 为唯一明细基准。
-> 最终覆盖：39 个页面/子页表面、208 个测试 Case、229 项自动测试、546 个全页面布局场景、33 张 Golden、15 张真实运行截图。
+> 最终覆盖：37 个当前可构建页面/子页表面、253 个测试 Case、233 项自动测试、518 个全页面布局场景、222 个页面交互-尺寸场景、24 个 Dialog-尺寸场景、33 张 Golden、15 张真实运行截图。
 
 ## 1. 技术栈与运行边界
 
@@ -19,7 +19,7 @@
 | 搜索 | 内存索引 | `lib/services/search_service.dart` | 标题/正文/标签、多词排序、索引刷新、空结果 |
 | 通知与分享 | 本地通知、Android 分享接收 | `notification_service.dart`、`share_capture_service.dart` | 权限拒绝、通知 ID 稳定、后台/重启、非法分享内容 |
 | 设计系统 | 自定义 Flutter ThemeExtension + 离线字体 | `lib/core/theme/app_theme.dart`、`MASTER.md` | token、对比度、48dp 触控、焦点、减少动效、无嵌套卡片/玻璃拟态 |
-| 测试 | Flutter unit/widget/golden | `test/` | 最终 229 项测试全部通过；自动化证据与真实 Windows/Android 运行证据分开记录 |
+| 测试 | Flutter unit/widget/golden | `test/` | 最终 233 项测试全部通过；自动化证据与真实 Windows/Android 运行证据分开记录 |
 
 ## 2. 应用入口与全局状态
 
@@ -115,13 +115,13 @@
 
 | 能力 | 结果 | 影响 |
 | --- | --- | --- |
-| Windows Flutter GUI | AVAILABLE | 可执行真实桌面启动、交互、日志、截图和窗口尺寸验证 |
+| Windows Flutter GUI | PARTIAL | Release 应用可用隔离数据库真实启动并读取语义；本轮 Computer Use 无法激活捕获窗口，完整原生指针/键盘状态遍历记为 `BLOCKED`，不以 Widget 自动化冒充原生复验 |
 | Edge / Flutter Web | AVAILABLE | 可补充浏览器语义与多视口视觉验证，但不能替代 Windows 原生能力 |
 | Android 真机/模拟器 | AVAILABLE：Android 15 / API 35 模拟器、SDK 36、JDK 21、ADB | 已真实验证冷启动、IME、Back、权限拒绝/允许、即时通知、分享、横屏、800×1200 尺寸与持久化；模拟器宿主不稳定使休眠/重启定时通知 BLOCKED |
 | 截图 | AVAILABLE | Flutter Golden、Widget 截图与真实运行截图均可保存到 `docs/qa/screenshots/` |
 | Stitch MCP | BLOCKED | 当前没有 Stitch 工具、资源或模板；使用真实 GUI、Golden 和人工像素检查替代 |
-| Word 生成 | PASS | 已生成真实 DOCX；包含 20 个章节和 21 张真实界面截图，OOXML 结构检查通过 |
-| Word 渲染 | PASS | LibreOffice 不可用；改用 Microsoft Word 2024 原生导出并按原始分辨率检查 29/29 页，无越界、裁切或页眉页脚重叠；最终文件按用户要求保持不再修改 |
+| Word 生成 | PASS | 已重新生成真实 DOCX；包含 20 个章节和 21 张真实界面截图，OOXML 结构检查通过 |
+| Word 渲染 | BLOCKED | 本轮更新后的 DOCX 无可调用的 LibreOffice/Word 自动渲染器；历史版本曾完成 Word 2024 逐页检查，但不能替代当前文件的视觉复验 |
 
 ## 9. 覆盖闭环规则
 
@@ -145,3 +145,17 @@
 | 今日 | 04:00–04:00 时间进度尺 | 0%/50%/跨日近 100%、分钟刷新、前台恢复、计时器释放、减少动效 | logical day clock | PASS |
 | 回顾 | 编辑/回顾库/预览三状态 | 日周月切换、当前可编辑、历史/旧数据只读、未来禁止、关联与附件预览 | periodReview、diary、attachment | PASS |
 | 成长 | 顶部积分面板间距 | 游戏功能开/关、最近反馈有/无、窄屏、200% 字号 | game profile | PASS |
+
+## 11. Page × State × Interaction × Window Size 覆盖
+
+当前 `_auditSurfaces` 由实际枚举展开为 37 个表面，而不是旧文档中的 39 个。逐表面明细见 `TEST_MATRIX.md` 的 `U4D-001`～`U4D-037`。
+
+| 维度 | 已执行组合 | 结果 |
+| --- | ---: | --- |
+| Page × Default/Layout × Window/Theme | 37 × 14 = 518 | PASS |
+| Page × Hover/Pressed/Focus/Keyboard × 375/1200/1536 | 37 × 3 = 111 | PASS |
+| Page × Popup/Dropdown Open/Close × 375/1200/1536 | 37 × 3 = 111 | PASS |
+| Dialog × Focus/Tab/Escape/Long Text × 4 个窗口/字号场景 | 6 × 4 = 24 | PASS |
+| Windows 原生 Page × State × Interaction × Window Size | 1 个完整复验 Case | BLOCKED：自动化驱动无法激活已捕获窗口；隔离启动和语义读取成功 |
+
+Disabled、Selected、Loading、Empty、Error、长文本和 200% 字号由主题测试、功能回归、空数据矩阵、故障注入及 Dialog 长文本场景共同覆盖。自动化 `PASS` 与原生视觉 `BLOCKED` 分开记录。

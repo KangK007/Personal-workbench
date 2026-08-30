@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
@@ -76,7 +77,24 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
 }) {
   return showGeneralDialog<T>(
     context: context,
-    pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+    pageBuilder: (context, animation, secondaryAnimation) => Focus(
+      autofocus: true,
+      canRequestFocus: true,
+      skipTraversal: true,
+      onKeyEvent: (node, event) {
+        final route = ModalRoute.of(context);
+        final isEscape = event.logicalKey == LogicalKeyboardKey.escape;
+        final isBeingPopped =
+            route?.animation?.status == AnimationStatus.reverse ||
+            route?.animation?.status == AnimationStatus.dismissed;
+        if (isEscape && !isBeingPopped) {
+          Navigator.of(context, rootNavigator: true).maybePop();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: builder(context),
+    ),
     barrierDismissible: barrierDismissible,
     barrierColor:
         barrierColor ??
@@ -84,6 +102,7 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
     barrierLabel:
         barrierLabel ??
         MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    requestFocus: true,
     useRootNavigator: useRootNavigator,
     routeSettings: routeSettings,
     anchorPoint: anchorPoint,

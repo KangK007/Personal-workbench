@@ -1,92 +1,110 @@
 # 个人工作台最终质量审查报告
 
-> 审查完成日期：2026-08-29（Asia/Shanghai）  
-> Git 基线：`05f1827ae654637954395df8d453136837950606`  
+> 审查完成日期：2026-08-31（Asia/Shanghai）
+> Git 基线：`052487c`；本轮 QA 修复位于该提交后的工作树
+> 应用版本：0.1.0+4
 > 测试基准：`docs/qa/PROJECT_MAP.md` 与 `docs/qa/TEST_MATRIX.md`
 
-## 1. 结论
+## 1. 发布结论
 
-本轮发布级质量审查已经完成，完整功能清单和测试矩阵均已闭环。最终矩阵包含 208 个 Case：199 个 `PASS`、9 个 `BLOCKED`、0 个失败、0 个未闭环项。
+**NOT READY**。
 
-整体发布判定：**NO-GO**。Windows Release 和 Android Debug 均能干净构建，核心本地工作流可用；但 Android Release 缺少签名凭据，真实 Supabase、Windows 系统级热键/托盘/开机启动/进程与 hosts 副作用、原生文件选择器修复后复验，以及 Android 休眠/重启定时通知仍受环境或安全条件阻塞。解除相应阻塞前，不应宣称完整平台发布验收通过。
+Windows Release 与 Android Debug 已用最终代码重新构建，233 项 Flutter 测试和 33 张 Golden 均通过；但 Android Release 缺少签名凭据，完整 Windows 原生四维交互复验、更新后 DOCX 逐页视觉渲染、真实 Supabase、系统副作用及 Android 休眠/重启通知仍受环境或安全条件阻塞。不能把自动化替代证据写成真实平台 PASS。
 
-## 2. 覆盖规模
+## 2. 项目与测试环境
+
+Flutter 3.38.9、Dart 3.10.8、Material 3，目标平台为 Windows 与 Android；本地数据使用 SQLite，可选 Supabase 同步。Windows 使用隔离数据库启动；Android 既有真实运行证据来自 Android 15 / API 35 模拟器，SDK 36、JDK 21。
+
+## 3. 覆盖规模
 
 | 指标 | 结果 |
 | --- | ---: |
-| 测试 Case | 208 |
-| PASS / BLOCKED | 199 / 9 |
-| Flutter 自动测试 | 229 / 229 通过 |
-| Dart 测试文件 | 35 |
-| 页面与子页表面 | 39 |
-| 全页面布局场景 | 546 |
+| 测试 Case | 253 |
+| PASS / FAIL / BLOCKED | 242 / 0 / 11 |
+| Flutter 自动测试 | 233 / 233 |
+| 当前可构建页面/子页表面 | 37 |
+| 全页面布局场景 | 518 |
+| 页面交互-尺寸场景 | 222 |
+| Dialog-尺寸场景 | 24 |
 | Golden 基线 | 33 |
 | 真实运行截图 | 15 |
-| Word 用户手册 | 29 页 / 21 张界面截图，逐页检查 PASS |
-| 已登记缺陷 | 13 |
+| 已登记 / 已修复 / 完整 VERIFIED 缺陷 | 15 / 15 / 14 |
 
-546 个布局场景由 39 个表面分别覆盖 7 个浅色视口、2 个深色视口、2 个减少动效视口、1 个 200% 文字缩放视口和 2 个空数据视口。
+旧文档中的 39 个表面统计已按当前 `_auditSurfaces` 纠正为 37 个；旧矩阵总数还漏计了 ID 含数字的 7 条 `A11Y-*`，逐行解析后的实际总数为 253。518 个布局场景为 37 个表面 × 14 个窗口、主题、字号、动效和数据状态组合。
 
-## 3. 最终命令结果
+## 4. Page × State × Interaction × Window Size
+
+37 个表面分别在 375×812、1200×864、1536×864 触发 Hover、Pressed、Focus 和键盘状态，并打开/关闭每个实际存在的 Popup/Dropdown，共 222 个页面交互-尺寸场景。6 个共享 Dialog 在 375×812、375×812 + 200% 字号、1200×864、1536×864 下完成 Focus、Tab、Escape 和长文本回归，共 24 个场景。
+
+Disabled、Selected、Loading、Empty、Error、长文本由主题状态测试、空数据矩阵、故障注入和功能测试补足。逐表面明细为 `U4D-001`～`U4D-037`；本轮 Windows 原生完整指针/键盘视觉复验为 `U4D-038 BLOCKED`。
+
+## 5. 功能与回归结果
+
+13 项功能优化均有定向测试：任务群生命周期、任务卡片元数据、多级子任务、关联 Dialog、周视图今天列、项目五面板、习惯按钮与 04:00 日界、成长页间距、收件箱导航、今日时间进度、回顾预览/编辑权限及回顾类别切换。
+
+本轮新增 BUG-014：共享 Dialog 缺少统一的焦点请求和 Escape 路径；新增 BUG-015：QA 统计漏计 `A11Y-*` 且表面总数过期。修复后，搜索焦点陷阱定向测试、24 个 Dialog 场景、222 个页面交互场景、Golden/UI 子集 28/28 和完整测试 233/233 全部通过。BUG-010 已修复，但真实原生文件选择器复验仍受平台输入能力阻塞，因此 15 个缺陷中 14 个达到完整 `VERIFIED`。
+
+## 6. UI/UX、可访问性与性能
+
+- 浅色 7 视口、深色 2 视口、减少动效 2 视口、200% 字号和空数据 2 视口覆盖 37 个表面。
+- 33 张 Golden 未更新基线即通过；UI/Golden 定向套件 28/28 通过。
+- 主要按钮主题提供 Hover、Focus、Pressed、Disabled 状态；状态文字不只依赖颜色。
+- 共享 Dialog 支持路由焦点、Tab 焦点约束和 Escape；任务群保存中的 `PopScope` 仍生效。
+- 1000 条任务列表、Timer/监听器释放和既有启动计时测试保持通过；未发现新的用户可感知性能回归。
+
+## 7. 静态检查、测试与构建
 
 | 检查 | 结果 |
 | --- | --- |
-| `dart format --output=none --set-exit-if-changed lib test` | 96 个文件，0 个变更，PASS |
-| `flutter analyze` | No issues found，PASS |
-| `flutter test --reporter compact` | 229/229，PASS |
-| Windows Debug 隔离数据库构建 | 37.9 s，PASS |
-| Windows Release 干净构建 | PASS |
-| Android Debug 干净构建 | PASS |
+| `flutter pub get` | PASS；1 个停用依赖，38 个不兼容约束的新版本，作为风险记录 |
+| `dart format --output=none --set-exit-if-changed lib test` | PASS |
+| `flutter analyze` | PASS，No issues found |
+| `flutter test --reporter compact` | PASS，233/233 |
+| Golden/UI 子集 | PASS，28/28 |
+| Windows Release | PASS，最终代码重建并更新 3 个快捷方式 |
+| Android Debug | PASS，干净构建并更新构建/分发 APK |
 | Android Release | BLOCKED：缺少 `android/key.properties` 与私有 keystore |
 
-## 4. 真实 Windows 验证
+## 8. 真实运行与日志
 
-测试使用独立 SQLite 数据库，不读取或覆盖用户正式数据。本轮新增路径已由 Widget、Golden、控制器回归和一次 Windows Debug 隔离数据库启动覆盖；启动进程保持运行并创建 `PWB-QA-20260829\qa.sqlite`。
+Windows Release 已从 ASCII 临时目录使用隔离数据库启动，主窗口、今日页、导航语义和启动过程正常。Computer Use 可以捕获窗口状态，但多次执行原生点击/激活均返回 `failed to activate captured window`，因此本轮完整原生 Hover/Focus/Pressed/Dialog/Resize 复验不能标记 PASS。
 
-首次 Debug 启动约 950 ms，第二次约 922 ms。第一轮自动输入会话出现重复空 JSON 解析日志；第二个干净会话 stderr 为 0 字节，因此归类为自动化输入噪声而非稳定应用异常。
+既有 Android 模拟器证据覆盖冷启动、IME/Back、任务持久化、权限拒绝/允许、即时通知、外部分享、横屏、800×1200 窗口和 logcat；宿主 ADB/图形后端不稳定，休眠/重启定时通知保持 BLOCKED。
 
-## 5. 真实 Android 验证
+## 9. 文档结果
 
-环境为 Android 15 / API 35 Pixel 6 模拟器，SDK 36、JDK 21。已完成：
+最新版 `docs/manual/个人工作台_用户使用手册.docx` 已由 `python-docx` 重新生成：20 个章节、21 张界面截图、195 个段落、2 张表。OOXML 几何断言通过；可访问性审计为 0 high / 0 medium / 0 low，并为两张表补充 Word 表头语义。
 
-- 冷启动：`Status: ok`，首次测量 2023 ms；修复后重装测量 2831 ms。
-- 首屏像素与 UIAutomator 语义树。
-- 快速新增 IME 显示、Back 先关闭 IME再关闭 Sheet。
-- 创建任务并验证数据持久化。
-- 通知权限拒绝与允许两条真实分支；允许后系统通知中心收到即时通知。
-- `ACTION_SEND` 文本分享进入收件箱，正文完整。
-- 系统 Back 返回 Launcher。
-- 2400×1080 横屏和 800×1200 窗口尺寸变化。
-- logcat 未发现应用 `FATAL EXCEPTION`、`E/flutter` 或未处理 Flutter 异常。
+当前环境缺少可调用的 LibreOffice/Word 渲染器，`render_docx.py` 返回 `FileNotFoundError [WinError 2]`。因此更新后文件的逐页视觉检查为 `DOC-006 BLOCKED`；历史 29 页检查不能替代当前版本。
 
-模拟器宿主发生 ADB 协议/图形后端离线，导致休眠或重启后的定时通知无法可靠完成，已标记 `BLOCKED`。
-
-## 6. 产物
+## 10. 产物
 
 | 产物 | 大小 | SHA-256 |
 | --- | ---: | --- |
-| Windows Release 目录 | 20 文件，80,070,878 bytes | 目录不计算单一哈希 |
-| `personal_workbench.exe` | 243,712 bytes | 未单独记录 |
-| Android Debug APK | 192,804,641 bytes | `A01C8E852E9F8880FB14806CD813CD93F294B3FA675FF325C67CED2C58FF648A` |
-| Debug 分发 APK | 192,804,641 bytes | 与构建 APK 相同 |
+| `build/windows/x64/runner/Release/personal_workbench.exe` | 243,712 bytes | `CFF0F813983EDF180FB6831813C31FAD8E57637234B0D7144C264D722D1CED94` |
+| `build/app/outputs/flutter-apk/app-debug.apk` | 192,808,169 bytes | `E7539425A2D31057CDBB05611D6AC6C451DB8EB1A4D86696123E33B4625BE1B8` |
+| `dist/apk/PersonalWorkbench_0.1.0_4_debug.apk` | 192,808,169 bytes | 同上 |
+| `docs/manual/个人工作台_用户使用手册.docx` | 1,435,286 bytes | `ED5BB07FBF5D988584AF75B94DB91B9BE30D3B4ADE561A3A0E993474C5F87365` |
 
-桌面及两个开始菜单快捷方式均指向最终 Windows Release 可执行文件，目标存在。
+桌面和两个开始菜单快捷方式均指向上述 Windows Release 可执行文件，目标存在。
 
-## 7. 阻塞项
+## 11. BLOCKED 清单
 
-1. `ENV-003`：Stitch MCP 不可用，已用真实 GUI、Golden 和人工逐图替代。
-2. `BLD-009`：缺少 Android Release 签名配置。
-3. `GLB-002`：共享桌面有用户活动，未安全触发系统级 `Ctrl+Shift+Space`。
-4. `RST-008`：无隔离 Windows VM，不执行真实进程终止与托盘受保护退出。
-5. `RST-009`：无隔离 Windows VM，不修改用户 hosts/UAC 状态。
-6. `ATT-004`：焦点修复自动回归通过，但修复后原生选择器真实复验被前台用户活动阻塞。
-7. `SET-006`：缺少隔离 Supabase 端点、密钥和测试账号。
+1. `ENV-003`：Stitch MCP 未配置。
+2. `BLD-009`：缺少 Android Release 签名文件与私有密钥。
+3. `GLB-002`：共享桌面下未安全触发系统级快速新增热键。
+4. `RST-008`：无隔离 Windows VM，不执行真实进程终止/托盘受保护退出。
+5. `RST-009`：无隔离 Windows VM，不修改真实 hosts/UAC 状态。
+6. `ATT-004`：原生文件选择器修复后的真实输入复验受窗口激活能力阻塞。
+7. `SET-006`：缺少隔离 Supabase 端点、密钥和账号。
 8. `PLT-001`：真实托盘、开机启动和 Windows 通知需要隔离用户会话。
-9. `PLT-003`：Android 定时通知在休眠/重启后的送达受模拟器宿主不稳定阻塞。
+9. `PLT-003`：Android 休眠/重启定时通知受模拟器宿主不稳定阻塞。
+10. `DOC-006`：更新后的 DOCX 缺少可调用渲染器，无法逐页视觉复验。
+11. `U4D-038`：Windows 原生完整四维交互无法激活捕获窗口。
 
-## 8. 风险
+## 12. 已知风险
 
-- `flutter_markdown 0.7.7+1` 已停用，迁移需单独做 Markdown 兼容与视觉回归。
-- Android 构建存在第三方 Manifest、Java 8 目标和 Gradle 9 兼容性警告。
-- Android Debug APK 包含多 ABI 与调试符号，体积不能代表最终 Release 体积。
-- 当前无远端云测试和真实设备后台策略数据，不应推断长期通知准时性。
+- `flutter_markdown 0.7.7+1` 已停用；迁移需要独立 Markdown 兼容和视觉回归。
+- Android 构建仍有第三方 Manifest namespace、Java 8 目标、SDK XML 与 Gradle 9 兼容警告。
+- Android Debug APK 含多 ABI 和调试符号，体积不代表 Release。
+- 没有真实远端同步与物理设备后台策略证据，不能推断长期同步或通知可靠性。
