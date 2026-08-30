@@ -31,11 +31,32 @@ if (-not $resolvedSourceCopy.StartsWith(
     )) {
     throw 'The ASCII build source path validation failed.'
 }
+New-Item -ItemType Directory -Force -Path $buildCacheRoot | Out-Null
+if (Test-Path -LiteralPath $sourceCopy) {
+    $existingSourceCopy = Get-Item -LiteralPath $sourceCopy -Force
+    if ($existingSourceCopy.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        throw "Refusing to replace a linked build source directory: $sourceCopy"
+    }
+    [System.IO.Directory]::Delete("\\?\$resolvedSourceCopy", $true)
+}
 New-Item -ItemType Directory -Force -Path $sourceCopy | Out-Null
 
-& robocopy.exe $projectRoot $sourceCopy /MIR /R:2 /W:1 /NP /NFL /NDL /NJH /NJS `
-    /XD .dart_tool build dist .git .idea `
-    /XF .git | Out-Null
+$copyArguments = @(
+    $projectRoot,
+    $sourceCopy,
+    '/E', '/R:2', '/W:1',
+    '/XD', '.git', '.dart_tool', 'build', 'dist', 'coverage',
+    '.idea', '.vscode',
+    (Join-Path $projectRoot 'windows\flutter\ephemeral'),
+    (Join-Path $projectRoot 'raw'),
+    (Join-Path $projectRoot 'data'),
+    (Join-Path $projectRoot 'original'),
+    (Join-Path $projectRoot 'experiment'),
+    (Join-Path $projectRoot 'measurements'),
+    '/XF', '.git', 'flutter_*.log',
+    '/NFL', '/NDL', '/NJH', '/NJS', '/NP'
+)
+& robocopy.exe @copyArguments | Out-Null
 $sourceCopyExitCode = $LASTEXITCODE
 if ($sourceCopyExitCode -ge 8) {
     throw "Source staging failed with robocopy exit code $sourceCopyExitCode"

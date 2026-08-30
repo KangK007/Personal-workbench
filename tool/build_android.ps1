@@ -42,7 +42,7 @@ if (Test-Path -LiteralPath $sourceCopy) {
     if ($existingSourceCopy.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
         throw "Refusing to replace a linked build source directory: $sourceCopy"
     }
-    Remove-Item -LiteralPath $sourceCopy -Recurse -Force
+    [System.IO.Directory]::Delete("\\?\$resolvedSourceCopy", $true)
 }
 New-Item -ItemType Directory -Force -Path $sourceCopy | Out-Null
 
@@ -52,6 +52,8 @@ $copyArguments = @(
     '/E', '/R:2', '/W:1',
     '/XD', '.git', '.dart_tool', 'build', 'dist', 'coverage',
     '.idea', '.vscode',
+    (Join-Path $projectRoot 'windows\flutter\ephemeral'),
+    (Join-Path $projectRoot 'android\.gradle'),
     (Join-Path $projectRoot 'raw'),
     (Join-Path $projectRoot 'data'),
     (Join-Path $projectRoot 'original'),
