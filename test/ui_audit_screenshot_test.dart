@@ -1032,10 +1032,16 @@ void main() {
 
       final dropdowns = find.byWidgetPredicate(
         (widget) => widget is DropdownButtonFormField,
+        skipOffstage: false,
       );
       expect(dropdowns, findsNWidgets(4));
       for (var index = 0; index < 4; index++) {
-        final dropdown = dropdowns.at(index);
+        final dropdown = find
+            .byWidgetPredicate(
+              (widget) => widget is DropdownButtonFormField,
+              skipOffstage: false,
+            )
+            .at(index);
         await tester.ensureVisible(dropdown);
         await tester.tap(dropdown);
         await tester.pumpAndSettle();
@@ -1046,6 +1052,7 @@ void main() {
         expect(tester.takeException(), isNull);
         await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
         expect(tester.takeException(), isNull);
       }
     },

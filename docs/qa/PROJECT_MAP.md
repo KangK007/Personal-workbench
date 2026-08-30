@@ -1,9 +1,9 @@
 # 个人工作台发布级项目地图
 
-> 历史基线提交：`05f1827ae654637954395df8d453136837950606`；本轮审查基线：`618a44a`
-> 建立日期：2026-08-28；本轮重新盘点：2026-08-30（Asia/Shanghai）
+> 审查起点：`618a44a`；合并来源：`1220614` 与 `251684f`
+> 建立日期：2026-08-28；最终复核：2026-08-31（Asia/Shanghai）
 > 覆盖规则：本文件同时记录真实导航面、条件入口、兼容别名、平台集成和仅由组合页调用的子页面。测试状态以 `docs/qa/TEST_MATRIX.md` 为唯一明细基准。
-> 本轮门槛：历史覆盖只作为线索，不直接继承发布结论；每个页面必须按 `Page × State × Interaction × Window Size` 重新验收。
+> 最终覆盖：37 个当前可构建页面/子页表面、256 个测试 Case、234 项自动测试、518 个全页面布局场景、222 个页面交互-尺寸场景、24 个 Dialog-尺寸场景、1 个专注预设四下拉窄窗场景、33 张 Golden、15 张真实运行截图。
 
 ## 1. 技术栈与运行边界
 
@@ -19,16 +19,16 @@
 | 搜索 | 内存索引 | `lib/services/search_service.dart` | 标题/正文/标签、多词排序、索引刷新、空结果 |
 | 通知与分享 | 本地通知、Android 分享接收 | `notification_service.dart`、`share_capture_service.dart` | 权限拒绝、通知 ID 稳定、后台/重启、非法分享内容 |
 | 设计系统 | 自定义 Flutter ThemeExtension + 离线字体 | `lib/core/theme/app_theme.dart`、`MASTER.md` | token、对比度、48dp 触控、焦点、减少动效、无嵌套卡片/玻璃拟态 |
-| 测试 | Flutter unit/widget/golden | `test/` | 最终 229 项测试全部通过；自动化证据与真实 Windows/Android 运行证据分开记录 |
+| 测试 | Flutter unit/widget/golden | `test/` | 最终 234 项测试全部通过；自动化证据与真实 Windows/Android 运行证据分开记录 |
 
 ## 2. 应用入口与全局状态
 
 | 模块 | 入口 | 主要功能/状态 | 关联数据或服务 | 测试状态 |
 | --- | --- | --- | --- | --- |
-| 启动 | `PersonalWorkbenchApp` | Loading 骨架、初始化成功、初始化失败、重试 | 数据库、迁移、通知、分享、同步 | NOT_TESTED（U4D-001） |
-| 主题 | `MaterialApp` + `AppTheme` | 浅色、深色、跟随系统、主题切换动画 | metadata `themeMode` | NOT_TESTED（U4D-024） |
-| 桌面壳 | `_desktopLayout` | 236px/80px 侧栏、分组展开、折叠、全局搜索、快速新增、同步状态 | 导航 metadata | NOT_TESTED（U4D-002） |
-| 移动壳 | `_mobileLayout` | 顶栏、五项底部导航、更多 Sheet、FAB、返回历史、同步状态 | 最近子页、行为模式 | NOT_TESTED（U4D-003） |
+| 启动 | `PersonalWorkbenchApp` | Loading 骨架、初始化成功、初始化失败、重试 | 数据库、迁移、通知、分享、同步 | PASS |
+| 主题 | `MaterialApp` + `AppTheme` | 浅色、深色、跟随系统、主题切换动画 | metadata `themeMode` | PASS |
+| 桌面壳 | `_desktopLayout` | 236px/80px 侧栏、分组展开、折叠、全局搜索、快速新增、同步状态 | 导航 metadata | PASS |
+| 移动壳 | `_mobileLayout` | 顶栏、五项底部导航、更多 Sheet、FAB、返回历史、同步状态 | 最近子页、行为模式 | PASS |
 | 全局快捷键 | `CallbackShortcuts` / `hotkey_manager` | `Ctrl+K` 搜索、Windows `Ctrl+Shift+Space` 快速新增 | 系统热键注册 | `Ctrl+K` PASS；系统级热键真实触发 BLOCKED（共享桌面前台活动） |
 | 首次提示 | `_showGameFeaturesPrompt` | 本地激励开启/暂不开启、只出现一次 | 本地游戏 metadata | PASS |
 
@@ -36,32 +36,38 @@
 
 | 页面族 | 页面/入口 | 源码 | 主要功能与可达子状态 | 关联数据 | 测试状态 |
 | --- | --- | --- | --- | --- | --- |
-| 工作台 | 今日 | `today_page.dart` | 未开始、承诺 1–3 项、开始/撤销今天、替换承诺、时间线冲突、计分习惯、日结与恢复 | task、habit、focus、review、XP | NOT_TESTED（U4D-004） |
-| 任务 | 全部 | `plan_page.dart` | 全部任务、筛选/排序/选择、批量状态/日期/项目/任务群/删除、新建编辑 | task、project、taskGroup | NOT_TESTED（U4D-005） |
-| 任务 | 周视图 | `plan_page.dart` → `calendar_page.dart` | 06:00–02:00 工作周、时间块、新建/编辑/拖拽、冲突、桌面/移动布局 | task schedule/dueAt | NOT_TESTED（U4D-007） |
-| 任务 | 任务群 | `plan_page.dart` | 新建/编辑/删除/恢复任务群、顺序模式、成员冲突与重排 | taskGroup、task | NOT_TESTED（U4D-008） |
-| 工作台 | 收件箱 | `inbox_page.dart` | 项目与专注之间的一级入口；快速捕获记录、转换/编辑/删除、空态 | task/note/link | NOT_TESTED（U4D-006） |
-| 项目 | 项目主界面 | `projects_page.dart` | 项目主从布局、选择、新建/编辑/软删除/恢复；任务/任务群/里程碑/笔记/回顾五个单开面板及面板内 CRUD | project、task、taskGroup、milestone、note、review | NOT_TESTED（U4D-009） |
-| 执行 | 专注 | `focus_page.dart` | 正计时、25/50 分钟、自定义倒计时、开始/暂停/继续/完成/取消、目标关联、后台刷新、庆祝 | focus session、task、notification、XP | NOT_TESTED（U4D-010/011） |
-| 执行 | 自律 | `restriction_page.dart` | 规则列表、编辑、时段/星期/跨午夜、黑白名单、提醒/强制结束、保护密码/应急码/冷静期、hosts、事件日志 | restrictionProfile、本机安全状态 | NOT_TESTED（U4D-012） |
-| 记录 | 笔记 | `notes_page.dart` | 索引、搜索/筛选、Markdown 阅读、编辑、版本、附件、软删除 | note、attachment | NOT_TESTED（U4D-013/030） |
-| 记录 | 回顾主界面 | `review_page.dart` | 单一导航入口；日/周/月分段切换、当前周期编辑、回顾库、只读预览、事实快照、版本与关联 | daily/weekly/monthly review、diary 兼容数据 | NOT_TESTED（U4D-014/015/016） |
-| 成长 | 目标 | `goals_page.dart` | 目标树、父子关系、里程碑、新建/编辑、完成/删除 | goal、milestone | NOT_TESTED（U4D-017） |
-| 行为 | 习惯追踪 | `behavior_page.dart` → `habits_page.dart` | 普通/RSIP 习惯区分、28 日矩阵、打卡/撤销、新建编辑 | habit、checkin | NOT_TESTED（U4D-018） |
-| 行为 | 国策树 | `behavior_page.dart` → `policies_page.dart` | RSIP 节点树、新建/编辑/拆分/熄灭/恢复、违反预览 | RSIP node/group/run | NOT_TESTED（U4D-019） |
-| 行为 | 国策库 | `policies_page.dart` | 归档记录、恢复/查看 | RSIP archived node | NOT_TESTED（U4D-020） |
-| 行为 | 轮次历史 | `policies_page.dart` | 执行轮次与证据 | RSIP run/execution | NOT_TESTED（U4D-021） |
-| 行为 | 高级分析 | `policies_page.dart` | 指标、洞察、筛选 | RSIP insight | NOT_TESTED（U4D-022） |
-| 成长 | 成长 | `growth_page.dart` | XP、等级、签到、积分、押注、证据账本、连续记录、里程碑章 | local game state、XP ledger | NOT_TESTED（U4D-023） |
-| 系统 | 设置 | `settings_page.dart` | 外观、导航、激励/高级功能、账号别名、云同步、通知、导入导出、加密备份、回收站、示例内容 | metadata、sync、backup、trash | NOT_TESTED（U4D-024） |
+| 工作台 | 今日 | `today_page.dart` | 未开始、承诺 1–3 项、开始/撤销今天、替换承诺、时间线冲突、计分习惯、日结与恢复 | task、habit、focus、review、XP | PASS |
+| 任务 | 全部 | `plan_page.dart` | 全部任务、筛选/排序/选择、批量状态/日期/项目/任务群/删除、新建编辑 | task、project、taskGroup | PASS |
+| 任务 | 收件箱 | `plan_page.dart` → `inbox_page.dart` | 快速捕获记录、转换/编辑/删除、空态 | task/note/link | PASS |
+| 任务 | 周视图 | `plan_page.dart` → `calendar_page.dart` | 06:00–02:00 工作周、时间块、新建/编辑/拖拽、冲突、桌面/移动布局 | task schedule/dueAt | PASS |
+| 任务 | 任务群 | `plan_page.dart` | 新建/编辑/删除/恢复任务群、顺序模式、成员冲突与重排 | taskGroup、task | PASS |
+| 项目 | 概览 | `projects_page.dart` | 项目主从布局、选择、新建/编辑/软删除/恢复、状态/元数据 | project | PASS |
+| 项目 | 任务 | `projects_page.dart` | 项目任务列表/看板、完成/编辑/删除、主项目与关联项目 | project、task | PASS |
+| 项目 | 任务群 | `projects_page.dart` | 项目内任务群和成员 | project、taskGroup | PASS |
+| 项目 | 里程碑 | `projects_page.dart` | 新建/编辑/完成/删除里程碑 | project、milestone | PASS |
+| 项目 | 笔记与回顾 | `projects_page.dart` | 项目笔记、事实与回顾入口 | project、note、review | PASS |
+| 执行 | 专注 | `focus_page.dart` | 正计时、25/50 分钟、自定义倒计时、开始/暂停/继续/完成/取消、目标关联、后台刷新、庆祝 | focus session、task、notification、XP | PASS |
+| 执行 | 自律 | `restriction_page.dart` | 规则列表、编辑、时段/星期/跨午夜、黑白名单、提醒/强制结束、保护密码/应急码/冷静期、hosts、事件日志 | restrictionProfile、本机安全状态 | PASS |
+| 记录 | 笔记 | `notes_page.dart` | 索引、搜索/筛选、Markdown 阅读、编辑、版本、附件、软删除 | note、attachment | PASS |
+| 记录 | 日回顾 | `review_page.dart` | 日期切换、事实快照、Markdown 字段、保存、版本/回顾库 | daily review、diary 兼容数据 | PASS |
+| 记录 | 周回顾 | `review_page.dart` | 周期切换、快照刷新、保存、版本 | weekly review | PASS |
+| 记录 | 月回顾 | `review_page.dart` | 月份切换、快照刷新、保存、版本 | monthly review | PASS |
+| 成长 | 目标 | `goals_page.dart` | 目标树、父子关系、里程碑、新建/编辑/完成/删除 | goal、milestone | PASS |
+| 行为 | 习惯追踪 | `behavior_page.dart` → `habits_page.dart` | 普通/RSIP 习惯区分、28 日矩阵、打卡/撤销、新建编辑 | habit、checkin | PASS |
+| 行为 | 国策树 | `behavior_page.dart` → `policies_page.dart` | RSIP 节点树、新建/编辑/拆分/熄灭/恢复、违反预览 | RSIP node/group/run | PASS |
+| 行为 | 国策库 | `policies_page.dart` | 归档记录、恢复/查看 | RSIP archived node | PASS |
+| 行为 | 轮次历史 | `policies_page.dart` | 执行轮次与证据 | RSIP run/execution | PASS |
+| 行为 | 高级分析 | `policies_page.dart` | 指标、洞察、筛选 | RSIP insight | PASS |
+| 成长 | 成长 | `growth_page.dart` | XP、等级、签到、积分、押注、证据账本、连续记录、里程碑章 | local game state、XP ledger | PASS |
+| 系统 | 设置 | `settings_page.dart` | 外观、导航、激励/高级功能、账号别名、云同步、通知、导入导出、加密备份、回收站、示例内容 | metadata、sync、backup、trash | PASS |
 
 ## 4. 条件入口、兼容面与非独立导航页面
 
 | 类型 | 表面 | 可达性事实 | 验证要求 |
 | --- | --- | --- | --- |
-| 兼容别名 | `tasks/projects/review/plan/inbox/calendar/diary/habits/policies` | `_select` 统一映射到当前导航节点；旧项目子页映射到项目主界面，旧日/周/月回顾映射到回顾主界面 | 验证旧入口不落入空白页且保持预期子状态 |
+| 兼容别名 | `tasks/projects/review/plan/inbox/calendar/diary/habits/policies` | `_select` 统一映射到当前导航节点 | 验证旧入口不落入空白页且保持预期子页 |
 | 条件/兼容 | `protocols` / `ProtocolsPage` | 壳层仍可构建，但 `_select` 将兼容目标归一到目标页；页面由自动测试直接覆盖 | 作为兼容组件测试，不宣称当前普通用户有独立导航入口 |
-| 组合子页 | `CalendarPage`、`InboxPage` | 分别由任务周视图和一级收件箱入口调用 | 与对应导航页面共同做运行时验证 |
+| 组合子页 | `CalendarPage`、`InboxPage` | 由任务周视图/收件箱组合页调用 | 与父页面共同做运行时验证 |
 | 兼容子页 | `DiaryPage` | 当前主导航使用合并后的 `ReviewPage`；旧 Widget 仍有测试 | 验证不崩溃并记录为兼容面 |
 | 移动辅助 | `MorePage` / `_MobileNavigationSheet` | 移动端更多入口 | 验证所有桌面页面在移动导航中可达 |
 
@@ -109,13 +115,13 @@
 
 | 能力 | 结果 | 影响 |
 | --- | --- | --- |
-| Windows Flutter GUI | AVAILABLE | 可执行真实桌面启动、交互、日志、截图和窗口尺寸验证 |
+| Windows Flutter GUI | PARTIAL | 最终代码的隔离 Debug 已创建真实窗口和独立数据库，Release 随后重建；Computer Use 无法激活捕获窗口，完整原生指针/键盘状态遍历记为 `BLOCKED` |
 | Edge / Flutter Web | AVAILABLE | 可补充浏览器语义与多视口视觉验证，但不能替代 Windows 原生能力 |
 | Android 真机/模拟器 | AVAILABLE：Android 15 / API 35 模拟器、SDK 36、JDK 21、ADB | 已真实验证冷启动、IME、Back、权限拒绝/允许、即时通知、分享、横屏、800×1200 尺寸与持久化；模拟器宿主不稳定使休眠/重启定时通知 BLOCKED |
 | 截图 | AVAILABLE | Flutter Golden、Widget 截图与真实运行截图均可保存到 `docs/qa/screenshots/` |
 | Stitch MCP | BLOCKED | 当前没有 Stitch 工具、资源或模板；使用真实 GUI、Golden 和人工像素检查替代 |
-| Word 生成 | PASS | 已生成真实 DOCX；包含 20 个章节和 21 张真实界面截图，OOXML 结构检查通过 |
-| Word 渲染 | PASS | LibreOffice 不可用；改用 Microsoft Word 2024 原生导出并按原始分辨率检查 29/29 页，无越界、裁切或页眉页脚重叠；最终文件按用户要求保持不再修改 |
+| Word 生成 | PASS | 已重新生成真实 DOCX；包含 20 个章节和 21 张真实界面截图，OOXML 结构检查通过 |
+| Word 渲染 | BLOCKED | 本轮更新后的 DOCX 无可调用的 LibreOffice/Word 自动渲染器；历史版本曾完成 Word 2024 逐页检查，但不能替代当前文件的视觉复验 |
 
 ## 9. 覆盖闭环规则
 
@@ -140,25 +146,17 @@
 | 回顾 | 编辑/回顾库/预览三状态 | 日周月切换、当前可编辑、历史/旧数据只读、未来禁止、关联与附件预览 | periodReview、diary、attachment | PASS |
 | 成长 | 顶部积分面板间距 | 游戏功能开/关、最近反馈有/无、窄屏、200% 字号 | game profile | PASS |
 
-## 11. Page × State × Interaction × Window Size 覆盖地图（2026-08-30 重新基线）
+## 11. Page × State × Interaction × Window Size 覆盖
 
-以下维度是本轮 UI `PASS` 的硬门槛。状态只在页面实际支持时适用；不适用项必须在测试证据中写明 `N/A`，不能用默认截图代替。
+当前 `_auditSurfaces` 由实际枚举展开为 37 个表面，而不是旧文档中的 39 个。逐表面明细见 `TEST_MATRIX.md` 的 `U4D-001`～`U4D-037`。
 
-| 页面族 | 页面/子状态 | 必测 State | 必测 Interaction | 必测 Window Size |
-| --- | --- | --- | --- | --- |
-| 启动 | Loading、初始化失败、重试成功 | loading、error、disabled/retrying、success | 等待、重试、键盘激活 | 375×812、768×864、1200×864、最大化 |
-| 桌面壳 | 侧栏展开/折叠、分组、同步状态 | default、hover、focus、pressed、selected、collapsed、offline/error | 鼠标、Tab/Shift+Tab、Enter/Space、箭头、Ctrl+K、Resize | 最小桌面、1024×864、1200×864、1440×900、最大化 |
-| 移动壳 | 五项底栏、更多菜单、FAB、返回历史 | default、pressed、selected、sheet open、IME open | 点击、系统返回、Esc、键盘输入、旋转 | 375×812、412×915、800×1200、2400×1080 横屏 |
-| 今日 | 空态、未开始、已开始、完成/冲突/日结 | default、empty、hover、focus、pressed、disabled、dialog/menu open、error、long text | 选择、开始/撤销、调整、完成/重开、安排、日结、滚动 | 375×812、412×915、768×864、1200×864、最大化、200% 字号 |
-| 任务 | 全部任务、收件箱、周视图、任务群 | default、empty、hover、focus、pressed、selected、disabled、menu/dialog/dropdown open、error、long text | CRUD、筛选/排序、多选、批量、树展开、拖拽、重复提交、Esc | 375×812、412×915、768×864、1024×864、1200×864、最大化、200% 字号 |
-| 项目 | 项目主界面与五个单开面板 | default、empty、hover、focus、pressed、expanded、selected、menu/dialog open、error、long text | 项目切换、面板单开、清单/看板、五类 CRUD、Esc | 375×812、412×915、768×864、1024×864、1200×864、最大化、200% 字号 |
-| 专注 | 专注入口、预设编辑、全屏会话、结算/中断 | default、empty、hover、focus、pressed、disabled、running、paused、dialog/dropdown open、error | 预设 CRUD、开始/暂停/继续/完成/取消、证据校验、Esc | 375×812、412×915、768×864、1200×864、最大化、200% 字号、减少动效 |
-| 自律 | 规则列表、规则编辑、安全与事件 | default、empty、hover、focus、pressed、disabled、dialog/dropdown open、error、long text | CRUD、启停、时段/名单、安全设置、确认/取消、滚动 | 375×812、412×915、768×864、1200×864、最大化、200% 字号 |
-| 笔记 | 索引、阅读、Markdown 编辑、附件、关联 | default、empty、hover、focus、pressed、selected、dialog/menu open、read-only、error、long text | 搜索/筛选、CRUD、预览、版本、附件、关联、Esc | 375×812、412×915、768×864、1200×864、最大化、200% 字号 |
-| 回顾 | 日/周/月编辑、回顾库、预览 | default、empty、hover、focus、pressed、disabled、dropdown/dialog open、read-only、error、long text | 类别切换、周期导航、保存/失败、库→预览→编辑→返回、关联/附件 | 375×812、412×915、768×864、1200×864、最大化、200% 字号 |
-| 目标 | 目标树与里程碑 | default、empty、hover、focus、pressed、expanded、disabled、menu/dialog open、error、long text | CRUD、展开、完成、父子防循环、前往里程碑 | 375×812、412×915、768×864、1200×864、最大化、200% 字号 |
-| 行为 | 习惯、国策树/库/历史/分析 | default、empty、hover、focus、pressed、selected、disabled、menu/dialog/dropdown open、error、long text | 打卡/撤销、CRUD、树动作、筛选、归档/恢复、Tab/箭头/Esc | 375×812、412×915、768×864、1200×864、最大化、200% 字号 |
-| 成长 | 积分、签到、押注、账本、里程碑章 | default、empty、hover、focus、pressed、disabled、dialog open、error、long text | 签到、押注、确认/取消、滚动 | 375×812、412×915、768×864、1200×864、最大化、200% 字号 |
-| 设置 | 外观、偏好、同步、通知、导入导出、备份、回收站 | default、hover、focus、pressed、selected、disabled、dropdown/dialog open、loading、error、long text | 切换、编辑、请求权限、同步、导入导出、备份恢复、两步确认、Esc | 375×812、412×915、768×864、1200×864、最大化、200% 字号 |
-| 全局弹层 | 搜索、快速新增、通用编辑器、任务群、关联、Markdown、日期/时间、菜单/Tooltip | default、hover、focus、pressed、selected、disabled、open、loading、error、long text | Tab/Shift+Tab、Enter/Space/箭头/Esc、遮罩关闭、重复提交、Resize | 375×812、412×915、768×864、1200×864、最大化、200% 字号 |
-| 兼容面 | DiaryPage、ProtocolsPage、旧枚举映射 | default、empty、error-safe、long text | 直接 Widget 构建、旧入口映射、返回 | 375×812、768×864、1200×864、200% 字号 |
+| 维度 | 已执行组合 | 结果 |
+| --- | ---: | --- |
+| Page × Default/Layout × Window/Theme | 37 × 14 = 518 | PASS |
+| Page × Hover/Pressed/Focus/Keyboard × 375/1200/1536 | 37 × 3 = 111 | PASS |
+| Page × Popup/Dropdown Open/Close × 375/1200/1536 | 37 × 3 = 111 | PASS |
+| Dialog × Focus/Tab/Escape/Long Text × 4 个窗口/字号场景 | 6 × 4 = 24 | PASS |
+| 专注预设 × Tab/4 Dropdown/Escape × 375×812 | 1 个完整场景 | PASS；4 个下拉无溢出，Escape 只关闭顶层菜单 |
+| Windows 原生 Page × State × Interaction × Window Size | 1 个完整复验 Case | BLOCKED：自动化驱动无法激活已捕获窗口；隔离启动和语义读取成功 |
+
+Disabled、Selected、Loading、Empty、Error、长文本和 200% 字号由主题测试、功能回归、空数据矩阵、故障注入及 Dialog 长文本场景共同覆盖。自动化 `PASS` 与原生视觉 `BLOCKED` 分开记录。

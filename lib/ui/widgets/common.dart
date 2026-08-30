@@ -80,10 +80,21 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
     pageBuilder: (context, animation, secondaryAnimation) => CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): () {
-          Navigator.of(context).maybePop();
+          final route = ModalRoute.of(context);
+          final isBeingPopped =
+              route?.animation?.status == AnimationStatus.reverse ||
+              route?.animation?.status == AnimationStatus.dismissed;
+          if (route?.isCurrent == true && !isBeingPopped) {
+            Navigator.of(context, rootNavigator: true).maybePop();
+          }
         },
       },
-      child: builder(context),
+      child: Focus(
+        autofocus: true,
+        canRequestFocus: true,
+        skipTraversal: true,
+        child: builder(context),
+      ),
     ),
     barrierDismissible: barrierDismissible,
     barrierColor:
@@ -92,6 +103,7 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
     barrierLabel:
         barrierLabel ??
         MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    requestFocus: true,
     useRootNavigator: useRootNavigator,
     routeSettings: routeSettings,
     anchorPoint: anchorPoint,

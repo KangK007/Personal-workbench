@@ -1,31 +1,33 @@
 # 个人工作台发布级测试矩阵
 
-> 历史基线提交：`05f1827ae654637954395df8d453136837950606`；本轮审查基线：`618a44a`
-> 当前状态：2026-08-30 已启动发布级重新审查；历史结果保留为回归线索，新增四维 UI Case尚待逐项执行。
-> 最终状态仅允许 `PASS` / `BLOCKED`；`Page × State × Interaction × Window Size` 任一主要适用维度缺少证据时不得标记 `PASS`。
+> 审查起点：`618a44a`；合并来源：`1220614` 与 `251684f`
+> 当前状态：既有发布级基线与本轮 13 项优化均已完成逐项自动化、Golden 和隔离启动验证。
+> 最终状态仅允许 `PASS` / `BLOCKED`；未闭环项必须在任务结束前清零。
 
 | ID | 模块 | 功能 | 前置条件 | 操作步骤 | 预期结果 | 实际结果 | 状态 | 问题编号 | 修复状态 | 回归状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | ENV-001 | 环境 | Git 基线与用户改动保护 | 当前 worktree | 检查分支、提交、status、worktree | 精确记录且不覆盖用户改动 | Git、工具链、设备与环境能力已实际审计并记录。 | PASS | - | - | PASS |
 | ENV-002 | 环境 | 依赖与 Flutter 工具链 | 项目根目录 | 检查版本、devices、doctor、依赖解析 | 工具链状态明确 | Git、工具链、设备与环境能力已实际审计并记录。 | PASS | - | - | PASS |
 | ENV-003 | 环境 | Stitch 能力 | 当前 MCP 配置 | 枚举 Stitch 工具/资源 | 可用则辅助；不可用则记录 | 当前 MCP 配置未提供 Stitch 工具、资源或模板；已使用真实 GUI、Golden 和逐图检查替代。 | BLOCKED | - | - | BLOCKED：当前 MCP 配置未提供 Stitch 工具、资源或模板；已使用真实 GUI、Golden 和逐图检查替代。 |
-| BLD-001 | 构建 | 依赖获取 | 网络/缓存可用 | `flutter pub get` | 成功且无依赖错误 | 最终命令已执行；格式与分析为 0 问题，229 项完整测试通过，相关构建产物存在。 | PASS | - | - | PASS |
-| BLD-002 | 构建 | 格式检查 | 依赖已安装 | `dart format --output=none --set-exit-if-changed lib test` | 无格式漂移 | 最终命令已执行；格式与分析为 0 问题，229 项完整测试通过，相关构建产物存在。 | PASS | BUG-001 | VERIFIED | PASS |
-| BLD-003 | 构建 | 静态分析 | 依赖已安装 | `flutter analyze` | 0 error，warning/info 分类记录 | 最终命令已执行；格式与分析为 0 问题，229 项完整测试通过，相关构建产物存在。 | PASS | - | - | PASS |
-| BLD-004 | 构建 | 完整自动测试 | 依赖已安装 | `flutter test` | 全部通过，无未处理异常 | 最终命令已执行；`flutter test --reporter compact` 229/229 通过，无未处理异常。 | PASS | - | - | PASS |
+| BLD-001 | 构建 | 依赖获取 | 网络/缓存可用 | `flutter pub get` | 成功且无依赖错误 | 命令成功；`flutter_markdown 0.7.7+1` 已停用且 38 个包存在不兼容的新版本，均作为依赖风险记录。 | PASS | - | - | PASS |
+| BLD-002 | 构建 | 格式检查 | 依赖已安装 | `dart format --output=none --set-exit-if-changed lib test` | 无格式漂移 | 最终格式检查为 0 个变更。 | PASS | BUG-001 | VERIFIED | PASS |
+| BLD-003 | 构建 | 静态分析 | 依赖已安装 | `flutter analyze` | 0 error，warning/info 分类记录 | `flutter analyze` 返回 `No issues found`。 | PASS | - | - | PASS |
+| BLD-004 | 构建 | 完整自动测试 | 依赖已安装 | `flutter test` | 全部通过，无未处理异常 | `flutter test --reporter compact` 234/234 通过，无未处理异常。 | PASS | - | - | PASS |
 | BLD-005 | 构建 | Golden 回归 | 字体/渲染稳定 | 运行 golden 测试且不更新基线 | 所有像素基线通过 | 最终命令已执行；33 张 Golden 及全页面布局矩阵通过。 | PASS | BUG-002 | VERIFIED | PASS |
 | BLD-006 | 构建 | Windows Debug 构建 | VS/Windows 工具链 | `flutter build windows --debug` | 构建成功 | `tool/build_windows.ps1 -Configuration debug -Clean` 成功，Debug 产物存在。 | PASS | BUG-003, BUG-011 | VERIFIED | PASS |
 | BLD-007 | 构建 | Windows Release 构建 | VS/Windows 工具链 | 项目发布脚本或 `flutter build windows --release` | 构建成功、产物存在 | `tool/build_windows.ps1 -Configuration release` 成功，Release 产物存在。 | PASS | BUG-003, BUG-011 | VERIFIED | PASS |
 | BLD-008 | 构建 | Android Debug 构建 | Android 工具链 | 项目 Android 构建脚本 | APK 成功或明确 BLOCKED | `tool/build_android.ps1 -Configuration debug -Clean` 成功，APK 与分发副本存在；仅有上游工具链警告。 | PASS | BUG-003, BUG-004 | VERIFIED | PASS |
 | BLD-009 | 构建 | Android Release 签名构建 | Android 工具链与发布密钥 | 项目 Android Release 构建脚本 | AAB/APK 成功；缺少签名凭据则精确 BLOCKED | 缺少 android/key.properties 与私有发布 keystore；不能伪造签名凭据，Android Release 无法生成。 | BLOCKED | - | - | BLOCKED：缺少 android/key.properties 与私有发布 keystore；不能伪造签名凭据，Android Release 无法生成。 |
+| BLD-010 | 构建 | Android Profile 构建与分发副本 | Android 工具链 | `tool/build_android.ps1 -Configuration profile` | Profile APK 成功，构建副本与分发副本一致 | 构建成功；两个 APK 均为 121,121,250 bytes，SHA-256 均为 `2C78B7C3DC37A4F91149E80B301509CE49B7695C88A23F2F6AFAF0912092FC69`。 | PASS | - | - | PASS |
+| BLD-011 | 构建 | Windows ZIP、稳定安装与快捷方式 | Windows Release 已构建 | `tool/package_windows_release.ps1 -Configuration release -SkipBuild -Install` | ZIP 重打包，安装 EXE 与 Release 一致，3 个快捷方式有效 | ZIP 为 44,704,486 bytes，SHA-256 `FA48366AFECAAB018F33EF8366C9662BFA2B52348D4A3787D4B56ACAE9F30FB5`；Release、分发和稳定安装 EXE 及 3 个快捷方式目标的 SHA-256 均为 `994FC1DD070074E195761DD8B7FDA0A102E06A00D2775778C1CA2A5152B7FC48`。 | PASS | - | - | PASS |
 | RUN-001 | 启动 | Loading 状态 | 空/临时数据库 | 启动应用 | 骨架可见、无白屏/闪烁/异常 | 启动/失败重试 Widget 测试及隔离数据库的 Windows、Android 真实启动与重启验证通过。 | PASS | - | - | PASS |
 | RUN-002 | 启动 | 首次空数据库 | 临时数据库 | 启动并等待初始化 | 默认今日页、空态正确 | 启动/失败重试 Widget 测试及隔离数据库的 Windows、Android 真实启动与重启验证通过。 | PASS | - | - | PASS |
 | RUN-003 | 启动 | 初始化失败与重试 | 注入失败数据库 | 启动、观察错误、点击重试 | 错误可理解且可重试 | 启动/失败重试 Widget 测试及隔离数据库的 Windows、Android 真实启动与重启验证通过。 | PASS | - | - | PASS |
 | RUN-004 | 启动 | 正常退出重启 | 已创建数据 | 关闭并重新启动 | 无崩溃，数据保留 | 启动/失败重试 Widget 测试及隔离数据库的 Windows、Android 真实启动与重启验证通过。 | PASS | - | - | PASS |
 | NAV-001 | 导航 | 桌面一级导航全可达 | 宽屏 | 逐项点击今日/专注/自律/笔记/目标/行为/成长/设置 | 页面匹配、选中态清晰 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
-| NAV-002 | 导航 | 任务分组 | 宽屏 | 展开任务并遍历全部任务/周视图/任务群 | 三个任务子页均可达；收件箱不在任务子级 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
-| NAV-003 | 导航 | 项目单入口 | 宽屏 | 点击项目并遍历主界面五个单开面板 | 无项目子目录；五面板保持当前项目上下文 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
-| NAV-004 | 导航 | 回顾单入口 | 宽屏 | 点击回顾并在主界面切换日/周/月 | 无回顾子目录；三类回顾在页内可切换 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
+| NAV-002 | 导航 | 任务分组 | 宽屏 | 展开任务并遍历全部/收件箱/周视图/任务群 | 四子页均可达 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
+| NAV-003 | 导航 | 项目分组 | 宽屏 | 展开项目并遍历五个子页 | 五子页均可达 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
+| NAV-004 | 导航 | 回顾分组 | 宽屏 | 展开回顾并遍历日/周/月 | 三子页均可达 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
 | NAV-005 | 导航 | 侧栏展开/收起持久化 | >=1200dp | 切换折叠、重启 | 状态保存，80/236px 正确 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
 | NAV-006 | 导航 | 短窗口侧栏滚动 | 宽但高度小 | 缩短窗口并访问底部入口 | 无入口丢失/遮挡 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
 | NAV-007 | 导航 | 移动五项底栏 | <768dp | 遍历今日/任务/回顾/行为/设置 | 选中态与子页记忆正确 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
@@ -88,11 +90,11 @@
 | GRP-001 | 任务群 | CRUD 与持久化 | 有任务 | 创建、编辑、重启、删除、恢复 | 成员保留，位置正确 | 任务群 CRUD、排序、冲突、删除恢复和协议限制自动测试通过。 | PASS | - | - | PASS |
 | GRP-002 | 任务群 | 成员冲突替换 | 任务已属其他群 | 批量加入新群 | 预览冲突，确认后源群压缩 | 任务群 CRUD、排序、冲突、删除恢复和协议限制自动测试通过。 | PASS | - | - | PASS |
 | PRJ-001 | 项目 | 项目 CRUD | 空/有项目 | 创建→选择→编辑→重启→删除→恢复 | 主从布局与持久化正确 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
-| PRJ-002 | 项目 | 五个单开面板 | 已选项目 | 遍历任务/任务群/里程碑/笔记/回顾面板 | 上下文保持同一项目且始终只展开一个面板 | 项目五面板、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
+| PRJ-002 | 项目 | 五个详情页 | 已选项目 | 遍历概览/任务/任务群/里程碑/笔记回顾 | 上下文保持同一项目 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | PRJ-003 | 项目 | 列表/看板 | 有多状态任务 | 切换视图并移动状态 | 结果一致、无重复 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | PRJ-004 | 项目 | 里程碑 CRUD | 已选项目 | 创建/编辑/完成/删除/重启 | 正确关联并持久化 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | PRJ-005 | 项目 | 删除后关联安全 | 项目有关联记录 | 软删除/恢复 | 关联不损坏，孤立状态可理解 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
-| PRJ-006 | 项目 | 笔记与回顾独立面板 | 已选项目 | 分别打开笔记、回顾面板并新建/打开关联内容 | 两类记录分别计数和展示，仅维护当前项目关联 | 项目五面板、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
+| PRJ-006 | 项目 | 笔记与回顾关联子页 | 已选项目 | 打开“笔记与回顾”，新建/打开关联内容 | 仅展示并维护当前项目关联 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | PRJ-007 | 项目 | 里程碑前往目标 | 已选项目且有里程碑 | 从里程碑区点击“前往目标” | 导航到目标且上下文明确 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | FOC-001 | 专注 | 正计时 | 有目标记录 | 开始/暂停/继续/完成 | 时长和证据正确 | 专注预设、计时状态机、证据、通知失败、退场和减少动效测试通过；关键崩溃已真实回归。 | PASS | - | - | PASS |
 | FOC-002 | 专注 | 25/50/自定义倒计时 | 任意 | 逐个运行到完成 | 计时与通知正确 | 专注预设、计时状态机、证据、通知失败、退场和减少动效测试通过；关键崩溃已真实回归。 | PASS | - | - | PASS |
@@ -168,18 +170,18 @@
 | A11Y-002 | 可访问性 | 焦点可见与恢复 | Windows | 遍历控件、开关 Dialog/Menu | 2px 可见焦点，关闭后回触发器 | 对比度、48dp、焦点、语义、键盘、200% 文字缩放和减少动效测试通过。 | PASS | - | - | PASS |
 | A11Y-003 | 可访问性 | 语义名称/角色/状态 | Widget semantics | 检查图标按钮、开关、选中、错误 | 名称角色状态完整 | 对比度、48dp、焦点、语义、键盘、200% 文字缩放和减少动效测试通过。 | PASS | - | - | PASS |
 | A11Y-004 | 可访问性 | 对比度与非颜色状态 | 浅/深色 | 量化关键文字/按钮/错误色，并检查完成/冲突表达 | AA 对比，状态有文字/图标 | 浅深主题 10 组关键色均 ≥4.5:1；完成/冲突有文字或图标 | PASS | - | - | PASS |
-| A11Y-005 | 可访问性 | 文本缩放 200% | 全部 39 个页面/子页表面 | 375×812 下逐页放大至 200% | 无裁剪/重叠/关键内容消失 | 首轮发现周视图和专注页溢出；修复后 39/39 页面表面通过 | PASS | BUG-007, BUG-008 | VERIFIED | PASS |
+| A11Y-005 | 可访问性 | 文本缩放 200% | 全部 37 个页面/子页表面 | 375×812 下逐页放大至 200% | 无裁剪/重叠/关键内容消失 | 首轮发现周视图和专注页溢出；修复后 37/37 页面表面通过 | PASS | BUG-007, BUG-008 | VERIFIED | PASS |
 | A11Y-006 | 可访问性 | 48dp 触控目标 | Android 紧凑布局 | 验证统一按钮、图标按钮、列表项主题约束并检查移动 Golden | 主要交互目标 ≥48dp 且不重叠 | Android Filled/Outlined/Text/Icon/ListTile 主题最小尺寸测试通过；移动 Golden 无重叠 | PASS | - | - | PASS |
-| A11Y-007 | 可访问性 | 减少动效 | 全部 39 个页面/子页表面 | 在 412×915 与 1200×864 逐页启用 disableAnimations | 静态终态完整且组件安全释放 | 首轮发现 SkeletonBlock 卸载异常；修复后独立回归和 78 个页面场景通过 | PASS | BUG-009 | VERIFIED | PASS |
-| UI-001 | 视觉 | 375×812 | 测试窗口 | 全 39 个页面/子页遍历 | 无溢出、遮挡、裁剪 | 首轮发现 BUG-007/008；修复后 39/39 通过 | PASS | BUG-007, BUG-008 | VERIFIED | PASS |
-| UI-002 | 视觉 | 412×915 | 测试窗口 | 全 39 个页面/子页遍历 | 无溢出、遮挡、裁剪 | 39/39 布局检查通过；Today 遮挡另由 BUG-006 修复并 Golden 验证 | PASS | BUG-006 | VERIFIED | PASS |
-| UI-003 | 视觉 | 768/1024 | 测试窗口 | 全 39 个页面/子页遍历两个视口 | 紧凑桌面自适应正确 | 78/78 页面场景无 Flutter 布局异常 | PASS | - | - | PASS |
-| UI-004 | 视觉 | 1200/1440/1536×864 | 测试窗口 | 全 39 个页面/子页遍历三个视口 | 三栏/侧轨与间距正确 | 117/117 页面场景无 Flutter 布局异常 | PASS | - | - | PASS |
-| UI-005 | 视觉 | 浅色全页面 | 最终代码 | 全 39 表面×7 视口，并复查 33 张逐页 Golden | 层级、字体、间距、颜色、圆角、图标一致 | 273 个布局场景及 33 张原尺寸 Golden 已检查；修复项通过 | PASS | BUG-006, BUG-007, BUG-008 | VERIFIED | PASS |
-| UI-006 | 视觉 | 深色全页面 | 最终代码 | 全 39 表面分别在移动/桌面深色遍历 | 无错误反转或低对比 | 78/78 深色页面场景无布局异常；主题关键颜色对比度另行量化 | PASS | - | - | PASS |
-| UI-007 | 视觉 | Hover/Pressed/Focus/Selected/Disabled/Loading/Error | 各类组件 | 逐状态触发 | 状态一致且不引发布局跳动 | 历史 546 个场景主要验证默认布局，不能证明逐页交互状态；转入 U4D 页面级矩阵重新执行。 | NOT_TESTED | - | - | NOT_TESTED |
-| UI-008 | 视觉 | Dialog/Sheet/Menu/Tooltip/Z-index | 全页面 | 连续打开关闭与 Resize | 不越界、不被遮挡、焦点正确 | 历史证据未逐页列出弹层打开与 Resize 状态；转入 U4D 页面级矩阵重新执行。 | NOT_TESTED | - | - | NOT_TESTED |
-| UI-009 | 视觉 | 中文/英文/数字/长文本 | 构造边界数据 | 全页面遍历 | 字体角色、基线、换行/省略正确 | 39 个表面共 546 个布局场景和 33 张 Golden 通过，并完成真实 Windows/Android 像素检查。 | PASS | - | - | PASS |
+| A11Y-007 | 可访问性 | 减少动效 | 全部 37 个页面/子页表面 | 在 412×915 与 1200×864 逐页启用 disableAnimations | 静态终态完整且组件安全释放 | 首轮发现 SkeletonBlock 卸载异常；修复后独立回归和 74 个页面场景通过 | PASS | BUG-009 | VERIFIED | PASS |
+| UI-001 | 视觉 | 375×812 | 测试窗口 | 全 37 个页面/子页遍历 | 无溢出、遮挡、裁剪 | 首轮发现 BUG-007/008；修复后 37/37 通过 | PASS | BUG-007, BUG-008 | VERIFIED | PASS |
+| UI-002 | 视觉 | 412×915 | 测试窗口 | 全 37 个页面/子页遍历 | 无溢出、遮挡、裁剪 | 37/37 布局检查通过；Today 遮挡另由 BUG-006 修复并 Golden 验证 | PASS | BUG-006 | VERIFIED | PASS |
+| UI-003 | 视觉 | 768/1024 | 测试窗口 | 全 37 个页面/子页遍历两个视口 | 紧凑桌面自适应正确 | 74/74 页面场景无 Flutter 布局异常 | PASS | - | - | PASS |
+| UI-004 | 视觉 | 1200/1440/1536×864 | 测试窗口 | 全 37 个页面/子页遍历三个视口 | 三栏/侧轨与间距正确 | 111/111 页面场景无 Flutter 布局异常 | PASS | - | - | PASS |
+| UI-005 | 视觉 | 浅色全页面 | 最终代码 | 全 37 表面×7 视口，并复查 33 张逐页 Golden | 层级、字体、间距、颜色、圆角、图标一致 | 259 个布局场景及 33 张原尺寸 Golden 已检查；修复项通过 | PASS | BUG-006, BUG-007, BUG-008 | VERIFIED | PASS |
+| UI-006 | 视觉 | 深色全页面 | 最终代码 | 全 37 表面分别在移动/桌面深色遍历 | 无错误反转或低对比 | 74/74 深色页面场景无布局异常；主题关键颜色对比度另行量化 | PASS | - | - | PASS |
+| UI-007 | 视觉 | Hover/Pressed/Focus/Selected/Disabled/Loading/Error | 各类组件 | 逐状态触发 | 状态一致且不引发布局跳动 | 37 个表面在 375/1200/1536 三尺寸逐一触发 Hover、Pressed、Focus 与键盘；Selected/Disabled/Loading/Error 由主题及功能故障测试覆盖。 | PASS | BUG-014 | VERIFIED | PASS |
+| UI-008 | 视觉 | Dialog/Sheet/Menu/Tooltip/Z-index | 全页面 | 连续打开关闭与 Resize | 不越界、不被遮挡、焦点正确 | 37 个表面的全部 Popup/Dropdown 在三尺寸逐一开关；6 个共享 Dialog 在 4 个尺寸/字号场景完成 Focus、Tab、Escape 与长文本回归。 | PASS | BUG-014 | VERIFIED | PASS |
+| UI-009 | 视觉 | 中文/英文/数字/长文本 | 构造边界数据 | 全页面遍历 | 字体角色、基线、换行/省略正确 | 518 个布局场景、长标题/长正文 Dialog 场景和 33 张 Golden 通过。 | PASS | - | - | PASS |
 | UI-010 | 视觉 | Android 手机横屏导航 | Pixel 6 API 35，2400×1080 | 竖屏创建数据后旋转到横屏并检查像素与语义树 | 使用移动导航，无 RenderFlex 溢出，五项导航可达 | 首轮桌面侧栏溢出 29px；按高度切换移动导航后真实模拟器截图、语义树和日志回归通过 | PASS | BUG-012 | VERIFIED | PASS |
 | ERR-001 | 异常 | 空数据全页面 | 空数据库 | 遍历项目地图 | 每页有解释与下一步 | 空态、大数据、文件/网络/数据库故障、重复操作和生命周期错误注入测试通过。 | PASS | - | - | PASS |
 | ERR-002 | 异常 | 大量数据与快速操作 | 大样本 | 快速滚动、筛选、切页、保存 | 无卡死/崩溃/明显掉帧 | 空态、大数据、文件/网络/数据库故障、重复操作和生命周期错误注入测试通过。 | PASS | - | - | PASS |
@@ -191,19 +193,19 @@
 | PRF-003 | 性能 | Timer/监听器/后台任务释放 | 多次进入退出 | 观察日志/实例/重复回调 | 无泄漏与重复执行 | 真实启动计时、1000 条列表测试、资源释放测试和最终产物体积记录已完成。 | PASS | - | - | PASS |
 | PRF-004 | 性能 | 产物体积 | Release 构建 | 记录 Windows/Android 产物大小 | 体积可解释，无意外膨胀 | 真实启动计时、1000 条列表测试、资源释放测试和最终产物体积记录已完成。 | PASS | - | - | PASS |
 | LOG-001 | 日志 | Console/Unhandled error | 全流程 | 采集运行日志 | 无未处理异常/Promise/Future 错误 | Windows 二次干净会话 stderr 为空；Android logcat 未见应用 FATAL/E/flutter；自动测试无未处理异常。 | PASS | - | - | PASS |
-| REG-001 | 回归 | 修复后相关测试 | 存在修复 | 每批修复后跑最小相关集 | 通过且 BUG 状态闭环 | 相关定向回归、最终 229 项全套测试与两平台干净构建均已完成。 | PASS | - | - | PASS |
-| REG-002 | 回归 | 最终完整发布验证 | 最终代码 | Clean build→全测试→真实启动→核心流→全视觉复查 | 所有证据更新，无未闭环项 | 相关定向回归、最终 229 项全套测试、Golden 和隔离 Windows 启动均已完成。 | PASS | - | - | PASS |
-| DOC-001 | 文档 | 项目地图完整性 | 最终代码与运行证据 | 逐项对照源码、导航、条件入口和平台能力并重读 | 所有发现均已登记 | 39 个页面与子页、全局弹层、兼容入口、设置与平台能力均已登记；最终重读完成。 | PASS | - | - | PASS |
-| DOC-002 | 文档 | 测试矩阵闭环 | 最终矩阵 | 统计正文 Case 与各状态并扫描未执行标记 | 统计一致且不存在未执行项 | 正文共 208 个 Case：199 PASS、9 BLOCKED、0 失败、0 未闭环项；最终扫描无未执行标记。 | PASS | - | - | PASS |
-| DOC-003 | 文档 | QA 报告一致性 | 全部 QA 文档 | 对照缺陷、最终 QA、回归、UI/UX 与发布清单 | 数量、状态和发布结论一致 | BUG-001～013、最终 QA、回归、UI/UX 和发布清单结论一致，整体判定为 NO-GO。 | PASS | - | - | PASS |
+| REG-001 | 回归 | 修复后相关测试 | 存在修复 | 每批修复后跑最小相关集 | 通过且 BUG 状态闭环 | Dialog 焦点/Escape、嵌套 Dropdown 单层关闭与专注预设定向回归通过；最终 234 项全套测试与 Golden/UI 子集 29/29 通过。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
+| REG-002 | 回归 | 最终完整发布验证 | 最终代码 | Clean build→全测试→真实启动→核心流→全视觉复查 | 所有证据更新，无未闭环项 | 234 项全套测试、Golden/UI 状态矩阵和隔离 Windows 启动完成；原生完整交互单列 U4D-038 `BLOCKED`。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
+| DOC-001 | 文档 | 项目地图完整性 | 最终代码与运行证据 | 逐项对照源码、导航、条件入口和平台能力并重读 | 所有发现均已登记 | 37 个当前可构建表面、全局弹层、兼容入口、设置与平台能力均已登记；最终重读完成。 | PASS | - | - | PASS |
+| DOC-002 | 文档 | 测试矩阵闭环 | 最终矩阵 | 逐行解析 Case ID 与状态，并扫描未执行标记 | 统计一致且不存在未执行项 | 正文共 256 个 Case：245 PASS、11 BLOCKED、0 FAIL、0 未闭环项；旧统计漏计 7 条 `A11Y-*`，本轮又动态补入 Android Profile 与 Windows 安装包 Case，已机器复核。 | PASS | BUG-015 | VERIFIED | PASS |
+| DOC-003 | 文档 | QA 报告一致性 | 全部 QA 文档 | 对照缺陷、最终 QA、回归、UI/UX 与发布清单 | 数量、状态和发布结论一致 | BUG-001～016、最终 QA、回归、UI/UX 和发布清单结论一致，整体判定为 NOT READY。 | PASS | BUG-015 | VERIFIED | PASS |
 | DOC-004 | 文档 | Markdown 用户手册覆盖 | 最终手册 | 统计章节与图片引用并检查引用文件 | 功能说明完整且引用全部存在 | 20 个章节、21 个真实界面截图引用，引用文件 21/21 存在。 | PASS | - | - | PASS |
-| DOC-005 | 文档 | DOCX 生成与结构完整性 | 最终 DOCX | 执行生成器断言并检查 OOXML、截图、表格、行距和编号 | 文档结构校验通过 | DOCX 为 1,413,027 bytes；21 张截图、固定表格、1.25 倍行距与编号几何检查通过。 | PASS | - | - | PASS |
-| DOC-006 | 文档 | DOCX 逐页视觉检查 | Word 2024 原生渲染 | 导出 PDF 并按原始分辨率检查全部页面 | 无文字或图片越界、裁切及页眉页脚重叠 | 共 29 页，29/29 逐页检查通过；最终文件按用户要求保持不再修改。 | PASS | - | - | PASS |
+| DOC-005 | 文档 | DOCX 生成与结构完整性 | 最终 DOCX | 执行生成器断言并检查 OOXML、截图、表格、行距、编号和可访问性 | 文档结构校验通过 | DOCX 为 1,431,324 bytes；21 张截图、固定表格、1.25 倍行距、编号几何与表头语义通过；a11y 审计 0/0/0。 | PASS | - | - | PASS |
+| DOC-006 | 文档 | DOCX 逐页视觉检查 | 更新后的 DOCX 与本机渲染器 | 导出 PDF 并按原始分辨率检查全部页面 | 无文字或图片越界、裁切及页眉页脚重叠 | 当前环境缺少可调用的 LibreOffice/Word 渲染器；历史版本的 29 页检查不能证明更新后文件视觉无回归。 | BLOCKED | - | - | BLOCKED：缺少当前 DOCX 的原生/兼容渲染能力；需在 Microsoft Word 或 LibreOffice 中逐页复验。 |
 | DOC-007 | 文档 | 证据与产物路径 | 最终工作区 | 核对 QA 报告、截图、Golden、构建产物和快捷方式 | 所有记录的路径与产物可解析 | QA 报告、截图、Golden、Windows/Android 构建产物与三个快捷方式均已核对。 | PASS | - | - | PASS |
 | OPT-001 | 任务群 | 新建/编辑保存生命周期 | 内存数据库、动画开启 | 新建和编辑任务群并等待退出动画 | 无 `_dependents.isEmpty`、无 FlutterError，数据仅保存一次 | 独立 Stateful Dialog、重复提交闸门、完整套件与 Windows Debug 隔离启动通过。 | PASS | BUG-013 | VERIFIED | PASS |
 | OPT-002 | 任务群 | 取消/校验/重复提交/模式锁定 | 任务群编辑 Dialog | 取消、空标题、非法时限、连续点击保存、编辑已执行群 | 输入保留、错误就地显示、无重复记录、锁定规则不变 | Dialog 校验/取消/重复保存 Widget 回归及既有模式锁定测试通过。 | PASS | BUG-013 | VERIFIED | PASS |
 | OPT-003 | 任务群 | 主项目与旧数据兼容 | 有项目、旧无归属群、跨项目成员 | 项目页/全局新建编辑并重启 | 可未归属；显式主项目持久化且不改成员；旧群按成员推断 | 主项目 CRUD、成员不变、旧群成员推断和隔离数据库启动验证通过。 | PASS | - | VERIFIED | PASS |
-| OPT-004 | 任务 | 卡片完整元数据 | 完整/缺失/长循环任务 | 遍历全部 TaskRow 表面 | 五类信息始终可见、占位明确、窄屏无溢出 | 320dp 窄列 Widget 回归、39 表面布局矩阵和 Golden 通过。 | PASS | - | VERIFIED | PASS |
+| OPT-004 | 任务 | 卡片完整元数据 | 完整/缺失/长循环任务 | 遍历全部 TaskRow 表面 | 五类信息始终可见、占位明确、窄屏无溢出 | 320dp 窄列 Widget 回归、37 表面布局矩阵和 Golden 通过。 | PASS | - | VERIFIED | PASS |
 | OPT-005 | 任务 | 多级子任务树 | 3 级父子任务 | 全部任务、收件箱、项目清单展开折叠 | 顺序、缩进、连接、父路径与会话折叠正确 | 3 级层级纯函数、全部任务/收件箱/项目树渲染及滚动测试通过。 | PASS | - | VERIFIED | PASS |
 | OPT-006 | 任务 | 子任务异常关系 | 筛选缺父、父在回收站、缺失父、循环引用 | 分别打开线性和非树形视图 | 不丢任务、不死循环，显示准确关系警告 | 缺失父、筛选父、循环保护单元回归及回收站生命周期测试通过。 | PASS | - | VERIFIED | PASS |
 | OPT-007 | 关联 | 笔记/回顾共用 Dialog | 有任务和项目 | 勾选后完成；再次勾选后取消/Esc/遮罩关闭 | 完成才应用，取消均撤销，焦点恢复到触发器 | AlertDialog 结构、完成/取消副本语义、焦点恢复 Widget 回归通过。 | PASS | - | VERIFIED | PASS |
@@ -220,47 +222,46 @@
 | OPT-018 | 回顾 | 未来周期双层禁止 | 当前日周月 | 点击下一期并直接调用保存 | UI 不可达且控制器拒绝未来周期 | 周期导航边界与控制器未来保存 FormatException 回归通过。 | PASS | - | VERIFIED | PASS |
 | OPT-019 | 导航 | 项目/收件箱/回顾扁平化 | 桌面和移动 | 遍历侧栏、更多、旧入口与返回历史 | 顺序和可达性正确，旧枚举映射到新根页面 | 桌面/移动导航 Widget、短窗口滚动和兼容映射测试通过。 | PASS | - | VERIFIED | PASS |
 | OPT-020 | 成长 | 顶部面板间距 | 游戏功能开启、反馈有/无 | 桌面/窄屏/200% 字号检查 | 边距一致、图标文字不贴边、无截断重叠 | Growth 页面浅深主题、窄屏/200% 字号布局矩阵与 Golden 通过。 | PASS | - | VERIFIED | PASS |
-| OPT-021 | 可访问性/视觉 | 本轮全状态矩阵 | 最终实现 | 浅深主题、7 视口、200% 字号、键盘、语义、减少动效 | 新增表面全部无溢出，焦点/语义/触控/对比符合基线 | 229 项完整 Flutter 测试、546 场景布局矩阵、Golden、主题/语义/触控测试及隔离 Windows 启动通过。 | PASS | - | VERIFIED | PASS |
-
-## Page × State × Interaction × Window Size 重新验收矩阵
-
-状态列中的 `N/A` 必须基于源码或实际界面确认；未触发主要适用状态时保持 `NOT_TESTED`。窗口基线：移动最小 `375×812`、移动常规 `412×915`、紧凑桌面 `768×864`、桌面常规 `1200×864`、桌面大窗 `1440×900`、`1536×864` 及真实 Windows 最大化；长文本以 200% 字号和边界数据共同验证。
-
-| ID | Page | State | Interaction | Window Size | 前置条件/操作步骤 | 预期结果 | 实际结果 | 状态 | 问题编号 | 修复状态 | 回归状态 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| U4D-001 | 启动 | Loading / Error / Retrying / Success | 等待、重试、键盘激活 | 移动最小/桌面最小/常规/最大化 | 空库与注入初始化失败逐态启动 | 无白屏；错误可读；重试不重入；焦点可见 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-002 | 桌面壳与侧栏 | Default / Hover / Focus / Pressed / Selected / Collapsed / Offline-Error | 鼠标、Tab、Shift+Tab、Enter、Space、箭头、Ctrl+K、Resize | 桌面最小/1024/1200/1440/1536/最大化 | 遍历全部一级入口和任务分组 | 选中态明确；焦点顺序稳定；缩放无丢入口 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-003 | 移动壳与更多 | Default / Pressed / Selected / Sheet Open / IME Open | 点击、返回、Esc、输入、旋转 | 375/412/800×1200/横屏 | 遍历五项底栏、更多、FAB 和返回历史 | 所有页面可达；弹层/键盘不遮挡 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-004 | 今日 | Default / Empty / Hover / Focus / Pressed / Disabled / Dialog-Menu Open / Error / Long Text | 开始、撤销、调整、完成/重开、安排、日结 | 全 7 视口/最大化/200% | 空、未开始、已开始、冲突、结算数据 | 状态完整且操作无重入、遮挡或布局跳动 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-005 | 全部任务 | Default / Empty / Hover / Focus / Pressed / Selected / Disabled / Menu-Dialog-Dropdown Open / Error / Long Text | CRUD、筛选、排序、多选、批量、树展开、Esc | 全 7 视口/最大化/200% | 空、常规、1000 条、三级树与异常关系 | 列表稳定；层级明确；所有菜单可达 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-006 | 收件箱 | Default / Empty / Hover / Focus / Pressed / Selected / Menu-Dialog Open / Error / Long Text | 转换、编辑、删除、批量键盘选择 | 全 7 视口/最大化/200% | 空、多类型捕获、超长标题 | 类型与下一步清楚；转换后持久化 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-007 | 周视图 | Default / Empty / Hover-Drag / Focus / Pressed / Today / Conflict / Dialog-Dropdown Open / Error / Long Text | 周切换、CRUD、拖拽、日期时间选择、Esc | 全 7 视口/最大化/200% | 当前/非当前周、冲突、跨日时间块 | 今天列可辨；拖拽与弹层对比/布局稳定 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-008 | 任务群 | Default / Empty / Hover / Focus / Pressed / Disabled / Menu-Dialog-Dropdown Open / Validation Error / Saving | CRUD、取消、重复保存、成员重排、Esc | 全 7 视口/最大化/200% | 新建/编辑、非法值、跨项目成员 | 不红屏；不重复提交；错误就地显示 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-009 | 项目主界面 | Default / Empty / Hover / Focus / Pressed / Selected / Expanded / Menu-Dialog Open / Error / Long Text | 项目切换、五面板单开、清单/看板、五类 CRUD | 全 7 视口/最大化/200% | 空/多项目、五类记录与长文本 | 上下文不丢；面板单开；计数与编辑正确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-010 | 专注入口 | Default / Empty / Hover / Focus / Pressed / Disabled / Dialog-Dropdown Open / Error / Long Text | 预设 CRUD、模式/任务/名单选择、定时设置 | 全 7 视口/最大化/200% | 空/多预设、非法自定义时长 | 表单完整可达；错误不破坏布局 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-011 | 专注会话 | Running / Paused / Focus / Pressed / Disabled / Completion-Interrupt Dialog / Error / Long Evidence | 开始、暂停、继续、完成、取消、结算、Esc | 全 7 视口/最大化/200%/减少动效 | 普通与 CTDP 任务 | 状态机单次结算；退场无生命周期异常 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-012 | 自律 | Default / Empty / Hover / Focus / Pressed / Disabled / Dialog-Dropdown Open / Error / Long Text | CRUD、启停、时段/名单/安全、确认取消、滚动 | 全 7 视口/最大化/200% | 默认/多规则、跨午夜、非法值 | 控件可达；安全状态明确；不越界 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-013 | 笔记 | Default / Empty / Hover / Focus / Pressed / Selected / Menu-Dialog Open / Read-only / Error / Long Text | 搜索筛选、CRUD、预览、版本、附件、关联、Esc | 全 7 视口/最大化/200% | 空/多笔记、Markdown 长文、附件异常 | 索引与阅读区稳定；取消不应用关系 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-014 | 日回顾 | Default / Empty / Hover / Focus / Pressed / Disabled / Library-Preview-Dropdown-Dialog Open / Read-only / Error / Long Text | 切换、周期导航、保存、关联、库→预览→编辑→返回 | 全 7 视口/最大化/200% | 当前/历史/未来/旧日记 | 仅本期可编辑；未来不可达；返回路径稳定 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-015 | 周回顾 | 同日回顾适用状态 | 同日回顾适用交互 | 全 7 视口/最大化/200% | 当前/历史/未来周 | 周期、只读和错误状态正确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-016 | 月回顾 | 同日回顾适用状态 | 同日回顾适用交互 | 全 7 视口/最大化/200% | 当前/历史/未来月 | 周期、只读和错误状态正确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-017 | 目标 | Default / Empty / Hover / Focus / Pressed / Expanded / Disabled / Menu-Dialog Open / Error / Long Text | CRUD、树展开、完成、父子防循环、里程碑 | 全 7 视口/最大化/200% | 空/多级目标、非法父级 | 树关系清晰；异常有反馈 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-018 | 习惯 | Default / Empty / Hover / Focus / Pressed / Disabled-RSIP / Menu-Dialog Open / Error / Long Text | 今日打卡/撤销、历史只读、CRUD | 全 7 视口/最大化/200% | 03:59/04:00、普通/失败/熄灭习惯 | 只可改逻辑今日；卡片独立且不溢出 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-019 | 国策树 | Default / Empty / Hover / Focus / Pressed / Selected / Expanded / Disabled / Menu-Dialog-Dropdown Open / Error / Long Text | 八类节点 CRUD、拆分、违反、熄灭/恢复、Esc | 全 7 视口/最大化/200% | 空/多层树/非法关系 | 树、菜单和错误反馈稳定 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-020 | 国策库 | Default / Empty / Hover / Focus / Pressed / Selected / Menu-Dialog Open / Error / Long Text | 查看、恢复、筛选、滚动 | 全 7 视口/最大化/200% | 空/多归档记录 | 状态与恢复路径明确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-021 | 轮次历史 | Default / Empty / Hover / Focus / Pressed / Selected / Dropdown Open / Error / Long Text | 筛选、查看、滚动 | 全 7 视口/最大化/200% | 空/多轮次与证据 | 数据层级可读且无截断 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-022 | 高级分析 | Default / Empty / Hover / Focus / Pressed / Selected / Dropdown Open / Error / Long Text | 筛选、切换指标、滚动 | 全 7 视口/最大化/200% | 空/大量分析数据 | 指标、筛选与空态准确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-023 | 成长 | Default / Empty / Hover / Focus / Pressed / Disabled / Dialog Open / Error / Long Text | 签到、押注、确认取消、滚动 | 全 7 视口/最大化/200% | 激励开关、反馈有无、余额不足 | 顶部间距稳定；错误/禁用原因清楚 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-024 | 设置 | Default / Hover / Focus / Pressed / Selected / Disabled / Dropdown-Dialog Open / Loading / Error / Long Text | 主题、别名、开关、权限、同步、导入导出、备份回收站、Esc | 全 7 视口/最大化/200% | 离线、失败注入、长别名、回收站数据 | 所有区可达；异步状态和错误不丢数据 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-025 | 全局搜索 Dialog | Default / Focus / Hover / Pressed / Selected / Empty / Error-safe / Long Text | Ctrl+K、输入、类型过滤、箭头、Enter、Esc、遮罩 | 移动/桌面最小/常规/最大化/200% | 空查询、多结果、无结果、特殊字符 | 焦点初始/恢复正确；结果与键盘动作一致 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-026 | 快速新增 Dialog | Default / Focus / Hover / Pressed / Disabled / Dropdown Open / Saving / Error / Long Text | 类型切换、输入、重复提交、取消、Esc、IME | 移动/桌面最小/常规/最大化/200% | 四类型、非法值、保存失败 | 只保存一次；错误就地；键盘不遮挡 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-027 | 通用记录编辑 Dialog | Default / Focus / Hover / Pressed / Disabled / Dropdown-Date Open / Saving / Error / Long Text | 各类型字段、渐进选项、粘贴、撤销、提交取消、Esc | 移动/桌面最小/常规/最大化/200% | 记录全类型、边界/非法值、失败注入 | 字段语义与类型匹配；输入保留 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-028 | 任务群编辑 Dialog | Default / Focus / Hover / Pressed / Disabled / Dropdown Open / Saving / Validation Error / Long Text | 新建编辑、模式/项目、重复保存、取消、Esc | 移动/桌面最小/常规/最大化/200% | 新/旧群、空标题、非法时限 | 无红屏；控制器生命周期与保存闸门正确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-029 | 关联选择 Dialog | Default / Focus / Hover / Pressed / Selected / Empty / Long List / Error-safe | 勾选、滚动、完成、取消、Esc、遮罩、焦点恢复 | 移动/桌面最小/常规/最大化/200% | 空/多任务与项目 | 仅完成应用；其余关闭路径撤销 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-030 | Markdown/附件 Dialog | Default / Focus / Hover / Pressed / Selected / Preview / Error / Long Text | 编辑预览、工具栏、附件链接/图片、取消、Esc、焦点恢复 | 移动/桌面最小/常规/最大化/200% | 长文、缺失/超限附件 | 阅读/编辑稳定；原生选择器返回不黑屏 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-031 | 共享菜单/日期时间/确认弹层 | Default / Hover / Focus / Pressed / Selected / Disabled / Open / Error / Long Text | 打开关闭、箭头、Enter、Esc、遮罩、连续操作、Resize | 移动/桌面最小/常规/最大化/200% | 遍历所有 PopupMenu/Dropdown/Picker/确认框 | 不越界、不被遮挡、焦点返回、无重复动作 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-032 | 兼容 DiaryPage | Default / Empty / Error-safe / Long Text | 直接构建、旧数据读取、返回 | 375/768/1200/200% | 空与旧日记数据 | 无空白/崩溃；内容可迁移读取 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
-| U4D-033 | 兼容 ProtocolsPage/旧导航枚举 | Default / Empty / Error-safe / Long Text | 直接构建、旧入口映射、返回 | 375/768/1200/200% | 各 ProtocolTab 与 legacy section | 无空白/崩溃；映射到当前入口 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| OPT-021 | 可访问性/视觉 | 本轮全状态矩阵 | 最终实现 | 浅深主题、7 视口、200% 字号、键盘、语义、减少动效 | 新增表面全部无溢出，焦点/语义/触控/对比符合基线 | 234 项完整 Flutter 测试、518 场景布局矩阵、222 个页面交互-尺寸场景、24 个 Dialog-尺寸场景、专注预设 4 个 Dropdown 及隔离 Windows 启动通过。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
+| U4D-001 | UI 四维矩阵 | 今日 | 已填充夹具 | 在 375×812、1200×864、1536×864 逐一触发 Hover、Pressed、Focus、Tab，并开关页面全部 Popup/Dropdown | 主要状态可见、弹层可开关、布局不跳动且无异常 | 三尺寸全部通过；Default/Empty/Error/Loading/长文本另由布局、空态与故障注入 Case 覆盖。 | PASS | - | - | PASS |
+| U4D-002 | UI 四维矩阵 | 任务-全部 | 已填充夹具 | 同 U4D-001，并遍历筛选与行菜单 | 状态和菜单行为在三尺寸稳定 | 三尺寸 Hover/Pressed/Focus/Keyboard 与全部 Popup/Dropdown 开关通过。 | PASS | - | - | PASS |
+| U4D-003 | UI 四维矩阵 | 任务-收件箱 | 已填充夹具 | 同 U4D-001，并遍历收件箱行操作 | 状态和菜单行为在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-004 | UI 四维矩阵 | 任务-周视图 | 已填充夹具 | 同 U4D-001，并检查今天列与时间块 | 状态、今天强调和弹层在三尺寸稳定 | 三尺寸交互与弹层开关通过；浅/深今天列另有 Golden。 | PASS | - | - | PASS |
+| U4D-005 | UI 四维矩阵 | 任务-任务群 | 已填充夹具 | 同 U4D-001，并检查任务群操作菜单 | 状态、菜单和焦点在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | BUG-013 | VERIFIED | PASS |
+| U4D-006 | UI 四维矩阵 | 项目-概览 | 已填充夹具 | 同 U4D-001，并检查项目选择与面板 | 状态和项目上下文在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-007 | UI 四维矩阵 | 项目-任务面板 | 已填充夹具 | 同 U4D-001，并检查清单/看板入口 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-008 | UI 四维矩阵 | 项目-任务群面板 | 已填充夹具 | 同 U4D-001，并检查任务群菜单 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-009 | UI 四维矩阵 | 项目-里程碑面板 | 已填充夹具 | 同 U4D-001，并检查里程碑操作 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-010 | UI 四维矩阵 | 项目-笔记/回顾面板 | 已填充夹具 | 同 U4D-001，并检查笔记与回顾入口 | 两类记录可区分，状态和菜单稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-011 | UI 四维矩阵 | 专注中心 | 已填充夹具 | 同 U4D-001，并检查预设和启动入口 | 状态与菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-012 | UI 四维矩阵 | 专注会话 | 有可专注任务 | 同 U4D-001，并检查计时控制 | 默认/按下/焦点状态稳定 | 三尺寸交互通过，无可打开菜单时不制造虚假覆盖。 | PASS | - | - | PASS |
+| U4D-013 | UI 四维矩阵 | 自律 | 已填充夹具 | 同 U4D-001，并检查规则菜单 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过；真实系统副作用仍由 RST-008/009 阻塞。 | PASS | - | - | PASS |
+| U4D-014 | UI 四维矩阵 | 笔记 | 已填充夹具 | 同 U4D-001，并检查筛选与笔记菜单 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-015 | UI 四维矩阵 | 回顾-日 | 当前周期与历史夹具 | 同 U4D-001，并检查类别、周期和库入口 | 当前/历史状态与菜单稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-016 | UI 四维矩阵 | 回顾-周 | 当前周期与历史夹具 | 同 U4D-001，并检查类别、周期和库入口 | 当前/历史状态与菜单稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-017 | UI 四维矩阵 | 回顾-月 | 当前周期与历史夹具 | 同 U4D-001，并检查类别、周期和库入口 | 当前/历史状态与菜单稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-018 | UI 四维矩阵 | 兼容旧日记 | 兼容数据夹具 | 同 U4D-001，并检查旧记录操作 | 兼容表面在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-019 | UI 四维矩阵 | 目标 | 已填充目标树 | 同 U4D-001，并检查节点菜单 | 树与菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-020 | UI 四维矩阵 | 习惯追踪 | 普通/RSIP 习惯夹具 | 同 U4D-001，并检查今日按钮和习惯菜单 | 打卡状态与菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过；历史只读和 RSIP 禁用另有功能回归。 | PASS | - | - | PASS |
+| U4D-021 | UI 四维矩阵 | 行为-习惯 | 普通/RSIP 习惯夹具 | 同 U4D-001，并检查行为壳内习惯页 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-022 | UI 四维矩阵 | 行为-国策树 | 国策夹具 | 同 U4D-001，并检查节点菜单 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-023 | UI 四维矩阵 | 行为-国策库 | 归档夹具 | 同 U4D-001，并检查恢复菜单 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-024 | UI 四维矩阵 | 行为-轮次历史 | 历史夹具 | 同 U4D-001，并检查筛选菜单 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-025 | UI 四维矩阵 | 行为-高级分析 | 分析夹具 | 同 U4D-001，并检查时间筛选 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-026 | UI 四维矩阵 | 国策页-国策树 | 国策夹具 | 同 U4D-001，并检查独立页树菜单 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-027 | UI 四维矩阵 | 国策页-国策库 | 归档夹具 | 同 U4D-001，并检查独立页恢复菜单 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-028 | UI 四维矩阵 | 国策页-轮次历史 | 历史夹具 | 同 U4D-001，并检查独立页筛选 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-029 | UI 四维矩阵 | 国策页-高级分析 | 分析夹具 | 同 U4D-001，并检查独立页筛选 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-030 | UI 四维矩阵 | 兼容协议-目标 | 兼容夹具 | 同 U4D-001，并检查兼容入口控件 | 兼容表面在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-031 | UI 四维矩阵 | 兼容协议-习惯 | 兼容夹具 | 同 U4D-001，并检查兼容入口控件 | 兼容表面在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-032 | UI 四维矩阵 | 兼容协议-执行 | 兼容夹具 | 同 U4D-001，并检查兼容入口控件 | 兼容表面在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-033 | UI 四维矩阵 | 兼容协议-规则 | 兼容夹具 | 同 U4D-001，并检查兼容入口控件 | 兼容表面在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-034 | UI 四维矩阵 | 兼容协议-分析 | 兼容夹具 | 同 U4D-001，并检查兼容入口控件 | 兼容表面在三尺寸稳定 | 三尺寸交互与弹层开关通过。 | PASS | - | - | PASS |
+| U4D-035 | UI 四维矩阵 | 成长 | 激励夹具 | 同 U4D-001，并检查签到与菜单 | 状态和菜单在三尺寸稳定 | 三尺寸交互与弹层开关通过；200% 布局另有回归。 | PASS | - | - | PASS |
+| U4D-036 | UI 四维矩阵 | 设置 | 全功能夹具 | 同 U4D-001，并检查全部下拉、开关和菜单 | Default/Hover/Focus/Pressed/Disabled/Dropdown Open/Error/长文本及三尺寸有对应证据 | 三尺寸交互与全部 Popup/Dropdown 开关通过；权限、同步、备份错误及禁用态由设置功能测试覆盖。 | PASS | - | - | PASS |
+| U4D-037 | UI 四维矩阵 | 移动更多 | 移动入口 | 同 U4D-001，并检查全部导航项 | 状态和焦点在三尺寸稳定 | 三尺寸交互通过；无 Popup/Dropdown 时不制造虚假覆盖。 | PASS | - | - | PASS |
+| U4D-038 | UI 四维矩阵 | Windows 原生全表面复验 | 最终代码隔离 Debug + Release 构建 | 原生逐页触发 Hover/Focus/Pressed/Disabled/Dropdown/Dialog/Error/长文本并切换最小、常规、最大化窗口 | 以真实 Windows 像素和输入行为完成第二轮全状态复验 | 最终代码隔离启动成功，Release 随后重建；Computer Use 多次返回 `failed to activate captured window`，无法可靠驱动完整原生指针/键盘遍历。 | BLOCKED | - | - | BLOCKED：缺少可激活该窗口的原生自动化能力；风险为自动化 PASS 尚未获得本轮完整原生交互视觉复证。 |
+| U4D-039 | UI 四维矩阵 | 专注预设 Dialog 窄窗与嵌套下拉 | 375×812、专注中心已打开 | 新建预设，连续 Tab 8 次，逐一打开 4 个 Dropdown 并按 Escape | 无 3px 溢出；焦点可见；Escape 每次只关闭顶层 Dropdown，父 Dialog 保留 | 4 个 Dropdown 启用 `isExpanded`；测试逐一验证打开/关闭及父 Dialog 保留，未见布局或生命周期异常。 | PASS | BUG-016 | VERIFIED | PASS |
 
 ## 动态覆盖统计
 
@@ -268,9 +269,8 @@
 
 | 指标 | 数量 |
 | --- | ---: |
-| 总 Case | 241 |
-| PASS | 197 |
+| 总 Case | 256 |
+| PASS | 245 |
 | FAIL | 0 |
-| BLOCKED | 9 |
-| NOT_TESTED | 35 |
-| 未闭环 | 35 |
+| BLOCKED | 11 |
+| 未闭环 | 0 |

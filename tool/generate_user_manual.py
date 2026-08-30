@@ -237,6 +237,7 @@ def add_table(doc: Document, rows: list[list[str]]) -> None:
         widths[-1] += 9360 - sum(widths)
 
     table = doc.add_table(rows=len(rows), cols=column_count)
+    table.rows[0]._tr.get_or_add_trPr().append(OxmlElement("w:tblHeader"))
     for row_index, values in enumerate(rows):
         for column_index, value in enumerate(values):
             cell = table.cell(row_index, column_index)
@@ -378,7 +379,7 @@ def add_cover(doc: Document) -> None:
         ("Windows 与 Android", 11, True),
         ("版本 0.1.0+4", 10, False),
         ("依据实际代码、完整测试矩阵和真实运行界面编制", 10, False),
-        ("验证日期：2026-08-30", 10, False),
+        ("验证日期：2026-08-31", 10, False),
     ):
         paragraph = doc.add_paragraph()
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -487,6 +488,8 @@ def build_document() -> None:
         numbering_xml = archive.read("word/numbering.xml").decode("utf-8")
         if document_xml.count("<w:tbl>") == 0:
             raise RuntimeError("Expected fixed-width tables")
+        if document_xml.count("<w:tblHeader") != len(doc.tables):
+            raise RuntimeError("Table header accessibility audit failed")
         if 'w:w="9360"' not in document_xml or 'w:type="fixed"' not in document_xml:
             raise RuntimeError("Table geometry audit failed")
         if 'w:line="300"' not in styles_xml:
