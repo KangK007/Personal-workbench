@@ -1,6 +1,7 @@
 # 个人工作台发布检查清单
 
 > 检查日期：2026-08-29  
+> 最终安装包刷新：2026-08-30  
 > 总体判定：**NO-GO**
 
 ## 1. 已满足
@@ -34,11 +35,16 @@
 | 平台 | 路径 | 状态 |
 | --- | --- | --- |
 | Windows Release | `build/windows/x64/runner/Release/` | 构建 PASS；平台副作用验收未完成 |
+| Windows 安装 ZIP | `dist/PersonalWorkbench_0.1.0+4_windows.zip` | 已刷新并验证包含安装器与应用 EXE |
 | Android Debug | `build/app/outputs/flutter-apk/app-debug.apk` | QA 侧载 PASS，不是正式发布包 |
 | Android Debug 分发副本 | `dist/apk/PersonalWorkbench_0.1.0_4_debug.apk` | 与构建 APK 哈希一致 |
+| Android Profile | `build/app/outputs/flutter-apk/app-profile.apk` | 构建 PASS，用于性能验证，不是正式发布包 |
+| Android Profile 分发副本 | `dist/apk/PersonalWorkbench_0.1.0_4_profile.apk` | 与构建 APK 哈希一致 |
 | Android Release | 无 | BLOCKED：缺少签名配置 |
 
-Android Debug APK SHA-256：`A01C8E852E9F8880FB14806CD813CD93F294B3FA675FF325C67CED2C58FF648A`。
+Windows 安装 ZIP SHA-256：`DEEA3E4A0BD586351A09542CAE485B2CF91B6827BF0CC6911FCB680BA7E903FC`。  
+Android Debug APK SHA-256：`2DCD656C07D5D2F8F69A5B16F8D4795664FB553AA2DC71F687B63651EF9AB442`。  
+Android Profile APK SHA-256：`A13B34CB7FA7192B8ABEDFF3A0ED47A916D0F1ACCF7E9C913E41FAC8CD9BC237`。
 
 ## 4. 发布决策
 

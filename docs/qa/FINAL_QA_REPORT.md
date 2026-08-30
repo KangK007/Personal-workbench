@@ -1,6 +1,7 @@
 # 个人工作台最终质量审查报告
 
 > 审查完成日期：2026-08-29（Asia/Shanghai）  
+> 最终安装包刷新：2026-08-30（Asia/Shanghai）  
 > Git 基线：`05f1827ae654637954395df8d453136837950606`  
 > 测试基准：`docs/qa/PROJECT_MAP.md` 与 `docs/qa/TEST_MATRIX.md`
 
@@ -65,10 +66,12 @@
 
 | 产物 | 大小 | SHA-256 |
 | --- | ---: | --- |
-| Windows Release 目录 | 20 文件，80,070,878 bytes | 目录不计算单一哈希 |
-| `personal_workbench.exe` | 243,712 bytes | 未单独记录 |
-| Android Debug APK | 192,804,641 bytes | `A01C8E852E9F8880FB14806CD813CD93F294B3FA675FF325C67CED2C58FF648A` |
-| Debug 分发 APK | 192,804,641 bytes | 与构建 APK 相同 |
+| Windows Release 目录 | 20 文件，80,120,030 bytes | 目录不计算单一哈希 |
+| `personal_workbench.exe` | 243,712 bytes | `237D329F5DD8829252FFF4C61C9BE6393684FF21275FCB1F20C35905E19DB561` |
+| Windows 安装 ZIP | 44,963,971 bytes | `DEEA3E4A0BD586351A09542CAE485B2CF91B6827BF0CC6911FCB680BA7E903FC` |
+| Android Debug APK | 192,805,677 bytes | `2DCD656C07D5D2F8F69A5B16F8D4795664FB553AA2DC71F687B63651EF9AB442` |
+| Debug 分发 APK | 192,805,677 bytes | 与构建 APK 相同 |
+| Android Profile APK | 121,121,250 bytes | `A13B34CB7FA7192B8ABEDFF3A0ED47A916D0F1ACCF7E9C913E41FAC8CD9BC237` |
 
 桌面及两个开始菜单快捷方式均指向最终 Windows Release 可执行文件，目标存在。
 
