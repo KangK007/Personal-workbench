@@ -25,6 +25,9 @@ class AttachmentPanel extends StatefulWidget {
 
 class _AttachmentPanelState extends State<AttachmentPanel> {
   late Future<List<Attachment>> attachments;
+  final FocusNode _addImageFocusNode = FocusNode(
+    debugLabel: 'AttachmentPanel.addImage',
+  );
   int totalBytes = 0;
 
   @override
@@ -37,6 +40,12 @@ class _AttachmentPanelState extends State<AttachmentPanel> {
   void didUpdateWidget(covariant AttachmentPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.owner.id != widget.owner.id) _reload();
+  }
+
+  @override
+  void dispose() {
+    _addImageFocusNode.dispose();
+    super.dispose();
   }
 
   void _reload() {
@@ -67,6 +76,7 @@ class _AttachmentPanelState extends State<AttachmentPanel> {
                   ),
                 ),
                 OutlinedButton.icon(
+                  focusNode: _addImageFocusNode,
                   onPressed: _importImage,
                   icon: const Icon(Icons.image_outlined),
                   label: const Text('添加图片'),
@@ -74,9 +84,7 @@ class _AttachmentPanelState extends State<AttachmentPanel> {
               ],
             ),
             if (loading)
-              const Column(
-                children: [SkeletonListTile(), SkeletonListTile()],
-              )
+              const Column(children: [SkeletonListTile(), SkeletonListTile()])
             else if (values.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -137,7 +145,9 @@ class _AttachmentPanelState extends State<AttachmentPanel> {
       type: FileType.image,
       allowMultiple: false,
       withData: false,
+      lockParentWindow: true,
     );
+    if (mounted) _addImageFocusNode.requestFocus();
     final path = result?.files.single.path;
     if (path == null) return;
     try {

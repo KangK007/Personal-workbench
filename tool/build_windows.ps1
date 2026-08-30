@@ -19,37 +19,31 @@ try {
     $sha256.Dispose()
 }
 $projectKey = -join ($digest[0..5] | ForEach-Object { $_.ToString('x2') })
-$aliasRoot = Join-Path $env:LOCALAPPDATA "PersonalWorkbenchBuild\$projectKey"
-$sourceLink = Join-Path $aliasRoot 'source'
+$buildCacheRoot = Join-Path $env:LOCALAPPDATA "PersonalWorkbenchBuild\$projectKey"
+$sourceCopy = Join-Path $buildCacheRoot 'source-copy'
+$resolvedCacheBase = [System.IO.Path]::GetFullPath(
+    (Join-Path $env:LOCALAPPDATA 'PersonalWorkbenchBuild')
+).TrimEnd('\')
+$resolvedSourceCopy = [System.IO.Path]::GetFullPath($sourceCopy)
+if (-not $resolvedSourceCopy.StartsWith(
+        "$resolvedCacheBase\",
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+    throw 'The ASCII build source path validation failed.'
+}
+New-Item -ItemType Directory -Force -Path $sourceCopy | Out-Null
 
-New-Item -ItemType Directory -Force -Path $aliasRoot | Out-Null
-if (Test-Path -LiteralPath $sourceLink) {
-    $link = Get-Item -LiteralPath $sourceLink -Force
-    $target = (Resolve-Path -LiteralPath $link.Target).Path
-    if ($link.LinkType -ne 'Junction' -or
-        -not [string]::Equals(
-            $target,
-            $projectRoot,
-            [System.StringComparison]::OrdinalIgnoreCase
-        )) {
-        throw "Build alias already exists but points elsewhere: $sourceLink"
-    }
-} else {
-    New-Item -ItemType Junction -Path $sourceLink -Target $projectRoot |
-        Out-Null
+& robocopy.exe $projectRoot $sourceCopy /MIR /R:2 /W:1 /NP /NFL /NDL /NJH /NJS `
+    /XD .dart_tool build dist .git .idea `
+    /XF .git | Out-Null
+$sourceCopyExitCode = $LASTEXITCODE
+if ($sourceCopyExitCode -ge 8) {
+    throw "Source staging failed with robocopy exit code $sourceCopyExitCode"
 }
 
-$cmakeCache = Join-Path $projectRoot 'build\windows\x64\CMakeCache.txt'
-$aliasForCmake = $sourceLink.Replace('\', '/')
-$needsClean = $Clean.IsPresent
-if (Test-Path -LiteralPath $cmakeCache) {
-    $cacheContents = Get-Content -Raw -LiteralPath $cmakeCache
-    $needsClean = $needsClean -or -not $cacheContents.Contains($aliasForCmake)
-}
-
-Push-Location -LiteralPath $sourceLink
+Push-Location -LiteralPath $sourceCopy
 try {
-    if ($needsClean) {
+    if ($Clean.IsPresent) {
         & flutter clean
         if ($LASTEXITCODE -ne 0) {
             throw "flutter clean failed with exit code $LASTEXITCODE"
@@ -78,8 +72,18 @@ $configurationDirectory = switch ($Configuration) {
     'profile' { 'Profile' }
     'release' { 'Release' }
 }
-$executable = Join-Path $projectRoot (
-    "build\windows\x64\runner\$configurationDirectory\personal_workbench.exe"
+$stagedBuild = Join-Path $sourceCopy 'build\windows\x64'
+$projectBuild = Join-Path $projectRoot 'build\windows\x64'
+New-Item -ItemType Directory -Force -Path $projectBuild | Out-Null
+& robocopy.exe $stagedBuild $projectBuild /MIR /R:2 /W:1 /NP /NFL /NDL /NJH /NJS |
+    Out-Null
+$artifactCopyExitCode = $LASTEXITCODE
+if ($artifactCopyExitCode -ge 8) {
+    throw "Windows artifact copy failed with robocopy exit code $artifactCopyExitCode"
+}
+
+$executable = Join-Path $projectBuild (
+    "runner\$configurationDirectory\personal_workbench.exe"
 )
 if (-not (Test-Path -LiteralPath $executable)) {
     throw "Build completed without the expected executable: $executable"
@@ -89,3 +93,6 @@ $shortcutScript = Join-Path $projectRoot 'tool\update_all_shortcuts.ps1'
 & $shortcutScript -TargetPath $executable
 
 Write-Output "Windows build completed: $executable"
+
+# Robocopy uses 0-7 for successful copies; do not leak those values to callers.
+$global:LASTEXITCODE = 0

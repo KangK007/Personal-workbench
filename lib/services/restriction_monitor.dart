@@ -29,10 +29,7 @@ class RestrictionMonitorState {
 }
 
 typedef RestrictionEventCallback =
-    Future<void> Function(
-      RestrictionViolation violation,
-      bool actionSucceeded,
-    );
+    Future<void> Function(RestrictionViolation violation, bool actionSucceeded);
 typedef RestrictionStateCallback =
     Future<void> Function(RestrictionMonitorState state);
 
@@ -196,8 +193,7 @@ class RestrictionMonitor {
     if (!_active || profile == null || !profile.allowBreak) {
       throw const FormatException('当前限制规则不允许临时休息。');
     }
-    if (profile.maxBreaksPerDay > 0 &&
-        _breaksUsed >= profile.maxBreaksPerDay) {
+    if (profile.maxBreaksPerDay > 0 && _breaksUsed >= profile.maxBreaksPerDay) {
       throw const FormatException('今日临时休息次数已用完。');
     }
     _breaksUsed++;
@@ -241,9 +237,11 @@ class RestrictionMonitor {
   }
 
   bool _shouldReport(RestrictionViolation violation, DateTime now) {
-    final key = '${violation.process.pid}:${violation.reasonCode}:${violation.matched}';
+    final key =
+        '${violation.process.pid}:${violation.reasonCode}:${violation.matched}';
     final previous = _violationCooldowns[key];
-    if (previous != null && now.difference(previous) < const Duration(seconds: 30)) {
+    if (previous != null &&
+        now.difference(previous) < const Duration(seconds: 30)) {
       return false;
     }
     _violationCooldowns[key] = now;

@@ -11,6 +11,8 @@ import '../widgets/batch_task_toolbar.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/task_row.dart';
+import '../widgets/task_group_editor_dialog.dart';
+import '../widgets/task_hierarchy.dart';
 import 'calendar_page.dart';
 import 'inbox_page.dart';
 
@@ -126,6 +128,7 @@ class _AllTasksPageState extends State<_AllTasksPage> {
   final Set<String> _selectedIds = <String>{};
   bool _selectionMode = false;
   String? _selectionAnchorId;
+  final Set<String> _collapsedTaskIds = <String>{};
 
   @override
   void dispose() {
@@ -141,6 +144,11 @@ class _AllTasksPageState extends State<_AllTasksPage> {
           b.scheduledFor ?? b.dueAt ?? b.createdAt,
         ),
       );
+    final entries = buildTaskHierarchy(
+      visibleTasks: tasks,
+      allRecords: widget.controller.allRecords,
+      collapsedIds: _collapsedTaskIds,
+    );
     final selectedTasks = tasks
         .where((task) => _selectedIds.contains(task.id))
         .toList(growable: false);
@@ -214,16 +222,28 @@ class _AllTasksPageState extends State<_AllTasksPage> {
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
-                itemCount: tasks.length,
+                itemCount: entries.length,
                 separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) => TaskRow(
-                  task: tasks[index],
-                  controller: widget.controller,
-                  selectionMode: _selectionMode,
-                  selected: _selectedIds.contains(tasks[index].id),
-                  onSelectionChanged: (value) =>
-                      _toggleSelection(tasks[index].id, value, tasks),
-                ),
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  return TaskRow(
+                    task: entry.task,
+                    controller: widget.controller,
+                    hierarchyDepth: entry.depth,
+                    hasChildren: entry.hasChildren,
+                    expanded: entry.expanded,
+                    relationInfo: entry.relation,
+                    onToggleExpanded: () => setState(() {
+                      entry.expanded
+                          ? _collapsedTaskIds.add(entry.task.id)
+                          : _collapsedTaskIds.remove(entry.task.id);
+                    }),
+                    selectionMode: _selectionMode,
+                    selected: _selectedIds.contains(entry.task.id),
+                    onSelectionChanged: (value) =>
+                        _toggleSelection(entry.task.id, value, tasks),
+                  );
+                },
               ),
             ),
           ],
@@ -454,149 +474,15 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
   }
 
   Future<void> _createGroup() async {
-    final title = TextEditingController();
-    final timeLimit = TextEditingController();
-    var sequential = false;
-    final confirmed = await showWorkbenchDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('新建任务群'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ExternalField(
-                label: '名称',
-                child: TextField(
-                  controller: title,
-                  decoration: const InputDecoration(),
-                ),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: sequential,
-                title: const Text('顺序任务链'),
-                subtitle: const Text('关闭时为并行任务群'),
-                onChanged: (value) => setDialogState(() => sequential = value),
-              ),
-              ExternalField(
-                label: '总时限（分钟，可选）',
-                child: TextField(
-                  controller: timeLimit,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    hintText: '每个子任务的 CTDP 配置保持独立',
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('创建'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (confirmed == true) {
-      try {
-        await widget.controller.createTaskGroup(
-          title: title.text,
-          sequential: sequential,
-          timeLimitMinutes: _parseTimeLimit(timeLimit.text),
-        );
-      } on FormatException catch (error) {
-        if (mounted) {
-          showWorkbenchSnackBar(
-            context,
-            SnackBar(content: Text(error.message)),
-          );
-        }
-      }
-    }
-    title.dispose();
-    timeLimit.dispose();
+    await showTaskGroupEditor(context: context, controller: widget.controller);
   }
 
   Future<void> _editGroup(WorkspaceRecord group) async {
-    final title = TextEditingController(text: group.title);
-    final timeLimit = TextEditingController(
-      text: (group.data['timeLimitMinutes'] as num?)?.toInt().toString() ?? '',
-    );
-    var sequential = group.data['mode'] == 'sequential';
-    final modeLocked = widget.controller.taskGroupModeLocked(group);
-    final confirmed = await showWorkbenchDialog<bool>(
+    await showTaskGroupEditor(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('编辑任务群'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ExternalField(
-                label: '名称',
-                child: TextField(
-                  controller: title,
-                  decoration: const InputDecoration(),
-                ),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: sequential,
-                title: const Text('顺序任务链'),
-                subtitle: Text(modeLocked ? '已有成员开始执行，模式已锁定' : '关闭时为并行任务群'),
-                onChanged: modeLocked
-                    ? null
-                    : (value) => setDialogState(() => sequential = value),
-              ),
-              ExternalField(
-                label: '总时限（分钟，可选）',
-                child: TextField(
-                  controller: timeLimit,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('保存'),
-            ),
-          ],
-        ),
-      ),
+      controller: widget.controller,
+      group: group,
     );
-    if (confirmed == true) {
-      try {
-        await widget.controller.updateTaskGroup(
-          group: group,
-          title: title.text,
-          sequential: sequential,
-          timeLimitMinutes: _parseTimeLimit(timeLimit.text),
-        );
-      } on FormatException catch (error) {
-        if (mounted) {
-          showWorkbenchSnackBar(
-            context,
-            SnackBar(content: Text(error.message)),
-          );
-        }
-      }
-    }
-    title.dispose();
-    timeLimit.dispose();
   }
 
   Future<void> _deleteGroup(WorkspaceRecord group) async {
@@ -651,16 +537,6 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
         showWorkbenchSnackBar(context, SnackBar(content: Text('操作失败：$error')));
       }
     }
-  }
-
-  int? _parseTimeLimit(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return null;
-    final minutes = int.tryParse(trimmed);
-    if (minutes == null) {
-      throw const FormatException('总时限必须填写整数分钟。');
-    }
-    return minutes;
   }
 
   Future<void> _removeMember(

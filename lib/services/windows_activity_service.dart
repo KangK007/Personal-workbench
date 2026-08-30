@@ -36,6 +36,7 @@ class WindowsActivityService {
     _ensureHandler();
     return _powerEvents.stream;
   }
+
   Stream<void> get exitRequests {
     _ensureHandler();
     return _exitRequests.stream;
@@ -94,9 +95,7 @@ class WindowsActivityService {
     }
   }
 
-  Future<RestrictionHostsStatus> hostsStatus(
-    Iterable<String> domains,
-  ) async {
+  Future<RestrictionHostsStatus> hostsStatus(Iterable<String> domains) async {
     if (!supported) return const RestrictionHostsStatus();
     try {
       final value = await _channel.invokeMethod<Map<dynamic, dynamic>>(
@@ -242,4 +241,3 @@ class WindowsActivityService {
     }
   }
 }
-

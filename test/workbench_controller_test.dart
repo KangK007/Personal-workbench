@@ -1225,56 +1225,59 @@ void main() {
     expect((reviews.single.data['versions'] as List), hasLength(1));
   });
 
-  test('daily review reads newest diary draft and preserves legacy record', () async {
-    final controller = _controller(now);
-    addTearDown(controller.dispose);
-    final day = DateTime(2026, 8, 9);
-    final older = WorkspaceRecord.create(
-      kind: RecordKind.diary,
-      title: '旧日记',
-      body: '较早正文',
-      scheduledFor: day,
-      data: {'completedToday': '早期完成'},
-    );
-    await controller.addRecord(older);
-    await Future<void>.delayed(const Duration(milliseconds: 1));
-    final newer = WorkspaceRecord.create(
-      kind: RecordKind.diary,
-      title: '最新日记',
-      body: '最新正文',
-      scheduledFor: day,
-      data: {
-        'completedToday': '完成实验',
-        'blockers': '设备等待',
-        'tomorrowPlan': '整理数据',
-        'mood': 4,
-      },
-    );
-    await controller.addRecord(newer);
+  test(
+    'daily review reads newest diary draft and preserves legacy record',
+    () async {
+      final controller = _controller(now);
+      addTearDown(controller.dispose);
+      final day = DateTime(2026, 8, 9);
+      final older = WorkspaceRecord.create(
+        kind: RecordKind.diary,
+        title: '旧日记',
+        body: '较早正文',
+        scheduledFor: day,
+        data: {'completedToday': '早期完成'},
+      );
+      await controller.addRecord(older);
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+      final newer = WorkspaceRecord.create(
+        kind: RecordKind.diary,
+        title: '最新日记',
+        body: '最新正文',
+        scheduledFor: day,
+        data: {
+          'completedToday': '完成实验',
+          'blockers': '设备等待',
+          'tomorrowPlan': '整理数据',
+          'mood': 4,
+        },
+      );
+      await controller.addRecord(newer);
 
-    expect(controller.latestDiaryForDay(day)?.id, newer.id);
-    expect(controller.dailyReviewSourceForDay(day)?.id, newer.id);
-    final review = await controller.savePeriodReview(
-      type: ReviewPeriodType.daily,
-      periodKey: '2026-08-09',
-      periodStart: day,
-      periodEnd: day.add(const Duration(days: 1)),
-      title: newer.title,
-      body: newer.body,
-      mood: 4,
-      completedToday: '完成实验',
-      blockers: '设备等待',
-      tomorrowPlan: '整理数据',
-      legacyDiaryId: newer.id,
-    );
-    expect(review.kind, RecordKind.note);
-    expect(review.data['recordType'], 'periodReview');
-    expect(review.data['legacyDiaryId'], newer.id);
-    expect(review.data['migratedFrom'], 'diary');
-    expect(review.data['mood'], 4);
-    expect(controller.diaries, hasLength(2));
-    expect(controller.dailyReviewSourceForDay(day)?.id, review.id);
-  });
+      expect(controller.latestDiaryForDay(day)?.id, newer.id);
+      expect(controller.dailyReviewSourceForDay(day)?.id, newer.id);
+      final review = await controller.savePeriodReview(
+        type: ReviewPeriodType.daily,
+        periodKey: '2026-08-09',
+        periodStart: day,
+        periodEnd: day.add(const Duration(days: 1)),
+        title: newer.title,
+        body: newer.body,
+        mood: 4,
+        completedToday: '完成实验',
+        blockers: '设备等待',
+        tomorrowPlan: '整理数据',
+        legacyDiaryId: newer.id,
+      );
+      expect(review.kind, RecordKind.note);
+      expect(review.data['recordType'], 'periodReview');
+      expect(review.data['legacyDiaryId'], newer.id);
+      expect(review.data['migratedFrom'], 'diary');
+      expect(review.data['mood'], 4);
+      expect(controller.diaries, hasLength(2));
+      expect(controller.dailyReviewSourceForDay(day)?.id, review.id);
+    },
+  );
 
   test('period review snapshot changes only after explicit refresh', () async {
     final controller = _controller(now);

@@ -88,7 +88,7 @@ keyPassword=<本地保存的密钥密码>
 `apksigner` 验证签名；只有验证通过才会复制到项目 `build/` 目录。密钥库及密码应另行
 安全备份，不能只保存在项目工作区。
 
-Android 构建脚本会在 `%LOCALAPPDATA%\PersonalWorkbenchBuild\` 下创建指向当前源码的纯 ASCII 目录联接，再从该路径构建，规避中文工作区路径导致的 Gradle/MSBuild 编码问题。脚本还会把 Gradle 输出临时放到 ASCII 目录，并复制 APK 回 `build/app/outputs/flutter-apk/`；Release 仅在签名验证通过后复制。脚本不会复制、移动或覆盖源码；如需强制清理构建缓存，可增加 `-Clean` 参数。Android 脚本使用本机缓存的 Gradle 8.14 离线构建；首次使用前若缓存不存在，需要先在网络可用时运行一次 Gradle 下载。
+Windows 和 Android 构建脚本会把源码镜像到 `%LOCALAPPDATA%\PersonalWorkbenchBuild\` 下的纯 ASCII 暂存目录，再从该副本构建，规避中文工作区路径导致的 Gradle/MSBuild 编码问题。`build/`、`dist/`、`.git/` 等生成内容不会进入暂存副本；构建结果会复制回项目的标准输出目录。Android 脚本还会为 JDK/Gradle 使用短临时路径，避免 Windows AF_UNIX 回环通道的路径长度限制。Release 仅在签名验证通过后复制 APK。如需强制清理构建缓存，可增加 `-Clean` 参数。Android 脚本使用本机缓存的 Gradle 8.14 离线构建；首次使用前若缓存不存在，需要先在网络可用时运行一次 Gradle 下载。
 
 Android 使用 Material 3 底部导航，读取与桌面端一致的 v3 记录。全局“快速新增”可以写入任务、笔记、今日记录或链接；定时专注使用 Android 系统通知。
 Windows 侧栏按真实页面组织层级：任务和项目展开后显示各自的页面，回顾展开后显示日、周、月回顾；专注、自律、目标和行为是直接入口。Android 保留底部导航，并在“更多”抽屉中提供同样的页面树。Android 可以查看、编辑和同步限制规则，但明确不会结束 Windows 进程或修改 hosts。
@@ -160,7 +160,7 @@ python -m unittest discover -v
 
 ## 注意事项
 
-- Android 工具链无法正确处理中文工作区路径时，请使用 `tool/build_android.ps1` 从自动创建的 ASCII 目录联接构建，无需复制或移动源码。
+- Android 工具链无法正确处理中文工作区路径时，请使用 `tool/build_android.ps1` 从自动创建的 ASCII 暂存副本构建，无需手动复制或移动源码。
 - 本地数据库是当前运行设备的数据源，卸载应用前请先导出或备份。
 - Supabase 配置只使用公开客户端密钥，不要把服务端密钥写入应用或仓库。
 - Android 通知权限申请、通知渠道和即时通知已在连接的 PJA110 真机上验证；厂商后台策略仍可能影响长期驻后台的提醒到达时间。

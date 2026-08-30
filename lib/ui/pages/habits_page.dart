@@ -38,7 +38,7 @@ class HabitsPage extends StatelessWidget {
                   controller,
                   kind: RecordKind.habit,
                 ),
-                icon: const Icon(Icons.add),
+                icon: const _HabitAddIcon(),
                 label: const Text('新建习惯'),
               ),
             ],
@@ -52,13 +52,14 @@ class HabitsPage extends StatelessWidget {
                       icon: Icons.repeat,
                       title: '还没有习惯协议',
                       message: '从真正需要长期保持的一件小事开始。',
-                      action: FilledButton(
+                      action: FilledButton.icon(
                         onPressed: () => showRecordEditor(
                           context,
                           controller,
                           kind: RecordKind.habit,
                         ),
-                        child: const Text('创建习惯'),
+                        icon: const _HabitAddIcon(),
+                        label: const Text('创建习惯'),
                       ),
                     ),
                     ?protocolSection,
@@ -104,69 +105,131 @@ class _HabitMatrix extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final today = startOfDay(controller.currentTime());
+    final today = controller.growthService.logicalDay(controller.currentTime());
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     final cellSlot = compact ? 20.0 : 18.0;
     final days = List.generate(
       28,
       (index) => today.subtract(Duration(days: 27 - index)),
     );
-    return LogSurface(
-      padding: const EdgeInsets.all(14),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const SizedBox(width: 220),
-                for (final day in days)
-                  SizedBox(
-                    width: cellSlot,
-                    child: Center(
-                      child: NumericText(
-                        day.day % 7 == 1 ? '${day.day}' : '·',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: context.tokens.mutedText,
+    return Column(
+      children: [
+        for (final habit in habits)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _HabitLabel(
+                            habit: habit,
+                            controller: controller,
+                          ),
                         ),
+                        _TodayHabitButton(
+                          habit: habit,
+                          controller: controller,
+                          today: today,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final day in days)
+                            SizedBox(
+                              width: cellSlot,
+                              child: Center(
+                                child: NumericText(
+                                  day.day % 7 == 1 ? '${day.day}' : '·',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: context.tokens.mutedText,
+                                      ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            for (final habit in habits)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    _HabitLabel(habit: habit, controller: controller),
-                    for (final day in days)
-                      _HabitCell(
-                        label: '${habit.title}，${day.month}月${day.day}日',
-                        status: controller
-                            .habitLogForDay(habit.id, day)
-                            ?.status,
-                        isToday: isSameDay(day, today),
-                        onPressed: () {
-                          final status = controller
-                              .habitLogForDay(habit.id, day)
-                              ?.status;
-                          controller.logHabit(
-                            habit,
-                            day,
-                            status == WorkStatus.done
-                                ? WorkStatus.todo
-                                : WorkStatus.done,
-                          );
-                        },
+                    const SizedBox(height: 5),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final day in days)
+                            _HabitCell(
+                              label: '${habit.title}，${day.month}月${day.day}日',
+                              status: controller
+                                  .habitLogForDay(habit.id, day)
+                                  ?.status,
+                              isToday: isSameDay(day, today),
+                            ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _TodayHabitButton extends StatelessWidget {
+  const _TodayHabitButton({
+    required this.habit,
+    required this.controller,
+    required this.today,
+  });
+
+  final WorkspaceRecord habit;
+  final WorkbenchController controller;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    final log = controller.habitLogForDay(habit.id, today);
+    final checked = log?.status == WorkStatus.done;
+    final failed = log?.status == WorkStatus.failed;
+    final locked = habit.hasRsipProtocol && (!habit.rsipActive || failed);
+    return OutlinedButton.icon(
+      onPressed: locked
+          ? null
+          : () async {
+              try {
+                await controller.setHabitTodayStatus(
+                  habit,
+                  checked ? WorkStatus.todo : WorkStatus.done,
+                );
+              } on FormatException catch (error) {
+                if (!context.mounted) return;
+                showWorkbenchSnackBar(
+                  context,
+                  SnackBar(content: Text(error.message)),
+                );
+              }
+            },
+      icon: Icon(checked ? Icons.undo_outlined : Icons.check),
+      label: Text(
+        locked
+            ? failed
+                  ? '已失败'
+                  : '已熄灭'
+            : checked
+            ? '取消打卡'
+            : '今日打卡',
       ),
     );
   }
@@ -247,7 +310,9 @@ class _HabitLabel extends StatelessWidget {
                 if (value == 'fail') {
                   await controller.logHabit(
                     habit,
-                    startOfDay(controller.currentTime()),
+                    controller.growthService.logicalDay(
+                      controller.currentTime(),
+                    ),
                     WorkStatus.failed,
                   );
                 } else if (value == 'reactivate') {
@@ -294,12 +359,10 @@ class _HabitCell extends StatelessWidget {
     required this.label,
     required this.status,
     required this.isToday,
-    required this.onPressed,
   });
   final String label;
   final String? status;
   final bool isToday;
-  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +376,7 @@ class _HabitCell extends StatelessWidget {
       _ => unrecordedBorder,
     };
     return Semantics(
-      button: true,
+      button: false,
       label: switch (status) {
         WorkStatus.done => '$label，已完成',
         WorkStatus.skipped => '$label，已跳过',
@@ -321,7 +384,7 @@ class _HabitCell extends StatelessWidget {
         _ => '$label，未记录',
       },
       child: InkWell(
-        onTap: onPressed,
+        onTap: null,
         borderRadius: BorderRadius.circular(3),
         child: Container(
           width: cellSize,
@@ -351,6 +414,27 @@ class _HabitCell extends StatelessWidget {
                 )
               : null,
         ),
+      ),
+    );
+  }
+}
+
+class _HabitAddIcon extends StatelessWidget {
+  const _HabitAddIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.add,
+        size: 17,
+        color: Theme.of(context).colorScheme.primary,
       ),
     );
   }

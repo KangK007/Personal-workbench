@@ -3961,6 +3961,7 @@ class WorkbenchController extends ChangeNotifier {
     required String title,
     required bool sequential,
     int? timeLimitMinutes,
+    String? projectId,
   }) async {
     if (title.trim().isEmpty) {
       throw const FormatException('请填写任务群名称。');
@@ -3972,6 +3973,7 @@ class WorkbenchController extends ChangeNotifier {
     final group = WorkspaceRecord.create(
       kind: RecordKind.template,
       title: title.trim(),
+      projectId: projectId,
       data: {
         'recordType': 'taskGroup',
         'mode': sequential ? 'sequential' : 'parallel',
@@ -3988,6 +3990,7 @@ class WorkbenchController extends ChangeNotifier {
     required String title,
     required bool sequential,
     required int? timeLimitMinutes,
+    String? projectId,
   }) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) {
@@ -4005,6 +4008,7 @@ class WorkbenchController extends ChangeNotifier {
     }
     final updated = current.copyWith(
       title: trimmed,
+      projectId: projectId,
       data: {
         ...current.data,
         'recordType': 'taskGroup',
@@ -5557,6 +5561,13 @@ class WorkbenchController extends ChangeNotifier {
     String tomorrowPlan = '',
     String? legacyDiaryId,
   }) async {
+    final currentPeriod = reviewPeriodFor(
+      type,
+      growthService.logicalDay(currentTime()),
+    );
+    if (periodStart.isAfter(currentPeriod.start)) {
+      throw const FormatException('不能创建或修改未来周期的回顾。');
+    }
     final existing = reviewForPeriod(type, periodKey);
     if (type == ReviewPeriodType.yearly && existing == null) {
       throw const FormatException('年回顾仅用于读取旧数据，不能新建。');
@@ -5890,6 +5901,17 @@ class WorkbenchController extends ChangeNotifier {
         title: habit.title,
       );
     }
+  }
+
+  Future<void> setHabitTodayStatus(WorkspaceRecord habit, String status) async {
+    final logicalToday = growthService.logicalDay(currentTime());
+    if (habit.hasRsipProtocol &&
+        (!habit.rsipActive ||
+            habitLogForDay(habit.id, logicalToday)?.status ==
+                WorkStatus.failed)) {
+      throw const FormatException('该 RSIP 节点当前不可修改打卡。');
+    }
+    await logHabit(habit, logicalToday, status);
   }
 
   Future<void> reactivateRsipHabit(WorkspaceRecord habit) async {

@@ -15,6 +15,7 @@ import 'pages/goals_page.dart';
 import 'pages/habits_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/plan_page.dart';
+import 'pages/inbox_page.dart';
 import 'pages/policies_page.dart';
 import 'pages/projects_page.dart';
 import 'pages/protocols_page.dart';
@@ -181,9 +182,11 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
-        final width = MediaQuery.sizeOf(context).width;
-        final compact = width < AppBreakpoints.compact;
-        final compactNavigation = width < AppBreakpoints.expanded;
+        final size = MediaQuery.sizeOf(context);
+        final compact =
+            size.width < AppBreakpoints.compact ||
+            size.height < AppBreakpoints.compactHeight;
+        final compactNavigation = size.width < AppBreakpoints.expanded;
         return CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
@@ -466,7 +469,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       ProjectsPage(
         key: ValueKey(value),
         controller: widget.controller,
-        initialTab: tab,
+        initialTab: ProjectDetailTab.overview,
         showHeader: _showPageHeader,
         showTabs: false,
         selectedProjectId: selectedProjectId,
@@ -474,14 +477,15 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           if (selectedProjectId != id) setState(() => selectedProjectId = id);
         },
         onOpenGoals: () => _select(WorkbenchSection.goals),
+        onOpenReview: () => _select(WorkbenchSection.reviewDaily),
       );
 
   Widget _reviewPage(WorkbenchSection value, ReviewTab tab) => ReviewPage(
     key: ValueKey(value),
     controller: widget.controller,
-    initialTab: tab,
+    initialTab: ReviewTab.diary,
     showHeader: _showPageHeader,
-    showPeriodSwitcher: false,
+    showPeriodSwitcher: true,
   );
 
   Widget _policyPage(WorkbenchSection value, PolicyTab tab) => PoliciesPage(
@@ -501,28 +505,22 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       onOpenReview: () => _select(WorkbenchSection.reviewDaily),
     ),
     WorkbenchSection.tasksAll => _planPage(value, PlanTab.all),
-    WorkbenchSection.tasksInbox => _planPage(value, PlanTab.inbox),
+    WorkbenchSection.tasksInbox => InboxPage(
+      controller: widget.controller,
+      showHeader: _showPageHeader,
+    ),
     WorkbenchSection.tasksWeek => _planPage(value, PlanTab.week),
     WorkbenchSection.tasksGroups => _planPage(value, PlanTab.groups),
     WorkbenchSection.projectsOverview => _projectPage(
       value,
       ProjectDetailTab.overview,
     ),
-    WorkbenchSection.projectsTasks => _projectPage(
-      value,
-      ProjectDetailTab.tasks,
-    ),
-    WorkbenchSection.projectsGroups => _projectPage(
-      value,
-      ProjectDetailTab.groups,
-    ),
-    WorkbenchSection.projectsMilestones => _projectPage(
-      value,
-      ProjectDetailTab.milestones,
-    ),
+    WorkbenchSection.projectsTasks ||
+    WorkbenchSection.projectsGroups ||
+    WorkbenchSection.projectsMilestones ||
     WorkbenchSection.projectsNotes => _projectPage(
       value,
-      ProjectDetailTab.notes,
+      ProjectDetailTab.overview,
     ),
     WorkbenchSection.focus => FocusHubPage(
       controller: widget.controller,
@@ -652,6 +650,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     await showWorkbenchSheet<void>(
       context: context,
       useSafeArea: true,
+      isScrollControlled: true,
       builder: (context) => _MobileNavigationSheet(
         selected: section,
         controller: widget.controller,
@@ -731,11 +730,6 @@ const _navigationTree = [
       Icons.checklist_outlined,
     ),
     _NavigationNode.leaf(
-      WorkbenchSection.tasksInbox,
-      '收件箱',
-      Icons.inbox_outlined,
-    ),
-    _NavigationNode.leaf(
       WorkbenchSection.tasksWeek,
       '周视图',
       Icons.calendar_view_week_outlined,
@@ -746,33 +740,16 @@ const _navigationTree = [
       Icons.account_tree_outlined,
     ),
   ]),
-  _NavigationNode.parent('projects', '项目', Icons.folder_outlined, [
-    _NavigationNode.leaf(
-      WorkbenchSection.projectsOverview,
-      '概览',
-      Icons.dashboard_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.projectsTasks,
-      '任务',
-      Icons.checklist_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.projectsGroups,
-      '任务群',
-      Icons.account_tree_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.projectsMilestones,
-      '里程碑',
-      Icons.flag_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.projectsNotes,
-      '笔记与回顾',
-      Icons.library_books_outlined,
-    ),
-  ]),
+  _NavigationNode.leaf(
+    WorkbenchSection.projectsOverview,
+    '项目',
+    Icons.folder_outlined,
+  ),
+  _NavigationNode.leaf(
+    WorkbenchSection.tasksInbox,
+    '收件箱',
+    Icons.inbox_outlined,
+  ),
   _NavigationNode.leaf(WorkbenchSection.focus, '专注', Icons.timer_outlined),
   _NavigationNode.leaf(
     WorkbenchSection.restriction,
@@ -780,23 +757,11 @@ const _navigationTree = [
     Icons.shield_outlined,
   ),
   _NavigationNode.leaf(WorkbenchSection.notes, '笔记', Icons.note_alt_outlined),
-  _NavigationNode.parent('review', '回顾', Icons.insights_outlined, [
-    _NavigationNode.leaf(
-      WorkbenchSection.reviewDaily,
-      '日回顾',
-      Icons.today_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.reviewWeekly,
-      '周回顾',
-      Icons.date_range_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.reviewMonthly,
-      '月回顾',
-      Icons.calendar_month_outlined,
-    ),
-  ]),
+  _NavigationNode.leaf(
+    WorkbenchSection.reviewDaily,
+    '回顾',
+    Icons.insights_outlined,
+  ),
   _NavigationNode.leaf(WorkbenchSection.goals, '目标', Icons.flag_outlined),
   _NavigationNode.leaf(
     WorkbenchSection.behavior,
@@ -817,17 +782,13 @@ const _navigationTree = [
 
 String? _navigationParentId(WorkbenchSection value) => switch (value) {
   WorkbenchSection.tasksAll ||
-  WorkbenchSection.tasksInbox ||
   WorkbenchSection.tasksWeek ||
   WorkbenchSection.tasksGroups => 'tasks',
-  WorkbenchSection.projectsOverview ||
   WorkbenchSection.projectsTasks ||
   WorkbenchSection.projectsGroups ||
   WorkbenchSection.projectsMilestones ||
   WorkbenchSection.projectsNotes => 'projects',
-  WorkbenchSection.reviewDaily ||
-  WorkbenchSection.reviewWeekly ||
-  WorkbenchSection.reviewMonthly => 'review',
+  WorkbenchSection.reviewWeekly || WorkbenchSection.reviewMonthly => 'review',
   _ => null,
 };
 
@@ -1293,50 +1254,52 @@ class _MobileNavigationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      shrinkWrap: true,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-      children: [
-        for (final node in _navigationTree)
-          if (node.isLeaf)
-            ListTile(
-              key: ValueKey('navigation-leaf:${node.section!.name}'),
-              selected: node.section == selected,
-              leading: Icon(node.icon, size: AppIconSize.sm),
-              title: Text(node.label),
-              onTap: () => onSelected(node.section!),
-            )
-          else
-            ExpansionTile(
-              key: ValueKey('navigation-group:${node.id}'),
-              initiallyExpanded: controller.navigationGroupExpanded(node.id!),
-              leading: Icon(node.icon),
-              title: Text(node.label),
-              onExpansionChanged: (expanded) {
-                controller.setNavigationGroupExpanded(node.id!, expanded);
-                final containsSelected = node.children.any(
-                  (child) => child.section == selected,
-                );
-                if (!containsSelected) {
-                  onParentSelected(node.children.first.section!);
-                }
-              },
-              children: [
-                for (final child in node.children)
-                  ListTile(
-                    key: ValueKey('navigation-leaf:${child.section!.name}'),
-                    contentPadding: const EdgeInsetsDirectional.only(
-                      start: 32,
-                      end: 8,
+    return SizedBox(
+      height: (MediaQuery.sizeOf(context).height * 0.75).clamp(320.0, 560.0),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        children: [
+          for (final node in _navigationTree)
+            if (node.isLeaf)
+              ListTile(
+                key: ValueKey('navigation-leaf:${node.section!.name}'),
+                selected: node.section == selected,
+                leading: Icon(node.icon, size: AppIconSize.sm),
+                title: Text(node.label),
+                onTap: () => onSelected(node.section!),
+              )
+            else
+              ExpansionTile(
+                key: ValueKey('navigation-group:${node.id}'),
+                initiallyExpanded: controller.navigationGroupExpanded(node.id!),
+                leading: Icon(node.icon),
+                title: Text(node.label),
+                onExpansionChanged: (expanded) {
+                  controller.setNavigationGroupExpanded(node.id!, expanded);
+                  final containsSelected = node.children.any(
+                    (child) => child.section == selected,
+                  );
+                  if (!containsSelected) {
+                    onParentSelected(node.children.first.section!);
+                  }
+                },
+                children: [
+                  for (final child in node.children)
+                    ListTile(
+                      key: ValueKey('navigation-leaf:${child.section!.name}'),
+                      contentPadding: const EdgeInsetsDirectional.only(
+                        start: 32,
+                        end: 8,
+                      ),
+                      selected: child.section == selected,
+                      leading: Icon(child.icon, size: AppIconSize.sm),
+                      title: Text(child.label),
+                      onTap: () => onSelected(child.section!),
                     ),
-                    selected: child.section == selected,
-                    leading: Icon(child.icon, size: AppIconSize.sm),
-                    title: Text(child.label),
-                    onTap: () => onSelected(child.section!),
-                  ),
-              ],
-            ),
-      ],
+                ],
+              ),
+        ],
+      ),
     );
   }
 }

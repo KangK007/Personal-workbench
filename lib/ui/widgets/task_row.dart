@@ -2,12 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
-import '../../core/utils/formatters.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/workbench_controller.dart';
 import '../platform_feedback.dart';
 import 'record_editor_dialog.dart';
 import 'common.dart';
+import 'task_hierarchy.dart';
 
 class TaskRow extends StatelessWidget {
   const TaskRow({
@@ -22,6 +22,11 @@ class TaskRow extends StatelessWidget {
     this.selectionMode = false,
     this.selected = false,
     this.onSelectionChanged,
+    this.hierarchyDepth = 0,
+    this.hasChildren = false,
+    this.expanded = true,
+    this.onToggleExpanded,
+    this.relationInfo,
   });
 
   final WorkspaceRecord task;
@@ -34,11 +39,18 @@ class TaskRow extends StatelessWidget {
   final bool selectionMode;
   final bool selected;
   final ValueChanged<bool>? onSelectionChanged;
+  final int hierarchyDepth;
+  final bool hasChildren;
+  final bool expanded;
+  final VoidCallback? onToggleExpanded;
+  final TaskRelationInfo? relationInfo;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final project = controller.projectById(task.projectId);
+    final relation =
+        relationInfo ?? taskRelationInfo(task, controller.allRecords);
     return PressScale(
       pressedScale: 0.985,
       child: AnimatedSize(
@@ -76,6 +88,36 @@ class TaskRow extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (hierarchyDepth > 0)
+                      SizedBox(
+                        width: (hierarchyDepth * 20).clamp(0, 80).toDouble(),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: Container(
+                            width: 1,
+                            margin: const EdgeInsetsDirectional.only(end: 8),
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                      ),
+                    if (hasChildren || hierarchyDepth > 0)
+                      SizedBox.square(
+                        dimension: 40,
+                        child: hasChildren
+                            ? IconButton(
+                                onPressed: onToggleExpanded,
+                                tooltip: expanded ? '收起子任务' : '展开子任务',
+                                icon: Icon(
+                                  expanded
+                                      ? Icons.expand_more
+                                      : Icons.chevron_right,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.subdirectory_arrow_right,
+                                size: 18,
+                              ),
+                      ),
                     if (commitmentIndex != null) ...[
                       // 状态强调条（v2 规范）：done=primary@30%，进行中=primary。
                       Container(
@@ -213,25 +255,42 @@ class TaskRow extends StatelessWidget {
                                 ],
                               ),
                             ],
-                            if (!dense &&
-                                (task.scheduledFor != null ||
-                                    task.estimatedMinutes > 0 ||
-                                    task.hasCtdpProtocol ||
-                                    (showProject && project != null))) ...[
+                            if (relation.label != null) ...[
+                              const SizedBox(height: 4),
+                              _RelationLabel(relation: relation),
+                            ],
+                            const SizedBox(height: 5),
+                            Wrap(
+                              spacing: dense ? 6 : 8,
+                              runSpacing: 4,
+                              children: [
+                                _Meta(
+                                  icon: Icons.date_range_outlined,
+                                  label:
+                                      '安排 ${_dateLabel(task.scheduledFor, empty: '未安排')} → 截止 ${_dateLabel(task.dueAt, empty: '无截止')}',
+                                ),
+                                _Meta(
+                                  icon: _statusIcon(task.status),
+                                  label: '状态 ${statusLabel(task.status)}',
+                                ),
+                                _Meta(
+                                  icon: Icons.flag_outlined,
+                                  label: '优先级 ${_priorityLabel(task.priority)}',
+                                ),
+                                _Meta(
+                                  icon: Icons.repeat_outlined,
+                                  label: '循环 ${_recurrenceLabel(task)}',
+                                ),
+                              ],
+                            ),
+                            if (task.estimatedMinutes > 0 ||
+                                task.hasCtdpProtocol ||
+                                (showProject && project != null)) ...[
                               const SizedBox(height: 5),
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 4,
                                 children: [
-                                  if (task.scheduledFor != null)
-                                    _Meta(
-                                      icon: Icons.schedule,
-                                      label:
-                                          task.scheduledFor!.hour == 0 &&
-                                              task.scheduledFor!.minute == 0
-                                          ? formatShortDate(task.scheduledFor!)
-                                          : '${formatShortDate(task.scheduledFor!)} ${formatTime(task.scheduledFor!)}',
-                                    ),
                                   if ((task.hasCtdpProtocol
                                           ? task.ctdpSessionMinutes
                                           : task.estimatedMinutes) >
@@ -483,16 +542,52 @@ class _Meta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return SizedBox(
+      width: 180,
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RelationLabel extends StatelessWidget {
+  const _RelationLabel({required this.relation});
+
+  final TaskRelationInfo relation;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = relation.isWarning
+        ? Theme.of(context).colorScheme.error
+        : Theme.of(context).colorScheme.onSurfaceVariant;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: color),
+        Icon(
+          relation.isWarning
+              ? Icons.warning_amber_outlined
+              : Icons.subdirectory_arrow_right,
+          size: 14,
+          color: color,
+        ),
         const SizedBox(width: 4),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 150),
+        Flexible(
           child: Text(
-            label,
-            overflow: TextOverflow.ellipsis,
+            relation.label!,
             style: Theme.of(
               context,
             ).textTheme.labelMedium?.copyWith(color: color),
@@ -502,3 +597,57 @@ class _Meta extends StatelessWidget {
     );
   }
 }
+
+String _dateLabel(DateTime? value, {required String empty}) {
+  if (value == null) return empty;
+  final date = '${value.month}月${value.day}日';
+  return value.hour == 0 && value.minute == 0
+      ? date
+      : '$date ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+}
+
+String _priorityLabel(int priority) => switch (priority) {
+  1 => '低',
+  2 => '中',
+  3 => '高',
+  _ => '普通',
+};
+
+IconData _statusIcon(String status) => switch (status) {
+  WorkStatus.done => Icons.check_circle_outline,
+  WorkStatus.doing => Icons.play_circle_outline,
+  WorkStatus.failed => Icons.error_outline,
+  WorkStatus.skipped => Icons.skip_next_outlined,
+  WorkStatus.rescheduled => Icons.event_repeat_outlined,
+  WorkStatus.cancelled => Icons.cancel_outlined,
+  WorkStatus.inbox => Icons.inbox_outlined,
+  _ => Icons.radio_button_unchecked,
+};
+
+String _recurrenceLabel(WorkspaceRecord task) {
+  final definition = TaskDefinition.fromRecord(task);
+  final base = switch (definition.recurrence) {
+    RecurrenceType.none => '不循环',
+    RecurrenceType.daily => '每天',
+    RecurrenceType.weekdays => '工作日',
+    RecurrenceType.weekly =>
+      definition.weekdays.isEmpty
+          ? '每周'
+          : '每周（${definition.weekdays.map(_weekdayLabel).join('、')}）',
+    RecurrenceType.monthly => '每月',
+    RecurrenceType.yearly => '每年',
+  };
+  final end = definition.endAt;
+  return end == null ? base : '$base，至 ${end.month}月${end.day}日';
+}
+
+String _weekdayLabel(int value) => switch (value) {
+  DateTime.monday => '一',
+  DateTime.tuesday => '二',
+  DateTime.wednesday => '三',
+  DateTime.thursday => '四',
+  DateTime.friday => '五',
+  DateTime.saturday => '六',
+  DateTime.sunday => '日',
+  _ => '?',
+};

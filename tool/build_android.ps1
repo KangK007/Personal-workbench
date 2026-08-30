@@ -24,39 +24,32 @@ try {
     $sha256.Dispose()
 }
 $projectKey = -join ($digest[0..5] | ForEach-Object { $_.ToString('x2') })
-$buildBase = Join-Path $env:SystemDrive 'Temp\PersonalWorkbenchBuild'
-$aliasRoot = Join-Path $buildBase $projectKey
-$buildSource = Join-Path $aliasRoot 'source'
-$buildTemp = Join-Path $aliasRoot 'temp'
-$buildBasePath = [System.IO.Path]::GetFullPath($buildBase).TrimEnd('\') + '\'
-$buildSourcePath = [System.IO.Path]::GetFullPath($buildSource)
-if (-not $buildSourcePath.StartsWith(
-        $buildBasePath,
+$aliasRoot = Join-Path $env:LOCALAPPDATA "PersonalWorkbenchBuild\$projectKey"
+$sourceCopy = Join-Path $aliasRoot 'source-copy'
+New-Item -ItemType Directory -Force -Path $aliasRoot | Out-Null
+$resolvedCacheBase = [System.IO.Path]::GetFullPath(
+    (Join-Path $env:LOCALAPPDATA 'PersonalWorkbenchBuild')
+).TrimEnd('\')
+$resolvedSourceCopy = [System.IO.Path]::GetFullPath($sourceCopy)
+if (-not $resolvedSourceCopy.StartsWith(
+        "$resolvedCacheBase\",
         [System.StringComparison]::OrdinalIgnoreCase
     )) {
-    throw "Build source is outside the managed temporary directory: $buildSource"
+    throw 'The ASCII build source path validation failed.'
 }
-
-New-Item -ItemType Directory -Force -Path $aliasRoot, $buildTemp | Out-Null
-
-# Java 21 uses a local IPC pipe while Gradle starts its single-use daemon.
-# Keep that pipe in the short, local build directory instead of the host temp path.
-$env:TEMP = $buildTemp
-$env:TMP = $buildTemp
-
-if (Test-Path -LiteralPath $buildSource) {
-    $existingBuildSource = Get-Item -LiteralPath $buildSource -Force
-    if ($existingBuildSource.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
-        throw "Refusing to replace a linked build source directory: $buildSource"
+if (Test-Path -LiteralPath $sourceCopy) {
+    $existingSourceCopy = Get-Item -LiteralPath $sourceCopy -Force
+    if ($existingSourceCopy.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        throw "Refusing to replace a linked build source directory: $sourceCopy"
     }
-    Remove-Item -LiteralPath $buildSource -Recurse -Force
+    Remove-Item -LiteralPath $sourceCopy -Recurse -Force
 }
-New-Item -ItemType Directory -Force -Path $buildSource | Out-Null
+New-Item -ItemType Directory -Force -Path $sourceCopy | Out-Null
 
 $copyArguments = @(
     $projectRoot,
-    $buildSource,
-    '/E',
+    $sourceCopy,
+    '/E', '/R:2', '/W:1',
     '/XD', '.git', '.dart_tool', 'build', 'dist', 'coverage',
     '.idea', '.vscode',
     (Join-Path $projectRoot 'raw'),
@@ -64,12 +57,13 @@ $copyArguments = @(
     (Join-Path $projectRoot 'original'),
     (Join-Path $projectRoot 'experiment'),
     (Join-Path $projectRoot 'measurements'),
-    '/XF', 'flutter_*.log',
+    '/XF', '.git', 'flutter_*.log',
     '/NFL', '/NDL', '/NJH', '/NJS', '/NP'
 )
-& robocopy @copyArguments | Out-Null
-if ($LASTEXITCODE -ge 8) {
-    throw "Source copy failed with robocopy exit code $LASTEXITCODE"
+& robocopy.exe @copyArguments | Out-Null
+$sourceCopyExitCode = $LASTEXITCODE
+if ($sourceCopyExitCode -ge 8) {
+    throw "Source staging failed with robocopy exit code $sourceCopyExitCode"
 }
 
 $javaCandidates = @(
@@ -84,7 +78,7 @@ if (-not $javaHome) {
 }
 $env:JAVA_HOME = (Resolve-Path -LiteralPath $javaHome).Path
 $env:PERSONAL_WORKBENCH_BUILD_ROOT = Join-Path $aliasRoot 'build'
-$env:PERSONAL_WORKBENCH_SOURCE_ROOT = $buildSource
+$env:PERSONAL_WORKBENCH_SOURCE_ROOT = $sourceCopy
 
 $gradleCacheRoot = Join-Path $env:USERPROFILE '.gradle\wrapper\dists\gradle-8.14-bin'
 $gradle = Get-ChildItem -LiteralPath $gradleCacheRoot -Filter 'gradle.bat' -File -Recurse -ErrorAction SilentlyContinue |
@@ -100,7 +94,7 @@ $gradleTask = switch ($Configuration) {
     'release' { 'assembleRelease' }
 }
 
-Push-Location -LiteralPath $buildSource
+Push-Location -LiteralPath $sourceCopy
 try {
     if ($Clean.IsPresent) {
         & flutter clean
@@ -131,7 +125,7 @@ try {
         throw "Android build number must be a positive integer: $versionCode"
     }
 
-    $localPropertiesPath = Join-Path $buildSource 'android\local.properties'
+    $localPropertiesPath = Join-Path $sourceCopy 'android\local.properties'
     $localProperties = ConvertFrom-StringData (
         Get-Content -Raw -LiteralPath $localPropertiesPath
     )
@@ -150,11 +144,23 @@ try {
         [System.Text.UTF8Encoding]::new($false)
     )
 
-    Push-Location -LiteralPath (Join-Path $buildSource 'android')
+    Push-Location -LiteralPath (Join-Path $sourceCopy 'android')
     try {
-        & $gradle.FullName $gradleTask '--offline' '--no-daemon' '--stacktrace'
-        if ($LASTEXITCODE -ne 0) {
-            throw "Gradle $gradleTask failed with exit code $LASTEXITCODE"
+        $shortTemp = Join-Path $env:SystemDrive "PWBTemp\$projectKey"
+        New-Item -ItemType Directory -Force -Path $shortTemp | Out-Null
+        $previousTemp = $env:TEMP
+        $previousTmp = $env:TMP
+        try {
+            $env:TEMP = $shortTemp
+            $env:TMP = $shortTemp
+            & $gradle.FullName $gradleTask '--offline' '--no-daemon' '--stacktrace'
+            $gradleExitCode = $LASTEXITCODE
+        } finally {
+            [Environment]::SetEnvironmentVariable('TEMP', $previousTemp, 'Process')
+            [Environment]::SetEnvironmentVariable('TMP', $previousTmp, 'Process')
+        }
+        if ($gradleExitCode -ne 0) {
+            throw "Gradle $gradleTask failed with exit code $gradleExitCode"
         }
     } finally {
         Pop-Location
