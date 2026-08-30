@@ -373,6 +373,7 @@ Future<void> _showPresetEditor(
                 ExternalField(
                   label: '计时模式',
                   child: DropdownButtonFormField<FocusMode>(
+                    isExpanded: true,
                     initialValue: mode,
                     decoration: const InputDecoration(),
                     items: const [
@@ -404,6 +405,7 @@ Future<void> _showPresetEditor(
                 ExternalField(
                   label: '主任务（可空）',
                   child: DropdownButtonFormField<String?>(
+                    isExpanded: true,
                     initialValue: taskId,
                     decoration: const InputDecoration(),
                     items: [
@@ -421,6 +423,7 @@ Future<void> _showPresetEditor(
                 ExternalField(
                   label: '应用检测模式',
                   child: DropdownButtonFormField<String>(
+                    isExpanded: true,
                     initialValue: listMode,
                     decoration: const InputDecoration(),
                     items: const [
@@ -455,6 +458,7 @@ Future<void> _showPresetEditor(
                 ExternalField(
                   label: '定时启动提醒',
                   child: DropdownButtonFormField<String>(
+                    isExpanded: true,
                     initialValue: scheduleMode,
                     decoration: const InputDecoration(),
                     items: const [

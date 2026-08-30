@@ -378,7 +378,7 @@ def add_cover(doc: Document) -> None:
         ("Windows 与 Android", 11, True),
         ("版本 0.1.0+4", 10, False),
         ("依据实际代码、完整测试矩阵和真实运行界面编制", 10, False),
-        ("验证日期：2026-08-29", 10, False),
+        ("验证日期：2026-08-30", 10, False),
     ):
         paragraph = doc.add_paragraph()
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER

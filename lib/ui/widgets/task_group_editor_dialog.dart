@@ -92,6 +92,7 @@ class _TaskGroupEditorDialogState extends State<TaskGroupEditorDialog> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: projectId,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: '主项目（可选）'),
                   items: [
                     const DropdownMenuItem(value: '', child: Text('未归属')),
@@ -148,6 +149,9 @@ class _TaskGroupEditorDialogState extends State<TaskGroupEditorDialog> {
             ),
           ),
         ),
+        actionsOverflowDirection: VerticalDirection.down,
+        actionsOverflowAlignment: OverflowBarAlignment.end,
+        actionsOverflowButtonSpacing: 8,
         actions: [
           TextButton(
             onPressed: saving ? null : () => Navigator.pop(context),

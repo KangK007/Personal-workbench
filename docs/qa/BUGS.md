@@ -434,6 +434,72 @@
 
 状态：VERIFIED
 
+## BUG-014
+
+模块：专注预设
+页面：新建/编辑专注预设 Dialog
+严重程度：P1
+类型：UI / Responsive / Accessibility
+
+复现步骤：
+
+1. 将窗口设为 `375×812`。
+2. 打开“专注”，点击“新建专注预设”。
+3. 使用 `Tab` 让 Dialog 内的下拉字段获得键盘焦点。
+
+预期：所有字段在最小宽度保持完整，焦点可见且不产生布局异常。
+
+实际：`DropdownButtonFormField` 的 `InputDecorator` 内部 Row 在右侧溢出 3px；默认页面截图和仅 100ms 的布局测试未触发该状态。
+
+根本原因：专注预设 Dialog 的 4 个下拉字段未启用 `isExpanded`，窄宽下选中项、内边距与箭头无法共同收缩。
+
+修改文件：
+
+- `lib/ui/pages/focus_page.dart`
+- `test/ui_audit_screenshot_test.dart`
+
+修复方式：4 个下拉字段统一设置 `isExpanded: true`；保留原字段值、选项和业务逻辑。
+
+验证方式：在 `375×812` 打开 Dialog，连续 Tab 遍历焦点，逐个打开 4 个下拉菜单并用 Esc 关闭；再运行全部页面的 Hover/Pressed/Focus 三尺寸矩阵。
+
+回归结果：等待定向测试与完整矩阵复验。
+
+状态：FIX IN PROGRESS
+
+## BUG-015
+
+模块：共享 Dialog
+
+页面：任务、任务群、关联选择、笔记、搜索及其他使用统一 Dialog 入口的页面
+
+严重程度：P2
+
+类型：UX / Accessibility / Keyboard
+
+复现步骤：
+
+1. 使用键盘打开任意普通编辑 Dialog。
+2. 在 Dialog 内按 `Esc`。
+
+预期：未保存且未处于锁定状态的 Dialog 关闭；保存中的任务群 Dialog 继续由现有 `PopScope` 阻止关闭。
+
+实际：`showWorkbenchDialog` 基于 `showGeneralDialog`，没有统一注册 `Esc` 关闭动作；只有自行处理键盘事件的少数弹层能够关闭。
+
+根本原因：共享 Dialog 入口没有把 `LogicalKeyboardKey.escape` 映射到当前 Navigator 的 `maybePop()`。
+
+修改文件：
+
+- `lib/ui/widgets/common.dart`
+- `test/ui_audit_screenshot_test.dart`
+
+修复方式：在共享 Dialog 内容外增加 `CallbackShortcuts`，将 `Esc` 映射为 `Navigator.maybePop()`；保留各 Dialog 的 `PopScope` 关闭策略。
+
+验证方式：在 `375×812`、`375×812 + 200%`、`1200×864` 和 `1536×864` 下，对任务、任务群、关联选择、笔记、全局搜索、快捷录入逐一执行打开、Tab 焦点与 Esc 关闭。
+
+回归结果：等待共享 Dialog 矩阵与完整回归复验。
+
+状态：FIX IN PROGRESS
+
 ## 已知发布风险（非本轮直接修复）
 
 ### RISK-001：依赖已停用

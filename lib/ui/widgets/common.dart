@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
@@ -76,7 +77,14 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
 }) {
   return showGeneralDialog<T>(
     context: context,
-    pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+    pageBuilder: (context, animation, secondaryAnimation) => CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          Navigator.of(context).maybePop();
+        },
+      },
+      child: builder(context),
+    ),
     barrierDismissible: barrierDismissible,
     barrierColor:
         barrierColor ??

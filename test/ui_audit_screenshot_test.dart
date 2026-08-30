@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +34,12 @@ import 'package:personal_workbench/ui/pages/review_page.dart';
 import 'package:personal_workbench/ui/pages/restriction_page.dart';
 import 'package:personal_workbench/ui/pages/settings_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
+import 'package:personal_workbench/ui/widgets/global_search_dialog.dart';
+import 'package:personal_workbench/ui/widgets/markdown_editor_dialog.dart';
+import 'package:personal_workbench/ui/widgets/quick_capture_sheet.dart';
+import 'package:personal_workbench/ui/widgets/record_editor_dialog.dart';
+import 'package:personal_workbench/ui/widgets/relation_picker_dialog.dart';
+import 'package:personal_workbench/ui/widgets/task_group_editor_dialog.dart';
 
 class _MemoryDatabase extends AppDatabase {
   final Map<String, WorkspaceRecord> records = {};
@@ -281,6 +289,210 @@ Widget _host(
       );
     },
     home: Scaffold(body: page),
+  );
+}
+
+Finder _enabledAuditControls() => find.byWidgetPredicate((widget) {
+  if (widget is ButtonStyleButton) return widget.onPressed != null;
+  if (widget is IconButton) return widget.onPressed != null;
+  if (widget is FloatingActionButton) return widget.onPressed != null;
+  if (widget is InkWell) return widget.onTap != null;
+  if (widget is ListTile) return widget.onTap != null;
+  return false;
+}).hitTestable();
+
+Finder _openableMenuControls() => find.byWidgetPredicate((widget) {
+  if (widget is PopupMenuButton) return widget.enabled;
+  if (widget.runtimeType.toString().startsWith('DropdownButton<')) return true;
+  return false;
+}).hitTestable();
+
+Future<void> _verifyInteractiveStates(
+  WidgetTester tester,
+  _AuditSurface surface,
+  Size size,
+) async {
+  await _verifySurface(tester, surface, size, scenario: 'interaction-states');
+
+  final controls = _enabledAuditControls();
+  if (controls.evaluate().isEmpty) {
+    expect(
+      surface.name,
+      'growth',
+      reason: '${surface.name} unexpectedly has no enabled control at $size',
+    );
+    return;
+  }
+  expect(
+    controls,
+    findsWidgets,
+    reason: '${surface.name} exposes no enabled control at $size',
+  );
+  final target = controls.first;
+  final originalRect = tester.getRect(target);
+
+  final mouse = await tester.createGesture(kind: ui.PointerDeviceKind.mouse);
+  await mouse.addPointer();
+  await mouse.moveTo(originalRect.center);
+  await tester.pump(const Duration(milliseconds: 180));
+  expect(
+    tester.getRect(target),
+    originalRect,
+    reason: '${surface.name} hover changes layout geometry at $size',
+  );
+  expect(
+    tester.takeException(),
+    isNull,
+    reason: '${surface.name} failed during hover at $size',
+  );
+
+  await mouse.down(originalRect.center);
+  await tester.pump(const Duration(milliseconds: 60));
+  expect(
+    tester.getRect(target),
+    originalRect,
+    reason: '${surface.name} press changes layout geometry at $size',
+  );
+  expect(
+    tester.takeException(),
+    isNull,
+    reason: '${surface.name} failed during press at $size',
+  );
+  await mouse.cancel();
+  await mouse.removePointer();
+  await tester.pump(const Duration(milliseconds: 180));
+  expect(
+    tester.takeException(),
+    isNull,
+    reason: '${surface.name} failed after leaving the pressed state at $size',
+  );
+
+  FocusManager.instance.primaryFocus?.unfocus();
+  await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+  await tester.pump(const Duration(milliseconds: 180));
+  final focusedNode = FocusManager.instance.primaryFocus;
+  expect(
+    focusedNode?.context,
+    isNotNull,
+    reason: '${surface.name} cannot receive keyboard focus at $size',
+  );
+  final focusException = tester.takeException();
+  expect(
+    focusException,
+    isNull,
+    reason:
+        '${surface.name} failed during pointer/keyboard states at $size; '
+        'focused=${focusedNode?.debugLabel}/'
+        '${focusedNode?.context?.widget.runtimeType}',
+  );
+}
+
+Future<void> _verifyOpenMenus(
+  WidgetTester tester,
+  _AuditSurface surface,
+  Size size,
+) async {
+  await _verifySurface(tester, surface, size, scenario: 'open-menus');
+  final baselineBarrierCount = find.byType(ModalBarrier).evaluate().length;
+  final menuCount = _openableMenuControls().evaluate().length;
+  for (var index = 0; index < menuCount; index++) {
+    await _verifySurface(tester, surface, size, scenario: 'open-menu-$index');
+    final trigger = _openableMenuControls().at(index);
+    await tester.ensureVisible(trigger);
+    await tester.tap(trigger);
+    await tester.pumpAndSettle();
+    expect(
+      find.byType(ModalBarrier).evaluate().length,
+      greaterThan(baselineBarrierCount),
+      reason: '${surface.name} menu $index did not open at $size',
+    );
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: '${surface.name} menu $index failed while open at $size',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(
+      find.byType(ModalBarrier).evaluate().length,
+      baselineBarrierCount,
+      reason: '${surface.name} menu $index did not close with Escape at $size',
+    );
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: '${surface.name} menu $index failed while closing at $size',
+    );
+  }
+}
+
+class _DialogAudit {
+  const _DialogAudit(this.name, this.open);
+
+  final String name;
+  final void Function(BuildContext context) open;
+}
+
+Future<void> _verifyDialogState(
+  WidgetTester tester,
+  _DialogAudit audit,
+  Size size, {
+  TextScaler textScaler = TextScaler.noScaling,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
+  await tester.pumpWidget(
+    _host(
+      Builder(
+        builder: (context) => Center(
+          child: FilledButton(
+            onPressed: () => audit.open(context),
+            child: const Text('打开'),
+          ),
+        ),
+      ),
+      textScaler: textScaler,
+    ),
+  );
+  await tester.pumpAndSettle();
+  final baselineBarrierCount = find.byType(ModalBarrier).evaluate().length;
+  await tester.tap(find.text('打开'));
+  await tester.pumpAndSettle();
+  expect(
+    find.byType(ModalBarrier).evaluate().length,
+    greaterThan(baselineBarrierCount),
+    reason: '${audit.name} did not open at $size / $textScaler',
+  );
+  expect(
+    tester.takeException(),
+    isNull,
+    reason: '${audit.name} failed while opening at $size / $textScaler',
+  );
+
+  for (var index = 0; index < 4; index++) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(
+      tester.takeException(),
+      isNull,
+      reason:
+          '${audit.name} failed after Tab ${index + 1} at $size / $textScaler',
+    );
+  }
+
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+  expect(
+    find.byType(ModalBarrier).evaluate().length,
+    baselineBarrierCount,
+    reason: '${audit.name} did not close with Escape at $size / $textScaler',
+  );
+  expect(
+    tester.takeException(),
+    isNull,
+    reason: '${audit.name} failed while closing at $size / $textScaler',
   );
 }
 
@@ -703,4 +915,139 @@ void main() {
       }
     }
   });
+
+  testWidgets(
+    'all mapped surfaces expose hover press and keyboard focus at minimum normal and large sizes',
+    (tester) async {
+      final controller = await _createController();
+      addTearDown(controller.dispose);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const sizes = [Size(375, 812), Size(1200, 864), Size(1536, 864)];
+      for (final surface in _auditSurfaces(controller)) {
+        for (final size in sizes) {
+          await _verifyInteractiveStates(tester, surface, size);
+        }
+      }
+    },
+  );
+
+  testWidgets(
+    'all mapped surfaces open every popup and dropdown at minimum normal and large sizes',
+    (tester) async {
+      final controller = await _createController();
+      addTearDown(controller.dispose);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const sizes = [Size(375, 812), Size(1200, 864), Size(1536, 864)];
+      for (final surface in _auditSurfaces(controller)) {
+        for (final size in sizes) {
+          await _verifyOpenMenus(tester, surface, size);
+        }
+      }
+    },
+  );
+
+  testWidgets(
+    'shared dialogs survive open focus and escape across the window matrix',
+    (tester) async {
+      final controller = await _createController();
+      addTearDown(controller.dispose);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final audits = [
+        _DialogAudit('record editor', (context) {
+          showRecordEditor(context, controller, kind: RecordKind.task);
+        }),
+        _DialogAudit('task group editor', (context) {
+          showTaskGroupEditor(context: context, controller: controller);
+        }),
+        _DialogAudit('relation picker', (context) {
+          showRelationPickerDialog(
+            context: context,
+            controller: controller,
+            initialTaskIds: const [],
+            initialProjectIds: const [],
+          );
+        }),
+        _DialogAudit('markdown note editor', (context) {
+          showMarkdownNoteEditor(context, controller);
+        }),
+        _DialogAudit('global search', (context) {
+          showGlobalSearch(context, controller);
+        }),
+        _DialogAudit('quick capture', (context) {
+          showQuickCapture(context, controller);
+        }),
+      ];
+      const scenarios = [
+        (Size(375, 812), TextScaler.noScaling),
+        (Size(375, 812), TextScaler.linear(2)),
+        (Size(1200, 864), TextScaler.noScaling),
+        (Size(1536, 864), TextScaler.noScaling),
+      ];
+      for (final audit in audits) {
+        for (final scenario in scenarios) {
+          await _verifyDialogState(
+            tester,
+            audit,
+            scenario.$1,
+            textScaler: scenario.$2,
+          );
+        }
+      }
+    },
+  );
+
+  testWidgets(
+    'focus preset dialog supports keyboard focus and dropdowns at minimum width',
+    (tester) async {
+      final controller = await _createController();
+      addTearDown(controller.dispose);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1;
+
+      await tester.pumpWidget(
+        _host(FocusHubPage(controller: controller, showHeader: false)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('新建专注预设'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      for (var index = 0; index < 8; index++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump(const Duration(milliseconds: 180));
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'focus preset dialog failed after Tab ${index + 1}',
+        );
+      }
+
+      final dropdowns = find.byWidgetPredicate(
+        (widget) => widget is DropdownButtonFormField,
+      );
+      expect(dropdowns, findsNWidgets(4));
+      for (var index = 0; index < 4; index++) {
+        final dropdown = dropdowns.at(index);
+        await tester.ensureVisible(dropdown);
+        await tester.tap(dropdown);
+        await tester.pumpAndSettle();
+        expect(
+          find.byWidgetPredicate((widget) => widget is DropdownMenuItem),
+          findsWidgets,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 }

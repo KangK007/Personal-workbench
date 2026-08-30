@@ -61,4 +61,33 @@ void main() {
     expect(iconSize.height, greaterThanOrEqualTo(48));
     expect(theme.listTileTheme.minTileHeight, greaterThanOrEqualTo(48));
   });
+
+  test(
+    'button themes expose distinct hover focus press and disabled visuals',
+    () {
+      for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+        final styles = [
+          theme.filledButtonTheme.style!,
+          theme.outlinedButtonTheme.style!,
+          theme.textButtonTheme.style!,
+          theme.iconButtonTheme.style!,
+        ];
+        for (final style in styles) {
+          final hover = style.overlayColor!.resolve({WidgetState.hovered});
+          final focus = style.overlayColor!.resolve({WidgetState.focused});
+          final press = style.overlayColor!.resolve({WidgetState.pressed});
+          expect(hover, isNotNull);
+          expect(focus, isNotNull);
+          expect(press, isNotNull);
+          expect(press, isNot(hover));
+        }
+
+        final outlinedSide = theme.outlinedButtonTheme.style!.side!;
+        expect(
+          outlinedSide.resolve({WidgetState.disabled}),
+          isNot(outlinedSide.resolve(const {})),
+        );
+      }
+    },
+  );
 }

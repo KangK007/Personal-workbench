@@ -1,8 +1,8 @@
 # 个人工作台发布级测试矩阵
 
-> 基线提交：`05f1827ae654637954395df8d453136837950606`  
-> 当前状态：既有发布级基线与本轮 13 项优化均已完成逐项自动化、Golden 和隔离启动验证。  
-> 最终状态仅允许 `PASS` / `BLOCKED`；未闭环项必须在任务结束前清零。
+> 历史基线提交：`05f1827ae654637954395df8d453136837950606`；本轮审查基线：`618a44a`
+> 当前状态：2026-08-30 已启动发布级重新审查；历史结果保留为回归线索，新增四维 UI Case尚待逐项执行。
+> 最终状态仅允许 `PASS` / `BLOCKED`；`Page × State × Interaction × Window Size` 任一主要适用维度缺少证据时不得标记 `PASS`。
 
 | ID | 模块 | 功能 | 前置条件 | 操作步骤 | 预期结果 | 实际结果 | 状态 | 问题编号 | 修复状态 | 回归状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -23,9 +23,9 @@
 | RUN-003 | 启动 | 初始化失败与重试 | 注入失败数据库 | 启动、观察错误、点击重试 | 错误可理解且可重试 | 启动/失败重试 Widget 测试及隔离数据库的 Windows、Android 真实启动与重启验证通过。 | PASS | - | - | PASS |
 | RUN-004 | 启动 | 正常退出重启 | 已创建数据 | 关闭并重新启动 | 无崩溃，数据保留 | 启动/失败重试 Widget 测试及隔离数据库的 Windows、Android 真实启动与重启验证通过。 | PASS | - | - | PASS |
 | NAV-001 | 导航 | 桌面一级导航全可达 | 宽屏 | 逐项点击今日/专注/自律/笔记/目标/行为/成长/设置 | 页面匹配、选中态清晰 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
-| NAV-002 | 导航 | 任务分组 | 宽屏 | 展开任务并遍历全部/收件箱/周视图/任务群 | 四子页均可达 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
-| NAV-003 | 导航 | 项目分组 | 宽屏 | 展开项目并遍历五个子页 | 五子页均可达 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
-| NAV-004 | 导航 | 回顾分组 | 宽屏 | 展开回顾并遍历日/周/月 | 三子页均可达 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
+| NAV-002 | 导航 | 任务分组 | 宽屏 | 展开任务并遍历全部任务/周视图/任务群 | 三个任务子页均可达；收件箱不在任务子级 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
+| NAV-003 | 导航 | 项目单入口 | 宽屏 | 点击项目并遍历主界面五个单开面板 | 无项目子目录；五面板保持当前项目上下文 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
+| NAV-004 | 导航 | 回顾单入口 | 宽屏 | 点击回顾并在主界面切换日/周/月 | 无回顾子目录；三类回顾在页内可切换 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
 | NAV-005 | 导航 | 侧栏展开/收起持久化 | >=1200dp | 切换折叠、重启 | 状态保存，80/236px 正确 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
 | NAV-006 | 导航 | 短窗口侧栏滚动 | 宽但高度小 | 缩短窗口并访问底部入口 | 无入口丢失/遮挡 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
 | NAV-007 | 导航 | 移动五项底栏 | <768dp | 遍历今日/任务/回顾/行为/设置 | 选中态与子页记忆正确 | 桌面与移动导航、兼容映射、返回历史及持久化由 Widget 测试、Golden 和真实运行共同验证。 | PASS | - | - | PASS |
@@ -88,11 +88,11 @@
 | GRP-001 | 任务群 | CRUD 与持久化 | 有任务 | 创建、编辑、重启、删除、恢复 | 成员保留，位置正确 | 任务群 CRUD、排序、冲突、删除恢复和协议限制自动测试通过。 | PASS | - | - | PASS |
 | GRP-002 | 任务群 | 成员冲突替换 | 任务已属其他群 | 批量加入新群 | 预览冲突，确认后源群压缩 | 任务群 CRUD、排序、冲突、删除恢复和协议限制自动测试通过。 | PASS | - | - | PASS |
 | PRJ-001 | 项目 | 项目 CRUD | 空/有项目 | 创建→选择→编辑→重启→删除→恢复 | 主从布局与持久化正确 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
-| PRJ-002 | 项目 | 五个详情页 | 已选项目 | 遍历概览/任务/任务群/里程碑/笔记回顾 | 上下文保持同一项目 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
+| PRJ-002 | 项目 | 五个单开面板 | 已选项目 | 遍历任务/任务群/里程碑/笔记/回顾面板 | 上下文保持同一项目且始终只展开一个面板 | 项目五面板、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | PRJ-003 | 项目 | 列表/看板 | 有多状态任务 | 切换视图并移动状态 | 结果一致、无重复 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | PRJ-004 | 项目 | 里程碑 CRUD | 已选项目 | 创建/编辑/完成/删除/重启 | 正确关联并持久化 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | PRJ-005 | 项目 | 删除后关联安全 | 项目有关联记录 | 软删除/恢复 | 关联不损坏，孤立状态可理解 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
-| PRJ-006 | 项目 | 笔记与回顾关联子页 | 已选项目 | 打开“笔记与回顾”，新建/打开关联内容 | 仅展示并维护当前项目关联 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
+| PRJ-006 | 项目 | 笔记与回顾独立面板 | 已选项目 | 分别打开笔记、回顾面板并新建/打开关联内容 | 两类记录分别计数和展示，仅维护当前项目关联 | 项目五面板、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | PRJ-007 | 项目 | 里程碑前往目标 | 已选项目且有里程碑 | 从里程碑区点击“前往目标” | 导航到目标且上下文明确 | 项目五子页、关联、状态、里程碑、笔记和删除恢复自动测试及页面矩阵通过。 | PASS | - | - | PASS |
 | FOC-001 | 专注 | 正计时 | 有目标记录 | 开始/暂停/继续/完成 | 时长和证据正确 | 专注预设、计时状态机、证据、通知失败、退场和减少动效测试通过；关键崩溃已真实回归。 | PASS | - | - | PASS |
 | FOC-002 | 专注 | 25/50/自定义倒计时 | 任意 | 逐个运行到完成 | 计时与通知正确 | 专注预设、计时状态机、证据、通知失败、退场和减少动效测试通过；关键崩溃已真实回归。 | PASS | - | - | PASS |
@@ -177,8 +177,8 @@
 | UI-004 | 视觉 | 1200/1440/1536×864 | 测试窗口 | 全 39 个页面/子页遍历三个视口 | 三栏/侧轨与间距正确 | 117/117 页面场景无 Flutter 布局异常 | PASS | - | - | PASS |
 | UI-005 | 视觉 | 浅色全页面 | 最终代码 | 全 39 表面×7 视口，并复查 33 张逐页 Golden | 层级、字体、间距、颜色、圆角、图标一致 | 273 个布局场景及 33 张原尺寸 Golden 已检查；修复项通过 | PASS | BUG-006, BUG-007, BUG-008 | VERIFIED | PASS |
 | UI-006 | 视觉 | 深色全页面 | 最终代码 | 全 39 表面分别在移动/桌面深色遍历 | 无错误反转或低对比 | 78/78 深色页面场景无布局异常；主题关键颜色对比度另行量化 | PASS | - | - | PASS |
-| UI-007 | 视觉 | Hover/Pressed/Focus/Selected/Disabled/Loading/Error | 各类组件 | 逐状态触发 | 状态一致且不引发布局跳动 | 39 个表面共 546 个布局场景和 33 张 Golden 通过，并完成真实 Windows/Android 像素检查。 | PASS | - | - | PASS |
-| UI-008 | 视觉 | Dialog/Sheet/Menu/Tooltip/Z-index | 全页面 | 连续打开关闭与 Resize | 不越界、不被遮挡、焦点正确 | 39 个表面共 546 个布局场景和 33 张 Golden 通过，并完成真实 Windows/Android 像素检查。 | PASS | - | - | PASS |
+| UI-007 | 视觉 | Hover/Pressed/Focus/Selected/Disabled/Loading/Error | 各类组件 | 逐状态触发 | 状态一致且不引发布局跳动 | 历史 546 个场景主要验证默认布局，不能证明逐页交互状态；转入 U4D 页面级矩阵重新执行。 | NOT_TESTED | - | - | NOT_TESTED |
+| UI-008 | 视觉 | Dialog/Sheet/Menu/Tooltip/Z-index | 全页面 | 连续打开关闭与 Resize | 不越界、不被遮挡、焦点正确 | 历史证据未逐页列出弹层打开与 Resize 状态；转入 U4D 页面级矩阵重新执行。 | NOT_TESTED | - | - | NOT_TESTED |
 | UI-009 | 视觉 | 中文/英文/数字/长文本 | 构造边界数据 | 全页面遍历 | 字体角色、基线、换行/省略正确 | 39 个表面共 546 个布局场景和 33 张 Golden 通过，并完成真实 Windows/Android 像素检查。 | PASS | - | - | PASS |
 | UI-010 | 视觉 | Android 手机横屏导航 | Pixel 6 API 35，2400×1080 | 竖屏创建数据后旋转到横屏并检查像素与语义树 | 使用移动导航，无 RenderFlex 溢出，五项导航可达 | 首轮桌面侧栏溢出 29px；按高度切换移动导航后真实模拟器截图、语义树和日志回归通过 | PASS | BUG-012 | VERIFIED | PASS |
 | ERR-001 | 异常 | 空数据全页面 | 空数据库 | 遍历项目地图 | 每页有解释与下一步 | 空态、大数据、文件/网络/数据库故障、重复操作和生命周期错误注入测试通过。 | PASS | - | - | PASS |
@@ -222,14 +222,55 @@
 | OPT-020 | 成长 | 顶部面板间距 | 游戏功能开启、反馈有/无 | 桌面/窄屏/200% 字号检查 | 边距一致、图标文字不贴边、无截断重叠 | Growth 页面浅深主题、窄屏/200% 字号布局矩阵与 Golden 通过。 | PASS | - | VERIFIED | PASS |
 | OPT-021 | 可访问性/视觉 | 本轮全状态矩阵 | 最终实现 | 浅深主题、7 视口、200% 字号、键盘、语义、减少动效 | 新增表面全部无溢出，焦点/语义/触控/对比符合基线 | 229 项完整 Flutter 测试、546 场景布局矩阵、Golden、主题/语义/触控测试及隔离 Windows 启动通过。 | PASS | - | VERIFIED | PASS |
 
+## Page × State × Interaction × Window Size 重新验收矩阵
+
+状态列中的 `N/A` 必须基于源码或实际界面确认；未触发主要适用状态时保持 `NOT_TESTED`。窗口基线：移动最小 `375×812`、移动常规 `412×915`、紧凑桌面 `768×864`、桌面常规 `1200×864`、桌面大窗 `1440×900`、`1536×864` 及真实 Windows 最大化；长文本以 200% 字号和边界数据共同验证。
+
+| ID | Page | State | Interaction | Window Size | 前置条件/操作步骤 | 预期结果 | 实际结果 | 状态 | 问题编号 | 修复状态 | 回归状态 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| U4D-001 | 启动 | Loading / Error / Retrying / Success | 等待、重试、键盘激活 | 移动最小/桌面最小/常规/最大化 | 空库与注入初始化失败逐态启动 | 无白屏；错误可读；重试不重入；焦点可见 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-002 | 桌面壳与侧栏 | Default / Hover / Focus / Pressed / Selected / Collapsed / Offline-Error | 鼠标、Tab、Shift+Tab、Enter、Space、箭头、Ctrl+K、Resize | 桌面最小/1024/1200/1440/1536/最大化 | 遍历全部一级入口和任务分组 | 选中态明确；焦点顺序稳定；缩放无丢入口 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-003 | 移动壳与更多 | Default / Pressed / Selected / Sheet Open / IME Open | 点击、返回、Esc、输入、旋转 | 375/412/800×1200/横屏 | 遍历五项底栏、更多、FAB 和返回历史 | 所有页面可达；弹层/键盘不遮挡 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-004 | 今日 | Default / Empty / Hover / Focus / Pressed / Disabled / Dialog-Menu Open / Error / Long Text | 开始、撤销、调整、完成/重开、安排、日结 | 全 7 视口/最大化/200% | 空、未开始、已开始、冲突、结算数据 | 状态完整且操作无重入、遮挡或布局跳动 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-005 | 全部任务 | Default / Empty / Hover / Focus / Pressed / Selected / Disabled / Menu-Dialog-Dropdown Open / Error / Long Text | CRUD、筛选、排序、多选、批量、树展开、Esc | 全 7 视口/最大化/200% | 空、常规、1000 条、三级树与异常关系 | 列表稳定；层级明确；所有菜单可达 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-006 | 收件箱 | Default / Empty / Hover / Focus / Pressed / Selected / Menu-Dialog Open / Error / Long Text | 转换、编辑、删除、批量键盘选择 | 全 7 视口/最大化/200% | 空、多类型捕获、超长标题 | 类型与下一步清楚；转换后持久化 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-007 | 周视图 | Default / Empty / Hover-Drag / Focus / Pressed / Today / Conflict / Dialog-Dropdown Open / Error / Long Text | 周切换、CRUD、拖拽、日期时间选择、Esc | 全 7 视口/最大化/200% | 当前/非当前周、冲突、跨日时间块 | 今天列可辨；拖拽与弹层对比/布局稳定 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-008 | 任务群 | Default / Empty / Hover / Focus / Pressed / Disabled / Menu-Dialog-Dropdown Open / Validation Error / Saving | CRUD、取消、重复保存、成员重排、Esc | 全 7 视口/最大化/200% | 新建/编辑、非法值、跨项目成员 | 不红屏；不重复提交；错误就地显示 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-009 | 项目主界面 | Default / Empty / Hover / Focus / Pressed / Selected / Expanded / Menu-Dialog Open / Error / Long Text | 项目切换、五面板单开、清单/看板、五类 CRUD | 全 7 视口/最大化/200% | 空/多项目、五类记录与长文本 | 上下文不丢；面板单开；计数与编辑正确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-010 | 专注入口 | Default / Empty / Hover / Focus / Pressed / Disabled / Dialog-Dropdown Open / Error / Long Text | 预设 CRUD、模式/任务/名单选择、定时设置 | 全 7 视口/最大化/200% | 空/多预设、非法自定义时长 | 表单完整可达；错误不破坏布局 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-011 | 专注会话 | Running / Paused / Focus / Pressed / Disabled / Completion-Interrupt Dialog / Error / Long Evidence | 开始、暂停、继续、完成、取消、结算、Esc | 全 7 视口/最大化/200%/减少动效 | 普通与 CTDP 任务 | 状态机单次结算；退场无生命周期异常 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-012 | 自律 | Default / Empty / Hover / Focus / Pressed / Disabled / Dialog-Dropdown Open / Error / Long Text | CRUD、启停、时段/名单/安全、确认取消、滚动 | 全 7 视口/最大化/200% | 默认/多规则、跨午夜、非法值 | 控件可达；安全状态明确；不越界 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-013 | 笔记 | Default / Empty / Hover / Focus / Pressed / Selected / Menu-Dialog Open / Read-only / Error / Long Text | 搜索筛选、CRUD、预览、版本、附件、关联、Esc | 全 7 视口/最大化/200% | 空/多笔记、Markdown 长文、附件异常 | 索引与阅读区稳定；取消不应用关系 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-014 | 日回顾 | Default / Empty / Hover / Focus / Pressed / Disabled / Library-Preview-Dropdown-Dialog Open / Read-only / Error / Long Text | 切换、周期导航、保存、关联、库→预览→编辑→返回 | 全 7 视口/最大化/200% | 当前/历史/未来/旧日记 | 仅本期可编辑；未来不可达；返回路径稳定 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-015 | 周回顾 | 同日回顾适用状态 | 同日回顾适用交互 | 全 7 视口/最大化/200% | 当前/历史/未来周 | 周期、只读和错误状态正确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-016 | 月回顾 | 同日回顾适用状态 | 同日回顾适用交互 | 全 7 视口/最大化/200% | 当前/历史/未来月 | 周期、只读和错误状态正确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-017 | 目标 | Default / Empty / Hover / Focus / Pressed / Expanded / Disabled / Menu-Dialog Open / Error / Long Text | CRUD、树展开、完成、父子防循环、里程碑 | 全 7 视口/最大化/200% | 空/多级目标、非法父级 | 树关系清晰；异常有反馈 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-018 | 习惯 | Default / Empty / Hover / Focus / Pressed / Disabled-RSIP / Menu-Dialog Open / Error / Long Text | 今日打卡/撤销、历史只读、CRUD | 全 7 视口/最大化/200% | 03:59/04:00、普通/失败/熄灭习惯 | 只可改逻辑今日；卡片独立且不溢出 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-019 | 国策树 | Default / Empty / Hover / Focus / Pressed / Selected / Expanded / Disabled / Menu-Dialog-Dropdown Open / Error / Long Text | 八类节点 CRUD、拆分、违反、熄灭/恢复、Esc | 全 7 视口/最大化/200% | 空/多层树/非法关系 | 树、菜单和错误反馈稳定 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-020 | 国策库 | Default / Empty / Hover / Focus / Pressed / Selected / Menu-Dialog Open / Error / Long Text | 查看、恢复、筛选、滚动 | 全 7 视口/最大化/200% | 空/多归档记录 | 状态与恢复路径明确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-021 | 轮次历史 | Default / Empty / Hover / Focus / Pressed / Selected / Dropdown Open / Error / Long Text | 筛选、查看、滚动 | 全 7 视口/最大化/200% | 空/多轮次与证据 | 数据层级可读且无截断 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-022 | 高级分析 | Default / Empty / Hover / Focus / Pressed / Selected / Dropdown Open / Error / Long Text | 筛选、切换指标、滚动 | 全 7 视口/最大化/200% | 空/大量分析数据 | 指标、筛选与空态准确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-023 | 成长 | Default / Empty / Hover / Focus / Pressed / Disabled / Dialog Open / Error / Long Text | 签到、押注、确认取消、滚动 | 全 7 视口/最大化/200% | 激励开关、反馈有无、余额不足 | 顶部间距稳定；错误/禁用原因清楚 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-024 | 设置 | Default / Hover / Focus / Pressed / Selected / Disabled / Dropdown-Dialog Open / Loading / Error / Long Text | 主题、别名、开关、权限、同步、导入导出、备份回收站、Esc | 全 7 视口/最大化/200% | 离线、失败注入、长别名、回收站数据 | 所有区可达；异步状态和错误不丢数据 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-025 | 全局搜索 Dialog | Default / Focus / Hover / Pressed / Selected / Empty / Error-safe / Long Text | Ctrl+K、输入、类型过滤、箭头、Enter、Esc、遮罩 | 移动/桌面最小/常规/最大化/200% | 空查询、多结果、无结果、特殊字符 | 焦点初始/恢复正确；结果与键盘动作一致 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-026 | 快速新增 Dialog | Default / Focus / Hover / Pressed / Disabled / Dropdown Open / Saving / Error / Long Text | 类型切换、输入、重复提交、取消、Esc、IME | 移动/桌面最小/常规/最大化/200% | 四类型、非法值、保存失败 | 只保存一次；错误就地；键盘不遮挡 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-027 | 通用记录编辑 Dialog | Default / Focus / Hover / Pressed / Disabled / Dropdown-Date Open / Saving / Error / Long Text | 各类型字段、渐进选项、粘贴、撤销、提交取消、Esc | 移动/桌面最小/常规/最大化/200% | 记录全类型、边界/非法值、失败注入 | 字段语义与类型匹配；输入保留 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-028 | 任务群编辑 Dialog | Default / Focus / Hover / Pressed / Disabled / Dropdown Open / Saving / Validation Error / Long Text | 新建编辑、模式/项目、重复保存、取消、Esc | 移动/桌面最小/常规/最大化/200% | 新/旧群、空标题、非法时限 | 无红屏；控制器生命周期与保存闸门正确 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-029 | 关联选择 Dialog | Default / Focus / Hover / Pressed / Selected / Empty / Long List / Error-safe | 勾选、滚动、完成、取消、Esc、遮罩、焦点恢复 | 移动/桌面最小/常规/最大化/200% | 空/多任务与项目 | 仅完成应用；其余关闭路径撤销 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-030 | Markdown/附件 Dialog | Default / Focus / Hover / Pressed / Selected / Preview / Error / Long Text | 编辑预览、工具栏、附件链接/图片、取消、Esc、焦点恢复 | 移动/桌面最小/常规/最大化/200% | 长文、缺失/超限附件 | 阅读/编辑稳定；原生选择器返回不黑屏 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-031 | 共享菜单/日期时间/确认弹层 | Default / Hover / Focus / Pressed / Selected / Disabled / Open / Error / Long Text | 打开关闭、箭头、Enter、Esc、遮罩、连续操作、Resize | 移动/桌面最小/常规/最大化/200% | 遍历所有 PopupMenu/Dropdown/Picker/确认框 | 不越界、不被遮挡、焦点返回、无重复动作 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-032 | 兼容 DiaryPage | Default / Empty / Error-safe / Long Text | 直接构建、旧数据读取、返回 | 375/768/1200/200% | 空与旧日记数据 | 无空白/崩溃；内容可迁移读取 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+| U4D-033 | 兼容 ProtocolsPage/旧导航枚举 | Default / Empty / Error-safe / Long Text | 直接构建、旧入口映射、返回 | 375/768/1200/200% | 各 ProtocolTab 与 legacy section | 无空白/崩溃；映射到当前入口 | 待执行 | NOT_TESTED | - | - | NOT_TESTED |
+
 ## 动态覆盖统计
 
 统计在每个阶段结束后更新；不得以本表初始规模作为缩减后续发现的理由。
 
 | 指标 | 数量 |
 | --- | ---: |
-| 总 Case | 208 |
-| PASS | 199 |
+| 总 Case | 241 |
+| PASS | 197 |
 | FAIL | 0 |
 | BLOCKED | 9 |
-| 未闭环 | 0 |
+| NOT_TESTED | 35 |
+| 未闭环 | 35 |
