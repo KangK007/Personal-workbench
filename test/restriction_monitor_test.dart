@@ -59,45 +59,51 @@ RestrictionProfile _profile({
 );
 
 void main() {
-  test('strong protection keeps the active snapshot across remote weakening', () async {
-    final activity = _FakeActivity();
-    var profile = _profile();
-    final monitor = RestrictionMonitor(
-      activityService: activity,
-      profileProvider: () => profile,
-      onEvent: (_, _) async {},
-      onStateChanged: (_) async {},
-      now: () => DateTime(2026, 8, 19, 10),
-    );
-    addTearDown(monitor.dispose);
+  test(
+    'strong protection keeps the active snapshot across remote weakening',
+    () async {
+      final activity = _FakeActivity();
+      var profile = _profile();
+      final monitor = RestrictionMonitor(
+        activityService: activity,
+        profileProvider: () => profile,
+        onEvent: (_, _) async {},
+        onStateChanged: (_) async {},
+        now: () => DateTime(2026, 8, 19, 10),
+      );
+      addTearDown(monitor.dispose);
 
-    await monitor.start();
-    expect(monitor.state.activeSnapshot?.strongProtection, isTrue);
-    profile = _profile(strong: false, enabled: false, websites: const []);
-    await monitor.poll();
+      await monitor.start();
+      expect(monitor.state.activeSnapshot?.strongProtection, isTrue);
+      profile = _profile(strong: false, enabled: false, websites: const []);
+      await monitor.poll();
 
-    expect(monitor.state.active, isTrue);
-    expect(monitor.state.activeSnapshot?.enabled, isTrue);
-    expect(activity.domains, ['example.com']);
-  });
+      expect(monitor.state.active, isTrue);
+      expect(monitor.state.activeSnapshot?.enabled, isTrue);
+      expect(activity.domains, ['example.com']);
+    },
+  );
 
-  test('website changes refresh hosts while a normal profile is active', () async {
-    final activity = _FakeActivity();
-    var profile = _profile(strong: false);
-    final monitor = RestrictionMonitor(
-      activityService: activity,
-      profileProvider: () => profile,
-      onEvent: (_, _) async {},
-      onStateChanged: (_) async {},
-      now: () => DateTime(2026, 8, 19, 10),
-    );
-    addTearDown(monitor.dispose);
+  test(
+    'website changes refresh hosts while a normal profile is active',
+    () async {
+      final activity = _FakeActivity();
+      var profile = _profile(strong: false);
+      final monitor = RestrictionMonitor(
+        activityService: activity,
+        profileProvider: () => profile,
+        onEvent: (_, _) async {},
+        onStateChanged: (_) async {},
+        now: () => DateTime(2026, 8, 19, 10),
+      );
+      addTearDown(monitor.dispose);
 
-    await monitor.start();
-    profile = _profile(strong: false, websites: const ['updated.example']);
-    await monitor.poll();
+      await monitor.start();
+      profile = _profile(strong: false, websites: const ['updated.example']);
+      await monitor.poll();
 
-    expect(activity.applyCount, 2);
-    expect(activity.domains, ['updated.example']);
-  });
+      expect(activity.applyCount, 2);
+      expect(activity.domains, ['updated.example']);
+    },
+  );
 }

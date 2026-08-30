@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_workbench/core/models/workspace_record.dart';
@@ -299,11 +300,11 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('desktop navigation stays reachable in a short viewport', (
+  testWidgets('desktop navigation stays reachable at minimum desktop height', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(1300, 420);
+    tester.view.physicalSize = const Size(1300, 620);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     final controller = await _createController();
@@ -322,6 +323,68 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(navigation, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Ctrl+K opens global search from the workbench shell', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 900);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = await _createController();
+    addTearDown(controller.dispose);
+
+    await _pumpPage(
+      tester,
+      WorkbenchShell(controller: controller, enableSystemHotkey: false),
+    );
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byType(SearchBar), findsOneWidget);
+    expect(find.text('输入关键词开始搜索'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SearchBar),
+        matching: find.byType(EditableText),
+      ),
+      findsOneWidget,
+    );
+    expect(FocusManager.instance.primaryFocus?.hasFocus, isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    var focusedContext = FocusManager.instance.primaryFocus?.context;
+    expect(focusedContext, isNotNull);
+    expect(
+      find.ancestor(
+        of: find.byWidget(focusedContext!.widget),
+        matching: find.byType(Dialog),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    focusedContext = FocusManager.instance.primaryFocus?.context;
+    expect(focusedContext, isNotNull);
+    expect(
+      find.ancestor(
+        of: find.byWidget(focusedContext!.widget),
+        matching: find.byType(Dialog),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(SearchBar), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

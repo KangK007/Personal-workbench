@@ -87,6 +87,7 @@ class _GameProfilePanel extends StatelessWidget {
     return Column(
       children: [
         LogSurface(
+          padding: const EdgeInsets.all(18),
           child: Column(
             children: [
               LayoutBuilder(
@@ -128,9 +129,10 @@ class _GameProfilePanel extends StatelessWidget {
                 },
               ),
               if (profile.lastReward != null) ...[
-                const Divider(height: 28),
+                const Divider(height: 32, indent: 4, endIndent: 4),
+                const SizedBox(height: 2),
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   child: Text(
                     '最近反馈：${profile.lastReward}',
                     style: Theme.of(context).textTheme.bodyMedium,

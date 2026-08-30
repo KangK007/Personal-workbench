@@ -118,6 +118,52 @@ class ReviewPeriod {
   );
 }
 
+ReviewPeriod reviewPeriodFor(ReviewPeriodType type, DateTime value) {
+  final day = DateTime(value.year, value.month, value.day);
+  return switch (type) {
+    ReviewPeriodType.daily => ReviewPeriod(
+      type: type,
+      key: _reviewDateKey(day),
+      start: day,
+      end: day.add(const Duration(days: 1)),
+    ),
+    ReviewPeriodType.weekly => _reviewWeekPeriod(day),
+    ReviewPeriodType.monthly => ReviewPeriod(
+      type: type,
+      key: '${day.year}-${day.month.toString().padLeft(2, '0')}',
+      start: DateTime(day.year, day.month),
+      end: DateTime(day.year, day.month + 1),
+    ),
+    ReviewPeriodType.yearly => ReviewPeriod(
+      type: type,
+      key: '${day.year}',
+      start: DateTime(day.year),
+      end: DateTime(day.year + 1),
+    ),
+  };
+}
+
+ReviewPeriod _reviewWeekPeriod(DateTime day) {
+  final monday = day.subtract(Duration(days: day.weekday - 1));
+  final thursday = monday.add(const Duration(days: 3));
+  final firstThursday = DateTime(thursday.year, 1, 4);
+  final firstMonday = firstThursday.subtract(
+    Duration(days: firstThursday.weekday - 1),
+  );
+  final week = thursday.difference(firstMonday).inDays ~/ 7 + 1;
+  return ReviewPeriod(
+    type: ReviewPeriodType.weekly,
+    key: '${thursday.year}-W${week.toString().padLeft(2, '0')}',
+    start: monday,
+    end: monday.add(const Duration(days: 7)),
+  );
+}
+
+String _reviewDateKey(DateTime value) =>
+    '${value.year.toString().padLeft(4, '0')}-'
+    '${value.month.toString().padLeft(2, '0')}-'
+    '${value.day.toString().padLeft(2, '0')}';
+
 class ReviewTaskFact {
   const ReviewTaskFact({
     required this.taskId,

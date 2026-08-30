@@ -218,8 +218,8 @@ class WorkbenchScrollBehavior extends MaterialScrollBehavior {
         return Scrollbar(
           controller: PrimaryScrollController.maybeOf(context),
           thumbVisibility: MediaQuery.disableAnimationsOf(context)
-                  ? false
-                  : null,
+              ? false
+              : null,
           child: child,
         );
       case TargetPlatform.android:

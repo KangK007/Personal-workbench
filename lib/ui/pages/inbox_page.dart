@@ -10,6 +10,7 @@ import '../widgets/batch_task_toolbar.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/task_row.dart';
+import '../widgets/task_hierarchy.dart';
 
 class InboxPage extends StatefulWidget {
   const InboxPage({
@@ -30,6 +31,7 @@ class _InboxPageState extends State<InboxPage> {
   final Set<String> _selectedIds = <String>{};
   bool _selectionMode = false;
   String? _selectionAnchorId;
+  final Set<String> _collapsedTaskIds = <String>{};
 
   @override
   void dispose() {
@@ -46,6 +48,43 @@ class _InboxPageState extends State<InboxPage> {
     final selectedTasks = visibleTasks
         .where((task) => _selectedIds.contains(task.id))
         .toList(growable: false);
+    final entries = buildTaskHierarchy(
+      visibleTasks: visibleTasks,
+      allRecords: widget.controller.allRecords,
+      collapsedIds: _collapsedTaskIds,
+    );
+    final displayRecords = <WorkspaceRecord>[];
+    final emittedTaskIds = <String>{};
+    final entryById = {for (final entry in entries) entry.task.id: entry};
+    for (final record in records) {
+      if (record.kind != RecordKind.task) {
+        displayRecords.add(record);
+        continue;
+      }
+      if (emittedTaskIds.contains(record.id)) continue;
+      final entryIndex = entries.indexWhere(
+        (entry) => entry.task.id == record.id,
+      );
+      if (entryIndex < 0) continue;
+      final entry = entries[entryIndex];
+      if (entry.depth > 0 &&
+          entry.task.parentId != null &&
+          entryById.containsKey(entry.task.parentId) &&
+          !emittedTaskIds.contains(entry.task.parentId)) {
+        continue;
+      }
+      final rootDepth = entries[entryIndex].depth;
+      for (var index = entryIndex; index < entries.length; index++) {
+        final childEntry = entries[index];
+        if (index > entryIndex && childEntry.depth <= rootDepth) break;
+        if (emittedTaskIds.add(childEntry.task.id)) {
+          displayRecords.add(childEntry.task);
+        }
+      }
+    }
+    for (final entry in entries) {
+      if (emittedTaskIds.add(entry.task.id)) displayRecords.add(entry.task);
+    }
     return PopScope(
       canPop: !_selectionMode,
       onPopInvokedWithResult: (didPop, _) {
@@ -113,7 +152,7 @@ class _InboxPageState extends State<InboxPage> {
                 ),
               ),
             Expanded(
-              child: records.isEmpty
+              child: displayRecords.isEmpty
                   ? EmptyState(
                       icon: Icons.inbox_outlined,
                       title: '收集箱已经清空',
@@ -129,15 +168,27 @@ class _InboxPageState extends State<InboxPage> {
                     )
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
-                      itemCount: records.length,
+                      itemCount: displayRecords.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
-                        final record = records[index];
+                        final record = displayRecords[index];
                         if (record.kind == RecordKind.task) {
+                          final entry = entries.firstWhere(
+                            (candidate) => candidate.task.id == record.id,
+                          );
                           return Card(
                             child: TaskRow(
                               task: record,
                               controller: widget.controller,
+                              hierarchyDepth: entry.depth,
+                              hasChildren: entry.hasChildren,
+                              expanded: entry.expanded,
+                              relationInfo: entry.relation,
+                              onToggleExpanded: () => setState(() {
+                                entry.expanded
+                                    ? _collapsedTaskIds.add(record.id)
+                                    : _collapsedTaskIds.remove(record.id);
+                              }),
                               selectionMode: _selectionMode,
                               selected: _selectedIds.contains(record.id),
                               onSelectionChanged: (value) => _toggleSelection(

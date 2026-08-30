@@ -23,6 +23,7 @@ import 'package:personal_workbench/ui/pages/plan_page.dart';
 import 'package:personal_workbench/ui/pages/settings_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
 import 'package:personal_workbench/ui/widgets/celebration.dart';
+import 'package:personal_workbench/ui/widgets/attachment_panel.dart';
 import 'package:personal_workbench/ui/widgets/common.dart';
 import 'package:personal_workbench/ui/widgets/record_editor_dialog.dart';
 import 'package:personal_workbench/ui/workbench_shell.dart';
@@ -282,6 +283,52 @@ WorkspaceRecord _task(
 );
 
 void main() {
+  testWidgets('attachment picker cancellation restores keyboard focus', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    const channel = MethodChannel('miguelruivo.flutter.plugins.filepicker');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      _,
+    ) async {
+      FocusManager.instance.primaryFocus?.unfocus();
+      return null;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    final note = WorkspaceRecord.create(
+      kind: RecordKind.note,
+      title: '附件选择器回归',
+    );
+    await fixture.controller.addRecord(note);
+    await _pump(
+      tester,
+      fixture.controller,
+      () => AttachmentPanel(owner: note, controller: fixture.controller),
+    );
+
+    await tester.tap(find.text('添加图片'));
+    await tester.pumpAndSettle();
+
+    final button = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, '添加图片'),
+    );
+    expect(button.focusNode?.hasFocus, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'desktop task list supports explicit, range and all selection',
     (tester) async {
@@ -350,6 +397,47 @@ void main() {
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );
+
+  testWidgets('task list scrolls 1000 records without layout failures', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    for (var index = 0; index < 1000; index++) {
+      await fixture.controller.addRecord(
+        WorkspaceRecord.create(
+          kind: RecordKind.task,
+          title: '性能回归任务 ${index.toString().padLeft(4, '0')}',
+          body: '用于验证大量记录的懒加载、滚动和布局稳定性。',
+        ),
+      );
+    }
+    final stopwatch = Stopwatch()..start();
+    await _pump(
+      tester,
+      fixture.controller,
+      () => PlanPage(controller: fixture.controller),
+    );
+    await tester.fling(
+      find.byType(Scrollable).last,
+      const Offset(0, -6000),
+      5000,
+    );
+    await tester.pumpAndSettle();
+    stopwatch.stop();
+
+    expect(find.text('性能回归任务 0000'), findsNothing);
+    expect(tester.takeException(), isNull);
+    expect(stopwatch.elapsed, lessThan(const Duration(seconds: 5)));
+    debugPrint('1000-record task list render+scroll: ${stopwatch.elapsed}');
+  });
 
   testWidgets(
     'Android inbox exits selection on back and can undo batch trash',
@@ -619,7 +707,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('navigation-group:projects')),
+      find.byKey(const ValueKey('navigation-leaf:projectsOverview')),
       findsOneWidget,
     );
     expect(
@@ -630,28 +718,21 @@ void main() {
     expect(find.widgetWithText(ListTile, '执行'), findsNothing);
     await fixture.controller.setNavigationGroupExpanded('tasks', false);
     await tester.pumpAndSettle();
-    for (final key in ['tasksAll', 'tasksInbox', 'tasksWeek', 'tasksGroups']) {
+    for (final key in ['tasksAll', 'tasksWeek', 'tasksGroups']) {
       expect(find.byKey(ValueKey('navigation-leaf:$key')), findsNothing);
     }
     await tester.tap(find.byKey(const ValueKey('navigation-group:tasks')));
     await tester.pumpAndSettle();
+    for (final key in ['tasksAll', 'tasksWeek', 'tasksGroups']) {
+      expect(find.byKey(ValueKey('navigation-leaf:$key')), findsOneWidget);
+    }
     expect(
       find.byKey(const ValueKey('navigation-leaf:tasksInbox')),
       findsOneWidget,
     );
-    await tester.tap(find.byKey(const ValueKey('navigation-group:tasks')));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('navigation-leaf:tasksInbox')),
-      findsNothing,
+    await tester.tap(
+      find.byKey(const ValueKey('navigation-leaf:projectsOverview')),
     );
-    await tester.tap(find.byKey(const ValueKey('navigation-group:tasks')));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('navigation-leaf:tasksInbox')),
-      findsOneWidget,
-    );
-    await tester.tap(find.byKey(const ValueKey('navigation-leaf:tasksInbox')));
     await tester.pumpAndSettle();
     expect(find.byType(TabBar), findsNothing);
     expect(find.widgetWithText(ListTile, '系统'), findsNothing);
@@ -693,15 +774,16 @@ void main() {
     expect(find.byTooltip('更多'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsNothing);
 
-    await fixture.controller.setNavigationGroupExpanded('projects', false);
     await tester.tap(find.byTooltip('更多'));
     await tester.pumpAndSettle();
     expect(
-      find.byKey(const ValueKey('navigation-group:projects')),
+      find.byKey(const ValueKey('navigation-leaf:projectsOverview')),
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey('navigation-group:projects')));
+    await tester.tap(
+      find.byKey(const ValueKey('navigation-leaf:projectsOverview')),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(BottomSheet), findsNothing);
     expect(find.text('项目 · 概览'), findsOneWidget);
@@ -740,10 +822,39 @@ void main() {
     expect(navigation.destinations, hasLength(5));
     await tester.tap(find.byTooltip('更多'));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView).last, const Offset(0, -420));
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('navigation-leaf:focus')),
+      180,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.byKey(const ValueKey('navigation-leaf:focus')));
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('phone landscape keeps the mobile navigation', (tester) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await fixture.controller.setAdvancedFeaturesEnabled(false);
+
+    await _pump(
+      tester,
+      fixture.controller,
+      () => WorkbenchShell(
+        controller: fixture.controller,
+        enableSystemHotkey: false,
+      ),
+      size: const Size(915, 412),
+    );
+
+    expect(find.byType(NavigationBar), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -1253,6 +1364,103 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'focus completion accepts empty optional evidence without lifecycle errors',
+    (tester) async {
+      final fixture = _fixture();
+      addTearDown(() {
+        fixture.dispose();
+        if (fixture.directory.existsSync()) {
+          fixture.directory.deleteSync(recursive: true);
+        }
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final task = _task(
+        '可选证据专注任务',
+        fixture.clock.value,
+        data: const {'isFocus': true},
+      );
+      await fixture.controller.addRecord(task);
+      await _pump(tester, fixture.controller, () {
+        return FocusPage(controller: fixture.controller, task: task);
+      });
+      await tester.tap(find.text('正计时'));
+      await tester.tap(find.text('开始专注'));
+      fixture.clock.value = fixture.clock.value.add(
+        const Duration(seconds: 65),
+      );
+      fixture.controller.focusService.refresh();
+      await tester.pump();
+      await tester.tap(find.text('完成本次专注'));
+      await tester.pump();
+      expect(find.text('记录本轮证据'), findsOneWidget);
+
+      await tester.tap(find.text('结算本轮'));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 2000));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final sessions = fixture.controller.recordsOf(RecordKind.focusSession);
+      expect(sessions, hasLength(1));
+      expect(sessions.single.body, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('CTDP focus completion requires evidence before settlement', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final task = _task(
+      'CTDP 证据任务',
+      fixture.clock.value,
+      data: const {
+        'isFocus': true,
+        'protocol': 'ctdp',
+        'ctdpTrigger': '开始',
+        'ctdpIsDurationless': true,
+      },
+    );
+    await fixture.controller.addRecord(task);
+    await _pump(tester, fixture.controller, () {
+      return FocusPage(controller: fixture.controller, task: task);
+    });
+    await tester.tap(find.text('正计时'));
+    await tester.tap(find.text('开始专注'));
+    fixture.clock.value = fixture.clock.value.add(const Duration(seconds: 10));
+    fixture.controller.focusService.refresh();
+    await tester.pump();
+    await tester.tap(find.text('完成本次专注'));
+    await tester.pump();
+
+    await tester.tap(find.text('结算本轮'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('请记录实际完成内容'), findsOneWidget);
+    expect(fixture.controller.recordsOf(RecordKind.focusSession), isEmpty);
+    expect(tester.takeException(), isNull);
+
+    await tester.enterText(find.byType(TextField).first, '完成 CTDP 证据记录');
+    await tester.tap(find.text('结算本轮'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 2000));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final sessions = fixture.controller.recordsOf(RecordKind.focusSession);
+    expect(sessions, hasLength(1));
+    expect(sessions.single.data['description'], '完成 CTDP 证据记录');
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'focus covers completion evidence and CTDP interruption choices',

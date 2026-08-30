@@ -318,14 +318,17 @@ class SkeletonBlock extends StatefulWidget {
 
 class _SkeletonBlockState extends State<SkeletonBlock>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _shimmer = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1300),
-  )..repeat();
+  AnimationController? _shimmerController;
+
+  AnimationController get _shimmer =>
+      _shimmerController ??= AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1300),
+      )..repeat();
 
   @override
   void dispose() {
-    _shimmer.dispose();
+    _shimmerController?.dispose();
     super.dispose();
   }
 
@@ -1082,5 +1085,7 @@ String statusLabel(String status) => switch (status) {
   WorkStatus.done => '已完成',
   WorkStatus.cancelled => '已取消',
   WorkStatus.skipped => '已跳过',
+  WorkStatus.failed => '失败',
+  WorkStatus.rescheduled => '已改期',
   _ => status,
 };

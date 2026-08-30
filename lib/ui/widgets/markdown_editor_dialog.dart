@@ -4,24 +4,34 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../core/models/workspace_record.dart';
 import '../../state/workbench_controller.dart';
 import 'common.dart';
+import 'relation_picker_dialog.dart';
 
 Future<WorkspaceRecord?> showMarkdownNoteEditor(
   BuildContext context,
   WorkbenchController controller, {
   WorkspaceRecord? note,
+  String? initialProjectId,
 }) {
   return showWorkbenchDialog<WorkspaceRecord>(
     context: context,
-    builder: (context) =>
-        _MarkdownNoteEditor(controller: controller, note: note),
+    builder: (context) => _MarkdownNoteEditor(
+      controller: controller,
+      note: note,
+      initialProjectId: initialProjectId,
+    ),
   );
 }
 
 class _MarkdownNoteEditor extends StatefulWidget {
-  const _MarkdownNoteEditor({required this.controller, this.note});
+  const _MarkdownNoteEditor({
+    required this.controller,
+    this.note,
+    this.initialProjectId,
+  });
 
   final WorkbenchController controller;
   final WorkspaceRecord? note;
+  final String? initialProjectId;
 
   @override
   State<_MarkdownNoteEditor> createState() => _MarkdownNoteEditorState();
@@ -32,6 +42,9 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
   late final TextEditingController bodyController;
   late final Set<String> taskIds;
   late final Set<String> projectIds;
+  final FocusNode relationFocusNode = FocusNode(
+    debugLabel: 'MarkdownNoteEditor.relations',
+  );
   bool preview = false;
   bool saving = false;
   String? error;
@@ -43,12 +56,16 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
     bodyController = TextEditingController(text: widget.note?.body ?? '');
     taskIds = _ids(widget.note?.data['relatedTaskIds']);
     projectIds = _ids(widget.note?.data['relatedProjectIds']);
+    if (widget.note == null && widget.initialProjectId != null) {
+      projectIds.add(widget.initialProjectId!);
+    }
   }
 
   @override
   void dispose() {
     titleController.dispose();
     bodyController.dispose();
+    relationFocusNode.dispose();
     super.dispose();
   }
 
@@ -93,6 +110,7 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
                   ),
                 ),
                 IconButton(
+                  focusNode: relationFocusNode,
                   onPressed: () => _showRelations(context),
                   tooltip: '关联任务和项目',
                   icon: Badge(
@@ -163,46 +181,22 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
   }
 
   Future<void> _showRelations(BuildContext parentContext) async {
-    await showWorkbenchSheet<void>(
+    final selection = await showRelationPickerDialog(
       context: parentContext,
-      showDragHandle: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => ListView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          children: [
-            Text('关联任务', style: Theme.of(context).textTheme.titleMedium),
-            for (final task in widget.controller.tasks)
-              CheckboxListTile(
-                value: taskIds.contains(task.id),
-                title: Text(task.title),
-                onChanged: (selected) {
-                  setSheetState(
-                    () => selected == true
-                        ? taskIds.add(task.id)
-                        : taskIds.remove(task.id),
-                  );
-                  setState(() {});
-                },
-              ),
-            const Divider(),
-            Text('关联项目', style: Theme.of(context).textTheme.titleMedium),
-            for (final project in widget.controller.projects)
-              CheckboxListTile(
-                value: projectIds.contains(project.id),
-                title: Text(project.title),
-                onChanged: (selected) {
-                  setSheetState(
-                    () => selected == true
-                        ? projectIds.add(project.id)
-                        : projectIds.remove(project.id),
-                  );
-                  setState(() {});
-                },
-              ),
-          ],
-        ),
-      ),
+      controller: widget.controller,
+      initialTaskIds: taskIds,
+      initialProjectIds: projectIds,
+      returnFocusNode: relationFocusNode,
     );
+    if (selection == null || !mounted) return;
+    setState(() {
+      taskIds
+        ..clear()
+        ..addAll(selection.taskIds);
+      projectIds
+        ..clear()
+        ..addAll(selection.projectIds);
+    });
   }
 
   Future<void> _showVersions(BuildContext parentContext) async {
@@ -283,6 +277,7 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
             kind: RecordKind.note,
             title: title,
             body: bodyController.text,
+            projectId: widget.initialProjectId,
             data: data,
           )
         : widget.note!.copyWith(

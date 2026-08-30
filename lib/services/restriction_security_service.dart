@@ -181,7 +181,8 @@ class RestrictionSecurityService {
   ) async {
     final normalizedCredential = credential.trim();
     final isEmergencyCode =
-        (normalizedCredential.startsWith('*') && normalizedCredential.length == 9) ||
+        (normalizedCredential.startsWith('*') &&
+            normalizedCredential.length == 9) ||
         RegExp(r'^\d{8}$').hasMatch(normalizedCredential);
     if (isEmergencyCode) {
       final code = normalizedCredential.startsWith('*')

@@ -14,6 +14,7 @@ import 'package:personal_workbench/services/search_service.dart';
 import 'package:personal_workbench/services/share_capture_service.dart';
 import 'package:personal_workbench/services/supabase_sync_service.dart';
 import 'package:personal_workbench/state/workbench_controller.dart';
+import 'package:personal_workbench/ui/pages/behavior_page.dart';
 import 'package:personal_workbench/ui/pages/calendar_page.dart';
 import 'package:personal_workbench/ui/pages/diary_page.dart';
 import 'package:personal_workbench/ui/pages/focus_page.dart';
@@ -97,17 +98,20 @@ Future<void> _loadAuditFonts() async {
   ]);
 }
 
+Future<WorkbenchController> _createEmptyController() async =>
+    WorkbenchController(
+      database: _MemoryDatabase(),
+      backupService: BackupService(),
+      searchService: SearchService(),
+      focusService: FocusService(),
+      notificationService: NotificationService(),
+      shareCaptureService: ShareCaptureService(),
+      syncService: SupabaseSyncService(null),
+      now: () => _auditNow,
+    );
+
 Future<WorkbenchController> _createController() async {
-  final controller = WorkbenchController(
-    database: _MemoryDatabase(),
-    backupService: BackupService(),
-    searchService: SearchService(),
-    focusService: FocusService(),
-    notificationService: NotificationService(),
-    shareCaptureService: ShareCaptureService(),
-    syncService: SupabaseSyncService(null),
-    now: () => _auditNow,
-  );
+  final controller = await _createEmptyController();
   final project = WorkspaceRecord.create(
     kind: RecordKind.project,
     title: '行射实验论文复核',
@@ -243,8 +247,15 @@ Future<WorkbenchController> _createController() async {
   return controller;
 }
 
-Widget _host(Widget child) {
-  final theme = AppTheme.light();
+Widget _host(
+  Widget page, {
+  Brightness brightness = Brightness.light,
+  TextScaler textScaler = TextScaler.noScaling,
+  bool disableAnimations = false,
+}) {
+  final theme = brightness == Brightness.dark
+      ? AppTheme.dark()
+      : AppTheme.light();
   final goldenTheme = theme.copyWith(
     textTheme: theme.textTheme.apply(fontFamily: 'GoldenCjk'),
     primaryTextTheme: theme.primaryTextTheme.apply(fontFamily: 'GoldenCjk'),
@@ -259,7 +270,17 @@ Widget _host(Widget child) {
       GlobalWidgetsLocalizations.delegate,
       GlobalCupertinoLocalizations.delegate,
     ],
-    home: Scaffold(body: child),
+    builder: (context, child) {
+      final media = MediaQuery.of(context);
+      return MediaQuery(
+        data: media.copyWith(
+          textScaler: textScaler,
+          disableAnimations: disableAnimations,
+        ),
+        child: child!,
+      );
+    },
+    home: Scaffold(body: page),
   );
 }
 
@@ -279,7 +300,7 @@ Future<void> _capture(
   expect(tester.takeException(), isNull);
   await expectLater(
     find.byType(MaterialApp),
-    matchesGoldenFile('../docs/images/ui_audit/$name.png'),
+    matchesGoldenFile('goldens/ui_audit/$name.png'),
   );
 }
 
@@ -305,7 +326,196 @@ Future<void> _captureRestrictionEditor(
   expect(tester.takeException(), isNull);
   await expectLater(
     find.byType(MaterialApp),
-    matchesGoldenFile('../docs/images/ui_audit/$name.png'),
+    matchesGoldenFile('goldens/ui_audit/$name.png'),
+  );
+}
+
+class _AuditSurface {
+  const _AuditSurface(this.name, this.builder);
+
+  final String name;
+  final Widget Function(Size size) builder;
+}
+
+List<_AuditSurface> _auditSurfaces(WorkbenchController controller) => [
+  _AuditSurface(
+    'today',
+    (size) => TodayPage(
+      controller: controller,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  for (final tab in PlanTab.values)
+    _AuditSurface(
+      'tasks_${tab.name}',
+      (size) => PlanPage(
+        controller: controller,
+        initialTab: tab,
+        showHeader: size.width >= AppBreakpoints.compact,
+        showTabs: false,
+      ),
+    ),
+  for (final tab in ProjectDetailTab.values)
+    _AuditSurface(
+      'projects_${tab.name}',
+      (size) => ProjectsPage(
+        controller: controller,
+        initialTab: tab,
+        showHeader: size.width >= AppBreakpoints.compact,
+        showTabs: false,
+      ),
+    ),
+  _AuditSurface(
+    'focus_hub',
+    (size) => FocusHubPage(
+      controller: controller,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  _AuditSurface(
+    'focus_session',
+    (_) => FocusPage(
+      controller: controller,
+      task: controller.focusTasks.firstOrNull,
+    ),
+  ),
+  _AuditSurface(
+    'restriction',
+    (size) => RestrictionPage(
+      controller: controller,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  _AuditSurface(
+    'notes',
+    (size) => NotesPage(
+      controller: controller,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  for (final tab in ReviewTab.values)
+    _AuditSurface(
+      'review_${tab.name}',
+      (size) => ReviewPage(
+        controller: controller,
+        initialTab: tab,
+        showHeader: size.width >= AppBreakpoints.compact,
+        showPeriodSwitcher: false,
+      ),
+    ),
+  _AuditSurface(
+    'legacy_diary',
+    (size) => DiaryPage(
+      controller: controller,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  _AuditSurface(
+    'goals',
+    (size) => GoalsPage(
+      controller: controller,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  _AuditSurface(
+    'habits',
+    (size) => HabitsPage(
+      controller: controller,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  _AuditSurface(
+    'behavior_habits',
+    (size) => BehaviorPage(
+      controller: controller,
+      initialMode: BehaviorMode.habits,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  for (final tab in PolicyTab.values)
+    _AuditSurface(
+      'behavior_policies_${tab.name}',
+      (size) => BehaviorPage(
+        controller: controller,
+        initialMode: BehaviorMode.policies,
+        initialPolicyTab: tab,
+        showHeader: size.width >= AppBreakpoints.compact,
+      ),
+    ),
+  for (final tab in PolicyTab.values)
+    _AuditSurface(
+      'policies_${tab.name}',
+      (size) => PoliciesPage(
+        controller: controller,
+        initialTab: tab,
+        showHeader: size.width >= AppBreakpoints.compact,
+        showTabs: false,
+      ),
+    ),
+  for (final tab in ProtocolTab.values)
+    _AuditSurface(
+      'legacy_protocols_${tab.name}',
+      (size) => ProtocolsPage(
+        controller: controller,
+        initialTab: tab,
+        showHeader: size.width >= AppBreakpoints.compact,
+      ),
+    ),
+  _AuditSurface(
+    'growth',
+    (size) => GrowthPage(
+      controller: controller,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  _AuditSurface(
+    'settings',
+    (size) => SettingsPage(
+      controller: controller,
+      showHeader: size.width >= AppBreakpoints.compact,
+    ),
+  ),
+  _AuditSurface('more', (_) => MorePage(onSelected: (_) {})),
+];
+
+Future<void> _verifySurface(
+  WidgetTester tester,
+  _AuditSurface surface,
+  Size size, {
+  Brightness brightness = Brightness.light,
+  TextScaler textScaler = TextScaler.noScaling,
+  bool disableAnimations = false,
+  required String scenario,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
+  expect(
+    tester.takeException(),
+    isNull,
+    reason:
+        'previous surface failed while switching to ${surface.name} '
+        'at $size ($scenario)',
+  );
+  await tester.pumpWidget(
+    _host(
+      surface.builder(size),
+      brightness: brightness,
+      textScaler: textScaler,
+      disableAnimations: disableAnimations,
+    ),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+  expect(
+    tester.takeException(),
+    isNull,
+    reason: '${surface.name} failed at $size ($scenario)',
+  );
+  expect(
+    find.byType(Semantics),
+    findsWidgets,
+    reason: '${surface.name} has no semantics at $size ($scenario)',
   );
 }
 
@@ -417,5 +627,80 @@ void main() {
       TodayPage(controller: controller),
       size: const Size(412, 915),
     );
+  });
+
+  testWidgets('reduced-motion skeletons can unmount repeatedly', (
+    tester,
+  ) async {
+    final controller = await _createController();
+    addTearDown(controller.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.physicalSize = const Size(1200, 864);
+    tester.view.devicePixelRatio = 1;
+    for (var index = 0; index < 3; index++) {
+      await tester.pumpWidget(
+        _host(NotesPage(controller: controller), disableAnimations: true),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('all mapped surfaces survive the complete layout matrix', (
+    tester,
+  ) async {
+    final populated = await _createController();
+    final empty = await _createEmptyController();
+    addTearDown(populated.dispose);
+    addTearDown(empty.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const viewports = [
+      Size(375, 812),
+      Size(412, 915),
+      Size(768, 864),
+      Size(1024, 864),
+      Size(1200, 864),
+      Size(1440, 900),
+      Size(1536, 864),
+    ];
+    for (final surface in _auditSurfaces(populated)) {
+      for (final size in viewports) {
+        await _verifySurface(tester, surface, size, scenario: 'light');
+      }
+      for (final size in const [Size(412, 915), Size(1200, 864)]) {
+        await _verifySurface(
+          tester,
+          surface,
+          size,
+          brightness: Brightness.dark,
+          scenario: 'dark',
+        );
+        await _verifySurface(
+          tester,
+          surface,
+          size,
+          disableAnimations: true,
+          scenario: 'reduced-motion',
+        );
+      }
+      await _verifySurface(
+        tester,
+        surface,
+        const Size(375, 812),
+        textScaler: const TextScaler.linear(2),
+        scenario: 'text-200-percent',
+      );
+    }
+
+    for (final surface in _auditSurfaces(empty)) {
+      for (final size in const [Size(412, 915), Size(1200, 864)]) {
+        await _verifySurface(tester, surface, size, scenario: 'empty');
+      }
+    }
   });
 }

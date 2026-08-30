@@ -25,23 +25,26 @@ try {
 }
 $projectKey = -join ($digest[0..5] | ForEach-Object { $_.ToString('x2') })
 $aliasRoot = Join-Path $env:LOCALAPPDATA "PersonalWorkbenchBuild\$projectKey"
-$sourceLink = Join-Path $aliasRoot 'source'
-
+$sourceCopy = Join-Path $aliasRoot 'source-copy'
 New-Item -ItemType Directory -Force -Path $aliasRoot | Out-Null
-if (Test-Path -LiteralPath $sourceLink) {
-    $link = Get-Item -LiteralPath $sourceLink -Force
-    $target = (Resolve-Path -LiteralPath $link.Target).Path
-    if ($link.LinkType -ne 'Junction' -or
-        -not [string]::Equals(
-            $target,
-            $projectRoot,
-            [System.StringComparison]::OrdinalIgnoreCase
-        )) {
-        throw "Build alias already exists but points elsewhere: $sourceLink"
-    }
-} else {
-    New-Item -ItemType Junction -Path $sourceLink -Target $projectRoot |
-        Out-Null
+$resolvedCacheBase = [System.IO.Path]::GetFullPath(
+    (Join-Path $env:LOCALAPPDATA 'PersonalWorkbenchBuild')
+).TrimEnd('\')
+$resolvedSourceCopy = [System.IO.Path]::GetFullPath($sourceCopy)
+if (-not $resolvedSourceCopy.StartsWith(
+        "$resolvedCacheBase\",
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+    throw 'The ASCII build source path validation failed.'
+}
+New-Item -ItemType Directory -Force -Path $sourceCopy | Out-Null
+
+& robocopy.exe $projectRoot $sourceCopy /MIR /R:2 /W:1 /NP /NFL /NDL /NJH /NJS `
+    /XD .dart_tool build dist .git .idea `
+    /XF .git | Out-Null
+$sourceCopyExitCode = $LASTEXITCODE
+if ($sourceCopyExitCode -ge 8) {
+    throw "Source staging failed with robocopy exit code $sourceCopyExitCode"
 }
 
 $javaCandidates = @(
@@ -56,7 +59,7 @@ if (-not $javaHome) {
 }
 $env:JAVA_HOME = (Resolve-Path -LiteralPath $javaHome).Path
 $env:PERSONAL_WORKBENCH_BUILD_ROOT = Join-Path $aliasRoot 'build'
-$env:PERSONAL_WORKBENCH_SOURCE_ROOT = $sourceLink
+$env:PERSONAL_WORKBENCH_SOURCE_ROOT = $sourceCopy
 
 $gradleCacheRoot = Join-Path $env:USERPROFILE '.gradle\wrapper\dists\gradle-8.14-bin'
 $gradle = Get-ChildItem -LiteralPath $gradleCacheRoot -Filter 'gradle.bat' -File -Recurse -ErrorAction SilentlyContinue |
@@ -72,7 +75,7 @@ $gradleTask = switch ($Configuration) {
     'release' { 'assembleRelease' }
 }
 
-Push-Location -LiteralPath $sourceLink
+Push-Location -LiteralPath $sourceCopy
 try {
     if ($Clean.IsPresent) {
         & flutter clean
@@ -103,7 +106,7 @@ try {
         throw "Android build number must be a positive integer: $versionCode"
     }
 
-    $localPropertiesPath = Join-Path $sourceLink 'android\local.properties'
+    $localPropertiesPath = Join-Path $sourceCopy 'android\local.properties'
     $localProperties = ConvertFrom-StringData (
         Get-Content -Raw -LiteralPath $localPropertiesPath
     )
@@ -122,11 +125,23 @@ try {
         [System.Text.UTF8Encoding]::new($false)
     )
 
-    Push-Location -LiteralPath (Join-Path $sourceLink 'android')
+    Push-Location -LiteralPath (Join-Path $sourceCopy 'android')
     try {
-        & $gradle.FullName $gradleTask '--offline' '--no-daemon' '--stacktrace'
-        if ($LASTEXITCODE -ne 0) {
-            throw "Gradle $gradleTask failed with exit code $LASTEXITCODE"
+        $shortTemp = Join-Path $env:SystemDrive "PWBTemp\$projectKey"
+        New-Item -ItemType Directory -Force -Path $shortTemp | Out-Null
+        $previousTemp = $env:TEMP
+        $previousTmp = $env:TMP
+        try {
+            $env:TEMP = $shortTemp
+            $env:TMP = $shortTemp
+            & $gradle.FullName $gradleTask '--offline' '--no-daemon' '--stacktrace'
+            $gradleExitCode = $LASTEXITCODE
+        } finally {
+            [Environment]::SetEnvironmentVariable('TEMP', $previousTemp, 'Process')
+            [Environment]::SetEnvironmentVariable('TMP', $previousTmp, 'Process')
+        }
+        if ($gradleExitCode -ne 0) {
+            throw "Gradle $gradleTask failed with exit code $gradleExitCode"
         }
     } finally {
         Pop-Location

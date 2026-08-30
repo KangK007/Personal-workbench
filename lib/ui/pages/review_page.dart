@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
+import '../../core/models/attachment.dart';
 import '../../core/models/workspace_record.dart';
 import '../../core/models/workspace_models_v3.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/attachment_panel.dart';
 import '../widgets/common.dart';
+import '../widgets/relation_picker_dialog.dart';
 
 enum ReviewTab { diary, weekly, monthly }
 
@@ -37,6 +40,9 @@ class _ReviewPageState extends State<ReviewPage> {
   late final TextEditingController blockersController;
   late final TextEditingController tomorrowController;
   late final TextEditingController searchController;
+  final FocusNode relationFocusNode = FocusNode(
+    debugLabel: 'ReviewPage.relations',
+  );
   final Set<String> relatedTaskIds = {};
   final Set<String> relatedProjectIds = {};
   WorkspaceRecord? existing;
@@ -46,6 +52,7 @@ class _ReviewPageState extends State<ReviewPage> {
   bool preview = false;
   bool saving = false;
   bool libraryVisible = false;
+  WorkspaceRecord? libraryPreview;
   String libraryFilter = 'all';
 
   WorkbenchController get controller => widget.controller;
@@ -79,11 +86,23 @@ class _ReviewPageState extends State<ReviewPage> {
     searchController
       ..removeListener(_refreshLibrary)
       ..dispose();
+    relationFocusNode.dispose();
     super.dispose();
   }
 
   void _refreshLibrary() {
     if (mounted && libraryVisible) setState(() {});
+  }
+
+  void _toggleLibrary() {
+    setState(() {
+      if (libraryPreview != null) {
+        libraryPreview = null;
+        libraryVisible = true;
+      } else {
+        libraryVisible = !libraryVisible;
+      }
+    });
   }
 
   void _loadPeriod() {
@@ -121,15 +140,15 @@ class _ReviewPageState extends State<ReviewPage> {
             subtitle: '先核对期间事实，再记录判断与下一步',
             actions: [
               OutlinedButton.icon(
-                onPressed: () => setState(() {
-                  libraryVisible = !libraryVisible;
-                }),
+                onPressed: _toggleLibrary,
                 icon: Icon(
-                  libraryVisible
+                  libraryVisible || libraryPreview != null
                       ? Icons.edit_note_outlined
                       : Icons.library_books_outlined,
                 ),
-                label: Text(libraryVisible ? '返回编辑' : '回顾库'),
+                label: Text(
+                  libraryVisible || libraryPreview != null ? '返回编辑' : '回顾库',
+                ),
               ),
               FilledButton.icon(
                 onPressed: _addReview,
@@ -147,12 +166,12 @@ class _ReviewPageState extends State<ReviewPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    onPressed: () => setState(() {
-                      libraryVisible = !libraryVisible;
-                    }),
-                    tooltip: libraryVisible ? '返回编辑' : '回顾库',
+                    onPressed: _toggleLibrary,
+                    tooltip: libraryVisible || libraryPreview != null
+                        ? '返回编辑'
+                        : '回顾库',
                     icon: Icon(
-                      libraryVisible
+                      libraryVisible || libraryPreview != null
                           ? Icons.edit_note_outlined
                           : Icons.library_books_outlined,
                     ),
@@ -167,13 +186,20 @@ class _ReviewPageState extends State<ReviewPage> {
             ),
           ),
         const Divider(),
-        Expanded(child: libraryVisible ? _buildLibrary() : _buildEditor()),
+        Expanded(
+          child: libraryPreview != null
+              ? _buildLibraryPreview(libraryPreview!)
+              : libraryVisible
+              ? _buildLibrary()
+              : _buildEditor(),
+        ),
       ],
     );
   }
 
   Widget _buildEditor() {
     final currentPeriod = period;
+    final editable = _isCurrentPeriod;
     final snapshot = _snapshotForDisplay(currentPeriod);
     final statisticsChanged =
         existing != null && controller.reviewStatisticsChanged(existing!);
@@ -232,6 +258,7 @@ class _ReviewPageState extends State<ReviewPage> {
             label: '标题',
             child: TextField(
               controller: titleController,
+              readOnly: !editable,
               decoration: const InputDecoration(),
             ),
           ),
@@ -249,8 +276,11 @@ class _ReviewPageState extends State<ReviewPage> {
                 ButtonSegment(value: 5, label: Text('5')),
               ],
               selected: mood == null ? const {} : {mood!},
-              onSelectionChanged: (value) =>
-                  setState(() => mood = value.isEmpty ? null : value.first),
+              onSelectionChanged: editable
+                  ? (value) => setState(
+                      () => mood = value.isEmpty ? null : value.first,
+                    )
+                  : null,
             ),
           ),
           const SizedBox(height: 12),
@@ -258,18 +288,21 @@ class _ReviewPageState extends State<ReviewPage> {
             controller: completedController,
             label: '今天完成了什么',
             icon: Icons.check_circle_outline,
+            readOnly: !editable,
           ),
           const SizedBox(height: 12),
           _DailyReviewField(
             controller: blockersController,
             label: '遇到的问题',
             icon: Icons.block_outlined,
+            readOnly: !editable,
           ),
           const SizedBox(height: 12),
           _DailyReviewField(
             controller: tomorrowController,
             label: '明日计划',
             icon: Icons.next_plan_outlined,
+            readOnly: !editable,
           ),
           const SizedBox(height: 18),
         ],
@@ -278,7 +311,8 @@ class _ReviewPageState extends State<ReviewPage> {
             Text('回顾正文', style: Theme.of(context).textTheme.titleMedium),
             const Spacer(),
             IconButton(
-              onPressed: _showRelations,
+              focusNode: relationFocusNode,
+              onPressed: editable ? _showRelations : null,
               tooltip: '关联任务和项目',
               icon: Badge(
                 isLabelVisible:
@@ -330,9 +364,11 @@ class _ReviewPageState extends State<ReviewPage> {
           _MarkdownToolbar(
             controller: bodyController,
             onChanged: () => setState(() {}),
+            enabled: editable,
           ),
           TextField(
             controller: bodyController,
+            readOnly: !editable,
             minLines: 10,
             maxLines: 24,
             decoration: const InputDecoration(
@@ -342,8 +378,10 @@ class _ReviewPageState extends State<ReviewPage> {
           ),
         ],
         const SizedBox(height: 16),
-        if (existing != null)
+        if (existing != null && editable)
           AttachmentPanel(owner: existing!, controller: controller)
+        else if (existing != null)
+          _ReadOnlyAttachments(owner: existing!, controller: controller)
         else
           Text(
             '第一次保存后可以添加本地图片附件。',
@@ -353,7 +391,7 @@ class _ReviewPageState extends State<ReviewPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            if (existing?.data['draft'] == true) ...[
+            if (editable && existing?.data['draft'] == true) ...[
               TextButton.icon(
                 onPressed: saving ? null : _skip,
                 icon: const Icon(Icons.skip_next_outlined),
@@ -361,16 +399,22 @@ class _ReviewPageState extends State<ReviewPage> {
               ),
               const SizedBox(width: 8),
             ],
-            FilledButton.icon(
-              onPressed: saving ? null : _save,
-              icon: saving
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text('保存${_reviewLabel(type)}'),
-            ),
+            if (editable)
+              FilledButton.icon(
+                onPressed: saving ? null : _save,
+                icon: saving
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text('保存${_reviewLabel(type)}'),
+              )
+            else
+              Text(
+                '历史回顾仅供查看，当前周期可编辑。',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
           ],
         ),
       ],
@@ -500,9 +544,7 @@ class _ReviewPageState extends State<ReviewPage> {
                             ? Icons.visibility_outlined
                             : Icons.chevron_right,
                       ),
-                      onTap: () => legacy
-                          ? _showLegacyReview(review)
-                          : _openLibraryReview(review),
+                      onTap: () => _openLibraryReview(review),
                     );
                   },
                 ),
@@ -511,7 +553,192 @@ class _ReviewPageState extends State<ReviewPage> {
     );
   }
 
+  bool get _isCurrentPeriod {
+    final current = reviewPeriodFor(
+      type,
+      controller.growthService.logicalDay(controller.currentTime()),
+    );
+    return !period.start.isAfter(current.start) && period.key == current.key;
+  }
+
+  Widget _buildLibraryPreview(WorkspaceRecord review) {
+    final isLegacy = review.kind == RecordKind.diary;
+    final reviewType = isLegacy
+        ? ReviewPeriodType.daily
+        : ReviewPeriodType.values.firstWhere(
+            (value) => value.name == review.data['periodType'],
+            orElse: () => ReviewPeriodType.daily,
+          );
+    final start =
+        DateTime.tryParse(
+          review.data['periodStart']?.toString() ?? '',
+        )?.toLocal() ??
+        review.scheduledFor ??
+        review.updatedAt;
+    final current =
+        reviewType != ReviewPeriodType.yearly &&
+        reviewPeriodFor(
+              reviewType,
+              controller.growthService.logicalDay(controller.currentTime()),
+            ).key ==
+            (isLegacy
+                ? _dateKey(start)
+                : review.data['periodKey']?.toString() ?? '');
+    final relatedTasks = _ids(
+      review.data['relatedTaskIds'],
+    ).map(_findRecord).whereType<WorkspaceRecord>().toList(growable: false);
+    final relatedProjects = _ids(
+      review.data['relatedProjectIds'],
+    ).map(_findRecord).whereType<WorkspaceRecord>().toList(growable: false);
+    final snapshot = review.data['snapshot'];
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
+      children: [
+        Row(
+          children: [
+            IconButton(
+              tooltip: '返回回顾库',
+              onPressed: () => setState(() => libraryPreview = null),
+              icon: const Icon(Icons.arrow_back),
+            ),
+            Expanded(
+              child: Text(
+                '回顾预览',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            if (current && !isLegacy)
+              FilledButton.icon(
+                onPressed: () => _editLibraryReview(review),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('编辑本期'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        LogSurface(
+          child: Wrap(
+            spacing: 18,
+            runSpacing: 8,
+            children: [
+              _previewMeta('类型', _reviewLabel(reviewType)),
+              _previewMeta(
+                '周期',
+                isLegacy
+                    ? _dateKey(start)
+                    : review.data['periodKey']?.toString() ?? _dateKey(start),
+              ),
+              _previewMeta('保存时间', formatDateTime(review.updatedAt)),
+              _previewMeta(
+                '状态',
+                isLegacy
+                    ? '旧日记（只读）'
+                    : review.data['draft'] == true
+                    ? '草稿'
+                    : review.data['reviewSkipped'] == true
+                    ? '已跳过'
+                    : '已完成',
+              ),
+            ],
+          ),
+        ),
+        if (!current && !isLegacy) ...[
+          const SizedBox(height: 10),
+          const MaterialBanner(
+            content: Text('历史周期只读，不能修改或保存。'),
+            leading: Icon(Icons.lock_outline),
+            actions: [],
+          ),
+        ],
+        const SizedBox(height: 16),
+        Text(review.title, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        LogSurface(
+          child: MarkdownBody(
+            data: review.body.isEmpty ? '*暂无正文*' : review.body,
+            selectable: true,
+          ),
+        ),
+        if (reviewType == ReviewPeriodType.daily) ...[
+          const SizedBox(height: 16),
+          _PreviewFields(review: review),
+        ],
+        if (snapshot is Map) ...[
+          const SizedBox(height: 16),
+          Text('事实快照', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          LogSurface(child: Text(_snapshotSummary(snapshot))),
+        ],
+        const SizedBox(height: 16),
+        _PreviewRelations(
+          title: '关联任务',
+          icon: Icons.checklist_outlined,
+          records: relatedTasks,
+        ),
+        const SizedBox(height: 12),
+        _PreviewRelations(
+          title: '关联项目',
+          icon: Icons.folder_outlined,
+          records: relatedProjects,
+        ),
+        const SizedBox(height: 16),
+        _ReadOnlyAttachments(owner: review, controller: controller),
+      ],
+    );
+  }
+
+  WorkspaceRecord? _findRecord(String id) {
+    for (final record in controller.allRecords) {
+      if (record.id == id) return record;
+    }
+    return null;
+  }
+
+  Widget _previewMeta(String label, String value) => SizedBox(
+    width: 170,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.labelMedium),
+        const SizedBox(height: 2),
+        Text(value),
+      ],
+    ),
+  );
+
+  String _snapshotSummary(Map snapshot) {
+    final completed = snapshot['completed'] ?? 0;
+    final failed = snapshot['failed'] ?? 0;
+    final skipped = snapshot['skipped'] ?? 0;
+    final focus = snapshot['focusSeconds'] ?? 0;
+    return '完成 $completed · 失败 $failed · 跳过 $skipped · 专注 ${((focus as num) / 60).round()} 分';
+  }
+
+  void _editLibraryReview(WorkspaceRecord review) {
+    final value = ReviewPeriodType.values.firstWhere(
+      (candidate) => candidate.name == review.data['periodType'],
+      orElse: () => ReviewPeriodType.daily,
+    );
+    final date =
+        DateTime.tryParse(
+          review.data['periodStart']?.toString() ?? '',
+        )?.toLocal() ??
+        review.scheduledFor ??
+        review.updatedAt;
+    setState(() {
+      type = value;
+      anchor = date;
+      libraryPreview = null;
+      libraryVisible = false;
+      _loadPeriod();
+    });
+  }
+
   Future<void> _save() async {
+    if (!_isCurrentPeriod) {
+      _message('只能编辑当前逻辑周期的回顾。');
+      return;
+    }
     setState(() => saving = true);
     try {
       final current = period;
@@ -710,17 +937,27 @@ class _ReviewPageState extends State<ReviewPage> {
   }
 
   void _movePeriod(int direction) {
+    final nextAnchor = switch (type) {
+      ReviewPeriodType.daily => anchor.add(Duration(days: direction)),
+      ReviewPeriodType.weekly => anchor.add(Duration(days: 7 * direction)),
+      ReviewPeriodType.monthly => DateTime(
+        anchor.year,
+        anchor.month + direction,
+        1,
+      ),
+      ReviewPeriodType.yearly => anchor,
+    };
+    final current = reviewPeriodFor(
+      type,
+      controller.growthService.logicalDay(controller.currentTime()),
+    );
+    final next = reviewPeriodFor(type, nextAnchor);
+    if (direction > 0 && next.start.isAfter(current.start)) {
+      _message('不能导航到未来周期。');
+      return;
+    }
     setState(() {
-      anchor = switch (type) {
-        ReviewPeriodType.daily => anchor.add(Duration(days: direction)),
-        ReviewPeriodType.weekly => anchor.add(Duration(days: 7 * direction)),
-        ReviewPeriodType.monthly => DateTime(
-          anchor.year,
-          anchor.month + direction,
-          1,
-        ),
-        ReviewPeriodType.yearly => anchor,
-      };
+      anchor = nextAnchor;
       _loadPeriod();
     });
   }
@@ -733,95 +970,29 @@ class _ReviewPageState extends State<ReviewPage> {
   }
 
   void _openLibraryReview(WorkspaceRecord review) {
-    final value = ReviewPeriodType.values.firstWhere(
-      (candidate) => candidate.name == review.data['periodType'],
-      orElse: () => ReviewPeriodType.daily,
-    );
-    final date =
-        DateTime.tryParse(
-          review.data['periodStart']?.toString() ?? '',
-        )?.toLocal() ??
-        review.scheduledFor ??
-        review.updatedAt;
     setState(() {
-      type = value;
-      anchor = date;
-      libraryVisible = false;
-      _loadPeriod();
+      libraryVisible = true;
+      libraryPreview = review;
     });
   }
 
-  Future<void> _showLegacyReview(WorkspaceRecord review) {
-    return showWorkbenchDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${review.title}（只读）'),
-        content: SizedBox(
-          width: 620,
-          child: SingleChildScrollView(
-            child: MarkdownBody(
-              data: review.body.isEmpty ? '*暂无正文*' : review.body,
-              selectable: true,
-            ),
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _showRelations() async {
-    await showWorkbenchDialog<void>(
+    final selection = await showRelationPickerDialog(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('关联任务和项目'),
-          content: SizedBox(
-            width: 520,
-            height: 480,
-            child: ListView(
-              children: [
-                const ListTile(title: Text('任务')),
-                for (final task in controller.tasks)
-                  CheckboxListTile(
-                    value: relatedTaskIds.contains(task.id),
-                    title: Text(task.title),
-                    onChanged: (selected) => setDialogState(() {
-                      selected == true
-                          ? relatedTaskIds.add(task.id)
-                          : relatedTaskIds.remove(task.id);
-                    }),
-                  ),
-                const Divider(),
-                const ListTile(title: Text('项目')),
-                for (final project in controller.projects)
-                  CheckboxListTile(
-                    value: relatedProjectIds.contains(project.id),
-                    title: Text(project.title),
-                    onChanged: (selected) => setDialogState(() {
-                      selected == true
-                          ? relatedProjectIds.add(project.id)
-                          : relatedProjectIds.remove(project.id);
-                    }),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('完成'),
-            ),
-          ],
-        ),
-      ),
+      controller: controller,
+      initialTaskIds: relatedTaskIds,
+      initialProjectIds: relatedProjectIds,
+      returnFocusNode: relationFocusNode,
     );
-    if (mounted) setState(() {});
+    if (selection == null || !mounted) return;
+    setState(() {
+      relatedTaskIds
+        ..clear()
+        ..addAll(selection.taskIds);
+      relatedProjectIds
+        ..clear()
+        ..addAll(selection.projectIds);
+    });
   }
 
   Future<void> _showVersions() async {
@@ -1055,10 +1226,15 @@ class _TaskFactTile extends StatelessWidget {
 }
 
 class _MarkdownToolbar extends StatelessWidget {
-  const _MarkdownToolbar({required this.controller, required this.onChanged});
+  const _MarkdownToolbar({
+    required this.controller,
+    required this.onChanged,
+    this.enabled = true,
+  });
 
   final TextEditingController controller;
   final VoidCallback onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -1066,27 +1242,27 @@ class _MarkdownToolbar extends StatelessWidget {
       spacing: 4,
       children: [
         IconButton(
-          onPressed: () => _insert('**', '**'),
+          onPressed: enabled ? () => _insert('**', '**') : null,
           tooltip: '加粗',
           icon: const Icon(Icons.format_bold),
         ),
         IconButton(
-          onPressed: () => _insert('_', '_'),
+          onPressed: enabled ? () => _insert('_', '_') : null,
           tooltip: '斜体',
           icon: const Icon(Icons.format_italic),
         ),
         IconButton(
-          onPressed: () => _insert('## ', ''),
+          onPressed: enabled ? () => _insert('## ', '') : null,
           tooltip: '标题',
           icon: const Icon(Icons.title),
         ),
         IconButton(
-          onPressed: () => _insert('- ', ''),
+          onPressed: enabled ? () => _insert('- ', '') : null,
           tooltip: '列表',
           icon: const Icon(Icons.format_list_bulleted),
         ),
         IconButton(
-          onPressed: () => _insert('[', '](https://)'),
+          onPressed: enabled ? () => _insert('[', '](https://)') : null,
           tooltip: '链接',
           icon: const Icon(Icons.link),
         ),
@@ -1116,11 +1292,13 @@ class _DailyReviewField extends StatelessWidget {
     required this.controller,
     required this.label,
     required this.icon,
+    this.readOnly = false,
   });
 
   final TextEditingController controller;
   final String label;
   final IconData icon;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -1128,6 +1306,7 @@ class _DailyReviewField extends StatelessWidget {
       label: label,
       child: TextField(
         controller: controller,
+        readOnly: readOnly,
         minLines: 2,
         maxLines: 5,
         decoration: InputDecoration(
@@ -1138,6 +1317,117 @@ class _DailyReviewField extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PreviewFields extends StatelessWidget {
+  const _PreviewFields({required this.review});
+
+  final WorkspaceRecord review;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = [
+      ('今天完成了什么', review.data['completedToday']?.toString() ?? ''),
+      ('遇到的问题', review.data['blockers']?.toString() ?? ''),
+      ('明日计划', review.data['tomorrowPlan']?.toString() ?? ''),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('日回顾字段', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        for (final value in values)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: LogSurface(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(value.$1, style: Theme.of(context).textTheme.labelLarge),
+                  const SizedBox(height: 4),
+                  Text(value.$2.isEmpty ? '未填写' : value.$2),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _PreviewRelations extends StatelessWidget {
+  const _PreviewRelations({
+    required this.title,
+    required this.icon,
+    required this.records,
+  });
+
+  final String title;
+  final IconData icon;
+  final List<WorkspaceRecord> records;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        if (records.isEmpty)
+          Text('无关联', style: TextStyle(color: context.tokens.mutedText))
+        else
+          LogSurface(
+            child: Column(
+              children: [
+                for (final record in records)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(icon),
+                    title: Text(record.title),
+                    subtitle: Text(record.kind.name),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ReadOnlyAttachments extends StatelessWidget {
+  const _ReadOnlyAttachments({required this.owner, required this.controller});
+
+  final WorkspaceRecord owner;
+  final WorkbenchController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Attachment>>(
+      future: controller.attachmentService.forRecord(owner.id),
+      builder: (context, snapshot) {
+        final attachments = snapshot.data ?? const <Attachment>[];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('附件', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            if (snapshot.connectionState != ConnectionState.done)
+              const LinearProgressIndicator(),
+            if (snapshot.connectionState == ConnectionState.done &&
+                attachments.isEmpty)
+              Text('暂无附件', style: TextStyle(color: context.tokens.mutedText)),
+            for (final attachment in attachments)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.attachment_outlined),
+                title: Text(attachment.fileName),
+                subtitle: Text(formatAttachmentBytes(attachment.sizeBytes)),
+              ),
+          ],
+        );
+      },
     );
   }
 }

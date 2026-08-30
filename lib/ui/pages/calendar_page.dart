@@ -260,19 +260,26 @@ class _DesktopWeek extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: isSameDay(day, now)
-                          ? Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.08)
+                          ? Theme.of(context).colorScheme.primaryContainer
+                                .withValues(alpha: 0.58)
                           : Colors.transparent,
                       border: Border(
                         left: BorderSide(color: context.tokens.divider),
+                        bottom: isSameDay(day, now)
+                            ? BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                                width: 2,
+                              )
+                            : BorderSide.none,
                       ),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _weekday(day.weekday),
+                          isSameDay(day, now)
+                              ? '今天 · ${_weekday(day.weekday)}'
+                              : _weekday(day.weekday),
                           style: Theme.of(context).textTheme.labelMedium
                               ?.copyWith(color: context.tokens.mutedText),
                         ),
@@ -382,12 +389,24 @@ class _DayLane extends StatelessWidget {
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: candidateData.isNotEmpty
+                color: isSameDay(day, now)
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer.withValues(alpha: 0.20)
+                    : candidateData.isNotEmpty
                     ? Theme.of(
                         context,
                       ).colorScheme.primary.withValues(alpha: 0.06)
                     : Colors.transparent,
-                border: Border(left: BorderSide(color: context.tokens.divider)),
+                border: Border(
+                  left: BorderSide(color: context.tokens.divider),
+                  right: isSameDay(day, now)
+                      ? BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 1.5,
+                        )
+                      : BorderSide.none,
+                ),
               ),
               child: Column(
                 children: [
@@ -554,11 +573,13 @@ class _MobileWeek extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final blocks = controller.timeBlocksForDay(selectedDay);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final dayPickerHeight = math.max(68.0, 44 + 24 * textScale);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 132),
       children: [
         SizedBox(
-          height: 68,
+          height: dayPickerHeight,
           child: Row(
             children: [
               for (final day in days)

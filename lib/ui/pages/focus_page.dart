@@ -728,169 +728,196 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                   ),
                 ),
               SafeArea(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 680),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            widget.task?.title ??
-                                widget.preset?.title ??
-                                '临时专注',
-                            style: Theme.of(context).textTheme.headlineMedium,
-                            textAlign: TextAlign.center,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 32),
-                          SolidPanel(
-                            padding: const EdgeInsets.all(4),
-                            radius: AppRadius.card,
-                            child: SegmentedButton<FocusMode>(
-                              segments: const [
-                                ButtonSegment(
-                                  value: FocusMode.stopwatch,
-                                  label: Text('正计时'),
-                                  icon: Icon(Icons.timer_outlined),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 680),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  widget.task?.title ??
+                                      widget.preset?.title ??
+                                      '临时专注',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineMedium,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                ButtonSegment(
-                                  value: FocusMode.pomodoro25,
-                                  label: Text('25 / 5'),
+                                const SizedBox(height: 32),
+                                SolidPanel(
+                                  padding: const EdgeInsets.all(4),
+                                  radius: AppRadius.card,
+                                  child: SegmentedButton<FocusMode>(
+                                    segments: const [
+                                      ButtonSegment(
+                                        value: FocusMode.stopwatch,
+                                        label: Text('正计时'),
+                                        icon: Icon(Icons.timer_outlined),
+                                      ),
+                                      ButtonSegment(
+                                        value: FocusMode.pomodoro25,
+                                        label: Text('25 / 5'),
+                                      ),
+                                      ButtonSegment(
+                                        value: FocusMode.pomodoro50,
+                                        label: Text('50 / 10'),
+                                      ),
+                                      ButtonSegment(
+                                        value: FocusMode.custom,
+                                        label: Text('协议时长'),
+                                        icon: Icon(Icons.link),
+                                      ),
+                                    ],
+                                    selected: {
+                                      service.running
+                                          ? service.mode
+                                          : selectedMode,
+                                    },
+                                    onSelectionChanged: service.running
+                                        ? null
+                                        : (value) => setState(
+                                            () => selectedMode = value.first,
+                                          ),
+                                  ),
                                 ),
-                                ButtonSegment(
-                                  value: FocusMode.pomodoro50,
-                                  label: Text('50 / 10'),
-                                ),
-                                ButtonSegment(
-                                  value: FocusMode.custom,
-                                  label: Text('协议时长'),
-                                  icon: Icon(Icons.link),
-                                ),
-                              ],
-                              selected: {
-                                service.running ? service.mode : selectedMode,
-                              },
-                              onSelectionChanged: service.running
-                                  ? null
-                                  : (value) => setState(
-                                      () => selectedMode = value.first,
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(height: 44),
-                          Stack(
-                            clipBehavior: Clip.none,
-                            alignment: Alignment.center,
-                            children: [
-                              if (targetPulse)
-                                const PulseRing(
-                                  duration: Duration(milliseconds: 900),
-                                ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                child: Column(
+                                const SizedBox(height: 44),
+                                Stack(
+                                  clipBehavior: Clip.none,
+                                  alignment: Alignment.center,
                                   children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 5,
-                                          height: 5,
-                                          decoration: BoxDecoration(
-                                            color: context.tokens.marker,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          service.running ? '灵息流转' : '待入静',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelMedium
-                                              ?.copyWith(
-                                                color: context.tokens.mutedText,
-                                                fontWeight: FontWeight.w600,
+                                    if (targetPulse)
+                                      const PulseRing(
+                                        duration: Duration(milliseconds: 900),
+                                      ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(
+                                                width: 5,
+                                                height: 5,
+                                                decoration: BoxDecoration(
+                                                  color: context.tokens.marker,
+                                                  shape: BoxShape.circle,
+                                                ),
                                               ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    SizedBox(
-                                      height: 128,
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                          formatDuration(
-                                            service.displayDuration,
-                                          ),
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .displaySmall
-                                              ?.copyWith(
-                                                fontSize: 84,
-                                                fontWeight: FontWeight.w700,
-                                                fontFeatures: const [
-                                                  FontFeature.tabularFigures(),
-                                                ],
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                service.running
+                                                    ? '灵息流转'
+                                                    : '待入静',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .labelMedium
+                                                    ?.copyWith(
+                                                      color: context
+                                                          .tokens
+                                                          .mutedText,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
                                               ),
-                                        ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          SizedBox(
+                                            height: 128,
+                                            child: FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              child: Text(
+                                                formatDuration(
+                                                  service.displayDuration,
+                                                ),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .displaySmall
+                                                    ?.copyWith(
+                                                      fontSize: 84,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontFeatures: const [
+                                                        FontFeature.tabularFigures(),
+                                                      ],
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 22),
-                          if (service.mode != FocusMode.stopwatch)
-                            LinearProgressIndicator(
-                              value: service.progress,
-                              minHeight: 8,
-                              borderRadius: BorderRadius.circular(4),
-                            )
-                          else
-                            Text(
-                              '按实际投入时间记录',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: scheme.onSurfaceVariant),
-                            ),
-                          const SizedBox(height: 38),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            alignment: WrapAlignment.center,
-                            children: [
-                              PressScale(
-                                child: FilledButton.icon(
-                                  onPressed: service.running ? _pause : _start,
-                                  icon: Icon(
-                                    service.running
-                                        ? Icons.pause
-                                        : Icons.play_arrow,
+                                const SizedBox(height: 22),
+                                if (service.mode != FocusMode.stopwatch)
+                                  LinearProgressIndicator(
+                                    value: service.progress,
+                                    minHeight: 8,
+                                    borderRadius: BorderRadius.circular(4),
+                                  )
+                                else
+                                  Text(
+                                    '按实际投入时间记录',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: scheme.onSurfaceVariant,
+                                        ),
                                   ),
-                                  label: Text(service.running ? '暂停' : '开始专注'),
+                                const SizedBox(height: 38),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    PressScale(
+                                      child: FilledButton.icon(
+                                        onPressed: service.running
+                                            ? _pause
+                                            : _start,
+                                        icon: Icon(
+                                          service.running
+                                              ? Icons.pause
+                                              : Icons.play_arrow,
+                                        ),
+                                        label: Text(
+                                          service.running ? '暂停' : '开始专注',
+                                        ),
+                                      ),
+                                    ),
+                                    PressScale(
+                                      child: OutlinedButton.icon(
+                                        onPressed:
+                                            service.elapsed == Duration.zero ||
+                                                finishing
+                                            ? null
+                                            : _finish,
+                                        icon: const Icon(Icons.check),
+                                        label: const Text('完成本次专注'),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              PressScale(
-                                child: OutlinedButton.icon(
-                                  onPressed:
-                                      service.elapsed == Duration.zero ||
-                                          finishing
-                                      ? null
-                                      : _finish,
-                                  icon: const Icon(Icons.check),
-                                  label: const Text('完成本次专注'),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -1372,10 +1399,10 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
   Future<(String, String)?> _askCompletionEvidence({
     required bool requireDescription,
   }) async {
-    final description = TextEditingController();
-    final notes = TextEditingController();
+    var description = '';
+    var notes = '';
     String? error;
-    final result = await showWorkbenchDialog<(String, String)>(
+    return showWorkbenchDialog<(String, String)>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -1388,8 +1415,8 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                 ExternalField(
                   label: requireDescription ? '完成内容（必填）' : '完成内容',
                   child: TextField(
-                    controller: description,
                     autofocus: true,
+                    onChanged: (value) => description = value,
                     decoration: InputDecoration(errorText: error),
                   ),
                 ),
@@ -1397,9 +1424,9 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                 ExternalField(
                   label: '备注',
                   child: TextField(
-                    controller: notes,
                     minLines: 2,
                     maxLines: 4,
+                    onChanged: (value) => notes = value,
                     decoration: const InputDecoration(),
                   ),
                 ),
@@ -1413,14 +1440,12 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
             ),
             FilledButton(
               onPressed: () {
-                if (requireDescription && description.text.trim().isEmpty) {
+                final trimmedDescription = description.trim();
+                if (requireDescription && trimmedDescription.isEmpty) {
                   setDialogState(() => error = '请记录实际完成内容');
                   return;
                 }
-                Navigator.pop(context, (
-                  description.text.trim(),
-                  notes.text.trim(),
-                ));
+                Navigator.pop(context, (trimmedDescription, notes.trim()));
               },
               child: const Text('结算本轮'),
             ),
@@ -1428,8 +1453,5 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
         ),
       ),
     );
-    description.dispose();
-    notes.dispose();
-    return result;
   }
 }

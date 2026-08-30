@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -61,7 +62,7 @@ class TodayPage extends StatelessWidget {
           ),
         if (showHeader &&
             MediaQuery.sizeOf(context).width >= AppBreakpoints.compact)
-          _TimeRuler(startHour: controller.logicalDayBoundaryHour),
+          _TimeRuler(controller: controller),
         Expanded(
           child: _TodayContent(
             controller: controller,
@@ -76,13 +77,72 @@ class TodayPage extends StatelessWidget {
   }
 }
 
-class _TimeRuler extends StatelessWidget {
-  const _TimeRuler({required this.startHour});
+class _TimeRuler extends StatefulWidget {
+  const _TimeRuler({required this.controller});
 
-  final int startHour;
+  final WorkbenchController controller;
+
+  @override
+  State<_TimeRuler> createState() => _TimeRulerState();
+}
+
+class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
+  late DateTime now;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    now = widget.controller.currentTime();
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleTimer();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      setState(() => now = widget.controller.currentTime());
+      _scheduleTimer();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _timer?.cancel();
+    }
+  }
+
+  void _scheduleTimer() {
+    _timer?.cancel();
+    final seconds = 60 - now.second;
+    _timer = Timer(Duration(seconds: seconds.clamp(1, 60)), () {
+      if (!mounted) return;
+      setState(() => now = widget.controller.currentTime());
+      _scheduleTimer();
+    });
+  }
+
+  double get _progress {
+    final start = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      widget.controller.logicalDayBoundaryHour,
+    );
+    final effectiveStart = now.isBefore(start)
+        ? start.subtract(const Duration(days: 1))
+        : start;
+    return now.difference(effectiveStart).inSeconds /
+        const Duration(days: 1).inSeconds;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final startHour = widget.controller.logicalDayBoundaryHour;
     final scheme = Theme.of(context).colorScheme;
     final labels = List<String>.generate(
       10,
@@ -94,51 +154,85 @@ class _TimeRuler extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: context.tokens.divider)),
         ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _TimeRulerPainter(color: context.tokens.divider),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 22),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.wb_sunny_outlined,
-                    size: 16,
-                    color: context.tokens.reward,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        for (final label in labels)
-                          Text(
-                            label,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                  ],
-                                ),
-                          ),
-                      ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final progress = _progress.clamp(0.0, 1.0).toDouble();
+            final visibleLabels = constraints.maxWidth < 720
+                ? [
+                    for (var index = 0; index < labels.length; index += 2)
+                      labels[index],
+                  ]
+                : labels;
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: progress,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: 0.12),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Icon(
-                    Icons.nightlight_outlined,
-                    size: 16,
-                    color: context.tokens.mutedText,
+                ),
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _TimeRulerPainter(color: context.tokens.divider),
                   ),
-                ],
-              ),
-            ),
-          ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.wb_sunny_outlined,
+                        size: 16,
+                        color: context.tokens.reward,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            for (final label in visibleLabels)
+                              Text(
+                                label,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.nightlight_outlined,
+                        size: 16,
+                        color: context.tokens.mutedText,
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  left: 54 + (constraints.maxWidth - 108) * progress,
+                  top: 5,
+                  bottom: 2,
+                  child: Semantics(
+                    label:
+                        '当前时间 ${formatTime(now)}，逻辑日进度 ${(100 * progress).round()}%',
+                    child: Container(width: 2, color: scheme.primary),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -1197,6 +1291,7 @@ class _CommitmentLog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     return LogSurface(
       child: Column(
         children: [
@@ -1217,9 +1312,15 @@ class _CommitmentLog extends StatelessWidget {
                 !controller.todayClosed &&
                 !controller.canUpdateTodayCommitments)
               Align(
-                alignment: Alignment.centerRight,
+                alignment: compact
+                    ? Alignment.centerLeft
+                    : Alignment.centerRight,
                 child: Padding(
-                  padding: const EdgeInsets.only(right: 8, bottom: 6),
+                  padding: EdgeInsets.only(
+                    left: compact ? 8 : 0,
+                    right: compact ? 0 : 8,
+                    bottom: 6,
+                  ),
                   child: TextButton(
                     onPressed: () =>
                         _showReplacementDialog(context, controller, index),

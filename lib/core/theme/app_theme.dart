@@ -45,6 +45,7 @@ abstract final class AppColors {
 // ─── 响应式断点（强制收敛：仅此两档）───
 abstract final class AppBreakpoints {
   static const compact = 768.0; // <768: 移动端
+  static const compactHeight = 600.0; // 低高度横屏保持移动端导航
   static const expanded = 1200.0; // ≥1200: 完整展开
 }
 

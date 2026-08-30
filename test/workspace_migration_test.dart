@@ -180,9 +180,7 @@ void main() {
       expect(migratedRsip.data['rsipStage'], 'E1');
       expect(migratedRsip.data['rsipGroupId'], group.id);
       expect(
-        records
-            .singleWhere((item) => item.id == focus.id)
-            .data['recordType'],
+        records.singleWhere((item) => item.id == focus.id).data['recordType'],
         'focusPreset',
       );
       expect(
