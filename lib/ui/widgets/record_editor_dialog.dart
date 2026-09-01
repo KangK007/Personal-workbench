@@ -861,8 +861,13 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
                 label: '国策组',
                 child: TextField(
                   controller: rsipGroupController,
+                  textAlignVertical: TextAlignVertical.center,
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.folder_outlined),
+                    prefixIconConstraints: BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
                   ),
                 ),
               ),

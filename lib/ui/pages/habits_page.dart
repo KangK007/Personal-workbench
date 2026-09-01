@@ -30,7 +30,7 @@ class HabitsPage extends StatelessWidget {
         if (showHeader)
           PageHeader(
             title: '习惯',
-            subtitle: '行为协议 · 28 日事实矩阵',
+            subtitle: '行为协议 · 本月事实矩阵',
             actions: [
               FilledButton.icon(
                 onPressed: () => showRecordEditor(
@@ -105,13 +105,17 @@ class _HabitMatrix extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final today = controller.growthService.logicalDay(controller.currentTime());
+    final now = controller.currentTime().toLocal();
+    final calendarMonthStart = DateTime(now.year, now.month, 1);
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final days = List.generate(
+      daysInMonth,
+      (index) => calendarMonthStart.add(Duration(days: index)),
+    );
+    final calendarToday = DateTime(now.year, now.month, now.day);
+    final logicalToday = controller.growthService.logicalDay(now);
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     final cellSlot = compact ? 20.0 : 18.0;
-    final days = List.generate(
-      28,
-      (index) => today.subtract(Duration(days: 27 - index)),
-    );
     return Column(
       children: [
         for (final habit in habits)
@@ -136,7 +140,7 @@ class _HabitMatrix extends StatelessWidget {
                         _TodayHabitButton(
                           habit: habit,
                           controller: controller,
-                          today: today,
+                          today: logicalToday,
                         ),
                       ],
                     ),
@@ -150,7 +154,10 @@ class _HabitMatrix extends StatelessWidget {
                               width: cellSlot,
                               child: Center(
                                 child: NumericText(
-                                  day.day % 7 == 1 ? '${day.day}' : '·',
+                                  '${day.day}',
+                                  key: ValueKey(
+                                    'habit-day:${habit.id}:${day.day}',
+                                  ),
                                   style: Theme.of(context).textTheme.labelSmall
                                       ?.copyWith(
                                         color: context.tokens.mutedText,
@@ -172,7 +179,7 @@ class _HabitMatrix extends StatelessWidget {
                               status: controller
                                   .habitLogForDay(habit.id, day)
                                   ?.status,
-                              isToday: isSameDay(day, today),
+                              isToday: isSameDay(day, calendarToday),
                             ),
                         ],
                       ),

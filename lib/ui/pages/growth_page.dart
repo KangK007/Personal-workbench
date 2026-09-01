@@ -22,6 +22,7 @@ class GrowthPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final snapshot = controller.growthSnapshot;
+    final ledgerNow = (now ?? controller.currentTime()).toLocal();
     return Column(
       children: [
         if (showHeader)
@@ -29,7 +30,7 @@ class GrowthPage extends StatelessWidget {
             title: '成长',
             subtitle: controller.gameFeaturesEnabled
                 ? '虚拟积分 · 签到 · 执行证据'
-                : '28 日执行账本 · 承诺 / 专注 / 习惯 / 日结',
+                : '本月执行账本 · 承诺 / 专注 / 习惯 / 日结',
           ),
         Expanded(
           child: ListView(
@@ -51,11 +52,12 @@ class GrowthPage extends StatelessWidget {
                     ),
                   ),
                 ),
-              const SectionHeading(title: '28 日执行账本', scale: '近 28 日'),
-              _ActivityLedger(
-                controller: controller,
-                now: now ?? controller.currentTime(),
+              SectionHeading(
+                title: '本月执行账本',
+                scale:
+                    '${ledgerNow.year}-${ledgerNow.month.toString().padLeft(2, '0')}',
               ),
+              _ActivityLedger(controller: controller, now: ledgerNow),
               const SectionHeading(
                 title: '里程碑印章',
                 scale: 'LV 03 / 07 / 12 / 20',
@@ -563,9 +565,12 @@ class _ActivityLedger extends StatelessWidget {
       ('习惯', 'habit'),
       ('日结', 'review'),
     ];
+    final localNow = now.toLocal();
+    final monthStart = DateTime(localNow.year, localNow.month, 1);
+    final daysInMonth = DateTime(localNow.year, localNow.month + 1, 0).day;
     final days = List.generate(
-      28,
-      (index) => now.subtract(Duration(days: 27 - index)),
+      daysInMonth,
+      (index) => monthStart.add(Duration(days: index)),
     );
     return LogSurface(
       padding: const EdgeInsets.all(14),
@@ -582,7 +587,8 @@ class _ActivityLedger extends StatelessWidget {
                     width: cellSlot,
                     child: Center(
                       child: NumericText(
-                        day.day % 7 == 1 ? '${day.day}' : '·',
+                        '${day.day}',
+                        key: ValueKey('growth-day:${day.day}'),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: context.tokens.mutedText,
                         ),
@@ -618,7 +624,13 @@ class _ActivityLedger extends StatelessWidget {
   }
 
   int _stateFor(WorkbenchController controller, String category, DateTime day) {
-    final key = controller.growthService.dayKey(day);
+    final logicalDayAnchor = DateTime(
+      day.year,
+      day.month,
+      day.day,
+      controller.logicalDayBoundaryHour,
+    );
+    final key = controller.growthService.dayKey(logicalDayAnchor);
     final planned = controller
         .recordsOf(RecordKind.dailyPlan)
         .any((plan) => plan.data['dayKey'] == key);

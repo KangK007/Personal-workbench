@@ -18,6 +18,7 @@ import 'package:personal_workbench/ui/widgets/task_hierarchy.dart';
 import 'package:personal_workbench/ui/widgets/relation_picker_dialog.dart';
 import 'package:personal_workbench/ui/pages/review_page.dart';
 import 'package:personal_workbench/ui/pages/habits_page.dart';
+import 'package:personal_workbench/ui/pages/growth_page.dart';
 import 'package:personal_workbench/ui/pages/projects_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
 import 'package:personal_workbench/ui/widgets/task_row.dart';
@@ -43,16 +44,21 @@ class _MemoryDatabase extends AppDatabase {
 }
 
 WorkbenchController _controller(_MemoryDatabase database, DateTime now) =>
-    WorkbenchController(
-      database: database,
-      backupService: BackupService(),
-      searchService: SearchService(),
-      focusService: FocusService(),
-      notificationService: NotificationService(),
-      shareCaptureService: ShareCaptureService(),
-      syncService: SupabaseSyncService(null),
-      now: () => now,
-    );
+    _controllerWithClock(database, () => now);
+
+WorkbenchController _controllerWithClock(
+  _MemoryDatabase database,
+  DateTime Function() now,
+) => WorkbenchController(
+  database: database,
+  backupService: BackupService(),
+  searchService: SearchService(),
+  focusService: FocusService(),
+  notificationService: NotificationService(),
+  shareCaptureService: ShareCaptureService(),
+  syncService: SupabaseSyncService(null),
+  now: now,
+);
 
 Widget _host(Widget child) => MaterialApp(
   theme: AppTheme.light(),
@@ -434,13 +440,11 @@ void main() {
     },
   );
 
-  testWidgets('time ruler marker uses its own constrained width', (
+  testWidgets('time ruler follows the natural day and injected clock', (
     tester,
   ) async {
-    final controller = _controller(
-      _MemoryDatabase(),
-      DateTime(2026, 8, 10, 16),
-    );
+    var now = DateTime(2026, 8, 10, 16);
+    final controller = _controllerWithClock(_MemoryDatabase(), () => now);
     addTearDown(controller.dispose);
     await tester.pumpWidget(
       _host(
@@ -455,8 +459,81 @@ void main() {
       ),
     );
     await tester.pump();
-    final marker = find.bySemanticsLabel('当前时间 16:00，逻辑日进度 50%');
+    final marker = find.byKey(const ValueKey('time-ruler-marker'));
     expect(marker, findsOneWidget);
-    expect(tester.getTopLeft(marker).dx, closeTo(300, 1));
+    expect(find.bySemanticsLabel('当前时间 16:00，自然日进度 67%'), findsOneWidget);
+    for (var hour = 0; hour < 24; hour++) {
+      expect(find.byKey(ValueKey('time-ruler-hour-$hour')), findsOneWidget);
+    }
+    expect(tester.getTopLeft(marker).dx, closeTo(382, 1));
+
+    final previousX = tester.getTopLeft(marker).dx;
+    now = now.add(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.getTopLeft(marker).dx, greaterThan(previousX));
+  });
+
+  testWidgets('time ruler resets at local midnight', (tester) async {
+    var now = DateTime(2026, 8, 10, 23, 59, 59);
+    final controller = _controllerWithClock(_MemoryDatabase(), () => now);
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _host(SizedBox(width: 800, child: TodayPage(controller: controller))),
+    );
+    await tester.pump();
+    final marker = find.byKey(const ValueKey('time-ruler-marker'));
+    final endOfDayX = tester.getTopLeft(marker).dx;
+
+    now = DateTime(2026, 8, 11);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.bySemanticsLabel('当前时间 00:00，自然日进度 0%'), findsOneWidget);
+    expect(tester.getTopLeft(marker).dx, lessThan(endOfDayX));
+  });
+
+  testWidgets('habit and growth matrices cover every day of the month', (
+    tester,
+  ) async {
+    final cases = <(DateTime, int)>[
+      (DateTime(2026, 2, 12), 28),
+      (DateTime(2024, 2, 12), 29),
+      (DateTime(2026, 4, 12), 30),
+      (DateTime(2026, 8, 12), 31),
+    ];
+    for (final entry in cases) {
+      final controller = _controller(_MemoryDatabase(), entry.$1);
+      addTearDown(controller.dispose);
+      final habit = WorkspaceRecord.create(
+        kind: RecordKind.habit,
+        title: '月度习惯',
+      );
+      await controller.addRecord(habit);
+
+      await tester.pumpWidget(
+        _host(SizedBox(width: 412, child: HabitsPage(controller: controller))),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(ValueKey('habit-day:${habit.id}:${entry.$2}')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(ValueKey('habit-day:${habit.id}:${entry.$2 + 1}')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(
+        _host(
+          SizedBox(
+            width: 412,
+            child: GrowthPage(controller: controller, now: entry.$1),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(ValueKey('growth-day:${entry.$2}')), findsOneWidget);
+      expect(find.byKey(ValueKey('growth-day:${entry.$2 + 1}')), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
   });
 }

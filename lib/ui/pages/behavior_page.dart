@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
+import '../../core/theme/app_theme.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/record_editor_dialog.dart';
@@ -96,6 +97,11 @@ class _BehaviorPageState extends State<BehaviorPage> {
               if (mode == BehaviorMode.habits) ...[
                 const SizedBox(width: 8),
                 IconButton.filled(
+                  style: IconButton.styleFrom(
+                    backgroundColor: context.tokens.raised,
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    side: BorderSide(color: context.tokens.panelBorder),
+                  ),
                   onPressed: () => showRecordEditor(
                     context,
                     widget.controller,
