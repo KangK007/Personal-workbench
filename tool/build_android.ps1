@@ -2,6 +2,8 @@
 param(
     [ValidateSet('debug', 'profile', 'release')]
     [string]$Configuration = 'debug',
+    [ValidateSet('universal', 'split', 'arm64', 'arm', 'x64')]
+    [string]$AbiMode = 'universal',
     [switch]$Clean
 )
 
@@ -96,6 +98,24 @@ $gradleTask = switch ($Configuration) {
     'release' { 'assembleRelease' }
 }
 
+# universal: 单一 APK 包含全部 ABI（默认，兼容旧行为）。
+# split:     按 arm64-v8a / armeabi-v7a / x86_64 分别产出 APK。
+# arm64/arm/x64: 只构建单一 ABI 的 APK（体积最小，适合个人侧载）。
+$abiTargets = @(
+    switch ($AbiMode) {
+        'universal' { @() }
+        'split' { @('arm64', 'arm', 'x64') }
+        'arm64' { @('arm64') }
+        'arm' { @('arm') }
+        'x64' { @('x64') }
+    }
+)
+$abiSuffixes = @{
+    'arm64' = 'arm64-v8a'
+    'arm' = 'armeabi-v7a'
+    'x64' = 'x86_64'
+}
+
 Push-Location -LiteralPath $sourceCopy
 try {
     if ($Clean.IsPresent) {
@@ -146,6 +166,9 @@ try {
         [System.Text.UTF8Encoding]::new($false)
     )
 
+    $builtApks = @()
+    $buildTargets = if ($abiTargets.Count -eq 0) { @('') } else { $abiTargets }
+
     Push-Location -LiteralPath (Join-Path $sourceCopy 'android')
     try {
         $shortTemp = Join-Path $env:SystemDrive "PWBTemp\$projectKey"
@@ -155,14 +178,41 @@ try {
         try {
             $env:TEMP = $shortTemp
             $env:TMP = $shortTemp
-            & $gradle.FullName $gradleTask '--offline' '--no-daemon' '--stacktrace'
-            $gradleExitCode = $LASTEXITCODE
+            foreach ($abi in $buildTargets) {
+                $gradleArguments = @(
+                    $gradleTask, '--offline', '--no-daemon', '--stacktrace'
+                )
+                if ($abi) {
+                    $gradleArguments += "-Ptarget-platform=android-$abi"
+                }
+                & $gradle.FullName @gradleArguments
+                $gradleExitCode = $LASTEXITCODE
+                if ($gradleExitCode -ne 0) {
+                    throw "Gradle $gradleTask failed for $abi with exit code $gradleExitCode"
+                }
+                $apkName = "app-$Configuration.apk"
+                $artifact = Join-Path $env:PERSONAL_WORKBENCH_BUILD_ROOT "app\outputs\flutter-apk\$apkName"
+                if (-not (Test-Path -LiteralPath $artifact)) {
+                    throw "Build completed without the expected APK: $artifact"
+                }
+                # 多 ABI 循环构建时，每次构建都会覆盖同名产物，先复制到暂存目录
+                $stagedName = if ($abi) {
+                    "app-$abi-$Configuration.apk"
+                } else {
+                    $apkName
+                }
+                $stagedArtifact = Join-Path $env:PERSONAL_WORKBENCH_BUILD_ROOT "app\outputs\flutter-apk\$stagedName"
+                if ($abi) {
+                    Copy-Item -LiteralPath $artifact -Destination $stagedArtifact -Force
+                }
+                $builtApks += [PSCustomObject]@{
+                    Path = if ($abi) { $stagedArtifact } else { $artifact }
+                    Abi = $abi
+                }
+            }
         } finally {
             [Environment]::SetEnvironmentVariable('TEMP', $previousTemp, 'Process')
             [Environment]::SetEnvironmentVariable('TMP', $previousTmp, 'Process')
-        }
-        if ($gradleExitCode -ne 0) {
-            throw "Gradle $gradleTask failed with exit code $gradleExitCode"
         }
     } finally {
         Pop-Location
@@ -171,39 +221,58 @@ try {
     Pop-Location
 }
 
-$apkName = "app-$Configuration.apk"
-$artifact = Join-Path $env:PERSONAL_WORKBENCH_BUILD_ROOT "app\outputs\flutter-apk\$apkName"
-if (-not (Test-Path -LiteralPath $artifact)) {
-    throw "Build completed without the expected APK: $artifact"
-}
-
-if ($Configuration -eq 'release') {
-    $sdkRoot = [string]$localProperties['sdk.dir']
-    $buildToolsRoot = Join-Path $sdkRoot 'build-tools'
-    $apksigner = Get-ChildItem -LiteralPath $buildToolsRoot -Filter 'apksigner.bat' -File -Recurse -ErrorAction SilentlyContinue |
-        Sort-Object FullName -Descending |
-        Select-Object -First 1
-    if (-not $apksigner) {
-        throw "apksigner was not found below $buildToolsRoot."
-    }
-    & $apksigner.FullName verify --verbose --print-certs $artifact
-    if ($LASTEXITCODE -ne 0) {
-        throw "Android Release signature verification failed with exit code $LASTEXITCODE"
-    }
+if ($builtApks.Count -eq 0) {
+    throw 'No APK was produced by the build.'
 }
 
 $destinationDirectory = Join-Path $projectRoot 'build\app\outputs\flutter-apk'
 New-Item -ItemType Directory -Force -Path $destinationDirectory | Out-Null
-$destination = Join-Path $destinationDirectory $apkName
-Copy-Item -LiteralPath $artifact -Destination $destination -Force
-
 $distributionDirectory = Join-Path $projectRoot 'dist\apk'
 New-Item -ItemType Directory -Force -Path $distributionDirectory | Out-Null
-$distributionName = "PersonalWorkbench_$versionName`_$versionCode`_$Configuration.apk"
-$distribution = Join-Path $distributionDirectory $distributionName
-Get-ChildItem -LiteralPath $distributionDirectory -Filter "PersonalWorkbench_*_$Configuration.apk" -File |
-    Remove-Item -Force
-Copy-Item -LiteralPath $artifact -Destination $distribution -Force
 
-Write-Output "Android build completed: $destination"
-Write-Output "Android distribution APK: $distribution"
+foreach ($built in $builtApks) {
+    if ($Configuration -eq 'release') {
+        $sdkRoot = [string]$localProperties['sdk.dir']
+        $buildToolsRoot = Join-Path $sdkRoot 'build-tools'
+        $apksigner = Get-ChildItem -LiteralPath $buildToolsRoot -Filter 'apksigner.bat' -File -Recurse -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+        if (-not $apksigner) {
+            throw "apksigner was not found below $buildToolsRoot."
+        }
+        & $apksigner.FullName verify --verbose --print-certs $built.Path
+        if ($LASTEXITCODE -ne 0) {
+            throw "Android Release signature verification failed with exit code $LASTEXITCODE"
+        }
+    }
+
+    $abiSuffix = if ($built.Abi) { $abiSuffixes[$built.Abi] } else { '' }
+    $outputName = if ($abiSuffix) {
+        "app-$abiSuffix-$Configuration.apk"
+    } else {
+        "app-$Configuration.apk"
+    }
+    $destination = Join-Path $destinationDirectory $outputName
+    Copy-Item -LiteralPath $built.Path -Destination $destination -Force
+
+    $distributionBase = "PersonalWorkbench_${versionName}_${versionCode}_$Configuration"
+    $distributionName = if ($abiSuffix) {
+        "$distributionBase-$abiSuffix.apk"
+    } else {
+        "$distributionBase.apk"
+    }
+    $distribution = Join-Path $distributionDirectory $distributionName
+    # 只清理同一形态（universal 或同名 ABI 分片）的旧版本文件，
+    # 不同 ABI 形态的产物互不影响。
+    $distributionPattern = if ($abiSuffix) {
+        "PersonalWorkbench_*_${Configuration}-${abiSuffix}.apk"
+    } else {
+        "PersonalWorkbench_*_${Configuration}.apk"
+    }
+    Get-ChildItem -LiteralPath $distributionDirectory -Filter $distributionPattern -File |
+        Where-Object { $_.Name -ne $distributionName } |
+        Remove-Item -Force
+    Copy-Item -LiteralPath $built.Path -Destination $distribution -Force
+    Write-Output "Android build completed: $destination"
+    Write-Output "Android distribution APK: $distribution"
+}

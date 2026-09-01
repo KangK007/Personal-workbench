@@ -543,36 +543,28 @@ class _AccentPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = [
-      Theme.of(context).colorScheme.primary,
-      const Color(0xFF0D9488),
-      const Color(0xFF0E7490),
-    ];
+    final color = Theme.of(context).colorScheme.primary;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (var index = 0; index < colors.length; index++)
-          Container(
-            width: 18,
-            height: 28,
-            margin: const EdgeInsets.only(left: 3),
-            decoration: BoxDecoration(
-              color: colors[index],
-              borderRadius: BorderRadius.circular(3),
-              border: Border.all(
-                color: index == 0
-                    ? Theme.of(context).colorScheme.onSurface
-                    : Theme.of(context).colorScheme.outlineVariant,
-              ),
+        Container(
+          width: 18,
+          height: 28,
+          margin: const EdgeInsets.only(left: 3),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.onSurface,
+              width: 0.5,
             ),
-            child: index == 0
-                ? Icon(
-                    Icons.check,
-                    size: 12,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  )
-                : null,
           ),
+          child: Icon(
+            Icons.check,
+            size: 12,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
       ],
     );
   }
@@ -663,10 +655,10 @@ class _ExperimentalSection extends StatelessWidget {
               value: controller.gameFeaturesEnabled,
               onChanged: controller.setGameFeaturesEnabled,
             ),
-            const ListTile(
+            ListTile(
               leading: _SettingsIcon(Icons.palette_outlined),
-              title: Text('成长主题'),
-              subtitle: Text('翠绿主题已启用；更多冷色主题随等级解锁'),
+              title: const Text('成长主题'),
+              subtitle: const Text('翠绿主题已启用，随浅色与深色模式自动适配'),
               trailing: _AccentPreview(),
             ),
           ],

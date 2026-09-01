@@ -6,7 +6,6 @@ import 'dart:math';
 import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
 
-import '../core/models/attachment.dart';
 import '../core/models/game_state.dart';
 import '../core/models/restriction_models.dart';
 import '../core/models/workspace_record.dart';
@@ -19,15 +18,15 @@ import '../services/attachment_service.dart';
 import '../services/game_service.dart';
 import '../services/growth_service.dart';
 import '../services/notification_service.dart';
-import '../services/restriction_monitor.dart';
-import '../services/restriction_policy_engine.dart';
 import '../services/restriction_security_service.dart';
-import '../services/restriction_defaults.dart';
 import '../services/search_service.dart';
 import '../services/self_control_importer.dart';
 import '../services/share_capture_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/windows_activity_service.dart';
+import 'restriction_controller.dart';
+import 'rsip_controller.dart';
+import 'workbench_controller_base.dart';
 
 enum SyncPhase { localOnly, signedOut, idle, syncing, success, error }
 
@@ -59,7 +58,8 @@ class BatchOperationResult {
   bool get isSuccessful => failures.isEmpty;
 }
 
-class WorkbenchController extends ChangeNotifier {
+class WorkbenchController extends WorkbenchControllerBase
+    with RestrictionControllerMixin, RsipControllerMixin {
   static const _maxImportBytes = 10 * 1024 * 1024;
 
   WorkbenchController({
@@ -85,21 +85,30 @@ class WorkbenchController extends ChangeNotifier {
            restrictionSecurityService ?? RestrictionSecurityService(),
        _clock = now ?? DateTime.now;
 
+  @override
   final AppDatabase database;
+  @override
   final BackupService backupService;
   final SearchService searchService;
   final FocusService focusService;
+  @override
   final NotificationService notificationService;
   final ShareCaptureService shareCaptureService;
   final SupabaseSyncService syncService;
+  @override
   GrowthService growthService;
   final GameService gameService;
+  @override
   final AttachmentService attachmentService;
+  @override
   final WindowsActivityService windowsActivityService;
+  @override
   final RestrictionSecurityService restrictionSecurityService;
+  @override
   final SelfControlImporter selfControlImporter;
   final DateTime Function() _clock;
 
+  @override
   DateTime currentTime() => _clock();
 
   final List<WorkspaceRecord> _records = [];
@@ -146,22 +155,6 @@ class WorkbenchController extends ChangeNotifier {
   Timer? _protocolSettlementTimer;
   final Map<String, Timer> _focusScheduleTimers = {};
   final Map<String, Timer> _focusMissTimers = {};
-  final Set<String> _settlingRsipNodeIds = {};
-  RestrictionMonitor? _restrictionMonitor;
-  RestrictionMonitorState _restrictionMonitorState =
-      const RestrictionMonitorState();
-  RestrictionSecurityState _restrictionSecurityState =
-      const RestrictionSecurityState();
-  RestrictionHostsStatus _restrictionHostsStatus =
-      const RestrictionHostsStatus();
-  StreamSubscription<void>? _restrictionExitSubscription;
-  StreamSubscription<String>? _restrictionPowerSubscription;
-  Timer? _restrictionCooldownTimer;
-  DateTime? _restrictionCooldownEndsAt;
-  RestrictionProfile? _pendingRestrictionProfile;
-  bool _restrictionExitRequested = false;
-  bool _restrictionRecoveredAfterAbnormalExit = false;
-  File? _lastSelfControlImportBackup;
 
   bool get loading => _loading;
   String? get error => _error;
@@ -173,8 +166,14 @@ class WorkbenchController extends ChangeNotifier {
   bool get navigationCollapsed => _navigationCollapsed;
   String get behaviorMode => _behaviorMode;
   bool navigationGroupExpanded(String id) => _navigationGroups[id] ?? true;
+  @override
   bool get rsipAllowMultiplePerDay => _rsipAllowMultiplePerDay;
+  @override
+  set rsipAllowMultiplePerDay(bool value) => _rsipAllowMultiplePerDay = value;
+  @override
   bool get rsipStrictMode => _rsipStrictMode;
+  @override
+  set rsipStrictMode(bool value) => _rsipStrictMode = value;
   int get logicalDayBoundaryHour => _logicalDayBoundaryHour;
   bool get closeToTray => _closeToTray;
   bool get startupEnabled => _startupEnabled;
@@ -187,18 +186,6 @@ class WorkbenchController extends ChangeNotifier {
   bool get advancedFeaturesEnabled => _advancedFeaturesEnabled;
   bool get gameFeaturesEnabled => _gameFeaturesEnabled;
   bool get gameFeaturesPromptPending => _gameFeaturesPromptPending;
-  RestrictionMonitorState get restrictionMonitorState =>
-      _restrictionMonitorState;
-  RestrictionSecurityState get restrictionSecurityState =>
-      _restrictionSecurityState;
-  RestrictionHostsStatus get restrictionHostsStatus => _restrictionHostsStatus;
-  DateTime? get restrictionCooldownEndsAt => _restrictionCooldownEndsAt;
-  RestrictionProfile? get pendingRestrictionProfile =>
-      _pendingRestrictionProfile;
-  bool get restrictionExitRequested => _restrictionExitRequested;
-  bool get restrictionRecoveredAfterAbnormalExit =>
-      _restrictionRecoveredAfterAbnormalExit;
-  File? get lastSelfControlImportBackup => _lastSelfControlImportBackup;
 
   GameProfile get gameProfile => _localGameState.profile;
   List<PointTransaction> get pointTransactions =>
@@ -225,6 +212,7 @@ class WorkbenchController extends ChangeNotifier {
         .fold(0, (sum, bet) => sum + bet.amount);
   }
 
+  @override
   List<WorkspaceRecord> get allRecords => List.unmodifiable(_records);
   List<WorkspaceRecord> get activeRecords =>
       _records.where((record) => !record.isDeleted).toList(growable: false);
@@ -232,17 +220,29 @@ class WorkbenchController extends ChangeNotifier {
       .where((record) => record.isDeleted && !_isHiddenTrashRecord(record))
       .toList(growable: false);
 
+  /// 从数据库重新加载全部记录到内存（导入/恢复场景）。供领域 mixin 使用。
+  @override
+  Future<void> reloadRecordsFromDatabase() async {
+    _records
+      ..clear()
+      ..addAll(await database.loadRecords());
+    _projectIndex = null;
+  }
+
   bool _isHiddenTrashRecord(WorkspaceRecord record) =>
       record.kind == RecordKind.relation &&
       record.data['deletedWithTaskGroupId'] != null;
 
+  @override
   List<WorkspaceRecord> recordsOf(RecordKind kind) => activeRecords
       .where((record) => record.kind == kind)
       .toList(growable: false);
 
+  @override
   List<WorkspaceRecord> get taskDefinitions => recordsOf(RecordKind.task)
       .where((record) => record.data['recordType'] == 'taskDefinition')
       .toList(growable: false);
+  @override
   List<WorkspaceRecord> get tasks => recordsOf(RecordKind.task)
       .where((record) => record.data['recordType'] != 'taskDefinition')
       .toList(growable: false);
@@ -269,36 +269,44 @@ class WorkbenchController extends ChangeNotifier {
       .toList(growable: false);
   List<WorkspaceRecord> get diaries => recordsOf(RecordKind.diary);
   List<WorkspaceRecord> get goals => recordsOf(RecordKind.goal);
+  @override
   List<WorkspaceRecord> get habits => recordsOf(RecordKind.habit);
   List<WorkspaceRecord> get ctdpTasks =>
       tasks.where((task) => task.hasCtdpProtocol).toList(growable: false);
   List<WorkspaceRecord> get exceptionRules =>
       recordsOf(RecordKind.exceptionRule);
+  @override
   List<WorkspaceRecord> get protocolEvents {
     final result = recordsOf(RecordKind.protocolEvent);
     result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return result;
   }
 
+  @override
   List<WorkspaceRecord> get activeRsipHabits => habits
       .where((habit) => habit.hasRsipProtocol && habit.rsipActive)
       .toList(growable: false);
+  @override
   List<RsipNode> get rsipNodes => habits
       .where((record) => record.hasRsipProtocol)
       .map(RsipNode.fromRecord)
       .toList(growable: false);
+  @override
   List<RsipNodeGroup> get rsipNodeGroups => recordsOf(RecordKind.template)
       .where((record) => record.data['recordType'] == 'rsipNodeGroup')
       .map(RsipNodeGroup.fromRecord)
       .toList(growable: false);
+  @override
   List<RsipExecutionRecord> get rsipExecutionRecords => protocolEvents
       .where((record) => record.data['recordType'] == 'rsipExecution')
       .map(RsipExecutionRecord.fromRecord)
       .toList(growable: false);
+  @override
   List<RsipRunRecord> get rsipRunRecords => protocolEvents
       .where((record) => record.data['recordType'] == 'rsipRun')
       .map(RsipRunRecord.fromRecord)
       .toList(growable: false);
+  @override
   List<RsipTaskLink> get rsipTaskLinks => relations
       .where((record) => record.data['recordType'] == 'rsipTaskLink')
       .map(RsipTaskLink.fromRecord)
@@ -315,6 +323,7 @@ class WorkbenchController extends ChangeNotifier {
   List<WorkspaceRecord> get pendingFocusPresets => focusPresets
       .where((preset) => preset.data['pendingScheduledStartAt'] != null)
       .toList(growable: false);
+  @override
   List<WorkspaceRecord> get taskGroups => recordsOf(RecordKind.template)
       .where((record) => record.data['recordType'] == 'taskGroup')
       .toList(growable: false);
@@ -323,10 +332,12 @@ class WorkbenchController extends ChangeNotifier {
       recordsOf(RecordKind.protocolEvent)
           .where((record) => record.data['recordType'] == 'foregroundEvent')
           .toList(growable: false);
+  @override
   List<WorkspaceRecord> get restrictionProfileRecords =>
       recordsOf(RecordKind.template)
           .where((record) => record.data['recordType'] == 'restrictionProfile')
           .toList(growable: false);
+  @override
   RestrictionProfile? get restrictionProfile =>
       restrictionProfileRecords.isEmpty
       ? null
@@ -556,7 +567,7 @@ class WorkbenchController extends ChangeNotifier {
 
   /// Canonical daily review takes precedence over legacy diary data.
   WorkspaceRecord? dailyReviewSourceForDay(DateTime day) {
-    return reviewForPeriod(ReviewPeriodType.daily, _calendarDayKey(day)) ??
+    return reviewForPeriod(ReviewPeriodType.daily, calendarDayKey(day)) ??
         latestDiaryForDay(day);
   }
 
@@ -752,8 +763,8 @@ class WorkbenchController extends ChangeNotifier {
           ),
         );
       });
-      await _ensureRestrictionDefaults();
-      await _initializeRestrictionRuntime();
+      await ensureRestrictionDefaults();
+      await initializeRestrictionRuntime();
       _syncPhase = !cloudConfigured
           ? SyncPhase.localOnly
           : syncService.currentUser == null
@@ -783,506 +794,6 @@ class WorkbenchController extends ChangeNotifier {
     }
   }
 
-  Future<void> _initializeRestrictionRuntime() async {
-    _restrictionSecurityState = RestrictionSecurityState.decode(
-      await database.readMetadata('restriction_security_v1'),
-    );
-    if (!windowsActivityService.supported) return;
-
-    RestrictionProfile? recoveredSnapshot;
-    DateTime? pausedUntil;
-    var breakDayKey = '';
-    var breaksUsed = 0;
-    var previousCleanShutdown = true;
-    final runtimeValue = await database.readMetadata('restriction_runtime_v1');
-    if (runtimeValue != null) {
-      try {
-        final runtime = jsonDecode(runtimeValue) as Map<String, dynamic>;
-        previousCleanShutdown = runtime['cleanShutdown'] == true;
-        recoveredSnapshot = _restrictionProfileFromLocalJson(
-          runtime['activeSnapshot'],
-        );
-        pausedUntil = DateTime.tryParse(
-          runtime['pausedUntil']?.toString() ?? '',
-        )?.toLocal();
-        breakDayKey = runtime['breakDayKey']?.toString() ?? '';
-        breaksUsed = (runtime['breaksUsed'] as num?)?.toInt() ?? 0;
-      } catch (_) {
-        recoveredSnapshot = null;
-      }
-    }
-
-    final engine = const RestrictionPolicyEngine();
-    if (recoveredSnapshot != null &&
-        !previousCleanShutdown &&
-        engine.isRestricted(recoveredSnapshot, currentTime())) {
-      _restrictionRecoveredAfterAbnormalExit = true;
-    } else {
-      if (!previousCleanShutdown) {
-        await windowsActivityService.clearHostsPolicy();
-      }
-      recoveredSnapshot = null;
-      pausedUntil = null;
-    }
-
-    _restrictionMonitor?.dispose();
-    _restrictionMonitor =
-        RestrictionMonitor(
-          activityService: windowsActivityService,
-          profileProvider: () => restrictionProfile,
-          onEvent: _recordRestrictionViolation,
-          onStateChanged: (state) async {
-            _restrictionMonitorState = state;
-            await _persistRestrictionRuntime(cleanShutdown: false);
-            notifyListeners();
-          },
-          now: currentTime,
-        )..restore(
-          activeSnapshot: recoveredSnapshot,
-          pausedUntil: pausedUntil,
-          breakDayKey: breakDayKey,
-          breaksUsed: breaksUsed,
-        );
-    await _restrictionMonitor!.start();
-    await refreshRestrictionHostsStatus();
-
-    await _restrictionExitSubscription?.cancel();
-    _restrictionExitSubscription = windowsActivityService.exitRequests.listen((
-      _,
-    ) {
-      if (_restrictionMonitorState.activeSnapshot?.strongProtection == true) {
-        _restrictionExitRequested = true;
-        notifyListeners();
-      } else {
-        unawaited(shutdownRestrictionsAndExit());
-      }
-    });
-    await _restrictionPowerSubscription?.cancel();
-    _restrictionPowerSubscription = windowsActivityService.powerEvents.listen((
-      event,
-    ) {
-      if (event == 'resume') unawaited(_restrictionMonitor?.poll());
-    });
-    await _restorePendingRestrictionAction();
-  }
-
-  Future<void> _ensureRestrictionDefaults() async {
-    final existing = restrictionProfileRecords.firstOrNull;
-    if (existing == null) {
-      final profile = RestrictionDefaults.create(
-        id: 'restriction-profile-${newRecordId()}',
-      );
-      final record = profile.toRecord();
-      await database.saveRecord(record);
-      _records.add(record);
-      return;
-    }
-
-    final current = RestrictionProfile.fromRecord(existing);
-    final merged = RestrictionDefaults.mergeMissing(current);
-    final currentJson = jsonEncode(current.toData());
-    final mergedJson = jsonEncode(merged.toData());
-    if (currentJson == mergedJson) return;
-
-    // Keep a readable recovery copy before adding source defaults to an
-    // existing user's custom profile.
-    await backupService.writeJsonExport(_records);
-    await updateRecord(merged.toRecord(existing: existing));
-  }
-
-  RestrictionProfile createRestrictionProfile() =>
-      RestrictionDefaults.create(id: 'restriction-profile-${newRecordId()}');
-
-  Future<DateTime?> saveRestrictionProfile(
-    RestrictionProfile profile, {
-    String credential = '',
-  }) async {
-    final active = _restrictionMonitorState.activeSnapshot;
-    final needsCooldown =
-        _restrictionMonitorState.active &&
-        active?.strongProtection == true &&
-        const RestrictionPolicyEngine().weakens(active!, profile);
-    if (!needsCooldown) {
-      await _applyRestrictionProfile(profile);
-      return null;
-    }
-
-    var emergency = false;
-    if (_restrictionSecurityState.hasPassword) {
-      if (credential.isEmpty) {
-        throw const FormatException('当前规则处于强保护，请输入保护密码。');
-      }
-      final result = await restrictionSecurityService.verifyCredential(
-        _restrictionSecurityState,
-        credential,
-        currentTime(),
-      );
-      _restrictionSecurityState = result.state;
-      await _persistRestrictionSecurity();
-      if (!result.valid) throw const FormatException('保护密码或紧急恢复码无效。');
-      emergency = result.emergency;
-    }
-    if (emergency) {
-      await _applyRestrictionProfile(profile);
-      return null;
-    }
-    return _scheduleRestrictionProfile(profile);
-  }
-
-  Future<void> _applyRestrictionProfile(RestrictionProfile profile) async {
-    final existing = restrictionProfileRecords
-        .where((record) => record.id == profile.id)
-        .firstOrNull;
-    await updateRecord(profile.toRecord(existing: existing));
-    _pendingRestrictionProfile = null;
-    _restrictionCooldownEndsAt = null;
-    _restrictionCooldownTimer?.cancel();
-    await database.writeMetadata('restriction_pending_v1', '');
-    await _restrictionMonitor?.poll();
-    await refreshRestrictionHostsStatus();
-  }
-
-  Future<DateTime> _scheduleRestrictionProfile(
-    RestrictionProfile profile,
-  ) async {
-    _pendingRestrictionProfile = profile;
-    _restrictionCooldownEndsAt = currentTime().add(
-      RestrictionSecurityService.cooldown,
-    );
-    await database.writeMetadata(
-      'restriction_pending_v1',
-      jsonEncode({
-        'type': 'profile',
-        'executeAt': _restrictionCooldownEndsAt!.toUtc().toIso8601String(),
-        'profile': _restrictionProfileToLocalJson(profile),
-      }),
-    );
-    _armRestrictionCooldown();
-    notifyListeners();
-    return _restrictionCooldownEndsAt!;
-  }
-
-  Future<void> cancelPendingRestrictionAction() async {
-    _restrictionCooldownTimer?.cancel();
-    _restrictionCooldownTimer = null;
-    _restrictionCooldownEndsAt = null;
-    _pendingRestrictionProfile = null;
-    await database.writeMetadata('restriction_pending_v1', '');
-    notifyListeners();
-  }
-
-  Future<void> _restorePendingRestrictionAction() async {
-    final value = await database.readMetadata('restriction_pending_v1');
-    if (value == null || value.isEmpty) return;
-    try {
-      final pending = jsonDecode(value) as Map<String, dynamic>;
-      _restrictionCooldownEndsAt = DateTime.tryParse(
-        pending['executeAt']?.toString() ?? '',
-      )?.toLocal();
-      if (pending['type'] == 'exit') {
-        if (_restrictionCooldownEndsAt == null) {
-          await cancelPendingRestrictionAction();
-        } else if (!currentTime().isBefore(_restrictionCooldownEndsAt!)) {
-          await shutdownRestrictionsAndExit();
-        } else {
-          _armRestrictionExitCooldown();
-          notifyListeners();
-        }
-        return;
-      }
-      _pendingRestrictionProfile = _restrictionProfileFromLocalJson(
-        pending['profile'],
-      );
-      if (_restrictionCooldownEndsAt == null ||
-          _pendingRestrictionProfile == null) {
-        await cancelPendingRestrictionAction();
-        return;
-      }
-      if (!currentTime().isBefore(_restrictionCooldownEndsAt!)) {
-        await _applyRestrictionProfile(_pendingRestrictionProfile!);
-      } else {
-        _armRestrictionCooldown();
-      }
-    } catch (_) {
-      await cancelPendingRestrictionAction();
-    }
-  }
-
-  void _armRestrictionCooldown() {
-    _restrictionCooldownTimer?.cancel();
-    final executeAt = _restrictionCooldownEndsAt;
-    final profile = _pendingRestrictionProfile;
-    if (executeAt == null || profile == null) return;
-    final delay = executeAt.difference(currentTime());
-    _restrictionCooldownTimer = Timer(
-      delay.isNegative ? Duration.zero : delay,
-      () => unawaited(_applyRestrictionProfile(profile)),
-    );
-  }
-
-  void _armRestrictionExitCooldown() {
-    _restrictionCooldownTimer?.cancel();
-    final executeAt = _restrictionCooldownEndsAt;
-    if (executeAt == null) return;
-    final delay = executeAt.difference(currentTime());
-    _restrictionCooldownTimer = Timer(
-      delay.isNegative ? Duration.zero : delay,
-      () => unawaited(shutdownRestrictionsAndExit()),
-    );
-  }
-
-  Future<void> setRestrictionPassword({
-    required String currentPassword,
-    required String newPassword,
-  }) async {
-    if (_restrictionSecurityState.hasPassword &&
-        !await restrictionSecurityService.verifyPassword(
-          _restrictionSecurityState,
-          currentPassword,
-        )) {
-      throw const FormatException('当前保护密码错误。');
-    }
-    _restrictionSecurityState = await restrictionSecurityService.setPassword(
-      _restrictionSecurityState,
-      newPassword,
-    );
-    await _persistRestrictionSecurity();
-    notifyListeners();
-  }
-
-  Future<void> clearRestrictionPassword(String currentPassword) async {
-    if (_restrictionSecurityState.hasPassword &&
-        !await restrictionSecurityService.verifyPassword(
-          _restrictionSecurityState,
-          currentPassword,
-        )) {
-      throw const FormatException('当前保护密码错误。');
-    }
-    _restrictionSecurityState = const RestrictionSecurityState();
-    await _persistRestrictionSecurity();
-    notifyListeners();
-  }
-
-  Future<String> generateRestrictionEmergencyCode() async {
-    final result = await restrictionSecurityService.generateEmergencyCode(
-      _restrictionSecurityState,
-      currentTime(),
-    );
-    _restrictionSecurityState = result.state;
-    await _persistRestrictionSecurity();
-    notifyListeners();
-    return result.code;
-  }
-
-  Future<DateTime?> requestRestrictionExit(String credential) async {
-    final active = _restrictionMonitorState.activeSnapshot;
-    if (!_restrictionMonitorState.active || active?.strongProtection != true) {
-      await shutdownRestrictionsAndExit();
-      return null;
-    }
-    var emergency = false;
-    if (_restrictionSecurityState.hasPassword) {
-      final result = await restrictionSecurityService.verifyCredential(
-        _restrictionSecurityState,
-        credential,
-        currentTime(),
-      );
-      _restrictionSecurityState = result.state;
-      await _persistRestrictionSecurity();
-      if (!result.valid) throw const FormatException('保护密码或紧急恢复码无效。');
-      emergency = result.emergency;
-    }
-    if (emergency) {
-      await shutdownRestrictionsAndExit();
-      return null;
-    }
-    final executeAt = currentTime().add(RestrictionSecurityService.cooldown);
-    _restrictionCooldownEndsAt = executeAt;
-    await database.writeMetadata(
-      'restriction_pending_v1',
-      jsonEncode({
-        'type': 'exit',
-        'executeAt': executeAt.toUtc().toIso8601String(),
-      }),
-    );
-    _armRestrictionExitCooldown();
-    notifyListeners();
-    return executeAt;
-  }
-
-  Future<void> shutdownRestrictionsAndExit() async {
-    await _restrictionMonitor?.stop(cleanup: true);
-    await _persistRestrictionRuntime(cleanShutdown: true);
-    await database.writeMetadata('restriction_pending_v1', '');
-    await windowsActivityService.exitApplication();
-  }
-
-  Future<void> takeRestrictionBreak() async {
-    await _restrictionMonitor?.takeBreak();
-  }
-
-  Future<void> resumeRestrictionNow() async {
-    await _restrictionMonitor?.resumeNow();
-  }
-
-  Future<RestrictionHostsStatus> refreshRestrictionHostsStatus() async {
-    final status = await windowsActivityService.hostsStatus(
-      restrictionProfile?.blockedWebsites ?? const [],
-    );
-    _restrictionHostsStatus = status;
-    notifyListeners();
-    return status;
-  }
-
-  Future<bool> repairRestrictionHosts() async {
-    final profile =
-        _restrictionMonitorState.activeSnapshot ?? restrictionProfile;
-    if (profile == null || !profile.websiteBlocking) return false;
-    final result = await windowsActivityService.applyHostsPolicy(
-      profile.blockedWebsites,
-    );
-    await refreshRestrictionHostsStatus();
-    return result;
-  }
-
-  Future<bool> clearRestrictionHosts() async {
-    final result = await windowsActivityService.clearHostsPolicy();
-    await refreshRestrictionHostsStatus();
-    return result;
-  }
-
-  Future<SelfControlImportPreview> previewSelfControlImport(
-    String directoryPath,
-  ) => selfControlImporter.preview(Directory(directoryPath));
-
-  Future<File> importSelfControl(
-    SelfControlImportPreview preview, {
-    required bool enableProfile,
-  }) async {
-    final backup = await backupService.writeJsonExport(_records);
-    final records = preview.records.toList(growable: true);
-    final profileIndex = records.indexWhere(
-      (record) => record.data['recordType'] == 'restrictionProfile',
-    );
-    if (profileIndex >= 0) {
-      final profile = preview.profile.copyWith(enabled: enableProfile);
-      records[profileIndex] = profile.toRecord(existing: records[profileIndex]);
-    }
-
-    final archiveRecord = records
-        .where((record) => record.data['recordType'] == 'restrictionLogArchive')
-        .firstOrNull;
-    final existingArchiveAttachments = archiveRecord == null
-        ? const <Attachment>[]
-        : await attachmentService.forRecord(archiveRecord.id);
-    Attachment? importedArchive;
-    if (archiveRecord != null &&
-        preview.blockLog != null &&
-        existingArchiveAttachments.isEmpty) {
-      importedArchive = await attachmentService.importText(
-        owner: archiveRecord,
-        source: preview.blockLog!,
-      );
-    }
-    try {
-      await database.applyDomainMigration(
-        records,
-        jsonEncode({
-          'sourceImportId': SelfControlImporter.sourceImportId,
-          'importedAt': currentTime().toUtc().toIso8601String(),
-          'recordCount': records.length,
-          'backupPath': backup.path,
-        }),
-        metadataKey: 'self_control_import_v1',
-      );
-    } catch (_) {
-      if (importedArchive != null) {
-        await attachmentService.delete(importedArchive);
-      }
-      rethrow;
-    }
-    _records
-      ..clear()
-      ..addAll(await database.loadRecords());
-    _projectIndex = null;
-    _lastSelfControlImportBackup = backup;
-    await _restrictionMonitor?.poll();
-    await refreshRestrictionHostsStatus();
-    notifyListeners();
-    return backup;
-  }
-
-  Future<void> _recordRestrictionViolation(
-    RestrictionViolation violation,
-    bool actionSucceeded,
-  ) async {
-    final now = currentTime();
-    await addRecord(
-      WorkspaceRecord.create(
-        kind: RecordKind.protocolEvent,
-        title: violation.process.name,
-        status: actionSucceeded ? WorkStatus.done : WorkStatus.failed,
-        scheduledFor: now,
-        data: {
-          'recordType': 'restrictionEvent',
-          'process': violation.process.name,
-          'pid': violation.process.pid,
-          'executablePath': violation.process.executablePath,
-          'action': violation.action.name,
-          'reasonCode': violation.reasonCode,
-          'reason': violation.reason,
-          'matched': violation.matched,
-          'detectedAt': now.toUtc().toIso8601String(),
-          'executionResult': actionSucceeded ? 'succeeded' : 'failed',
-          if (!actionSucceeded) 'error': 'Windows 原生动作执行失败',
-        },
-      ),
-    );
-  }
-
-  Future<void> _persistRestrictionSecurity() => database.writeMetadata(
-    'restriction_security_v1',
-    _restrictionSecurityState.encode(),
-  );
-
-  Future<void> _persistRestrictionRuntime({required bool cleanShutdown}) {
-    final state = _restrictionMonitor?.state ?? _restrictionMonitorState;
-    return database.writeMetadata(
-      'restriction_runtime_v1',
-      jsonEncode({
-        'version': 1,
-        'cleanShutdown': cleanShutdown,
-        'activeSnapshot': state.activeSnapshot == null
-            ? null
-            : _restrictionProfileToLocalJson(state.activeSnapshot!),
-        'pausedUntil': state.pausedUntil?.toUtc().toIso8601String(),
-        'breakDayKey': state.breakDayKey,
-        'breaksUsed': state.breaksUsed,
-        'updatedAt': currentTime().toUtc().toIso8601String(),
-      }),
-    );
-  }
-
-  Map<String, dynamic> _restrictionProfileToLocalJson(
-    RestrictionProfile profile,
-  ) => {'id': profile.id, 'title': profile.title, 'data': profile.toData()};
-
-  RestrictionProfile? _restrictionProfileFromLocalJson(Object? value) {
-    if (value is! Map) return null;
-    final json = Map<String, dynamic>.from(value);
-    final now = currentTime();
-    return RestrictionProfile.fromRecord(
-      WorkspaceRecord(
-        id: json['id']?.toString() ?? 'restriction-runtime-snapshot',
-        kind: RecordKind.template,
-        title: json['title']?.toString() ?? '自律规则快照',
-        createdAt: now,
-        updatedAt: now,
-        data: Map<String, dynamic>.from(json['data'] as Map? ?? const {}),
-      ),
-    );
-  }
-
   Future<void> setThemeMode(ThemeMode value) async {
     _themeMode = value;
     await database.writeMetadata('theme_mode', value.name);
@@ -1310,10 +821,6 @@ class WorkbenchController extends ChangeNotifier {
     _behaviorMode = normalized;
     await database.writeMetadata('behavior_mode', normalized);
     notifyListeners();
-  }
-
-  Future<void> setRsipAllowMultiplePerDay(bool value) async {
-    await setRsipStrictMode(!value);
   }
 
   Future<void> setAdvancedFeaturesEnabled(bool value) async {
@@ -1694,7 +1201,7 @@ class WorkbenchController extends ChangeNotifier {
     WorkspaceRecord task, {
     String reason = '',
   }) async {
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     final replacement = WorkspaceRecord.create(
       kind: RecordKind.task,
       title: current.title,
@@ -1734,7 +1241,7 @@ class WorkbenchController extends ChangeNotifier {
     required String snapshotId,
     String initialBody = '',
   }) async {
-    final key = _calendarDayKey(day);
+    final key = calendarDayKey(day);
     final existing = reviewForPeriod(ReviewPeriodType.daily, key);
     if (existing != null) return existing;
     final draft = WorkspaceRecord.create(
@@ -1799,8 +1306,9 @@ class WorkbenchController extends ChangeNotifier {
     );
   }
 
+  @override
   Future<void> addRecord(WorkspaceRecord record) async {
-    record = _normalizeRsipRecord(record);
+    record = normalizeRsipRecord(record);
     if (record.kind == RecordKind.task && record.data['recordType'] == null) {
       record = _withDefaultTaskDeadline(record);
       final definitionId = 'definition-${record.id}';
@@ -1871,1182 +1379,6 @@ class WorkbenchController extends ChangeNotifier {
     );
   }
 
-  Future<void> setRsipStrictMode(bool value) async {
-    if (activeRsipHabits.any((node) => node.rsipTimerRunning)) {
-      throw const FormatException('请先结束运行中的国策计时。');
-    }
-    final pending = activeRsipHabits.any(
-      (node) => rsipExecutionForDay(node.id, currentTime()) == null,
-    );
-    if (pending) {
-      throw const FormatException('当天仍有待结算国策节点，暂不能切换模式。');
-    }
-    _rsipStrictMode = value;
-    _rsipAllowMultiplePerDay = !value;
-    await database.writeMetadata('rsip_strict_mode', '$value');
-    await database.writeMetadata('rsip_allow_multiple_per_day', '${!value}');
-    final event = WorkspaceRecord.create(
-      kind: RecordKind.protocolEvent,
-      title: value ? '切换为 RSIP 严格模式' : '切换为 RSIP 自由模式',
-      scheduledFor: currentTime(),
-      data: {
-        'protocol': 'rsip',
-        'action': 'mode_changed',
-        'mode': value ? 'strict' : 'free',
-      },
-    );
-    await addRecord(event);
-    notifyListeners();
-  }
-
-  List<WorkspaceRecord> rsipSubtree(WorkspaceRecord root) {
-    final result = <WorkspaceRecord>[];
-    final queue = <WorkspaceRecord>[root];
-    final visited = <String>{};
-    while (queue.isNotEmpty) {
-      final current = queue.removeAt(0);
-      if (!visited.add(current.id)) continue;
-      result.add(current);
-      queue.addAll(
-        habits.where(
-          (node) => node.hasRsipProtocol && node.parentId == current.id,
-        ),
-      );
-    }
-    return result;
-  }
-
-  Future<void> moveRsipNode(
-    WorkspaceRecord node, {
-    String? parentId,
-    required String reason,
-  }) async {
-    if (reason.trim().isEmpty) {
-      throw const FormatException('请记录调整树结构的原因。');
-    }
-    if (!canUseRsipParent(recordId: node.id, parentId: parentId)) {
-      throw const FormatException('无法移动：目标父节点会形成循环引用。');
-    }
-    final current = _latestRecord(node);
-    await updateRecord(current.copyWith(parentId: parentId));
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'node_moved',
-      subject: current,
-      data: {
-        'fromParentId': current.parentId,
-        'toParentId': parentId,
-        'reason': reason.trim(),
-        'affectedNodeCount': rsipSubtree(current).length,
-      },
-    );
-  }
-
-  RsipExecutionRecord? rsipExecutionForDay(String nodeId, DateTime day) {
-    final key = growthService.dayKey(day);
-    return _rsipExecutionForKey(nodeId, key);
-  }
-
-  RsipExecutionRecord? _rsipExecutionForKey(String nodeId, String key) {
-    return rsipExecutionRecords
-        .where(
-          (record) => record.nodeId == nodeId && record.logicalDayKey == key,
-        )
-        .firstOrNull;
-  }
-
-  Future<WorkspaceRecord> saveRsipNode({
-    WorkspaceRecord? existing,
-    required String title,
-    required String rule,
-    required RsipNodeType type,
-    String emoji = '',
-    String? parentId,
-    String? groupId,
-    bool passive = false,
-    bool useTimer = false,
-    int timerMinutes = 1,
-  }) async {
-    final normalizedTitle = title.trim();
-    final normalizedRule = rule.trim();
-    if (normalizedTitle.isEmpty || normalizedRule.isEmpty) {
-      throw const FormatException('国策标题和精准规则不能为空。');
-    }
-    if (useTimer && (timerMinutes < 1 || timerMinutes > 180)) {
-      throw const FormatException('国策计时必须在 1 到 180 分钟之间。');
-    }
-    if (groupId != null &&
-        !rsipNodeGroups.any((group) => group.record.id == groupId)) {
-      throw const FormatException('所选国策组不存在。');
-    }
-
-    final now = currentTime();
-    final dayKey = growthService.dayKey(now);
-    late WorkspaceRecord record;
-    if (existing == null) {
-      if (!canAddRsipNode()) {
-        throw const FormatException('严格模式下每个逻辑日只能新增一次国策。');
-      }
-      final draft = WorkspaceRecord.create(
-        kind: RecordKind.habit,
-        title: normalizedTitle,
-        body: normalizedRule,
-        parentId: parentId,
-        data: const {},
-      );
-      if (!canUseRsipParent(recordId: draft.id, parentId: parentId)) {
-        throw const FormatException('所选父节点无效或会形成循环引用。');
-      }
-      record = draft.copyWith(
-        data: {
-          'protocol': 'rsip',
-          'recordType': 'rsipNode',
-          'rsipRule': normalizedRule,
-          'rsipNodeType': type.name,
-          'rsipEmoji': emoji.trim().isEmpty
-              ? _rsipTypeEmoji(type)
-              : emoji.trim(),
-          'rsipPassive': passive,
-          'rsipUseTimer': useTimer,
-          'rsipTimerMinutes': timerMinutes,
-          'rsipGroupId': ?groupId,
-          'rsipActive': true,
-          'rsipStage': 'E0',
-          'rsipChainCount': 0,
-          'rsipCumulativeExecutionDays': 0,
-          'rsipTotalExecutions': 0,
-          'rsipTotalViolations': 0,
-          'rsipReinforcement': 0,
-          'rsipMaxReinforcement': 0,
-          'rsipAddedAt': now.toUtc().toIso8601String(),
-          'rsipAddedDayKey': dayKey,
-        },
-      );
-      await addRecord(record);
-      await _ensureCurrentRsipRun();
-      await _updateCurrentRsipRunPeak();
-      await _addProtocolEvent(
-        protocol: 'rsip',
-        action: 'node_created',
-        subject: record,
-        data: {'nodeType': type.name, 'passive': passive},
-      );
-      return record;
-    }
-
-    final current = _latestRecord(existing);
-    if (!canUseRsipParent(recordId: current.id, parentId: parentId)) {
-      throw const FormatException('所选父节点无效或会形成循环引用。');
-    }
-    record = current.copyWith(
-      title: normalizedTitle,
-      body: normalizedRule,
-      parentId: parentId,
-      data: {
-        ...current.data,
-        'protocol': 'rsip',
-        'recordType': 'rsipNode',
-        'rsipRule': normalizedRule,
-        'rsipNodeType': type.name,
-        'rsipEmoji': emoji.trim().isEmpty ? _rsipTypeEmoji(type) : emoji.trim(),
-        'rsipPassive': passive,
-        'rsipUseTimer': useTimer,
-        'rsipTimerMinutes': timerMinutes,
-        'rsipGroupId': ?groupId,
-      },
-    );
-    await updateRecord(record);
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'node_edited',
-      subject: record,
-    );
-    return record;
-  }
-
-  Future<WorkspaceRecord> saveRsipNodeGroup({
-    WorkspaceRecord? existing,
-    required String title,
-    String emoji = '组',
-    required int initialTolerance,
-  }) async {
-    final normalized = title.trim();
-    if (normalized.isEmpty) {
-      throw const FormatException('国策组名称不能为空。');
-    }
-    if (initialTolerance < 0 || initialTolerance > 99) {
-      throw const FormatException('初始容错次数必须在 0 到 99 之间。');
-    }
-    final duplicate = rsipNodeGroups.any(
-      (group) =>
-          group.record.id != existing?.id && group.record.title == normalized,
-    );
-    if (duplicate) throw const FormatException('已存在同名国策组。');
-
-    final record = existing == null
-        ? WorkspaceRecord.create(
-            kind: RecordKind.template,
-            title: normalized,
-            data: {
-              'recordType': 'rsipNodeGroup',
-              'emoji': emoji.trim().isEmpty ? '组' : emoji.trim(),
-              'initialTolerance': initialTolerance,
-              'remainingTolerance': initialTolerance,
-            },
-          )
-        : _latestRecord(existing).copyWith(
-            title: normalized,
-            data: {
-              ...existing.data,
-              'recordType': 'rsipNodeGroup',
-              'emoji': emoji.trim().isEmpty ? '组' : emoji.trim(),
-              'initialTolerance': initialTolerance,
-              'remainingTolerance': min(
-                initialTolerance,
-                (existing.data['remainingTolerance'] as num?)?.toInt() ??
-                    initialTolerance,
-              ),
-            },
-          );
-    if (existing == null) {
-      await addRecord(record);
-    } else {
-      await updateRecord(record);
-    }
-    return record;
-  }
-
-  Future<List<WorkspaceRecord>> splitRsipGoal({
-    required String goal,
-    required List<Map<String, dynamic>> items,
-    String? parentId,
-    String? groupId,
-  }) async {
-    final normalizedGoal = goal.trim();
-    if (normalizedGoal.isEmpty) {
-      throw const FormatException('请填写要拆分的目标。');
-    }
-    if (items.isEmpty) throw const FormatException('至少需要一个子国策。');
-    if (!canAddRsipNode()) {
-      throw const FormatException('严格模式下今日已完成一次新增。');
-    }
-    if (parentId != null &&
-        !activeRsipHabits.any((node) => node.id == parentId)) {
-      throw const FormatException('所选父节点不存在。');
-    }
-    if (groupId != null &&
-        !rsipNodeGroups.any((group) => group.record.id == groupId)) {
-      throw const FormatException('所选国策组不存在。');
-    }
-
-    final now = currentTime();
-    final dayKey = growthService.dayKey(now);
-    final batchId = newRecordId();
-    final created = <WorkspaceRecord>[];
-    for (var index = 0; index < items.length; index++) {
-      final item = items[index];
-      final title = item['title']?.toString().trim() ?? '';
-      final rule = item['rule']?.toString().trim() ?? '';
-      if (title.isEmpty || rule.isEmpty) {
-        throw FormatException('第 ${index + 1} 个子国策缺少标题或精准规则。');
-      }
-      final type = RsipNodeType.values.firstWhere(
-        (value) => value.name == item['type']?.toString(),
-        orElse: () => RsipNodeType.policy,
-      );
-      final record = WorkspaceRecord.create(
-        kind: RecordKind.habit,
-        title: title,
-        body: rule,
-        parentId: parentId,
-        data: {
-          'protocol': 'rsip',
-          'recordType': 'rsipNode',
-          'rsipRule': rule,
-          'rsipNodeType': type.name,
-          'rsipEmoji': item['emoji']?.toString().trim().isNotEmpty == true
-              ? item['emoji'].toString().trim()
-              : _rsipTypeEmoji(type),
-          'rsipPassive': item['passive'] == true,
-          'rsipGroupId': ?groupId,
-          'rsipActive': true,
-          'rsipStage': 'E0',
-          'rsipChainCount': 0,
-          'rsipCumulativeExecutionDays': 0,
-          'rsipTotalExecutions': 0,
-          'rsipTotalViolations': 0,
-          'rsipReinforcement': 0,
-          'rsipMaxReinforcement': 0,
-          'splitFromGoal': normalizedGoal,
-          'splitBatchId': batchId,
-          'rsipAddedAt': now.toUtc().toIso8601String(),
-          'rsipAddedDayKey': dayKey,
-        },
-      );
-      await addRecord(record);
-      created.add(record);
-    }
-    await _ensureCurrentRsipRun();
-    await _updateCurrentRsipRunPeak();
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'split_batch_created',
-      subject: created.first,
-      data: {
-        'batchId': batchId,
-        'goal': normalizedGoal,
-        'nodeIds': created.map((node) => node.id).toList(),
-        'nodeCount': created.length,
-      },
-    );
-    return created;
-  }
-
-  RsipViolationPreview previewRsipViolation(WorkspaceRecord node) {
-    final current = _latestRecord(node);
-    if (!current.hasRsipProtocol || !current.rsipActive) {
-      throw const FormatException('该国策节点当前不可结算。');
-    }
-    final reinforcement =
-        (current.data['rsipReinforcement'] as num?)?.toInt() ?? 0;
-    if (reinforcement > 0) {
-      return RsipViolationPreview(
-        node: current,
-        reinforcementBefore: reinforcement,
-        reinforcementAfter: reinforcement - 1,
-        remainingToleranceBefore: null,
-        remainingToleranceAfter: null,
-        archiveNodeIds: const [],
-        collapsesWholeGroup: false,
-        endsRun: false,
-      );
-    }
-
-    final groupId = current.data['rsipGroupId']?.toString();
-    final group = rsipNodeGroups
-        .where((value) => value.record.id == groupId)
-        .firstOrNull;
-    final subtreeIds = _activeRsipSubtreeIds(current);
-    var archiveIds = subtreeIds;
-    var wholeGroup = false;
-    int? toleranceBefore;
-    int? toleranceAfter;
-    if (group != null) {
-      toleranceBefore = group.remainingTolerance;
-      toleranceAfter = max(0, toleranceBefore - 1);
-      wholeGroup = toleranceBefore <= 1;
-      if (wholeGroup) {
-        final ids = <String>{};
-        for (final groupNode in activeRsipHabits.where(
-          (candidate) => candidate.data['rsipGroupId'] == group.record.id,
-        )) {
-          ids.addAll(_activeRsipSubtreeIds(groupNode));
-        }
-        archiveIds = ids.toList(growable: false);
-      }
-    }
-    final activeIds = activeRsipHabits.map((value) => value.id).toSet();
-    final endsRun =
-        wholeGroup ||
-        current.parentId == null ||
-        activeIds.difference(archiveIds.toSet()).isEmpty;
-    return RsipViolationPreview(
-      node: current,
-      reinforcementBefore: 0,
-      reinforcementAfter: 0,
-      remainingToleranceBefore: toleranceBefore,
-      remainingToleranceAfter: toleranceAfter,
-      archiveNodeIds: archiveIds,
-      collapsesWholeGroup: wholeGroup,
-      endsRun: endsRun,
-    );
-  }
-
-  Future<RsipExecutionRecord> settleRsipNode(
-    WorkspaceRecord node, {
-    required RsipExecutionStatus status,
-    String reason = '',
-    String repairHint = '',
-    String sourceId = '',
-    String sourceEvent = '',
-    String correctionReason = '',
-    bool reinforce = false,
-    DateTime? logicalDay,
-  }) async {
-    final current = _latestRecord(node);
-    final day = growthService.logicalDay(logicalDay ?? currentTime());
-    final dayKey = _calendarDayKey(day);
-    final existing = _rsipExecutionForKey(current.id, dayKey);
-    if (existing != null) {
-      if (existing.status == status) return existing;
-      if (correctionReason.trim().isEmpty) {
-        throw const FormatException('同一逻辑日只能有一个有效结算；更正时必须填写原因。');
-      }
-      final correctedAt = currentTime();
-      final corrected = existing.record.copyWith(
-        status: _rsipWorkStatus(status),
-        body: reason.trim(),
-        data: {
-          ...existing.record.data,
-          'executionStatus': status.name,
-          'reason': reason.trim(),
-          'repairHint': repairHint.trim(),
-          'correctedAt': correctedAt.toUtc().toIso8601String(),
-          'correctionReason': correctionReason.trim(),
-          'previousStatus': existing.status.name,
-          'structuralEffectRequiresReview':
-              existing.status == RsipExecutionStatus.violated ||
-              status == RsipExecutionStatus.violated,
-        },
-      );
-      await updateRecord(corrected);
-      await _adjustRsipCountersForCorrection(
-        current,
-        from: existing.status,
-        to: status,
-      );
-      await _addProtocolEvent(
-        protocol: 'rsip',
-        action: 'execution_corrected',
-        subject: current,
-        data: {
-          'logicalDayKey': dayKey,
-          'from': existing.status.name,
-          'to': status.name,
-          'reason': correctionReason.trim(),
-          'structuralEffectReversed': false,
-        },
-      );
-      return RsipExecutionRecord.fromRecord(corrected);
-    }
-    if (!current.hasRsipProtocol || !current.rsipActive) {
-      throw const FormatException('该国策节点当前不可结算。');
-    }
-    if (status == RsipExecutionStatus.violated && reason.trim().isEmpty) {
-      throw const FormatException('违反国策时必须填写原因。');
-    }
-    if (!_settlingRsipNodeIds.add(current.id)) {
-      throw const FormatException('该国策正在结算，请稍候。');
-    }
-    try {
-      switch (status) {
-        case RsipExecutionStatus.executed:
-          await _markRsipExecuted(current, day, reinforce: reinforce);
-          break;
-        case RsipExecutionStatus.violated:
-          await _applyRsipViolation(
-            previewRsipViolation(current),
-            reason: reason.trim(),
-          );
-          break;
-        case RsipExecutionStatus.skipped:
-          await updateRecord(
-            current.copyWith(
-              data: {
-                ...current.data,
-                'rsipChainCount': 0,
-                'rsipTimerRunning': false,
-                'rsipLastSkippedAt': currentTime().toUtc().toIso8601String(),
-              },
-            ),
-          );
-          break;
-      }
-      final record = WorkspaceRecord.create(
-        kind: RecordKind.protocolEvent,
-        title: '${current.title} · ${_rsipStatusLabel(status)}',
-        body: reason.trim(),
-        status: _rsipWorkStatus(status),
-        parentId: current.id,
-        scheduledFor: day,
-        data: {
-          'protocol': 'rsip',
-          'recordType': 'rsipExecution',
-          'action': 'node_settled',
-          'rsipNodeId': current.id,
-          'logicalDayKey': dayKey,
-          'executionStatus': status.name,
-          'reason': reason.trim(),
-          'repairHint': repairHint.trim(),
-          'sourceId': sourceId,
-          'sourceEvent': sourceEvent,
-        },
-      );
-      await addRecord(record);
-      if (status == RsipExecutionStatus.executed) {
-        await _runAutomaticRsipTaskActions(current.id);
-      }
-      return RsipExecutionRecord.fromRecord(record);
-    } finally {
-      _settlingRsipNodeIds.remove(current.id);
-    }
-  }
-
-  Future<void> reinforceRsipNode(WorkspaceRecord node) async {
-    final current = _latestRecord(node);
-    final value = RsipNode.fromRecord(current);
-    if (!current.rsipActive || value.stage != 'E2') {
-      throw const FormatException('只有活动的 E2 国策可以强化。');
-    }
-    final next = value.reinforcement + 1;
-    await updateRecord(
-      current.copyWith(
-        data: {
-          ...current.data,
-          'rsipReinforcement': next,
-          'rsipMaxReinforcement': max(value.maxReinforcement, next),
-        },
-      ),
-    );
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'node_reinforced',
-      subject: current,
-      data: {'level': next},
-    );
-  }
-
-  Future<void> archiveRsipNode(
-    WorkspaceRecord node, {
-    required String reason,
-  }) async {
-    if (reason.trim().isEmpty) throw const FormatException('请填写归档原因。');
-    final current = _latestRecord(node);
-    final ids = _activeRsipSubtreeIds(current);
-    await _archiveRsipNodes(ids, reason: reason.trim());
-    if (current.parentId == null || activeRsipHabits.isEmpty) {
-      await _endCurrentRsipRun(
-        reason: reason.trim(),
-        collapseNodeTitle: current.title,
-      );
-    }
-  }
-
-  Future<void> restoreRsipNode(WorkspaceRecord node, {String? parentId}) async {
-    final current = _latestRecord(node);
-    if (current.rsipActive) return;
-    if (!canUseRsipParent(recordId: current.id, parentId: parentId)) {
-      throw const FormatException('恢复位置无效或会形成循环引用。');
-    }
-    await updateRecord(
-      current.copyWith(
-        parentId: parentId,
-        data: {
-          ...current.data,
-          'rsipActive': true,
-          'rsipStage': 'E0',
-          'rsipChainCount': 0,
-          'rsipReinforcement': 0,
-          'rsipTimerRunning': false,
-          'rsipRestoredAt': currentTime().toUtc().toIso8601String(),
-          'rsipLibraryUses':
-              ((current.data['rsipLibraryUses'] as num?)?.toInt() ?? 0) + 1,
-        },
-      ),
-    );
-    await _ensureCurrentRsipRun();
-    await _updateCurrentRsipRunPeak();
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'node_restored',
-      subject: current,
-      data: {'parentId': parentId},
-    );
-  }
-
-  Future<WorkspaceRecord> saveRsipTaskLink({
-    WorkspaceRecord? existing,
-    required String nodeId,
-    required String chainId,
-    required RsipTaskChainKind chainKind,
-    required RsipTaskLinkTriggerEvent triggerEvent,
-    required RsipTaskLinkEffect effect,
-    RsipTaskLinkAutomation automation = RsipTaskLinkAutomation.automatic,
-    bool active = true,
-  }) async {
-    if (!rsipNodes.any((node) => node.record.id == nodeId)) {
-      throw const FormatException('关联的国策节点不存在。');
-    }
-    final targetExists = chainKind == RsipTaskChainKind.unit
-        ? [...taskDefinitions, ...tasks].any((task) => task.id == chainId)
-        : taskGroups.any((group) => group.id == chainId);
-    if (!targetExists) throw const FormatException('关联的任务或任务群不存在。');
-    final taskToRsip =
-        triggerEvent != RsipTaskLinkTriggerEvent.rsipMarkedExecuted;
-    final effectIsTaskToRsip =
-        effect == RsipTaskLinkEffect.markRsipExecuted ||
-        effect == RsipTaskLinkEffect.markRsipViolated;
-    if (taskToRsip != effectIsTaskToRsip) {
-      throw const FormatException('联动触发方向和执行效果不匹配。');
-    }
-    final matching = rsipTaskLinks
-        .where(
-          (link) =>
-              link.nodeId == nodeId &&
-              link.chainId == chainId &&
-              link.chainKind == chainKind &&
-              link.triggerEvent == triggerEvent &&
-              link.effect == effect,
-        )
-        .firstOrNull;
-    final effectiveExisting = existing ?? matching?.record;
-    final data = {
-      'recordType': 'rsipTaskLink',
-      'relationType': 'rsipTaskLink',
-      'rsipNodeId': nodeId,
-      'chainId': chainId,
-      'chainKind': chainKind.name,
-      'triggerEvent': triggerEvent.name,
-      'effect': effect.name,
-      'automation': automation.name,
-      'active': active,
-    };
-    final record = effectiveExisting == null
-        ? WorkspaceRecord.create(
-            kind: RecordKind.relation,
-            title: 'RSIP 任务联动',
-            data: data,
-          )
-        : _latestRecord(
-            effectiveExisting,
-          ).copyWith(data: {...effectiveExisting.data, ...data});
-    if (effectiveExisting == null) {
-      await addRecord(record);
-    } else {
-      await updateRecord(record);
-    }
-    return record;
-  }
-
-  List<RsipTaskLink> pendingRsipTaskActions(String nodeId) => rsipTaskLinks
-      .where(
-        (link) =>
-            link.active &&
-            link.nodeId == nodeId &&
-            link.triggerEvent == RsipTaskLinkTriggerEvent.rsipMarkedExecuted &&
-            !_rsipLinkTriggeredToday(link),
-      )
-      .toList(growable: false);
-
-  Future<void> applyRsipTaskAction(RsipTaskLink link) async {
-    if (_rsipLinkTriggeredToday(link)) return;
-    final targets = link.chainKind == RsipTaskChainKind.unit
-        ? tasks
-              .where(
-                (task) =>
-                    task.id == link.chainId ||
-                    task.data['definitionId'] == link.chainId,
-              )
-              .toList()
-        : tasks.where((task) => task.parentId == link.chainId).toList();
-    final now = currentTime();
-    for (final task in targets.where(
-      (task) => !WorkStatus.terminal.contains(task.status),
-    )) {
-      if (link.effect == RsipTaskLinkEffect.promptStartChain) {
-        await updateRecord(task.copyWith(status: WorkStatus.doing));
-      } else if (link.effect == RsipTaskLinkEffect.promptScheduleChain) {
-        final scheduled = task.scheduledFor;
-        await updateRecord(
-          task.copyWith(
-            scheduledFor: DateTime(
-              now.year,
-              now.month,
-              now.day,
-              scheduled?.hour ?? 9,
-              scheduled?.minute ?? 0,
-            ),
-          ),
-        );
-      }
-    }
-    await _recordRsipLinkTrigger(link);
-  }
-
-  Future<void> handleRsipGroupCycleCompleted(String groupId) async {
-    await _handleTaskRsipLinks(
-      groupId,
-      RsipTaskChainKind.group,
-      RsipTaskLinkTriggerEvent.groupCycleCompleted,
-    );
-  }
-
-  List<RsipInsight> get rsipInsights {
-    final end = currentTime();
-    final start = end.subtract(const Duration(days: 14));
-    final records = rsipExecutionRecords.where(
-      (record) => !record.record.createdAt.isBefore(start),
-    );
-    final executed = records
-        .where((record) => record.status == RsipExecutionStatus.executed)
-        .length;
-    final violated = records
-        .where((record) => record.status == RsipExecutionStatus.violated)
-        .length;
-    final tracked = executed + violated;
-    final metrics = <String, num>{
-      'activeNodes': activeRsipHabits.length,
-      'passiveNodes': rsipNodes.where((node) => node.passive).length,
-      'reinforcedNodes': rsipNodes
-          .where((node) => node.reinforcement > 0)
-          .length,
-      'executed14d': executed,
-      'violated14d': violated,
-      'successRate14d': tracked == 0 ? 0 : executed / tracked,
-      'runs': rsipRunRecords.length,
-    };
-    final result = <RsipInsight>[
-      RsipInsight(
-        windowStart: start,
-        windowEnd: end,
-        metrics: metrics,
-        rule: '14 日执行率 = 已执行 /（已执行 + 已违反）',
-        message: tracked == 0
-            ? '近 14 日尚无可分析的执行或违反记录。'
-            : violated > executed
-            ? '违反次数高于执行次数，建议缩小精准规则的最小动作。'
-            : '当前 14 日执行记录未出现明显的整体风险信号。',
-      ),
-    ];
-    for (final node in rsipNodes.where((node) => node.record.rsipActive)) {
-      final descendants = _activeRsipSubtreeIds(node.record).length - 1;
-      final phaseWeight = switch (node.stage) {
-        'E2' => 3,
-        'E1' => 2,
-        _ => 1,
-      };
-      final cost =
-          (descendants + 1) * phaseWeight * (node.reinforcement > 0 ? 0.3 : 1);
-      if (cost < 4) continue;
-      result.add(
-        RsipInsight(
-          windowStart: start,
-          windowEnd: end,
-          metrics: {'descendants': descendants, 'failureCost': cost},
-          rule: '风险成本 =（子孙数 + 1）× 阶段权重 × 强化修正',
-          message: '「${node.record.title}」失败会影响较大子树，结算前应先检查规则是否可执行。',
-        ),
-      );
-    }
-    return result;
-  }
-
-  String _rsipTypeEmoji(RsipNodeType type) => switch (type) {
-    RsipNodeType.policy => '策',
-    RsipNodeType.habit => '习',
-    RsipNodeType.reward => '赏',
-    RsipNodeType.penalty => '罚',
-    RsipNodeType.ritual => '仪',
-    RsipNodeType.goal => '标',
-    RsipNodeType.trigger => '触',
-    RsipNodeType.reminder => '醒',
-  };
-
-  String _rsipWorkStatus(RsipExecutionStatus status) => switch (status) {
-    RsipExecutionStatus.executed => WorkStatus.done,
-    RsipExecutionStatus.violated => WorkStatus.failed,
-    RsipExecutionStatus.skipped => WorkStatus.skipped,
-  };
-
-  String _rsipStatusLabel(RsipExecutionStatus status) => switch (status) {
-    RsipExecutionStatus.executed => '已执行',
-    RsipExecutionStatus.violated => '已违反',
-    RsipExecutionStatus.skipped => '已跳过',
-  };
-
-  List<String> _activeRsipSubtreeIds(WorkspaceRecord root) {
-    final result = <String>[];
-    final queue = <WorkspaceRecord>[root];
-    final visited = <String>{};
-    while (queue.isNotEmpty) {
-      final current = queue.removeAt(0);
-      if (!current.rsipActive || !visited.add(current.id)) continue;
-      result.add(current.id);
-      queue.addAll(
-        activeRsipHabits.where((node) => node.parentId == current.id),
-      );
-    }
-    return result;
-  }
-
-  Future<void> _markRsipExecuted(
-    WorkspaceRecord node,
-    DateTime logicalDay, {
-    bool reinforce = false,
-  }) async {
-    final current = _latestRecord(node);
-    final previous = _rsipExecutionForKey(
-      current.id,
-      _calendarDayKey(logicalDay.subtract(const Duration(days: 1))),
-    );
-    final chain = previous?.status == RsipExecutionStatus.executed
-        ? current.rsipChainCount + 1
-        : 1;
-    final previousStage = (current.data['rsipStage']?.toString() ?? 'E0')
-        .toUpperCase();
-    final stage = chain >= 21
-        ? 'E2'
-        : chain >= 7
-        ? 'E1'
-        : 'E0';
-    var reinforcement =
-        (current.data['rsipReinforcement'] as num?)?.toInt() ?? 0;
-    var maxReinforcement =
-        (current.data['rsipMaxReinforcement'] as num?)?.toInt() ?? 0;
-    if (stage == 'E2' && reinforce) {
-      reinforcement += 1;
-      maxReinforcement = max(maxReinforcement, reinforcement);
-    }
-    final now = currentTime();
-    await updateRecord(
-      current.copyWith(
-        data: {
-          ...current.data,
-          'rsipActive': true,
-          'rsipChainCount': chain,
-          'rsipStage': stage,
-          if (stage != previousStage)
-            'rsipStageStartedAt': now.toUtc().toIso8601String(),
-          'rsipCumulativeExecutionDays':
-              ((current.data['rsipCumulativeExecutionDays'] as num?)?.toInt() ??
-                  0) +
-              1,
-          'rsipTotalExecutions':
-              ((current.data['rsipTotalExecutions'] as num?)?.toInt() ?? 0) + 1,
-          'rsipConsecutiveViolations': 0,
-          'rsipReinforcement': reinforcement,
-          'rsipMaxReinforcement': maxReinforcement,
-          'rsipLastSuccessAt': now.toUtc().toIso8601String(),
-          'rsipTimerRunning': false,
-        },
-      ),
-    );
-  }
-
-  Future<void> _applyRsipViolation(
-    RsipViolationPreview preview, {
-    required String reason,
-  }) async {
-    final node = _latestRecord(preview.node);
-    final now = currentTime();
-    final violationData = {
-      ...node.data,
-      'rsipChainCount': 0,
-      'rsipTotalViolations':
-          ((node.data['rsipTotalViolations'] as num?)?.toInt() ?? 0) + 1,
-      'rsipConsecutiveViolations':
-          ((node.data['rsipConsecutiveViolations'] as num?)?.toInt() ?? 0) + 1,
-      'rsipFailureCount': node.rsipFailureCount + 1,
-      'rsipLastFailureAt': now.toUtc().toIso8601String(),
-      'rsipFailureReason': reason,
-      'rsipTimerRunning': false,
-    };
-    if (preview.onlyConsumesReinforcement) {
-      await updateRecord(
-        node.copyWith(
-          data: {
-            ...violationData,
-            'rsipReinforcement': preview.reinforcementAfter,
-          },
-        ),
-      );
-      await _addProtocolEvent(
-        protocol: 'rsip',
-        action: 'reinforcement_consumed',
-        subject: node,
-        successful: false,
-        data: {
-          'from': preview.reinforcementBefore,
-          'to': preview.reinforcementAfter,
-          'reason': reason,
-        },
-      );
-      return;
-    }
-
-    await updateRecord(node.copyWith(data: violationData));
-    final groupId = node.data['rsipGroupId']?.toString();
-    if (groupId != null) {
-      final group = rsipNodeGroups
-          .where((value) => value.record.id == groupId)
-          .firstOrNull;
-      if (group != null) {
-        await updateRecord(
-          group.record.copyWith(
-            data: {
-              ...group.record.data,
-              'remainingTolerance': preview.remainingToleranceAfter,
-              'lastConsumedAt': now.toUtc().toIso8601String(),
-            },
-          ),
-        );
-      }
-    }
-    await _archiveRsipNodes(preview.archiveNodeIds, reason: reason);
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: preview.collapsesWholeGroup
-          ? 'group_collapsed'
-          : 'subtree_collapsed',
-      subject: node,
-      successful: false,
-      data: {
-        'reason': reason,
-        'nodeIds': preview.archiveNodeIds,
-        'nodeCount': preview.archiveNodeIds.length,
-        'groupId': groupId,
-        'remainingTolerance': preview.remainingToleranceAfter,
-      },
-    );
-    if (preview.endsRun) {
-      await _endCurrentRsipRun(reason: reason, collapseNodeTitle: node.title);
-    }
-  }
-
-  Future<void> _archiveRsipNodes(
-    Iterable<String> nodeIds, {
-    required String reason,
-  }) async {
-    final ids = nodeIds.toSet();
-    final now = currentTime();
-    for (final node in habits.where((record) => ids.contains(record.id))) {
-      final current = _latestRecord(node);
-      final stage = (current.data['rsipStage']?.toString() ?? 'E0')
-          .toUpperCase();
-      final currentHighest =
-          current.data['rsipHighestStage']?.toString().toUpperCase() ?? 'E0';
-      final highest = _rsipStageRank(stage) >= _rsipStageRank(currentHighest)
-          ? stage
-          : currentHighest;
-      await updateRecord(
-        current.copyWith(
-          data: {
-            ...current.data,
-            'rsipActive': false,
-            'rsipTimerRunning': false,
-            'rsipArchivedAt': now.toUtc().toIso8601String(),
-            'rsipArchiveReason': reason,
-            'rsipLastActiveAt': now.toUtc().toIso8601String(),
-            'rsipHighestStage': highest,
-            'rsipLibraryUses':
-                ((current.data['rsipLibraryUses'] as num?)?.toInt() ?? 0) + 1,
-          },
-        ),
-      );
-    }
-  }
-
-  int _rsipStageRank(String stage) => switch (stage.toUpperCase()) {
-    'E2' => 2,
-    'E1' => 1,
-    _ => 0,
-  };
-
-  WorkspaceRecord? get _currentRsipRun => protocolEvents
-      .where(
-        (record) =>
-            record.data['recordType'] == 'rsipRun' &&
-            record.data['endedAt'] == null,
-      )
-      .firstOrNull;
-
-  Future<WorkspaceRecord> _ensureCurrentRsipRun() async {
-    final existing = _currentRsipRun;
-    if (existing != null) return existing;
-    final lastNumber = rsipRunRecords.fold<int>(
-      0,
-      (value, record) => max(value, record.runNumber),
-    );
-    final now = currentTime();
-    for (final group in rsipNodeGroups) {
-      await updateRecord(
-        group.record.copyWith(
-          data: {
-            ...group.record.data,
-            'remainingTolerance': group.initialTolerance,
-          },
-        ),
-      );
-    }
-    final run = WorkspaceRecord.create(
-      kind: RecordKind.protocolEvent,
-      title: 'RSIP 第 ${lastNumber + 1} 轮',
-      scheduledFor: now,
-      data: {
-        'protocol': 'rsip',
-        'recordType': 'rsipRun',
-        'action': 'run_started',
-        'runNumber': lastNumber + 1,
-        'startedAt': now.toUtc().toIso8601String(),
-        'peakNodeCount': activeRsipHabits.length,
-        'nodeIds': activeRsipHabits.map((node) => node.id).toList(),
-      },
-    );
-    await addRecord(run);
-    return run;
-  }
-
-  Future<void> _updateCurrentRsipRunPeak() async {
-    final run = await _ensureCurrentRsipRun();
-    final currentPeak = (run.data['peakNodeCount'] as num?)?.toInt() ?? 0;
-    if (activeRsipHabits.length <= currentPeak) return;
-    await updateRecord(
-      run.copyWith(
-        data: {
-          ...run.data,
-          'peakNodeCount': activeRsipHabits.length,
-          'nodeIds': activeRsipHabits.map((node) => node.id).toList(),
-        },
-      ),
-    );
-  }
-
-  Future<void> _endCurrentRsipRun({
-    required String reason,
-    required String collapseNodeTitle,
-  }) async {
-    final run = _currentRsipRun;
-    if (run == null) return;
-    final started =
-        DateTime.tryParse(run.data['startedAt']?.toString() ?? '')?.toLocal() ??
-        run.createdAt;
-    final now = currentTime();
-    final duration = max(
-      1,
-      growthService
-              .logicalDay(now)
-              .difference(growthService.logicalDay(started))
-              .inDays +
-          1,
-    );
-    await updateRecord(
-      run.copyWith(
-        status: WorkStatus.done,
-        data: {
-          ...run.data,
-          'action': 'run_ended',
-          'endedAt': now.toUtc().toIso8601String(),
-          'durationDays': duration,
-          'collapseReason': reason,
-          'collapseNodeTitle': collapseNodeTitle,
-        },
-      ),
-    );
-  }
-
-  Future<void> _adjustRsipCountersForCorrection(
-    WorkspaceRecord node, {
-    required RsipExecutionStatus from,
-    required RsipExecutionStatus to,
-  }) async {
-    final current = _latestRecord(node);
-    var executions =
-        (current.data['rsipTotalExecutions'] as num?)?.toInt() ?? 0;
-    var violations =
-        (current.data['rsipTotalViolations'] as num?)?.toInt() ?? 0;
-    if (from == RsipExecutionStatus.executed) {
-      executions = max(0, executions - 1);
-    }
-    if (from == RsipExecutionStatus.violated) {
-      violations = max(0, violations - 1);
-    }
-    if (to == RsipExecutionStatus.executed) executions += 1;
-    if (to == RsipExecutionStatus.violated) violations += 1;
-    await updateRecord(
-      current.copyWith(
-        data: {
-          ...current.data,
-          'rsipTotalExecutions': executions,
-          'rsipTotalViolations': violations,
-          'rsipLastCorrectionAt': currentTime().toUtc().toIso8601String(),
-        },
-      ),
-    );
-  }
-
-  Future<void> _handleTaskRsipLinks(
-    String chainId,
-    RsipTaskChainKind chainKind,
-    RsipTaskLinkTriggerEvent event,
-  ) async {
-    for (final link in rsipTaskLinks.where(
-      (link) =>
-          link.active &&
-          link.chainId == chainId &&
-          link.chainKind == chainKind &&
-          link.triggerEvent == event &&
-          !_rsipLinkTriggeredToday(link),
-    )) {
-      if (link.automation == RsipTaskLinkAutomation.confirm) {
-        final subject = rsipNodes
-            .where((node) => node.record.id == link.nodeId)
-            .firstOrNull
-            ?.record;
-        if (subject == null) continue;
-        await _addProtocolEvent(
-          protocol: 'rsip',
-          action: 'task_link_confirmation_pending',
-          subject: subject,
-          data: {'linkId': link.record.id, 'sourceId': chainId},
-        );
-        continue;
-      }
-      final node = rsipNodes
-          .where((node) => node.record.id == link.nodeId)
-          .firstOrNull
-          ?.record;
-      if (node == null || !node.rsipActive) continue;
-      final status = link.effect == RsipTaskLinkEffect.markRsipExecuted
-          ? RsipExecutionStatus.executed
-          : RsipExecutionStatus.violated;
-      await settleRsipNode(
-        node,
-        status: status,
-        reason: status == RsipExecutionStatus.violated ? '关联任务中断' : '',
-        sourceId: chainId,
-        sourceEvent: event.name,
-      );
-      await _recordRsipLinkTrigger(link);
-    }
-  }
-
-  Future<void> _runAutomaticRsipTaskActions(String nodeId) async {
-    for (final link in pendingRsipTaskActions(
-      nodeId,
-    ).where((link) => link.automation == RsipTaskLinkAutomation.automatic)) {
-      await applyRsipTaskAction(link);
-    }
-  }
-
-  bool _rsipLinkTriggeredToday(RsipTaskLink link) {
-    final key = growthService.dayKey(currentTime());
-    return protocolEvents.any(
-      (record) =>
-          record.data['action'] == 'rsip_task_link_triggered' &&
-          record.data['linkId'] == link.record.id &&
-          record.data['logicalDayKey'] == key,
-    );
-  }
-
-  Future<void> _recordRsipLinkTrigger(RsipTaskLink link) async {
-    final subject = rsipNodes
-        .where((node) => node.record.id == link.nodeId)
-        .firstOrNull
-        ?.record;
-    if (subject == null) return;
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'rsip_task_link_triggered',
-      subject: subject,
-      data: {
-        'linkId': link.record.id,
-        'logicalDayKey': growthService.dayKey(currentTime()),
-        'chainId': link.chainId,
-        'effect': link.effect.name,
-      },
-    );
-  }
-
   Future<int> ensureTaskInstancesThrough(DateTime through) async {
     // A trashed occurrence still occupies its definition/date slot. Otherwise
     // creating any task can resurrect the same recurring occurrence.
@@ -3077,7 +1409,7 @@ class WorkbenchController extends ChangeNotifier {
         day = day.add(const Duration(days: 1))
       ) {
         if (!_matchesRecurrence(definition, day)) continue;
-        final key = _calendarDayKey(day);
+        final key = calendarDayKey(day);
         if (!existingKeys.add('${definition.id}:$key')) continue;
         final scheduled = DateTime(
           day.year,
@@ -3147,42 +1479,11 @@ class WorkbenchController extends ChangeNotifier {
     return requested.clamp(1, DateTime(year, month + 1, 0).day).toInt();
   }
 
-  String _calendarDayKey(DateTime day) {
+  @override
+  String calendarDayKey(DateTime day) {
     return '${day.year.toString().padLeft(4, '0')}-'
         '${day.month.toString().padLeft(2, '0')}-'
         '${day.day.toString().padLeft(2, '0')}';
-  }
-
-  bool canAddRsipNode({String? excludingId}) {
-    if (_rsipAllowMultiplePerDay) return true;
-    final todayKey = growthService.dayKey(currentTime());
-    return habits.every((habit) {
-      if (!habit.hasRsipProtocol || habit.id == excludingId) return true;
-      final addedAt = DateTime.tryParse(
-        habit.data['rsipAddedAt']?.toString() ?? '',
-      )?.toLocal();
-      if (addedAt != null) return growthService.dayKey(addedAt) != todayKey;
-      final addedDayKey = habit.data['rsipAddedDayKey']?.toString();
-      return addedDayKey == null ||
-          addedDayKey.isEmpty ||
-          addedDayKey != todayKey;
-    });
-  }
-
-  bool canUseRsipParent({required String recordId, String? parentId}) {
-    if (parentId == null) return true;
-    final byId = {
-      for (final habit in habits)
-        if (habit.hasRsipProtocol) habit.id: habit,
-    };
-    String? currentId = parentId;
-    final visited = <String>{};
-    while (currentId != null) {
-      if (!visited.add(currentId)) return false;
-      if (currentId == recordId) return false;
-      currentId = byId[currentId]?.parentId;
-    }
-    return byId.containsKey(parentId);
   }
 
   bool canUseCtdpParent({required String recordId, String? parentId}) {
@@ -3198,8 +1499,9 @@ class WorkbenchController extends ChangeNotifier {
     return true;
   }
 
+  @override
   Future<void> updateRecord(WorkspaceRecord record) async {
-    record = _normalizeRsipRecord(record);
+    record = normalizeRsipRecord(record);
     await database.saveRecord(record);
     final index = _records.indexWhere(
       (value) => value.id == record.id && value.kind == record.kind,
@@ -3211,51 +1513,6 @@ class WorkbenchController extends ChangeNotifier {
     }
     _projectIndex = null;
     notifyListeners();
-  }
-
-  WorkspaceRecord _normalizeRsipRecord(WorkspaceRecord record) {
-    if (!record.hasRsipProtocol) return record;
-    final chain = record.rsipChainCount;
-    final stage = chain >= 21
-        ? 'E2'
-        : chain >= 7
-        ? 'E1'
-        : 'E0';
-    final addedAt =
-        DateTime.tryParse(
-          record.data['rsipAddedAt']?.toString() ?? '',
-        )?.toLocal() ??
-        record.createdAt;
-    return record.copyWith(
-      body: record.rsipRule,
-      data: {
-        ...record.data,
-        'recordType': 'rsipNode',
-        'rsipRule': record.rsipRule,
-        'rsipNodeType': record.data['rsipNodeType']?.toString() ?? 'policy',
-        'rsipEmoji': record.data['rsipEmoji']?.toString() ?? '策',
-        'rsipPassive': record.data['rsipPassive'] == true,
-        'rsipStage': (record.data['rsipStage']?.toString() ?? stage)
-            .toUpperCase(),
-        'rsipCumulativeExecutionDays':
-            (record.data['rsipCumulativeExecutionDays'] as num?)?.toInt() ??
-            chain,
-        'rsipTotalExecutions':
-            (record.data['rsipTotalExecutions'] as num?)?.toInt() ?? chain,
-        'rsipTotalViolations':
-            (record.data['rsipTotalViolations'] as num?)?.toInt() ??
-            record.rsipFailureCount,
-        'rsipReinforcement':
-            (record.data['rsipReinforcement'] as num?)?.toInt() ?? 0,
-        'rsipMaxReinforcement':
-            (record.data['rsipMaxReinforcement'] as num?)?.toInt() ?? 0,
-        'rsipAddedAt': addedAt.toUtc().toIso8601String(),
-        'rsipAddedDayKey':
-            record.data['rsipAddedDayKey']?.toString() ??
-            growthService.dayKey(addedAt),
-      },
-      touch: false,
-    );
   }
 
   WorkspaceRecord? taskDefinitionFor(WorkspaceRecord task) {
@@ -3420,7 +1677,7 @@ class WorkbenchController extends ChangeNotifier {
     if (task.kind != RecordKind.task && task.kind != RecordKind.milestone) {
       return;
     }
-    task = _latestRecord(task);
+    task = latestRecordById(task);
     final completing = !task.isDone;
     final protocolData = task.hasCtdpProtocol
         ? {
@@ -3448,7 +1705,7 @@ class WorkbenchController extends ChangeNotifier {
     );
     await updateRecord(updated);
     if (task.hasCtdpProtocol) {
-      await _addProtocolEvent(
+      await addProtocolEvent(
         protocol: 'ctdp',
         action: completing ? 'task_closed' : 'task_reopened',
         subject: task,
@@ -3485,12 +1742,12 @@ class WorkbenchController extends ChangeNotifier {
     final failures = <BatchOperationFailure>[];
     for (final task in selected) {
       try {
-        var current = _latestRecord(task);
+        var current = latestRecordById(task);
         if (status == WorkStatus.done) {
           if (!current.isDone) await toggleTaskDone(current);
         } else if (current.isDone) {
           await toggleTaskDone(current);
-          current = _latestRecord(current);
+          current = latestRecordById(current);
           if (status != WorkStatus.todo) {
             await setTaskStatus(current, status);
           }
@@ -3514,7 +1771,7 @@ class WorkbenchController extends ChangeNotifier {
     final tasks = selected.toList(growable: false);
     final updates = <WorkspaceRecord>[];
     for (final task in tasks) {
-      final current = _latestRecord(task);
+      final current = latestRecordById(task);
       updates.add(
         current.copyWith(
           scheduledFor: date,
@@ -3539,14 +1796,14 @@ class WorkbenchController extends ChangeNotifier {
     final failures = <BatchOperationFailure>[];
     for (final task in updates) {
       try {
-        await notificationService.cancel(_notificationId(task.id));
+        await notificationService.cancel(notificationId(task.id));
         final reminder = task.data['reminderAt']?.toString();
         final reminderAt = reminder == null
             ? null
             : DateTime.tryParse(reminder)?.toLocal();
         if (reminderAt != null) {
           await notificationService.scheduleTaskReminder(
-            id: _notificationId(task.id),
+            id: notificationId(task.id),
             title: task.title,
             when: reminderAt,
           );
@@ -3571,7 +1828,9 @@ class WorkbenchController extends ChangeNotifier {
     final tasks = selected.toList(growable: false);
     try {
       await _saveRecordsBatch(
-        tasks.map((task) => _latestRecord(task).copyWith(projectId: projectId)),
+        tasks.map(
+          (task) => latestRecordById(task).copyWith(projectId: projectId),
+        ),
       );
       return BatchOperationResult(succeeded: tasks.length);
     } catch (error) {
@@ -3592,7 +1851,7 @@ class WorkbenchController extends ChangeNotifier {
     try {
       await _saveRecordsBatch(
         tasks.map(
-          (task) => _latestRecord(task).copyWith(deletedAt: currentTime()),
+          (task) => latestRecordById(task).copyWith(deletedAt: currentTime()),
         ),
       );
       return BatchOperationResult(succeeded: tasks.length);
@@ -3620,7 +1879,7 @@ class WorkbenchController extends ChangeNotifier {
   }
 
   Future<void> _saveRecordsBatch(Iterable<WorkspaceRecord> records) async {
-    final values = records.map(_normalizeRsipRecord).toList(growable: false);
+    final values = records.map(normalizeRsipRecord).toList(growable: false);
     if (values.isEmpty) return;
     await database.saveRecords(values);
     for (final record in values) {
@@ -4000,7 +2259,7 @@ class WorkbenchController extends ChangeNotifier {
         (timeLimitMinutes < 1 || timeLimitMinutes > 43200)) {
       throw const FormatException('任务群总时限必须在 1–43200 分钟之间。');
     }
-    final current = _latestRecord(group);
+    final current = latestRecordById(group);
     final wasSequential = current.data['mode'] == 'sequential';
     if (wasSequential != sequential &&
         groupMembers(current.id).any(_taskExecutionStarted)) {
@@ -4142,7 +2401,7 @@ class WorkbenchController extends ChangeNotifier {
         ),
       );
     }
-    final currentGroup = _latestRecord(group);
+    final currentGroup = latestRecordById(group);
     await updateRecord(
       currentGroup.copyWith(
         data: {
@@ -4176,7 +2435,7 @@ class WorkbenchController extends ChangeNotifier {
   Future<BatchOperationResult> moveTaskGroupToTrash(
     WorkspaceRecord group,
   ) async {
-    final current = _latestRecord(group);
+    final current = latestRecordById(group);
     final deletedAt = currentTime();
     final updates = <WorkspaceRecord>[
       current.copyWith(deletedAt: deletedAt),
@@ -4211,7 +2470,7 @@ class WorkbenchController extends ChangeNotifier {
   }
 
   Future<BatchOperationResult> restoreTaskGroup(WorkspaceRecord group) async {
-    final current = _latestRecord(group);
+    final current = latestRecordById(group);
     final relationsToRestore = _records.where(
       (record) =>
           record.kind == RecordKind.relation &&
@@ -4544,7 +2803,7 @@ class WorkbenchController extends ChangeNotifier {
     var nextPosition = group == null ? 0 : groupMembers(group.id).length;
     var succeeded = 0;
     for (final task in tasks) {
-      final current = _latestRecord(task);
+      final current = latestRecordById(task);
       final existing = relations
           .where(
             (record) =>
@@ -4804,7 +3063,7 @@ class WorkbenchController extends ChangeNotifier {
       throw const FormatException('结果链接必须是有效的 http:// 或 https:// 地址。');
     }
     final now = currentTime();
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     await updateRecord(
       current.copyWith(
         status: status,
@@ -4821,28 +3080,28 @@ class WorkbenchController extends ChangeNotifier {
       ),
     );
     if (status == WorkStatus.done) {
-      await _handleTaskRsipLinks(
+      await handleTaskRsipLinks(
         current.id,
         RsipTaskChainKind.unit,
         RsipTaskLinkTriggerEvent.taskCompleted,
       );
       final definitionId = current.data['definitionId']?.toString();
       if (definitionId != null && definitionId != current.id) {
-        await _handleTaskRsipLinks(
+        await handleTaskRsipLinks(
           definitionId,
           RsipTaskChainKind.unit,
           RsipTaskLinkTriggerEvent.taskCompleted,
         );
       }
     } else if (status == WorkStatus.failed) {
-      await _handleTaskRsipLinks(
+      await handleTaskRsipLinks(
         current.id,
         RsipTaskChainKind.unit,
         RsipTaskLinkTriggerEvent.taskInterrupted,
       );
       final definitionId = current.data['definitionId']?.toString();
       if (definitionId != null && definitionId != current.id) {
-        await _handleTaskRsipLinks(
+        await handleTaskRsipLinks(
           definitionId,
           RsipTaskChainKind.unit,
           RsipTaskLinkTriggerEvent.taskInterrupted,
@@ -4869,7 +3128,7 @@ class WorkbenchController extends ChangeNotifier {
     }.contains(status)) {
       throw const FormatException('留痕更正仅支持完成、失败或跳过。');
     }
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     if (!WorkStatus.terminal.contains(current.status)) {
       throw const FormatException('只有已结算任务可以留痕更正。');
     }
@@ -4944,7 +3203,7 @@ class WorkbenchController extends ChangeNotifier {
     String reason = '',
   }) async {
     final now = currentTime();
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     final definitionId = current.data['definitionId']?.toString() ?? current.id;
     final replacement = WorkspaceRecord.create(
       kind: RecordKind.task,
@@ -5004,7 +3263,7 @@ class WorkbenchController extends ChangeNotifier {
         : DateTime.tryParse(reminder)?.toLocal();
     if (reminderAt != null) {
       await notificationService.scheduleTaskReminder(
-        id: _notificationId(updated.id),
+        id: notificationId(updated.id),
         title: updated.title,
         when: reminderAt,
       );
@@ -5012,7 +3271,7 @@ class WorkbenchController extends ChangeNotifier {
   }
 
   Future<void> startCtdpReservation(WorkspaceRecord task) async {
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     if (!current.hasCtdpProtocol) return;
     final now = currentTime();
     final deadline = now.add(Duration(minutes: current.ctdpDelayMinutes));
@@ -5026,14 +3285,14 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
-    await _addProtocolEvent(
+    await addProtocolEvent(
       protocol: 'ctdp',
       action: 'reservation_started',
       subject: current,
       data: {'dueAt': deadline.toUtc().toIso8601String()},
     );
     await notificationService.scheduleTaskReminder(
-      id: _notificationId('ctdp:${current.id}'),
+      id: notificationId('ctdp:${current.id}'),
       title: 'CTDP 预约到点：${current.title}',
       body: current.ctdpAuxSignal.isEmpty
           ? '执行触发标志：${current.ctdpTrigger}'
@@ -5043,7 +3302,7 @@ class WorkbenchController extends ChangeNotifier {
   }
 
   Future<void> confirmCtdpTrigger(WorkspaceRecord task) async {
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     if (!current.hasCtdpProtocol) return;
     if (!current.ctdpReservationPending) {
       throw const FormatException('当前没有待确认的 CTDP 预约');
@@ -5077,7 +3336,7 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
-    await _addProtocolEvent(
+    await addProtocolEvent(
       protocol: 'ctdp',
       action: 'reservation_confirmed',
       subject: current,
@@ -5088,9 +3347,9 @@ class WorkbenchController extends ChangeNotifier {
     WorkspaceRecord task, {
     String reason = '预约或辅助条件未完成，辅助链从 #1 重新开始',
   }) async {
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     if (!current.hasCtdpProtocol) return;
-    await notificationService.cancel(_notificationId('ctdp:${current.id}'));
+    await notificationService.cancel(notificationId('ctdp:${current.id}'));
     await updateRecord(
       current.copyWith(
         data: {
@@ -5103,7 +3362,7 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
-    await _addProtocolEvent(
+    await addProtocolEvent(
       protocol: 'ctdp',
       action: 'auxiliary_failed',
       subject: current,
@@ -5116,7 +3375,7 @@ class WorkbenchController extends ChangeNotifier {
     WorkspaceRecord task, {
     String reason = '本次任务未完成，主链从 #1 重新开始',
   }) async {
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     if (!current.hasCtdpProtocol) return;
     await updateRecord(
       current.copyWith(
@@ -5133,7 +3392,7 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
-    await _addProtocolEvent(
+    await addProtocolEvent(
       protocol: 'ctdp',
       action: 'main_failed',
       subject: current,
@@ -5147,7 +3406,7 @@ class WorkbenchController extends ChangeNotifier {
     String precedent,
   ) async {
     final value = precedent.trim();
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     if (!current.hasCtdpProtocol || value.isEmpty) return;
     final existing =
         (current.data['ctdpPrecedents'] as List<dynamic>? ?? const [])
@@ -5240,7 +3499,7 @@ class WorkbenchController extends ChangeNotifier {
     Duration? elapsed,
     Duration? remaining,
   }) async {
-    final currentRule = _latestRecord(rule);
+    final currentRule = latestRecordById(rule);
     if (currentRule.kind != RecordKind.exceptionRule ||
         currentRule.data['archived'] == true) {
       throw const FormatException('该判例不可用');
@@ -5255,7 +3514,7 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
-    await _addProtocolEvent(
+    await addProtocolEvent(
       protocol: 'ctdp',
       action: action,
       subject: task,
@@ -5273,7 +3532,7 @@ class WorkbenchController extends ChangeNotifier {
   }
 
   Future<void> startCtdpGroup(WorkspaceRecord group) async {
-    final current = _latestRecord(group);
+    final current = latestRecordById(group);
     if (!current.hasCtdpProtocol || !current.ctdpIsGroup) return;
     final now = currentTime();
     final hours = current.ctdpGroupTimeLimitHours;
@@ -5290,7 +3549,7 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
-    await _addProtocolEvent(
+    await addProtocolEvent(
       protocol: 'ctdp',
       action: 'group_started',
       subject: current,
@@ -5302,7 +3561,7 @@ class WorkbenchController extends ChangeNotifier {
       .toList(growable: false);
 
   Future<WorkspaceRecord> duplicateCtdpTask(WorkspaceRecord task) async {
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     if (!current.hasCtdpProtocol) {
       throw const FormatException('只能复制 CTDP 任务');
     }
@@ -5341,7 +3600,7 @@ class WorkbenchController extends ChangeNotifier {
     String notes = '',
     bool earlyCompletion = false,
   }) async {
-    final current = _latestRecord(task);
+    final current = latestRecordById(task);
     if (!current.hasCtdpProtocol || current.ctdpIsGroup) return;
     if (duration.inSeconds < 1) return;
     if (current.ctdpMinimumMinutes > 0 &&
@@ -5363,7 +3622,7 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
-    await _addProtocolEvent(
+    await addProtocolEvent(
       protocol: 'ctdp',
       action: earlyCompletion ? 'round_completed_early' : 'round_completed',
       subject: current,
@@ -5407,7 +3666,7 @@ class WorkbenchController extends ChangeNotifier {
         },
       ),
     );
-    await _addProtocolEvent(
+    await addProtocolEvent(
       protocol: 'ctdp',
       action: 'group_completed',
       subject: group,
@@ -5489,7 +3748,7 @@ class WorkbenchController extends ChangeNotifier {
         earlyCompletion: earlyCompletion,
       );
     } else {
-      final current = _latestRecord(task);
+      final current = latestRecordById(task);
       await updateRecord(
         current.withData(
           'actualMinutes',
@@ -5677,7 +3936,7 @@ class WorkbenchController extends ChangeNotifier {
       throw const FormatException('跳过回顾必须填写原因。');
     }
     await updateRecord(
-      _latestRecord(review).copyWith(
+      latestRecordById(review).copyWith(
         data: {
           ...review.data,
           'draft': false,
@@ -5859,7 +4118,7 @@ class WorkbenchController extends ChangeNotifier {
     DateTime day,
     String status,
   ) async {
-    var currentHabit = _latestRecord(habit);
+    var currentHabit = latestRecordById(habit);
     final existing = habitLogForDay(habit.id, day);
     final log = existing == null
         ? WorkspaceRecord.create(
@@ -5889,7 +4148,7 @@ class WorkbenchController extends ChangeNotifier {
             : '',
         logicalDay: day,
       );
-      currentHabit = _latestRecord(currentHabit);
+      currentHabit = latestRecordById(currentHabit);
     }
     final plan = todayPlan;
     if (plan != null && plannedHabitIds.contains(habit.id)) {
@@ -5912,165 +4171,6 @@ class WorkbenchController extends ChangeNotifier {
       throw const FormatException('该 RSIP 节点当前不可修改打卡。');
     }
     await logHabit(habit, logicalToday, status);
-  }
-
-  Future<void> reactivateRsipHabit(WorkspaceRecord habit) async {
-    final current = _latestRecord(habit);
-    if (!current.hasRsipProtocol) return;
-    final parentIsActive =
-        current.parentId != null &&
-        activeRsipHabits.any((node) => node.id == current.parentId);
-    await restoreRsipNode(
-      current,
-      parentId: parentIsActive ? current.parentId : null,
-    );
-  }
-
-  Future<void> startRsipTimer(WorkspaceRecord habit) async {
-    final current = _latestRecord(habit);
-    if (!current.hasRsipProtocol || !current.rsipActive) {
-      throw const FormatException('该国策节点当前不可执行');
-    }
-    if (current.rsipFrozen) {
-      throw const FormatException('该国策分支处于冻结保护期');
-    }
-    if (!current.rsipUseTimer) {
-      throw const FormatException('该节点没有启用计时');
-    }
-    final now = currentTime();
-    final dueAt = now.add(Duration(minutes: current.rsipTimerMinutes));
-    await updateRecord(
-      current.copyWith(
-        data: {
-          ...current.data,
-          'rsipTimerRunning': true,
-          'rsipTimerStartedAt': now.toUtc().toIso8601String(),
-          'rsipTimerDueAt': dueAt.toUtc().toIso8601String(),
-        },
-      ),
-    );
-    await notificationService.scheduleTaskReminder(
-      id: _notificationId('rsip:${current.id}'),
-      title: 'RSIP 最小动作可以结算',
-      body: '${current.title} · ${current.rsipMinimumAction}',
-      when: dueAt,
-    );
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'timer_started',
-      subject: current,
-      data: {'dueAt': dueAt.toUtc().toIso8601String()},
-    );
-  }
-
-  Future<void> completeRsipTimer(WorkspaceRecord habit) async {
-    final current = _latestRecord(habit);
-    if (!current.rsipTimerRunning) {
-      throw const FormatException('该节点尚未开始计时');
-    }
-    final dueAt = DateTime.tryParse(
-      current.data['rsipTimerDueAt']?.toString() ?? '',
-    )?.toLocal();
-    if (dueAt != null && currentTime().isBefore(dueAt)) {
-      final remaining = dueAt.difference(currentTime()).inSeconds;
-      throw FormatException('计时尚未完成，还需 $remaining 秒');
-    }
-    await updateRecord(
-      current.copyWith(
-        data: {
-          ...current.data,
-          'rsipTimerRunning': false,
-          'rsipTimerCompletedAt': currentTime().toUtc().toIso8601String(),
-        },
-      ),
-    );
-    await settleRsipNode(current, status: RsipExecutionStatus.executed);
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'timer_completed',
-      subject: current,
-    );
-  }
-
-  Future<void> freezeRsipBranch(
-    WorkspaceRecord root, {
-    required DateTime until,
-    String reason = '',
-  }) async {
-    final current = _latestRecord(root);
-    if (!current.hasRsipProtocol) return;
-    if (!until.isAfter(currentTime())) {
-      throw const FormatException('冻结截止时间必须晚于当前时间');
-    }
-    final queue = <WorkspaceRecord>[current];
-    final visited = <String>{};
-    while (queue.isNotEmpty) {
-      final item = queue.removeAt(0);
-      if (!visited.add(item.id)) continue;
-      await updateRecord(
-        item.copyWith(
-          data: {
-            ...item.data,
-            'rsipFrozen': true,
-            'rsipFrozenUntil': until.toUtc().toIso8601String(),
-            'rsipFreezeReason': reason.trim(),
-            'rsipTimerRunning': false,
-          },
-        ),
-      );
-      queue.addAll(
-        habits.where(
-          (habit) => habit.hasRsipProtocol && habit.parentId == item.id,
-        ),
-      );
-    }
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'branch_frozen',
-      subject: current,
-      data: {
-        'until': until.toUtc().toIso8601String(),
-        'reason': reason.trim(),
-        'nodeCount': visited.length,
-      },
-    );
-  }
-
-  Future<WorkspaceRecord> recordRsipVictory({
-    required String title,
-    required String grade,
-    String notes = '',
-  }) async {
-    if (!const {'small', 'medium', 'big'}.contains(grade)) {
-      throw const FormatException('未知的胜利等级');
-    }
-    final day = startOfDay(currentTime());
-    final existing = protocolEvents.where((event) {
-      return event.data['protocol'] == 'rsip' &&
-          event.data['action'] == 'daily_victory' &&
-          isSameDay(event.scheduledFor ?? event.createdAt, day);
-    }).firstOrNull;
-    final record = existing == null
-        ? WorkspaceRecord.create(
-            kind: RecordKind.protocolEvent,
-            title: title.trim().isEmpty ? '今日胜利' : title.trim(),
-            body: notes.trim(),
-            scheduledFor: day,
-            status: WorkStatus.done,
-            data: {
-              'protocol': 'rsip',
-              'action': 'daily_victory',
-              'grade': grade,
-              'successful': true,
-            },
-          )
-        : existing.copyWith(
-            title: title.trim().isEmpty ? existing.title : title.trim(),
-            body: notes.trim(),
-            data: {...existing.data, 'grade': grade},
-          );
-    await updateRecord(record);
-    return record;
   }
 
   Future<void> _syncCommitmentXp(String taskId, bool completed) async {
@@ -6241,7 +4341,7 @@ class WorkbenchController extends ChangeNotifier {
     var succeeded = 0;
     final failures = <BatchOperationFailure>[];
     final ordinaryUpdates = ordinary
-        .map((record) => _latestRecord(record).copyWith(deletedAt: null))
+        .map((record) => latestRecordById(record).copyWith(deletedAt: null))
         .toList(growable: false);
     if (ordinaryUpdates.isNotEmpty) {
       try {
@@ -6323,7 +4423,7 @@ class WorkbenchController extends ChangeNotifier {
     }
 
     for (final record in selected) {
-      final current = _latestRecord(record);
+      final current = latestRecordById(record);
       addTarget(current);
       if (current.kind == RecordKind.template &&
           current.data['recordType'] == 'taskGroup') {
@@ -6591,7 +4691,7 @@ class WorkbenchController extends ChangeNotifier {
                 },
               ),
             );
-            await _addProtocolEvent(
+            await addProtocolEvent(
               protocol: 'ctdp',
               action: 'reservation_expired',
               subject: task,
@@ -6620,7 +4720,7 @@ class WorkbenchController extends ChangeNotifier {
                 },
               ),
             );
-            await _addProtocolEvent(
+            await addProtocolEvent(
               protocol: 'ctdp',
               action: 'group_expired',
               subject: task,
@@ -6646,19 +4746,20 @@ class WorkbenchController extends ChangeNotifier {
             },
           ),
         );
-        await _addProtocolEvent(
+        await addProtocolEvent(
           protocol: 'rsip',
           action: 'node_thawed',
           subject: habit,
         );
       }
-      await _settlePreviousRsipDay(now);
+      await settlePreviousRsipDay(now);
     } finally {
       _settlingProtocols = false;
     }
   }
 
-  Future<WorkspaceRecord> _addProtocolEvent({
+  @override
+  Future<WorkspaceRecord> addProtocolEvent({
     required String protocol,
     required String action,
     required WorkspaceRecord subject,
@@ -6682,41 +4783,6 @@ class WorkbenchController extends ChangeNotifier {
     );
     await addRecord(record);
     return record;
-  }
-
-  Future<void> _settlePreviousRsipDay(DateTime now) async {
-    final day = startOfDay(now).subtract(const Duration(days: 1));
-    final alreadySettled = protocolEvents.any(
-      (event) =>
-          event.data['protocol'] == 'rsip' &&
-          event.data['action'] == 'daily_settlement' &&
-          isSameDay(event.scheduledFor ?? event.createdAt, day),
-    );
-    if (alreadySettled) return;
-    final rsipIds = habits
-        .where((habit) => habit.hasRsipProtocol)
-        .map((habit) => habit.id)
-        .toSet();
-    if (rsipIds.isEmpty) return;
-    final logs = recordsOf(RecordKind.habitLog).where((log) {
-      return rsipIds.contains(log.parentId) &&
-          isSameDay(log.scheduledFor ?? log.createdAt, day);
-    });
-    final completed = logs.where((log) => log.status == WorkStatus.done).length;
-    final failed = logs.where((log) => log.status == WorkStatus.skipped).length;
-    final grade = completed >= 3
-        ? 'big'
-        : completed >= 1
-        ? 'medium'
-        : 'small';
-    await _addProtocolEvent(
-      protocol: 'rsip',
-      action: 'daily_settlement',
-      subject: habits.firstWhere((habit) => habit.hasRsipProtocol),
-      successful: completed > 0,
-      scheduledFor: day,
-      data: {'grade': grade, 'completed': completed, 'failed': failed},
-    );
   }
 
   Future<void> _createNextOccurrence(WorkspaceRecord task) async {
@@ -6782,7 +4848,8 @@ class WorkbenchController extends ChangeNotifier {
     );
   }
 
-  WorkspaceRecord _latestRecord(WorkspaceRecord record) {
+  @override
+  WorkspaceRecord latestRecordById(WorkspaceRecord record) {
     return _records.firstWhere(
       (candidate) => candidate.id == record.id && candidate.kind == record.kind,
       orElse: () => record,
@@ -6795,7 +4862,8 @@ class WorkbenchController extends ChangeNotifier {
     return value.length > 40 ? '${value.substring(0, 40)}…' : value;
   }
 
-  int _notificationId(String id) => stableNotificationId(id);
+  @override
+  int notificationId(String id) => stableNotificationId(id);
 
   Map<String, dynamic> get _gameStateJson =>
       Map<String, dynamic>.from(jsonDecode(_localGameState.encode()) as Map);
@@ -6807,11 +4875,8 @@ class WorkbenchController extends ChangeNotifier {
 
   @override
   void dispose() {
+    disposeRestrictionController();
     _protocolSettlementTimer?.cancel();
-    _restrictionCooldownTimer?.cancel();
-    _restrictionMonitor?.dispose();
-    unawaited(_restrictionExitSubscription?.cancel());
-    unawaited(_restrictionPowerSubscription?.cancel());
     for (final timer in _focusScheduleTimers.values) {
       timer.cancel();
     }

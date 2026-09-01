@@ -10,6 +10,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../platform_feedback.dart';
+import '../widgets/celebration.dart';
 import '../widgets/common.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
@@ -1257,11 +1258,35 @@ class _TodayTaskPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final tasks = controller.suggestedTodayTasks;
     if (tasks.isEmpty) {
-      return Text(
-        '安排任务后，今日重点会显示在这里。',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(2, 10, 2, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SurfaceIcon(Icons.route_outlined),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '今日航迹尚未开始',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '安排任务后，今日重点会显示在这里。',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.tokens.mutedText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       );
     }
     return LogSurface(
@@ -1905,6 +1930,21 @@ Future<void> _showCloseDialog(
                     );
                     await WorkbenchFeedback.selection();
                     if (context.mounted) Navigator.pop(context);
+                    if (context.mounted) {
+                      await showGeneralDialog<void>(
+                        context: context,
+                        barrierDismissible: true,
+                        barrierLabel: '日结完成',
+                        transitionDuration: Duration.zero,
+                        pageBuilder: (dialogContext, _, _) => _DismissAfter(
+                          duration: const Duration(milliseconds: 2000),
+                          child: FocusCelebration(
+                            title: '今日已收尾',
+                            subtitle: '今日航迹已写入执行日志',
+                          ),
+                        ),
+                      );
+                    }
                     onClosed?.call();
                   },
             child: Text(
@@ -2122,4 +2162,36 @@ Future<void> _showEditTimeBlockDialog(
       ),
     ),
   );
+}
+
+/// 展示 [duration] 后自动关闭自身所在路由的仪式覆盖层。
+class _DismissAfter extends StatefulWidget {
+  const _DismissAfter({required this.duration, required this.child});
+
+  final Duration duration;
+  final Widget child;
+
+  @override
+  State<_DismissAfter> createState() => _DismissAfterState();
+}
+
+class _DismissAfterState extends State<_DismissAfter> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(widget.duration, () {
+      if (mounted) Navigator.maybePop(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

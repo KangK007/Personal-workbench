@@ -100,6 +100,14 @@ New-Item -ItemType Directory -Force -Path $projectBuild | Out-Null
     Out-Null
 $artifactCopyExitCode = $LASTEXITCODE
 if ($artifactCopyExitCode -ge 8) {
+    if ($artifactCopyExitCode -band 8) {
+        $locked = Get-Process -Name 'personal_workbench' -ErrorAction SilentlyContinue
+        if ($locked) {
+            throw "Windows artifact copy failed (robocopy exit $artifactCopyExitCode): " +
+                'personal_workbench.exe is still running and locks the build output. ' +
+                'Close the running instance (or Stop-Process -Name personal_workbench) and rerun.'
+        }
+    }
     throw "Windows artifact copy failed with robocopy exit code $artifactCopyExitCode"
 }
 

@@ -23,7 +23,9 @@ lib/
   core/utils/        日期、时间和时长格式化
   data/              SQLite 本地数据库与加密备份
   services/          搜索、专注、成长规则、自律策略/安全/导入、提醒、分享捕获、Supabase 同步
-  state/             工作台控制器与业务操作
+  state/             工作台控制器与业务操作；WorkbenchController（今日/任务/项目/
+                      回顾等核心）+ RestrictionControllerMixin（自律）+
+                      RsipControllerMixin（国策）+ WorkbenchControllerBase（共享契约）
   ui/pages/          今日、任务、项目、专注、自律、笔记、回顾、国策、设置及 Android 兼容页面
   ui/widgets/        日期刻度带、日志表面、任务行、快速收集、记录编辑、全局搜索等通用界面
 assets/branding/     应用图标源文件和主图标
@@ -70,6 +72,12 @@ powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration
 
 # Android Release APK（必须先配置独立发布签名）
 powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration release
+
+# 按 ABI 拆分打包（arm64-v8a / armeabi-v7a / x86_64 各一个 APK）
+powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration debug -AbiMode split
+
+# 只构建单一 ABI（体积最小，适合个人侧载）
+powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration debug -AbiMode arm64
 ```
 
 Android Release 构建必须在 `android/key.properties` 中提供独立发布密钥配置；该文件和
@@ -89,6 +97,8 @@ keyPassword=<本地保存的密钥密码>
 安全备份，不能只保存在项目工作区。
 
 Windows 和 Android 构建脚本会把源码镜像到 `%LOCALAPPDATA%\PersonalWorkbenchBuild\` 下的纯 ASCII 暂存目录，再从该副本构建，规避中文工作区路径导致的 Gradle/MSBuild 编码问题。`build/`、`dist/`、`.git/` 等生成内容不会进入暂存副本；构建结果会复制回项目的标准输出目录。Android 脚本还会为 JDK/Gradle 使用短临时路径，避免 Windows AF_UNIX 回环通道的路径长度限制。Release 仅在签名验证通过后复制 APK。如需强制清理构建缓存，可增加 `-Clean` 参数。Android 脚本使用本机缓存的 Gradle 8.14 离线构建；首次使用前若缓存不存在，需要先在网络可用时运行一次 Gradle 下载。
+
+中文字体（LXGW 文楷、IBM Plex Sans SC）已经过 `tool/subset_fonts.py` 子集化：裁掉韩文等本项目用不到的字形，保留 CJK 基本区与扩展 A 全量，用户输入的生僻中文字仍可正常显示。如需恢复原字体或调整字符集，运行 `python tool\subset_fonts.py --restore` 后修改脚本中的 `UNICODE_RANGES` 再重新执行。
 
 Android 使用 Material 3 底部导航，读取与桌面端一致的 v3 记录。全局“快速新增”可以写入任务、笔记、今日记录或链接；定时专注使用 Android 系统通知。
 Windows 侧栏按真实页面组织层级：任务和项目展开后显示各自的页面，回顾展开后显示日、周、月回顾；专注、自律、目标和行为是直接入口。Android 保留底部导航，并在“更多”抽屉中提供同样的页面树。Android 可以查看、编辑和同步限制规则，但明确不会结束 Windows 进程或修改 hosts。

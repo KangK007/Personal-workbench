@@ -551,3 +551,63 @@ Android Debug 干净构建成功，但存在 SDK XML 版本 4/工具理解到版
 ### RISK-003：Android 模拟器宿主稳定性
 
 Android Emulator 37.1.11 在无窗口 SwiftShader 会话中多次发生 ADB 协议故障或图形缓冲错误并自行离线。应用启动、IME、Back、权限、即时通知、分享、横屏、尺寸变化和持久化均已在稳定窗口内通过，logcat 未见应用 `FATAL EXCEPTION`；休眠/重启后的定时通知仍需物理设备或稳定隔离模拟器验证。
+
+## BUG-017
+
+模块：设置
+页面：设置 → 外观与导航 → 成长主题
+严重程度：P2
+类型：UX / 内容诚实性
+
+复现步骤：
+
+1. 打开“设置 → 外观与导航 → 成长主题”。
+2. 阅读副标题并查看右侧色块。
+
+预期：界面只展示当前真实可用的主题状态；不出现无法实现或无法操作的承诺。
+
+实际：副标题声称“更多冷色主题随等级解锁”，右侧展示翠绿、青绿、蓝三个色块，其中后两个无任何点击/切换行为；全项目不存在“等级解锁主题/强调色”的任何实现（`profile` 记录中的 `accent: 'teal'` 字段从未被读取或应用）。
+
+根本原因：早期产品叙事遗留的占位内容，未随功能边界收敛为真实状态。
+
+修改文件：
+
+- `lib/ui/pages/settings_page.dart`
+
+修复方式：副标题改为如实描述（“翠绿主题已启用，随浅色与深色模式自动适配”）；`_AccentPreview` 简化为只显示当前主题主色并保留对勾，移除不可交互的候选色块。
+
+验证方式：`flutter analyze` 零问题；`ui_audit_screenshot_test`、`visual_golden_test`、`ui_coverage_regression_test` 47 项全部通过；全量 236 项测试通过。
+
+回归结果：全量测试通过，无相关回归。
+
+状态：VERIFIED
+
+## BUG-018
+
+模块：构建 / 工具脚本
+页面：不适用
+严重程度：P3
+类型：Maintainability / Developer Experience
+
+复现步骤：
+
+1. 启动个人工作台应用（任何构建版本）。
+2. 运行 `tool/build_windows.ps1 -Configuration release`。
+
+预期：构建失败时给出可操作原因。
+
+实际：若应用实例仍在运行，其加载的 exe/dll 锁定构建输出目录，robocopy 以 exit code 9 失败并抛出含糊的“Windows artifact copy failed with robocopy exit code 9”。
+
+根本原因：Windows 文件锁定行为；脚本未检测最常见的原因（本应用实例仍在运行）。
+
+修改文件：
+
+- `tool/build_windows.ps1`
+
+修复方式：`robocopy` 失败且错误码含 8 时，检测 `personal_workbench` 进程；若存在则抛出明确提示“Close the running instance … and rerun”。
+
+验证方式：启动应用实例后重跑构建脚本，确认输出明确锁定提示；结束后杀掉实例完成构建。
+
+回归结果：构建脚本在无运行实例时可正常完成 Release 构建。
+
+状态：VERIFIED
