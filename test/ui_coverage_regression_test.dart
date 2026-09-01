@@ -702,6 +702,15 @@ void main() {
       size: const Size(1536, 864),
     );
     expect(find.widgetWithText(ListTile, '今日'), findsOneWidget);
+    expect(find.byKey(const ValueKey('desktop-quick-capture')), findsOneWidget);
+    final brand = find.byKey(const ValueKey('desktop-navigation-brand'));
+    final primaryActions = find.byKey(
+      const ValueKey('desktop-navigation-primary-actions'),
+    );
+    expect(
+      tester.getTopLeft(primaryActions).dy - tester.getBottomLeft(brand).dy,
+      greaterThanOrEqualTo(12),
+    );
     expect(
       find.byKey(const ValueKey('navigation-group:tasks')),
       findsOneWidget,
@@ -769,10 +778,11 @@ void main() {
         .toList();
     expect(labels, ['今日', '任务', '回顾', '行为', '设置']);
     expect(find.byType(PageHeader), findsNothing);
-    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byKey(const ValueKey('mobile-quick-capture')), findsOneWidget);
+    expect(find.byTooltip('快速新增'), findsOneWidget);
     expect(find.byTooltip('全局搜索'), findsOneWidget);
     expect(find.byTooltip('更多'), findsOneWidget);
-    expect(find.byType(FloatingActionButton), findsNothing);
 
     await tester.tap(find.byTooltip('更多'));
     await tester.pumpAndSettle();

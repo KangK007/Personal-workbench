@@ -94,7 +94,7 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    now = widget.controller.currentTime();
+    now = widget.controller.currentTime().toLocal();
     WidgetsBinding.instance.addObserver(this);
     _scheduleTimer();
   }
@@ -109,7 +109,7 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      setState(() => now = widget.controller.currentTime());
+      setState(() => now = widget.controller.currentTime().toLocal());
       _scheduleTimer();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
@@ -119,35 +119,26 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
 
   void _scheduleTimer() {
     _timer?.cancel();
-    final seconds = 60 - now.second;
-    _timer = Timer(Duration(seconds: seconds.clamp(1, 60)), () {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => now = widget.controller.currentTime());
-      _scheduleTimer();
+      setState(() => now = widget.controller.currentTime().toLocal());
     });
   }
 
   double get _progress {
-    final start = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      widget.controller.logicalDayBoundaryHour,
-    );
-    final effectiveStart = now.isBefore(start)
-        ? start.subtract(const Duration(days: 1))
-        : start;
-    return now.difference(effectiveStart).inSeconds /
-        const Duration(days: 1).inSeconds;
+    final start = DateTime(now.year, now.month, now.day);
+    return (now.difference(start).inMicroseconds /
+            const Duration(days: 1).inMicroseconds)
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   @override
   Widget build(BuildContext context) {
-    final startHour = widget.controller.logicalDayBoundaryHour;
     final scheme = Theme.of(context).colorScheme;
     final labels = List<String>.generate(
-      10,
-      (index) => '${'${(startHour + index * 2) % 24}'.padLeft(2, '0')}:00',
+      24,
+      (index) => '${index.toString().padLeft(2, '0')}:00',
     );
     return SizedBox(
       height: 38,
@@ -158,30 +149,16 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final progress = _progress.clamp(0.0, 1.0).toDouble();
-            final visibleLabels = constraints.maxWidth < 720
-                ? [
-                    for (var index = 0; index < labels.length; index += 2)
-                      labels[index],
-                  ]
-                : labels;
             return Stack(
               children: [
                 Positioned.fill(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: progress,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: scheme.primary.withValues(alpha: 0.12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned.fill(
                   child: CustomPaint(
-                    painter: _TimeRulerPainter(color: context.tokens.divider),
+                    painter: _TimeRulerPainter(
+                      color: context.tokens.divider,
+                      pastColor: context.tokens.mutedText,
+                      currentColor: scheme.primary,
+                      progress: progress,
+                    ),
                   ),
                 ),
                 Padding(
@@ -196,18 +173,27 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            for (final label in visibleLabels)
-                              Text(
-                                label,
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: scheme.onSurfaceVariant,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures(),
-                                      ],
+                            for (var index = 0; index < labels.length; index++)
+                              Expanded(
+                                child: Center(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      labels[index],
+                                      key: ValueKey('time-ruler-hour-$index'),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: scheme.onSurfaceVariant,
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures(),
+                                            ],
+                                          ),
                                     ),
+                                  ),
+                                ),
                               ),
                           ],
                         ),
@@ -226,8 +212,9 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
                   top: 5,
                   bottom: 2,
                   child: Semantics(
+                    key: const ValueKey('time-ruler-marker'),
                     label:
-                        '当前时间 ${formatTime(now)}，逻辑日进度 ${(100 * progress).round()}%',
+                        '当前时间 ${formatTime(now)}，自然日进度 ${(100 * progress).round()}%',
                     child: Container(width: 2, color: scheme.primary),
                   ),
                 ),
@@ -241,30 +228,61 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
 }
 
 class _TimeRulerPainter extends CustomPainter {
-  const _TimeRulerPainter({required this.color});
+  const _TimeRulerPainter({
+    required this.color,
+    required this.pastColor,
+    required this.currentColor,
+    required this.progress,
+  });
 
   final Color color;
+  final Color pastColor;
+  final Color currentColor;
+  final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
+    final tickPaint = Paint()
       ..color = color.withValues(alpha: 0.8)
       ..strokeWidth = 1;
     const left = 54.0;
     final right = size.width - 54;
-    for (var index = 0; index <= 9; index++) {
-      final x = left + (right - left) * index / 9;
+    final segmentWidth = (right - left) / 24;
+    for (var index = 0; index < 24; index++) {
+      final segmentStart = left + segmentWidth * index;
+      final segmentEnd = segmentStart + segmentWidth;
+      final segmentProgress = progress * 24 - index;
+      final fillColor = segmentProgress >= 1
+          ? pastColor.withValues(alpha: 0.22)
+          : segmentProgress > 0
+          ? currentColor.withValues(alpha: 0.14)
+          : null;
+      if (fillColor != null) {
+        canvas.drawRect(
+          Rect.fromLTRB(segmentStart + 0.5, 0, segmentEnd - 0.5, size.height),
+          Paint()..color = fillColor,
+        );
+      }
+      final x = segmentStart;
       canvas.drawLine(
         Offset(x, size.height - 10),
         Offset(x, size.height - (index % 2 == 0 ? 2 : 5)),
-        paint,
+        tickPaint,
       );
     }
+    canvas.drawLine(
+      Offset(right, size.height - 10),
+      Offset(right, size.height - 2),
+      tickPaint,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _TimeRulerPainter oldDelegate) =>
-      oldDelegate.color != color;
+      oldDelegate.color != color ||
+      oldDelegate.pastColor != pastColor ||
+      oldDelegate.currentColor != currentColor ||
+      oldDelegate.progress != progress;
 }
 
 class _TodayContent extends StatelessWidget {

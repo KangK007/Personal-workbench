@@ -101,6 +101,22 @@ void main() {
     expect(find.text('国策库'), findsOneWidget);
     expect(find.text('轮次历史'), findsOneWidget);
     expect(find.text('高级分析'), findsOneWidget);
+    expect(tester.getSize(find.byType(TabBar)).height, 50);
+    expect(find.byIcon(Icons.rule_outlined), findsOneWidget);
+    final policyChip = find.widgetWithText(FilterChip, '国策');
+    final policyIcon = find.descendant(
+      of: policyChip,
+      matching: find.byIcon(Icons.policy_outlined),
+    );
+    final policyLabel = find.descendant(
+      of: policyChip,
+      matching: find.text('国策'),
+    );
+    expect(
+      (tester.getCenter(policyIcon).dy - tester.getCenter(policyLabel).dy)
+          .abs(),
+      lessThanOrEqualTo(1),
+    );
 
     await tester.tap(find.text('添加国策'));
     await tester.pumpAndSettle();

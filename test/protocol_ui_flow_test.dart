@@ -234,6 +234,9 @@ void main() {
 
       await _openEditor(tester, controller, RecordKind.habit);
       await _enableProtocol(tester, '启用 RSIP 习惯协议');
+      final groupField = tester.widget<TextField>(_textFieldWithLabel('国策组'));
+      expect(groupField.textAlignVertical, TextAlignVertical.center);
+      expect(groupField.decoration?.prefixIconConstraints?.minHeight, 44);
       await tester.enterText(find.byType(TextField).first, 'Wash dishes');
       await tester.enterText(_textFieldWithLabel('最小动作'), '洗一个碗');
       await tester.enterText(_textFieldWithLabel('触发条件'), '晚饭后');

@@ -360,6 +360,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         body: SafeArea(top: false, child: _pageStack(slidable: true)),
         floatingActionButton: _shouldShowPersistentAdd
             ? FloatingActionButton.small(
+                key: const ValueKey('mobile-quick-capture'),
                 onPressed: _openCapture,
                 tooltip: '快速新增',
                 child: const Icon(Icons.add),
@@ -666,8 +667,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     );
   }
 
-  bool get _shouldShowPersistentAdd =>
-      !(section == WorkbenchSection.today && widget.controller.tasks.isEmpty);
+  bool get _shouldShowPersistentAdd => true;
 
   Future<void> _openCapture() {
     final initialKind = section == WorkbenchSection.notes
@@ -823,6 +823,7 @@ class _DesktopNavigation extends StatelessWidget {
         child: Column(
           children: [
             DecoratedBox(
+              key: const ValueKey('desktop-navigation-brand'),
               decoration: BoxDecoration(
                 color: context.tokens.raised,
                 border: Border(
@@ -887,7 +888,9 @@ class _DesktopNavigation extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
             Padding(
+              key: const ValueKey('desktop-navigation-primary-actions'),
               padding: EdgeInsets.symmetric(
                 horizontal: collapsed
                     ? 10
@@ -900,6 +903,7 @@ class _DesktopNavigation extends StatelessWidget {
                       children: [
                         if (onCapture != null) ...[
                           IconButton(
+                            key: const ValueKey('desktop-quick-capture'),
                             onPressed: onCapture,
                             tooltip: '快速新增',
                             icon: const Icon(Icons.add),
@@ -919,6 +923,7 @@ class _DesktopNavigation extends StatelessWidget {
                           SizedBox(
                             width: double.infinity,
                             child: FilledButton.icon(
+                              key: const ValueKey('desktop-quick-capture'),
                               style: FilledButton.styleFrom(
                                 minimumSize: const Size.fromHeight(48),
                               ),

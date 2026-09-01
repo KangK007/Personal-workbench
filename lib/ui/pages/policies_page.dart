@@ -75,14 +75,58 @@ class _PoliciesPageState extends State<PoliciesPage> {
               ),
             ),
           if (widget.showTabs)
-            const TabBar(
-              isScrollable: true,
-              tabs: [
-                Tab(text: '国策树', icon: Icon(Icons.account_tree_outlined)),
-                Tab(text: '国策库', icon: Icon(Icons.inventory_2_outlined)),
-                Tab(text: '轮次历史', icon: Icon(Icons.history_outlined)),
-                Tab(text: '高级分析', icon: Icon(Icons.analytics_outlined)),
-              ],
+            const SizedBox(
+              height: 50,
+              child: TabBar(
+                isScrollable: true,
+                labelPadding: EdgeInsets.symmetric(horizontal: 12),
+                tabs: [
+                  Tab(
+                    height: 48,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.account_tree_outlined, size: 20),
+                        SizedBox(width: 6),
+                        Text('国策树'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    height: 48,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 20),
+                        SizedBox(width: 6),
+                        Text('国策库'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    height: 48,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.history_outlined, size: 20),
+                        SizedBox(width: 6),
+                        Text('轮次历史'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    height: 48,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.analytics_outlined, size: 20),
+                        SizedBox(width: 6),
+                        Text('高级分析'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           Expanded(
             child: TabBarView(
@@ -132,15 +176,16 @@ class _PoliciesPageState extends State<PoliciesPage> {
     final canvasHeight = math.max(560.0, (maxDepth + 1) * 190.0);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 132),
       children: [
         LogSurface(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: widget.controller.rsipStrictMode,
+                secondary: const Icon(Icons.rule_outlined),
                 title: const Text('严格模式'),
                 subtitle: const Text('每个逻辑日只允许一次新增；切换前需结束计时并结算当日节点'),
                 onChanged: _setMode,
@@ -158,7 +203,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
         _typeFilterBar(),
         if (widget.controller.rsipNodeGroups.isNotEmpty) ...[
           const SizedBox(height: 10),
@@ -178,7 +223,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
             ],
           ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         if (nodes.isEmpty)
           const EmptyState(
             icon: Icons.account_tree_outlined,
@@ -234,8 +279,19 @@ class _PoliciesPageState extends State<PoliciesPage> {
         for (final type in RsipNodeType.values)
           FilterChip(
             selected: _typeFilters.contains(type),
-            avatar: Icon(_typeIcon(type), size: 16),
-            label: Text(_typeLabel(type)),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: Center(child: Icon(_typeIcon(type), size: 16)),
+                ),
+                const SizedBox(width: 5),
+                Text(_typeLabel(type), style: const TextStyle(height: 1)),
+              ],
+            ),
             onSelected: (selected) => setState(() {
               if (selected) {
                 _typeFilters.add(type);
@@ -492,7 +548,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
   Widget _library() {
     final values = widget.controller.rsipLibraryNodes;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 132),
       children: [
         const SectionHeading(title: '已归档国策'),
         if (values.isEmpty)
@@ -535,7 +591,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
     final executions = widget.controller.rsipExecutionRecords.toList()
       ..sort((a, b) => b.record.createdAt.compareTo(a.record.createdAt));
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 132),
       children: [
         const SectionHeading(title: '轮次'),
         if (runs.isEmpty)
@@ -588,11 +644,11 @@ class _PoliciesPageState extends State<PoliciesPage> {
   Widget _analytics() {
     final insights = widget.controller.rsipInsights;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 132),
       children: [
         const SectionHeading(title: '规则启发式'),
         const Text('以下结果只根据本地记录和公开规则计算，不是预测、诊断或科学证明。'),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         for (final insight in insights)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
