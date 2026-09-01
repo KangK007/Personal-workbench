@@ -1,7 +1,8 @@
 # 个人工作台发布检查清单
 
 > 检查日期：2026-08-29  
-> 最终安装包刷新：2026-08-31
+> 最终安装包刷新：2026-09-01
+> 产物源码基线：`main@bae3402`
 > 总体判定：**NO-GO**
 
 ## 1. 已满足
@@ -38,15 +39,24 @@
 | Windows 安装 ZIP | `dist/PersonalWorkbench_0.1.0+4_windows.zip` | 已用最终 Release 刷新、安装并验证快捷方式 |
 | Android Debug | `build/app/outputs/flutter-apk/app-debug.apk` | QA 侧载 PASS，不是正式发布包 |
 | Android Debug 分发副本 | `dist/apk/PersonalWorkbench_0.1.0_4_debug.apk` | 与构建 APK 哈希一致 |
+| Android Debug arm64-v8a | `dist/apk/PersonalWorkbench_0.1.0_4_debug-arm64-v8a.apk` | 分架构侧载包，不是正式发布包 |
+| Android Debug armeabi-v7a | `dist/apk/PersonalWorkbench_0.1.0_4_debug-armeabi-v7a.apk` | 分架构侧载包，不是正式发布包 |
+| Android Debug x86_64 | `dist/apk/PersonalWorkbench_0.1.0_4_debug-x86_64.apk` | 分架构侧载包，不是正式发布包 |
 | Android Profile | `build/app/outputs/flutter-apk/app-profile.apk` | 构建 PASS，用于性能验证，不是正式发布包 |
 | Android Profile 分发副本 | `dist/apk/PersonalWorkbench_0.1.0_4_profile.apk` | 与构建 APK 哈希一致 |
 | Android Release | 无 | BLOCKED：缺少签名配置 |
 
-Windows 安装 ZIP SHA-256：`FA48366AFECAAB018F33EF8366C9662BFA2B52348D4A3787D4B56ACAE9F30FB5`。
+Windows 安装 ZIP SHA-256：`0CF6C45B90BA46A661FB6FEFA7FFD7129DD1AFCD46A5398F0C063ED5AE3B7965`。
 
-Android Debug APK SHA-256：`A3546059ABE8FA5AC188C0F6BBE38C70D84B453D6F6D3FAA512D54DBAE9259AB`。
+Android Debug APK SHA-256：`99FF73B38E2CBDFBAC4CE1057428BE3A9FAF87B829108062CD66AB17D1716F69`。
 
-Android Profile APK SHA-256：`2C78B7C3DC37A4F91149E80B301509CE49B7695C88A23F2F6AFAF0912092FC69`。
+Android Debug arm64-v8a APK SHA-256：`711E75BB17A976C6BEDDB98BB3E9F8408685FCC34AE3F96A7D5C2F5A35B80161`。
+
+Android Debug armeabi-v7a APK SHA-256：`2B0187D82146887A2C44958F47C12766F4BD3570AFB78E8A3E1A7F6070ECF969`。
+
+Android Debug x86_64 APK SHA-256：`DB59331029EAFD9D2FE90B6464B3B0D7E12D097031102B082CF480F25326FC23`。
+
+Android Profile APK SHA-256：`4955DFDD623C87B450D80319E68A997971F0F711E31A11C4A50CCF722C43241C`。
 
 ## 4. 发布决策
 
