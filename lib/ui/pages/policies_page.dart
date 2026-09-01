@@ -47,86 +47,39 @@ class _PoliciesPageState extends State<PoliciesPage> {
               subtitle: '递归稳态迭代协议 · 本地事实与轮次记录',
               actions: actions,
             )
-          else
+          else if (!widget.showTabs)
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: '新建国策组',
-                      onPressed: () => _showGroupEditor(),
-                      icon: const Icon(Icons.create_new_folder_outlined),
-                    ),
-                    IconButton(
-                      tooltip: '拆分目标',
-                      onPressed: _showSplitDialog,
-                      icon: const Icon(Icons.call_split_outlined),
-                    ),
-                    IconButton(
-                      tooltip: '添加国策',
-                      onPressed: () => _showNodeEditor(),
-                      icon: const Icon(Icons.add),
-                    ),
-                  ],
-                ),
+                child: _compactActions(),
               ),
             ),
           if (widget.showTabs)
-            const SizedBox(
+            SizedBox(
               height: 50,
-              child: TabBar(
-                isScrollable: true,
-                labelPadding: EdgeInsets.symmetric(horizontal: 12),
-                tabs: [
-                  Tab(
-                    height: 48,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.account_tree_outlined, size: 20),
-                        SizedBox(width: 6),
-                        Text('国策树'),
-                      ],
+              child: widget.showHeader
+                  ? _policyTabs()
+                  : DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: context.tokens.divider),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _policyTabs(
+                              dividerColor: Colors.transparent,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _compactActions(),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Tab(
-                    height: 48,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.inventory_2_outlined, size: 20),
-                        SizedBox(width: 6),
-                        Text('国策库'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    height: 48,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.history_outlined, size: 20),
-                        SizedBox(width: 6),
-                        Text('轮次历史'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    height: 48,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.analytics_outlined, size: 20),
-                        SizedBox(width: 6),
-                        Text('高级分析'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ),
           Expanded(
             child: TabBarView(
@@ -156,6 +109,79 @@ class _PoliciesPageState extends State<PoliciesPage> {
       label: const Text('添加国策'),
     ),
   ];
+
+  Widget _compactActions() => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      IconButton(
+        tooltip: '新建国策组',
+        onPressed: () => _showGroupEditor(),
+        icon: const Icon(Icons.create_new_folder_outlined),
+      ),
+      IconButton(
+        tooltip: '拆分目标',
+        onPressed: _showSplitDialog,
+        icon: const Icon(Icons.call_split_outlined),
+      ),
+      IconButton(
+        tooltip: '添加国策',
+        onPressed: () => _showNodeEditor(),
+        icon: const Icon(Icons.add),
+      ),
+    ],
+  );
+
+  Widget _policyTabs({Color? dividerColor}) => TabBar(
+    isScrollable: true,
+    dividerColor: dividerColor,
+    labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+    tabs: const [
+      Tab(
+        height: 48,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.account_tree_outlined, size: 20),
+            SizedBox(width: 6),
+            Text('国策树'),
+          ],
+        ),
+      ),
+      Tab(
+        height: 48,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 20),
+            SizedBox(width: 6),
+            Text('国策库'),
+          ],
+        ),
+      ),
+      Tab(
+        height: 48,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.history_outlined, size: 20),
+            SizedBox(width: 6),
+            Text('轮次历史'),
+          ],
+        ),
+      ),
+      Tab(
+        height: 48,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.analytics_outlined, size: 20),
+            SizedBox(width: 6),
+            Text('高级分析'),
+          ],
+        ),
+      ),
+    ],
+  );
 
   Widget _tree() {
     final nodes = widget.controller.activeRsipHabits;
@@ -214,8 +240,12 @@ class _PoliciesPageState extends State<PoliciesPage> {
               for (final group in widget.controller.rsipNodeGroups)
                 ActionChip(
                   avatar: Text(group.emoji),
-                  label: Text(
-                    '${group.record.title} · 容错 ${group.remainingTolerance}/${group.initialTolerance}',
+                  label: Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      '${group.record.title} · 容错 ${group.remainingTolerance}/${group.initialTolerance}',
+                      style: const TextStyle(height: 1),
+                    ),
                   ),
                   tooltip: '编辑国策组',
                   onPressed: () => _showGroupEditor(existing: group.record),
@@ -289,7 +319,13 @@ class _PoliciesPageState extends State<PoliciesPage> {
                   child: Center(child: Icon(_typeIcon(type), size: 16)),
                 ),
                 const SizedBox(width: 5),
-                Text(_typeLabel(type), style: const TextStyle(height: 1)),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    _typeLabel(type),
+                    style: const TextStyle(height: 1),
+                  ),
+                ),
               ],
             ),
             onSelected: (selected) => setState(() {

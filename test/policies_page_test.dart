@@ -117,6 +117,10 @@ void main() {
           .abs(),
       lessThanOrEqualTo(1),
     );
+    expect(
+      tester.getCenter(policyLabel).dy,
+      greaterThanOrEqualTo(tester.getCenter(policyIcon).dy),
+    );
 
     await tester.tap(find.text('添加国策'));
     await tester.pumpAndSettle();
@@ -180,8 +184,42 @@ void main() {
     await _pump(tester, controller, size: const Size(620, 780));
 
     expect(find.byTooltip('添加国策'), findsOneWidget);
+    expect(tester.getTopLeft(find.byType(TabBar)).dy, 0);
+    expect(
+      tester.getCenter(find.byType(TabBar)).dy,
+      tester.getCenter(find.byTooltip('添加国策')).dy,
+    );
     expect(find.text('晨间检查'), findsOneWidget);
     expect(find.text('触发器'), findsWidgets);
+    expect(tester.takeException(), isNull);
+
+    await tester.drag(find.byType(TabBar), const Offset(-220, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(Tab, '高级分析'));
+    await tester.pumpAndSettle();
+    expect(find.text('规则启发式'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('policy group chip keeps marker and label on one baseline', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    await controller.saveRsipNodeGroup(title: '默认国策组', initialTolerance: 0);
+    await _pump(tester, controller);
+
+    final groupChip = find.widgetWithText(ActionChip, '默认国策组 · 容错 0/0');
+    final marker = find.descendant(of: groupChip, matching: find.text('组'));
+    final label = find.descendant(
+      of: groupChip,
+      matching: find.text('默认国策组 · 容错 0/0'),
+    );
+    expect(groupChip, findsOneWidget);
+    expect(
+      (tester.getCenter(marker).dy - tester.getCenter(label).dy).abs(),
+      lessThanOrEqualTo(1),
+    );
     expect(tester.takeException(), isNull);
   });
 }
