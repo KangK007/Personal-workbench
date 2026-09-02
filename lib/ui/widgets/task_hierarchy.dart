@@ -121,9 +121,6 @@ List<TaskHierarchyEntry> buildTaskHierarchy({
   for (final root in roots) {
     append(root, 0, const []);
   }
-  for (final task in visibleTasks) {
-    if (!emitted.contains(task.id)) append(task, 0, const []);
-  }
   return result;
 }
 

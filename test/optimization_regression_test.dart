@@ -20,6 +20,7 @@ import 'package:personal_workbench/ui/pages/review_page.dart';
 import 'package:personal_workbench/ui/pages/habits_page.dart';
 import 'package:personal_workbench/ui/pages/growth_page.dart';
 import 'package:personal_workbench/ui/pages/projects_page.dart';
+import 'package:personal_workbench/ui/pages/plan_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
 import 'package:personal_workbench/ui/widgets/task_row.dart';
 
@@ -117,6 +118,20 @@ void main() {
         cycle.map((entry) => entry.relation.state),
         everyElement(TaskRelationState.cycle),
       );
+
+      final collapsedRoot = buildTaskHierarchy(
+        visibleTasks: [root, child, grandchild],
+        allRecords: [root, child, grandchild],
+        collapsedIds: {root.id},
+      );
+      expect(collapsedRoot.map((entry) => entry.task.title), ['根']);
+
+      final collapsedChild = buildTaskHierarchy(
+        visibleTasks: [root, child, grandchild],
+        allRecords: [root, child, grandchild],
+        collapsedIds: {child.id},
+      );
+      expect(collapsedChild.map((entry) => entry.task.title), ['根', '子']);
     },
   );
 
@@ -395,6 +410,57 @@ void main() {
       expect(tester.getSize(finder).height, lessThan(24));
       expect(tester.getTopLeft(finder).dy, closeTo(metadataTop, 1));
     }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('collapsed parent hides children and aligns branch marker', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1024, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final controller = _controller(
+      _MemoryDatabase(),
+      DateTime(2026, 8, 10, 10),
+    );
+    addTearDown(controller.dispose);
+    final parent = WorkspaceRecord.create(kind: RecordKind.task, title: '父任务');
+    final child = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '子任务',
+      parentId: parent.id,
+    );
+    await controller.addRecord(parent);
+    await controller.addRecord(child);
+
+    await tester.pumpWidget(
+      _host(
+        PlanPage(controller: controller, showHeader: false, showTabs: false),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('子任务'), findsOneWidget);
+    final branchMarker = find.byWidgetPredicate(
+      (widget) =>
+          widget is Icon &&
+          widget.icon == Icons.subdirectory_arrow_right &&
+          widget.size == 18,
+    );
+    expect(branchMarker, findsOneWidget);
+    expect(
+      tester.getCenter(branchMarker).dx,
+      closeTo(tester.getCenter(find.byType(Checkbox).first).dx, 1),
+    );
+
+    await tester.tap(find.byTooltip('收起子任务'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('子任务'), findsNothing);
+    expect(branchMarker, findsNothing);
+    expect(find.byTooltip('展开子任务'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

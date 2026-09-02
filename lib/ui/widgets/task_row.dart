@@ -45,6 +45,8 @@ class TaskRow extends StatelessWidget {
   final VoidCallback? onToggleExpanded;
   final TaskRelationInfo? relationInfo;
 
+  static const _hierarchyIndentStep = 44.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -83,7 +85,9 @@ class TaskRow extends StatelessWidget {
               children: [
                 if (hierarchyDepth > 0)
                   SizedBox(
-                    width: (hierarchyDepth * 20).clamp(0, 80).toDouble(),
+                    width: (hierarchyDepth * _hierarchyIndentStep)
+                        .clamp(0, 176)
+                        .toDouble(),
                     child: Align(
                       alignment: AlignmentDirectional.centerEnd,
                       child: Container(
