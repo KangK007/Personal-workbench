@@ -240,24 +240,28 @@ class TaskRow extends StatelessWidget {
                         ],
                         const SizedBox(height: 5),
                         Wrap(
-                          spacing: dense ? 6 : 8,
+                          spacing: dense ? 4 : 6,
                           runSpacing: 4,
                           children: [
                             _Meta(
                               icon: Icons.date_range_outlined,
+                              width: 265,
                               label:
                                   '安排 ${_dateLabel(task.scheduledFor, empty: '未安排')} → 截止 ${_dateLabel(task.dueAt, empty: '无截止')}',
                             ),
                             _Meta(
                               icon: _statusIcon(task.status),
+                              width: 160,
                               label: '状态 ${statusLabel(task.status)}',
                             ),
                             _Meta(
                               icon: Icons.flag_outlined,
+                              width: 160,
                               label: '优先级 ${_priorityLabel(task.priority)}',
                             ),
                             _Meta(
                               icon: Icons.repeat_outlined,
+                              width: 160,
                               label: '循环 ${_recurrenceLabel(task)}',
                             ),
                           ],
@@ -519,32 +523,41 @@ class TaskRow extends StatelessWidget {
 }
 
 class _Meta extends StatelessWidget {
-  const _Meta({required this.icon, required this.label});
+  const _Meta({required this.icon, required this.label, this.width = 196});
 
   final IconData icon;
   final String label;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurfaceVariant;
-    return SizedBox(
-      width: 180,
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: color),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : width;
+        final resolvedWidth = width.clamp(0, maxWidth).toDouble();
+        return SizedBox(
+          width: resolvedWidth,
+          child: Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: color),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

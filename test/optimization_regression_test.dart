@@ -363,6 +363,41 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('task row keeps schedule metadata on one line at desktop width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1024, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final controller = _controller(
+      _MemoryDatabase(),
+      DateTime(2026, 8, 10, 10),
+    );
+    addTearDown(controller.dispose);
+    final task = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '桌面详情任务',
+      scheduledFor: DateTime(2026, 12, 1),
+      dueAt: DateTime(2026, 12, 2),
+    );
+    await tester.pumpWidget(_host(TaskRow(task: task, controller: controller)));
+    await tester.pump();
+
+    final schedule = find.textContaining('安排 12月1日');
+    expect(schedule, findsOneWidget);
+    expect(tester.getSize(schedule).height, lessThan(24));
+    final metadataTop = tester.getTopLeft(schedule).dy;
+    for (final label in const ['状态 待办', '优先级 普通', '循环 不循环']) {
+      final finder = find.text(label);
+      expect(finder, findsOneWidget);
+      expect(tester.getSize(finder).height, lessThan(24));
+      expect(tester.getTopLeft(finder).dy, closeTo(metadataTop, 1));
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   test(
     'task group primary project persists without changing members',
     () async {
