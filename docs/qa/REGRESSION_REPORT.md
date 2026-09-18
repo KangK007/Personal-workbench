@@ -3,6 +3,8 @@
 > 日期：2026-08-31
 > 最终自动化：234/234 通过
 
+> 本轮复核（2026-09-18）：`flutter test --reporter compact` 241/241 通过；Android arm64 Debug 构建成功。上方数字保留为本报告原始日期的历史证据，当前发布统计以 `FINAL_QA_REPORT.md` 与 `TEST_MATRIX.md` 为准。
+
 ## 1. 缺陷回归
 
 | 缺陷 | 严重度 | 修复摘要 | 回归结果 |
@@ -29,12 +31,12 @@
 1. 每项修复运行直接相关的单元或 Widget 测试。
 2. UI 修复进入 37 表面、518 个布局场景与 222 个交互-尺寸场景，不只复测发现页面。
 3. Golden 不使用 `--update-goldens` 的最终运行确认基线稳定。
-4. 最终运行 234 项完整套件、静态分析和 Windows/Android 构建。
+4. 原始报告阶段运行 234 项完整套件；本轮复核已扩展为 241 项完整套件，并再次通过静态分析和 Android arm64 构建。
 5. P0 专注崩溃、Android 权限/分享/横屏等关键分支补充真实运行证据。
 
 ## 3. 最终结果
 
 - 功能、数据、错误注入、持久化和 UI 自动回归：PASS。
 - Windows Release、Windows 安装 ZIP、Android Debug 与 Android Profile：PASS。
-- TEST_MATRIX：245 PASS、11 BLOCKED、0 失败、0 未闭环。
+- 当前 TEST_MATRIX：250 PASS、11 BLOCKED、0 失败、0 未闭环（共 261 个 Case）。
 - BUG-010 的代码修复已自动验证，但其真实原生对话框序列仍保持 BLOCKED，不提升为完整 VERIFIED。

@@ -107,9 +107,19 @@ class SupabaseSyncService {
           if (payload is! Map) {
             throw const FormatException('云端记录格式无效。');
           }
-          final remoteRecord = WorkspaceRecord.fromJson(
+          final remoteDeletedAt = DateTime.tryParse(
+            row['deleted_at']?.toString() ?? '',
+          )?.toLocal();
+          var remoteRecord = WorkspaceRecord.fromJson(
             Map<String, dynamic>.from(payload),
-          ).copyWith(syncState: SyncState.clean, touch: false);
+          );
+          if (row.containsKey('deleted_at')) {
+            remoteRecord = remoteRecord.copyWith(deletedAt: remoteDeletedAt);
+          }
+          remoteRecord = remoteRecord.copyWith(
+            syncState: SyncState.clean,
+            touch: false,
+          );
           final key = _recordKey(remoteRecord);
           final current = localByKey[key];
           if (current == null) {
@@ -119,6 +129,23 @@ class SupabaseSyncService {
             continue;
           }
           if (!remoteRecord.updatedAt.isAfter(current.updatedAt)) continue;
+
+          // A local soft-delete is a tombstone. It wins over a remote edit
+          // until the user explicitly restores the record, preventing an
+          // offline deletion from being resurrected by a later fetch.
+          if (current.syncState == SyncState.dirty && current.isDeleted) {
+            blockedUploads.add(key);
+            continue;
+          }
+
+          // A remote tombstone wins over an unsynced local edit. Keeping the
+          // deletion explicit makes the conflict deterministic and auditable.
+          if (remoteRecord.isDeleted && !current.isDeleted) {
+            await database.saveRecord(remoteRecord, markDirty: false);
+            localByKey[key] = remoteRecord;
+            downloaded++;
+            continue;
+          }
 
           if (current.syncState == SyncState.dirty) {
             await database.saveRecord(current.asConflictCopy());

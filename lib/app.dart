@@ -66,22 +66,33 @@ class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp> {
           builder: (context, child) {
             final theme = Theme.of(context);
             final isLight = theme.brightness == Brightness.light;
-            return AnnotatedRegion<SystemUiOverlayStyle>(
-              value: SystemUiOverlayStyle(
-                statusBarColor: Colors.transparent,
-                statusBarIconBrightness: isLight
-                    ? Brightness.dark
-                    : Brightness.light,
-                statusBarBrightness: isLight
-                    ? Brightness.light
-                    : Brightness.dark,
-                systemNavigationBarColor: theme.colorScheme.surface,
-                systemNavigationBarIconBrightness: isLight
-                    ? Brightness.dark
-                    : Brightness.light,
-                systemNavigationBarDividerColor: Colors.transparent,
+            final mediaQuery = MediaQuery.of(context);
+            return MediaQuery(
+              // Keep accessible enlargement while preventing fixed mobile
+              // controls from collapsing at the largest system font setting.
+              data: mediaQuery.copyWith(
+                textScaler: mediaQuery.textScaler.clamp(
+                  minScaleFactor: 1.0,
+                  maxScaleFactor: 1.3,
+                ),
               ),
-              child: child!,
+              child: AnnotatedRegion<SystemUiOverlayStyle>(
+                value: SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: isLight
+                      ? Brightness.dark
+                      : Brightness.light,
+                  statusBarBrightness: isLight
+                      ? Brightness.light
+                      : Brightness.dark,
+                  systemNavigationBarColor: theme.colorScheme.surface,
+                  systemNavigationBarIconBrightness: isLight
+                      ? Brightness.dark
+                      : Brightness.light,
+                  systemNavigationBarDividerColor: Colors.transparent,
+                ),
+                child: child!,
+              ),
             );
           },
           locale: const Locale('zh', 'CN'),

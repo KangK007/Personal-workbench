@@ -2,7 +2,7 @@
 
 > 审查起点：`1d9c633`（2026-08-31）；本轮发布级复核：2026-09（Asia/Shanghai）
 > 覆盖规则：本文件同时记录真实导航面、条件入口、兼容别名、平台集成和仅由组合页调用的子页面。测试状态以 `docs/qa/TEST_MATRIX.md` 为唯一明细基准。
-> 最终覆盖：37 个当前可构建页面/子页表面、测试 Case 以 TEST_MATRIX 为准、236 项自动测试（234 既有 + 2 动效）、518 个全页面布局场景、222 个页面交互-尺寸场景、24 个 Dialog-尺寸场景、1 个专注预设四下拉窄窗场景、33+ 张 Golden、15+ 张真实运行截图。
+> 最终覆盖：37 个当前可构建页面/子页表面、测试 Case 以 TEST_MATRIX 为准、241 项自动测试、518 个全页面布局场景、222 个页面交互-尺寸场景、24 个 Dialog-尺寸场景、1 个专注预设四下拉窄窗场景、33+ 张 Golden、15+ 张真实运行截图。
 > 本轮前置变更（上一轮至本轮之间）：`WorkbenchController` 按领域拆分为控制器 + 自律/国策 mixin（公共 API 不变）；中文字体子集化（-8.9MB）；构建脚本新增 `-AbiMode` 分 ABI 打包；supabase 补丁升级；新增任务完成"航迹节点落定"动效、日结收尾仪式、今日空态升级与 2 项动效测试；修复减少动效下任务行 AnimatedSize 崩溃。
 
 ## 1. 技术栈与运行边界
@@ -19,7 +19,7 @@
 | 搜索 | 内存索引 | `lib/services/search_service.dart` | 标题/正文/标签、多词排序、索引刷新、空结果 |
 | 通知与分享 | 本地通知、Android 分享接收 | `notification_service.dart`、`share_capture_service.dart` | 权限拒绝、通知 ID 稳定、后台/重启、非法分享内容 |
 | 设计系统 | 自定义 Flutter ThemeExtension + 离线字体 | `lib/core/theme/app_theme.dart`、`MASTER.md` | token、对比度、48dp 触控、焦点、减少动效、无嵌套卡片/玻璃拟态 |
-| 测试 | Flutter unit/widget/golden | `test/` | 最终 234 项测试全部通过；自动化证据与真实 Windows/Android 运行证据分开记录 |
+| 测试 | Flutter unit/widget/golden | `test/` | 最终 241 项测试全部通过；自动化证据与真实 Windows/Android 运行证据分开记录 |
 
 ## 2. 应用入口与全局状态
 

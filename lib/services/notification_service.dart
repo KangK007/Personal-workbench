@@ -27,6 +27,11 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   final WindowsActivityService _windowsActivityService;
   final Map<int, Timer> _windowsTimers = {};
+  String? _pendingNavigation;
+  bool? _exactAlarmPermission;
+
+  /// Set by the shell so notification taps can enter the corresponding page.
+  void Function(String payload)? onNavigationRequested;
 
   bool _initialized = false;
   Future<void>? _initializing;
@@ -59,18 +64,53 @@ class NotificationService {
       }
     }
 
-    const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    final settings = InitializationSettings(
+      android: const AndroidInitializationSettings('@drawable/ic_notification'),
     );
     try {
       if (Platform.isWindows) {
         _initialized = await _windowsActivityService.bridgeAvailable();
       } else {
-        _initialized = await _plugin.initialize(settings) ?? false;
+        _initialized =
+            await _plugin.initialize(
+              settings,
+              onDidReceiveNotificationResponse: (response) {
+                final payload = response.payload;
+                if (payload == null || payload.isEmpty) return;
+                _pendingNavigation = payload;
+                onNavigationRequested?.call(payload);
+              },
+            ) ??
+            false;
       }
     } catch (error) {
       debugPrint('Unable to initialize notifications: $error');
       _initialized = false;
+    }
+  }
+
+  String? takePendingNavigation() {
+    final payload = _pendingNavigation;
+    _pendingNavigation = null;
+    return payload;
+  }
+
+  Future<bool> _requestExactAlarmPermission() async {
+    if (!Platform.isAndroid) return false;
+    final cached = _exactAlarmPermission;
+    if (cached != null) return cached;
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    try {
+      final granted = await android?.requestExactAlarmsPermission() ?? false;
+      _exactAlarmPermission = granted;
+      return granted;
+    } catch (error) {
+      debugPrint('Unable to request exact alarm permission: $error');
+      _exactAlarmPermission = false;
+      return false;
     }
   }
 
@@ -205,6 +245,7 @@ class NotificationService {
       );
       return;
     }
+    final exact = await _requestExactAlarmPermission();
     await _plugin.zonedSchedule(
       id,
       '专注时间结束',
@@ -221,7 +262,9 @@ class NotificationService {
       ),
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
       payload: 'focus:$id',
     );
   }

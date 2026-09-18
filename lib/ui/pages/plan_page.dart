@@ -19,6 +19,8 @@ import 'inbox_page.dart';
 /// Task page views. Projects have their own first-class navigation entry.
 enum PlanTab { all, inbox, week, groups }
 
+enum _MemberAction { moveUp, moveDown, skipAndContinue, remove }
+
 class PlanPage extends StatelessWidget {
   const PlanPage({
     super.key,
@@ -400,6 +402,14 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
                 task,
                 group,
               );
+              final compact =
+                  MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+              Future<void> edit() => showRecordEditor(
+                context,
+                widget.controller,
+                kind: RecordKind.task,
+                record: task,
+              );
               return ListTile(
                 leading: CircleAvatar(
                   child: locked
@@ -408,64 +418,115 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
                 ),
                 title: Text(task.title),
                 subtitle: Text(locked ? '前置任务尚未通过' : task.status),
-                onTap: () => showRecordEditor(
-                  context,
-                  widget.controller,
-                  kind: RecordKind.task,
-                  record: task,
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (sequential) ...[
-                      IconButton(
-                        tooltip: '上移',
-                        onPressed:
-                            widget.controller.taskGroupMemberCanMove(
-                              task,
-                              group,
-                              index - 1,
-                            )
-                            ? () => _moveMember(group, task, index - 1)
-                            : null,
-                        icon: const Icon(Icons.arrow_upward),
+                onTap: edit,
+                trailing: compact
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: '编辑任务',
+                            onPressed: edit,
+                            icon: const Icon(Icons.edit_outlined),
+                          ),
+                          PopupMenuButton<_MemberAction>(
+                            tooltip: '更多操作',
+                            itemBuilder: (context) => [
+                              if (sequential)
+                                PopupMenuItem(
+                                  value: _MemberAction.moveUp,
+                                  enabled: widget.controller
+                                      .taskGroupMemberCanMove(
+                                        task,
+                                        group,
+                                        index - 1,
+                                      ),
+                                  child: const Text('上移'),
+                                ),
+                              if (sequential)
+                                PopupMenuItem(
+                                  value: _MemberAction.moveDown,
+                                  enabled: widget.controller
+                                      .taskGroupMemberCanMove(
+                                        task,
+                                        group,
+                                        index + 1,
+                                      ),
+                                  child: const Text('下移'),
+                                ),
+                              if (task.status == WorkStatus.failed)
+                                const PopupMenuItem(
+                                  value: _MemberAction.skipAndContinue,
+                                  child: Text('跳过并继续'),
+                                ),
+                              const PopupMenuItem(
+                                value: _MemberAction.remove,
+                                child: Text('移出任务群'),
+                              ),
+                            ],
+                            onSelected: (action) {
+                              switch (action) {
+                                case _MemberAction.moveUp:
+                                  _moveMember(group, task, index - 1);
+                                case _MemberAction.moveDown:
+                                  _moveMember(group, task, index + 1);
+                                case _MemberAction.skipAndContinue:
+                                  widget.controller.skipTaskAndContinueChain(
+                                    task,
+                                  );
+                                case _MemberAction.remove:
+                                  _removeMember(group, task);
+                              }
+                            },
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (sequential) ...[
+                            IconButton(
+                              tooltip: '上移',
+                              onPressed:
+                                  widget.controller.taskGroupMemberCanMove(
+                                    task,
+                                    group,
+                                    index - 1,
+                                  )
+                                  ? () => _moveMember(group, task, index - 1)
+                                  : null,
+                              icon: const Icon(Icons.arrow_upward),
+                            ),
+                            IconButton(
+                              tooltip: '下移',
+                              onPressed:
+                                  widget.controller.taskGroupMemberCanMove(
+                                    task,
+                                    group,
+                                    index + 1,
+                                  )
+                                  ? () => _moveMember(group, task, index + 1)
+                                  : null,
+                              icon: const Icon(Icons.arrow_downward),
+                            ),
+                          ],
+                          if (task.status == WorkStatus.failed)
+                            TextButton(
+                              onPressed: () => widget.controller
+                                  .skipTaskAndContinueChain(task),
+                              child: const Text('跳过并继续'),
+                            ),
+                          IconButton(
+                            tooltip: '编辑任务',
+                            onPressed: edit,
+                            icon: const Icon(Icons.edit_outlined),
+                          ),
+                          IconButton(
+                            tooltip: '移出任务群',
+                            onPressed: () => _removeMember(group, task),
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        tooltip: '下移',
-                        onPressed:
-                            widget.controller.taskGroupMemberCanMove(
-                              task,
-                              group,
-                              index + 1,
-                            )
-                            ? () => _moveMember(group, task, index + 1)
-                            : null,
-                        icon: const Icon(Icons.arrow_downward),
-                      ),
-                    ],
-                    if (task.status == WorkStatus.failed)
-                      TextButton(
-                        onPressed: () =>
-                            widget.controller.skipTaskAndContinueChain(task),
-                        child: const Text('跳过并继续'),
-                      ),
-                    IconButton(
-                      tooltip: '编辑任务',
-                      onPressed: () => showRecordEditor(
-                        context,
-                        widget.controller,
-                        kind: RecordKind.task,
-                        record: task,
-                      ),
-                      icon: const Icon(Icons.edit_outlined),
-                    ),
-                    IconButton(
-                      tooltip: '移出任务群',
-                      onPressed: () => _removeMember(group, task),
-                      icon: const Icon(Icons.remove_circle_outline),
-                    ),
-                  ],
-                ),
               );
             },
           ),

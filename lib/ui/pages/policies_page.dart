@@ -267,29 +267,33 @@ class _PoliciesPageState extends State<PoliciesPage> {
             message: '调整上方类型筛选后再查看。',
           )
         else
-          SizedBox(
-            height: math.min(720, canvasHeight),
-            child: InteractiveViewer(
-              minScale: 0.45,
-              maxScale: 2.5,
-              constrained: false,
-              boundaryMargin: const EdgeInsets.all(160),
-              child: SizedBox(
-                width: canvasWidth,
-                height: canvasHeight,
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      for (final root in roots)
-                        if (visibleIds.contains(root.id))
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: _branch(root, nodes, visibleIds),
-                          ),
-                    ],
+          LayoutBuilder(
+            builder: (context, constraints) => SizedBox(
+              height: math.min(720, math.max(320, constraints.maxHeight)),
+              child: InteractiveViewer(
+                minScale: 0.45,
+                maxScale: 2.5,
+                constrained: false,
+                boundaryMargin: const EdgeInsets.all(160),
+                child: SizedBox(
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (final root in roots)
+                          if (visibleIds.contains(root.id))
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: _branch(root, nodes, visibleIds),
+                            ),
+                      ],
+                    ),
                   ),
                 ),
               ),

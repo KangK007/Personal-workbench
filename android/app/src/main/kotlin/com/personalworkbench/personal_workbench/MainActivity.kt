@@ -37,6 +37,11 @@ class MainActivity : FlutterActivity() {
 
     private fun extractText(source: Intent?): String? {
         if (source?.action != Intent.ACTION_SEND) return null
-        return source.getStringExtra(Intent.EXTRA_TEXT)?.trim()?.takeIf { it.isNotEmpty() }
+        val text = source.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
+        val subject = source.getStringExtra(Intent.EXTRA_SUBJECT)?.trim().orEmpty()
+        return listOf(subject, text)
+            .filter { it.isNotEmpty() }
+            .joinToString("\n")
+            .takeIf { it.isNotEmpty() }
     }
 }

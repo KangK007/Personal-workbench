@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'dart:math' as math;
+
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/workbench_controller.dart';
@@ -151,7 +153,7 @@ class _HabitMatrix extends StatelessWidget {
                         children: [
                           for (final day in days)
                             SizedBox(
-                              width: cellSlot,
+                              width: math.max(cellSlot, 48),
                               child: Center(
                                 child: NumericText(
                                   '${day.day}',
@@ -180,6 +182,47 @@ class _HabitMatrix extends StatelessWidget {
                                   .habitLogForDay(habit.id, day)
                                   ?.status,
                               isToday: isSameDay(day, calendarToday),
+                              onTap: () async {
+                                final status =
+                                    await showModalBottomSheet<String>(
+                                      context: context,
+                                      showDragHandle: true,
+                                      builder: (sheetContext) => SafeArea(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ListTile(
+                                              leading: const Icon(Icons.check),
+                                              title: const Text('标记完成'),
+                                              onTap: () => Navigator.pop(
+                                                sheetContext,
+                                                WorkStatus.done,
+                                              ),
+                                            ),
+                                            ListTile(
+                                              leading: const Icon(Icons.remove),
+                                              title: const Text('标记跳过'),
+                                              onTap: () => Navigator.pop(
+                                                sheetContext,
+                                                WorkStatus.skipped,
+                                              ),
+                                            ),
+                                            ListTile(
+                                              leading: const Icon(Icons.clear),
+                                              title: const Text('清除记录'),
+                                              onTap: () => Navigator.pop(
+                                                sheetContext,
+                                                WorkStatus.todo,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                if (status != null) {
+                                  await controller.logHabit(habit, day, status);
+                                }
+                              },
                             ),
                         ],
                       ),
@@ -366,10 +409,12 @@ class _HabitCell extends StatelessWidget {
     required this.label,
     required this.status,
     required this.isToday,
+    required this.onTap,
   });
   final String label;
   final String? status;
   final bool isToday;
+  final Future<void> Function()? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -383,43 +428,48 @@ class _HabitCell extends StatelessWidget {
       _ => unrecordedBorder,
     };
     return Semantics(
-      button: false,
+      button: onTap != null,
       label: switch (status) {
         WorkStatus.done => '$label，已完成',
         WorkStatus.skipped => '$label，已跳过',
         WorkStatus.todo => '$label，待记录',
         _ => '$label，未记录',
       },
-      child: InkWell(
-        onTap: null,
-        borderRadius: BorderRadius.circular(3),
-        child: Container(
-          width: cellSize,
-          height: cellSize,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: status == null || status == WorkStatus.todo
-                ? Colors.transparent
-                : color,
-            border: Border.all(
-              color: isToday ? context.tokens.marker : color,
-              width: isToday ? 2 : 1,
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: InkWell(
+          onTap: onTap == null ? null : () => onTap!(),
+          borderRadius: BorderRadius.circular(3),
+          child: Center(
+            child: Container(
+              width: cellSize,
+              height: cellSize,
+              decoration: BoxDecoration(
+                color: status == null || status == WorkStatus.todo
+                    ? Colors.transparent
+                    : color,
+                border: Border.all(
+                  color: isToday ? context.tokens.marker : color,
+                  width: isToday ? 2 : 1,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: status == WorkStatus.done
+                  ? Icon(
+                      Icons.check,
+                      size: compact ? 10 : 9,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    )
+                  : status == WorkStatus.skipped
+                  ? Icon(
+                      Icons.remove,
+                      size: compact ? 10 : 9,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    )
+                  : null,
             ),
-            borderRadius: BorderRadius.circular(2),
           ),
-          child: status == WorkStatus.done
-              ? Icon(
-                  Icons.check,
-                  size: compact ? 10 : 9,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                )
-              : status == WorkStatus.skipped
-              ? Icon(
-                  Icons.remove,
-                  size: compact ? 10 : 9,
-                  color: Theme.of(context).colorScheme.onSurface,
-                )
-              : null,
         ),
       ),
     );
@@ -434,8 +484,8 @@ class _HabitAddIcon extends StatelessWidget {
     return Container(
       width: 22,
       height: 22,
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.onPrimary,
         shape: BoxShape.circle,
       ),
       child: Icon(

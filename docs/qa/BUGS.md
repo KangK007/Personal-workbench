@@ -2,6 +2,8 @@
 
 > 审查起点：`618a44a`；合并来源：`1220614` 与 `251684f`
 > 状态流：`OPEN` → `FIXED` → `VERIFIED`；高风险且无法自行决定的事项使用 `BLOCKED`。
+>
+> 当前复核补充（2026-09-18）：`flutter analyze` 通过，`flutter test --reporter compact` 为 241/241；下文个别缺陷条目保留发现当日的历史测试数字，当前发布统计以 `docs/qa/FINAL_QA_REPORT.md` 和 `docs/qa/TEST_MATRIX.md` 为准。
 
 ## BUG-001
 

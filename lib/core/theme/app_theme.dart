@@ -96,7 +96,7 @@ abstract final class AppSpacing {
   static const md = 12.0;
   static const lg = 16.0;
   static const xl = 24.0;
-  static const xxl = 24.0;
+  static const xxl = 32.0;
   static const xxxl = 32.0;
   // 页面横向边距
   static const pageCompact = 16.0;
@@ -436,9 +436,9 @@ abstract final class AppTheme {
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
-      bodyLarge: _bodyStyle(fontSize: 15, height: 1.5, color: scheme.onSurface),
+      bodyLarge: _bodyStyle(fontSize: 16, height: 1.5, color: scheme.onSurface),
       bodyMedium: _bodyStyle(
-        fontSize: 15,
+        fontSize: 16,
         height: 1.5,
         color: scheme.onSurface,
       ),

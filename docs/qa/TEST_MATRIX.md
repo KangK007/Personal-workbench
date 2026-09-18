@@ -1,7 +1,7 @@
 # 个人工作台发布级测试矩阵
 
 > 审查起点：`1d9c633`（2026-08-31）；本轮发布级复核：2026-09（Asia/Shanghai）
-> 当前状态：既有发布级基线 + 本轮动效/修复已通过完整自动化（236 项测试）、Golden、真实 Windows 运行与双端构建验证。
+> 当前状态：既有发布级基线 + 本轮 Android/UI 修复已通过完整自动化（241 项测试）、Golden、真实 Windows 运行与双端构建验证。
 > 最终状态仅允许 `PASS` / `BLOCKED`；未闭环项必须在任务结束前清零。
 > 本轮新增：`ANIM-001`～`ANIM-003`（任务完成节点脉冲、减少动效、日结收尾仪式）；`BUG-017`/`BUG-018` 已修复并 VERIFIED。
 
@@ -13,7 +13,7 @@
 | BLD-001 | 构建 | 依赖获取 | 网络/缓存可用 | `flutter pub get` | 成功且无依赖错误 | 命令成功；`flutter_markdown 0.7.7+1` 已停用且 38 个包存在不兼容的新版本，均作为依赖风险记录。 | PASS | - | - | PASS |
 | BLD-002 | 构建 | 格式检查 | 依赖已安装 | `dart format --output=none --set-exit-if-changed lib test` | 无格式漂移 | 最终格式检查为 0 个变更。 | PASS | BUG-001 | VERIFIED | PASS |
 | BLD-003 | 构建 | 静态分析 | 依赖已安装 | `flutter analyze` | 0 error，warning/info 分类记录 | `flutter analyze` 返回 `No issues found`。 | PASS | - | - | PASS |
-| BLD-004 | 构建 | 完整自动测试 | 依赖已安装 | `flutter test` | 全部通过，无未处理异常 | `flutter test --reporter compact` 234/234 通过，无未处理异常。 | PASS | - | - | PASS |
+| BLD-004 | 构建 | 完整自动测试 | 依赖已安装 | `flutter test` | 全部通过，无未处理异常 | `flutter test --reporter compact` 241/241 通过，无未处理异常。 | PASS | - | - | PASS |
 | BLD-005 | 构建 | Golden 回归 | 字体/渲染稳定 | 运行 golden 测试且不更新基线 | 所有像素基线通过 | 最终命令已执行；33 张 Golden 及全页面布局矩阵通过。 | PASS | BUG-002 | VERIFIED | PASS |
 | BLD-006 | 构建 | Windows Debug 构建 | VS/Windows 工具链 | `flutter build windows --debug` | 构建成功 | `tool/build_windows.ps1 -Configuration debug -Clean` 成功，Debug 产物存在。 | PASS | BUG-003, BUG-011 | VERIFIED | PASS |
 | BLD-007 | 构建 | Windows Release 构建 | VS/Windows 工具链 | 项目发布脚本或 `flutter build windows --release` | 构建成功、产物存在 | `tool/build_windows.ps1 -Configuration release` 成功，Release 产物存在。 | PASS | BUG-003, BUG-011 | VERIFIED | PASS |
@@ -178,7 +178,7 @@
 | UI-002 | 视觉 | 412×915 | 测试窗口 | 全 37 个页面/子页遍历 | 无溢出、遮挡、裁剪 | 37/37 布局检查通过；Today 遮挡另由 BUG-006 修复并 Golden 验证 | PASS | BUG-006 | VERIFIED | PASS |
 | UI-003 | 视觉 | 768/1024 | 测试窗口 | 全 37 个页面/子页遍历两个视口 | 紧凑桌面自适应正确 | 74/74 页面场景无 Flutter 布局异常 | PASS | - | - | PASS |
 | UI-004 | 视觉 | 1200/1440/1536×864 | 测试窗口 | 全 37 个页面/子页遍历三个视口 | 三栏/侧轨与间距正确 | 111/111 页面场景无 Flutter 布局异常 | PASS | - | - | PASS |
-| UI-005 | 视觉 | 浅色全页面 | 最终代码 | 全 37 表面×7 视口，并复查 33 张逐页 Golden | 层级、字体、间距、颜色、圆角、图标一致 | 259 个布局场景及 33 张原尺寸 Golden 已检查；修复项通过 | PASS | BUG-006, BUG-007, BUG-008 | VERIFIED | PASS |
+| UI-005 | 视觉 | 浅色全页面 | 最终代码 | 全 37 表面×7 视口，并复查 33 张逐页 Golden | 层级、字体、间距、颜色、圆角、图标一致 | 518 个布局场景及 33 张原尺寸 Golden 已检查；修复项通过 | PASS | BUG-006, BUG-007, BUG-008 | VERIFIED | PASS |
 | UI-006 | 视觉 | 深色全页面 | 最终代码 | 全 37 表面分别在移动/桌面深色遍历 | 无错误反转或低对比 | 74/74 深色页面场景无布局异常；主题关键颜色对比度另行量化 | PASS | - | - | PASS |
 | UI-007 | 视觉 | Hover/Pressed/Focus/Selected/Disabled/Loading/Error | 各类组件 | 逐状态触发 | 状态一致且不引发布局跳动 | 37 个表面在 375/1200/1536 三尺寸逐一触发 Hover、Pressed、Focus 与键盘；Selected/Disabled/Loading/Error 由主题及功能故障测试覆盖。 | PASS | BUG-014 | VERIFIED | PASS |
 | UI-008 | 视觉 | Dialog/Sheet/Menu/Tooltip/Z-index | 全页面 | 连续打开关闭与 Resize | 不越界、不被遮挡、焦点正确 | 37 个表面的全部 Popup/Dropdown 在三尺寸逐一开关；6 个共享 Dialog 在 4 个尺寸/字号场景完成 Focus、Tab、Escape 与长文本回归。 | PASS | BUG-014 | VERIFIED | PASS |
@@ -194,10 +194,10 @@
 | PRF-003 | 性能 | Timer/监听器/后台任务释放 | 多次进入退出 | 观察日志/实例/重复回调 | 无泄漏与重复执行 | 真实启动计时、1000 条列表测试、资源释放测试和最终产物体积记录已完成。 | PASS | - | - | PASS |
 | PRF-004 | 性能 | 产物体积 | Release 构建 | 记录 Windows/Android 产物大小 | 体积可解释，无意外膨胀 | 真实启动计时、1000 条列表测试、资源释放测试和最终产物体积记录已完成。 | PASS | - | - | PASS |
 | LOG-001 | 日志 | Console/Unhandled error | 全流程 | 采集运行日志 | 无未处理异常/Promise/Future 错误 | Windows 二次干净会话 stderr 为空；Android logcat 未见应用 FATAL/E/flutter；自动测试无未处理异常。 | PASS | - | - | PASS |
-| REG-001 | 回归 | 修复后相关测试 | 存在修复 | 每批修复后跑最小相关集 | 通过且 BUG 状态闭环 | Dialog 焦点/Escape、嵌套 Dropdown 单层关闭与专注预设定向回归通过；最终 234 项全套测试与 Golden/UI 子集 29/29 通过。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
-| REG-002 | 回归 | 最终完整发布验证 | 最终代码 | Clean build→全测试→真实启动→核心流→全视觉复查 | 所有证据更新，无未闭环项 | 234 项全套测试、Golden/UI 状态矩阵和隔离 Windows 启动完成；原生完整交互单列 U4D-038 `BLOCKED`。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
+| REG-001 | 回归 | 修复后相关测试 | 存在修复 | 每批修复后跑最小相关集 | 通过且 BUG 状态闭环 | Dialog 焦点/Escape、嵌套 Dropdown 单层关闭与专注预设定向回归通过；最终 241 项全套测试与 Golden/UI 子集通过。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
+| REG-002 | 回归 | 最终完整发布验证 | 最终代码 | Clean build→全测试→真实启动→全视觉复查 | 所有证据更新，无未闭环项 | 241 项全套测试、Golden/UI 状态矩阵和隔离 Windows 启动完成；原生完整交互单列 U4D-038 `BLOCKED`。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
 | DOC-001 | 文档 | 项目地图完整性 | 最终代码与运行证据 | 逐项对照源码、导航、条件入口和平台能力并重读 | 所有发现均已登记 | 37 个当前可构建表面、全局弹层、兼容入口、设置与平台能力均已登记；最终重读完成。 | PASS | - | - | PASS |
-| DOC-002 | 文档 | 测试矩阵闭环 | 最终矩阵 | 逐行解析 Case ID 与状态，并扫描未执行标记 | 统计一致且不存在未执行项 | 正文共 256 个 Case：245 PASS、11 BLOCKED、0 FAIL、0 未闭环项；旧统计漏计 7 条 `A11Y-*`，本轮又动态补入 Android Profile 与 Windows 安装包 Case，已机器复核。 | PASS | BUG-015 | VERIFIED | PASS |
+| DOC-002 | 文档 | 测试矩阵闭环 | 最终矩阵 | 逐行解析 Case ID 与状态，并扫描未执行标记 | 统计一致且不存在未执行项 | 正文共 261 个 Case：250 PASS、11 BLOCKED、0 FAIL、0 未闭环项；本轮复核纳入 Android/UI 回归证据，已机器复核。 | PASS | BUG-015 | VERIFIED | PASS |
 | DOC-003 | 文档 | QA 报告一致性 | 全部 QA 文档 | 对照缺陷、最终 QA、回归、UI/UX 与发布清单 | 数量、状态和发布结论一致 | BUG-001～016、最终 QA、回归、UI/UX 和发布清单结论一致，整体判定为 NOT READY。 | PASS | BUG-015 | VERIFIED | PASS |
 | DOC-004 | 文档 | Markdown 用户手册覆盖 | 最终手册 | 统计章节与图片引用并检查引用文件 | 功能说明完整且引用全部存在 | 20 个章节、21 个真实界面截图引用，引用文件 21/21 存在。 | PASS | - | - | PASS |
 | DOC-005 | 文档 | DOCX 生成与结构完整性 | 最终 DOCX | 执行生成器断言并检查 OOXML、截图、表格、行距、编号和可访问性 | 文档结构校验通过 | DOCX 为 1,431,324 bytes；21 张截图、固定表格、1.25 倍行距、编号几何与表头语义通过；a11y 审计 0/0/0。 | PASS | - | - | PASS |
@@ -223,7 +223,7 @@
 | OPT-018 | 回顾 | 未来周期双层禁止 | 当前日周月 | 点击下一期并直接调用保存 | UI 不可达且控制器拒绝未来周期 | 周期导航边界与控制器未来保存 FormatException 回归通过。 | PASS | - | VERIFIED | PASS |
 | OPT-019 | 导航 | 项目/收件箱/回顾扁平化 | 桌面和移动 | 遍历侧栏、更多、旧入口与返回历史 | 顺序和可达性正确，旧枚举映射到新根页面 | 桌面/移动导航 Widget、短窗口滚动和兼容映射测试通过。 | PASS | - | VERIFIED | PASS |
 | OPT-020 | 成长 | 顶部面板间距 | 游戏功能开启、反馈有/无 | 桌面/窄屏/200% 字号检查 | 边距一致、图标文字不贴边、无截断重叠 | Growth 页面浅深主题、窄屏/200% 字号布局矩阵与 Golden 通过。 | PASS | - | VERIFIED | PASS |
-| OPT-021 | 可访问性/视觉 | 本轮全状态矩阵 | 最终实现 | 浅深主题、7 视口、200% 字号、键盘、语义、减少动效 | 新增表面全部无溢出，焦点/语义/触控/对比符合基线 | 234 项完整 Flutter 测试、518 场景布局矩阵、222 个页面交互-尺寸场景、24 个 Dialog-尺寸场景、专注预设 4 个 Dropdown 及隔离 Windows 启动通过。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
+| OPT-021 | 可访问性/视觉 | 本轮全状态矩阵 | 最终实现 | 浅深主题、7 视口、200% 字号、键盘、语义、减少动效 | 新增表面全部无溢出，焦点/语义/触控/对比符合基线 | 241 项完整 Flutter 测试、518 场景布局矩阵、222 个页面交互-尺寸场景、24 个 Dialog-尺寸场景、专注预设 4 个 Dropdown 及隔离 Windows 启动通过。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
 | ANIM-001 | 动效 | 任务完成航迹节点脉冲 | 有任务行 | 勾选完成任务并观察 180ms | 黄铜节点从勾选框圆心扩散并向右留短航迹后消失，仅播放一次，完成后勾选状态正确 | 新增 `_CompletionNode` 脉冲；专用 Widget 测试轮询 12 帧确认出现与消失，任务状态 done=true。 | PASS | - | - | PASS |
 | ANIM-002 | 动效 | 减少动效下脉冲跳过 | 系统减少动效开启 | 完成一项任务 | 无脉冲渲染；任务仍正确完成 | `didUpdateWidget` 使用 binding 级 `accessibilityFeatures.disableAnimations`，reduce 时不启动动画；Widget 测试断言无脉冲且状态正确。 | PASS | - | - | PASS |
 | ANIM-003 | 动效 | 日结收尾仪式 | 今日已开始 | 完成每日收尾 | 收尾后展示“今日已收尾”仪式覆盖层（约 2 秒自动关闭）后进入回顾 | 复用 `FocusCelebration` + `_DismissAfter` 自动关闭；减少动效下显示静态终态；全量测试与构建通过。 | PASS | - | - | PASS |

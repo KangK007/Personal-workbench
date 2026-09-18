@@ -9,7 +9,7 @@
 
 **READY WITH KNOWN ISSUES**。
 
-Windows Release 与 Android Debug/Profile 均以最终代码完成干净构建；236 项 Flutter 测试全部通过；真实 Windows 应用完成启动、窗口渲染、数据库读写、四档窗口尺寸调整、窄窗移动布局、冷启动计时与干净退出验证；54 张 Golden/审计截图健康检查通过；真实用户数据库 324 条记录经字体覆盖检查无缺失字形。
+Windows Release 与 Android Debug/Profile 均以最终代码完成干净构建；本轮 241 项 Flutter 测试全部通过；真实 Windows 应用完成启动、窗口渲染、数据库读写、四档窗口尺寸调整、窄窗移动布局、冷启动计时与干净退出验证；54 张 Golden/审计截图健康检查通过；真实用户数据库 324 条记录经字体覆盖检查无缺失字形。
 
 11 个 BLOCKED 项全部为环境或凭据限制（缺少 Android 发布签名密钥、隔离 Supabase 账号、隔离 Windows VM、可调用的 DOCX 渲染器、Stitch MCP），不是产品代码缺陷。Android Release APK 需要用户提供 `android/key.properties` 与私有 keystore 后才能生成。
 
@@ -23,7 +23,7 @@ Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；�
 | --- | ---: |
 | 测试 Case | 261 |
 | PASS / FAIL / BLOCKED | 250 / 0 / 11 |
-| Flutter 自动测试 | 236 / 236（234 既有 + 2 动效） |
+| Flutter 自动测试 | 241 / 241（含本轮 Android/UI 回归） |
 | 当前可构建页面/子页表面 | 37 |
 | 全页面布局场景 | 518 |
 | 页面交互-尺寸场景 | 222 |
@@ -56,12 +56,14 @@ Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；�
 | `flutter pub get` | PASS；`flutter_markdown 0.7.7+1` 停用（RISK-001）、46 个不兼容新版本作风险记录 |
 | `dart format --output=none --set-exit-if-changed lib test` | PASS |
 | `flutter analyze` | PASS，No issues found |
-| `flutter test --reporter compact` | PASS，236/236 |
+| `flutter test --reporter compact` | PASS，241/241 |
 | Golden + UI 审计 + 交互矩阵 | PASS，47/47（设置页修复后） |
 | Windows Release 干净构建 | PASS，最终代码重建并更新 3 个快捷方式 |
 | Android Debug arm64 干净构建 | PASS，构建/分发 APK 已更新 |
 | Android Profile | PASS（既有证据） |
 | Android Release | BLOCKED：缺少 `android/key.properties` 与私有 keystore |
+
+本轮 Android arm64 Debug 构建产物为 `120,512,575` bytes，构建 APK 与 `dist/apk/` 分发副本 SHA-256 一致；Golden 与 UI 审计基准按实际主题、字号和布局变化更新，未放宽像素容差或修改断言。
 
 ## 8. 真实运行与日志
 

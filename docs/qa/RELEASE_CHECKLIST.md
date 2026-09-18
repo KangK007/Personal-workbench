@@ -5,13 +5,15 @@
 > 产物源码基线：`main@1e27eea`
 > 总体判定：**NO-GO**
 
+> 本轮复核（2026-09-18）：241/241 Flutter 测试通过，Android arm64 Debug 构建与 Golden/UI 回归通过；Android Release 签名、真实设备休眠/重启通知、隔离 Supabase 与 Windows 原生副作用仍保持 BLOCKED。
+
 ## 1. 已满足
 
 - [x] 项目地图覆盖所有实际页面、组合子页、兼容页、Dialog、Sheet、菜单、设置项和平台入口。
-- [x] TEST_MATRIX 有 256 个 Case：245 PASS、0 FAIL、11 BLOCKED、0 未闭环项。
+- [x] TEST_MATRIX 有 261 个 Case：250 PASS、0 FAIL、11 BLOCKED、0 未闭环项。
 - [x] 代码格式检查通过。
 - [x] `flutter analyze` 为 0 问题。
-- [x] `flutter test` 234/234 通过。
+- [x] `flutter test` 241/241 通过。
 - [x] 37 个表面、518 个布局场景、222 个交互-尺寸场景、24 个 Dialog-尺寸场景和 33 张 Golden 通过。
 - [x] Windows Release 干净构建通过。
 - [x] Android Debug 干净构建和 Android Profile 构建通过。

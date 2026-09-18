@@ -53,6 +53,16 @@ class _ProjectsPageState extends State<ProjectsPage> {
   void initState() {
     super.initState();
     selectedProjectId = widget.selectedProjectId;
+    // Shell routes use the existing detail panels as stable anchors. This
+    // keeps the public ProjectDetailTab routes distinct without changing the
+    // project data model or duplicating the page implementation.
+    expandedPanel = switch (widget.initialTab) {
+      ProjectDetailTab.overview => null,
+      ProjectDetailTab.tasks => 'tasks',
+      ProjectDetailTab.groups => 'groups',
+      ProjectDetailTab.milestones => 'milestones',
+      ProjectDetailTab.notes => 'notes',
+    };
   }
 
   @override

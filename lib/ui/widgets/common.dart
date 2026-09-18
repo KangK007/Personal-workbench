@@ -155,7 +155,7 @@ Future<T?> showWorkbenchSheet<T extends Object?>({
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppRadius.sheetTop),
           ),
-          side: BorderSide(color: Color(0x00000000)),
+          side: BorderSide.none,
         ),
     isScrollControlled: isScrollControlled,
     useSafeArea: useSafeArea,
@@ -503,8 +503,20 @@ class PageHeader extends StatelessWidget {
             ),
             if (actions.isNotEmpty) ...[
               const SizedBox(width: 8),
-              ...actions.map(
-                (action) => PressScale(key: ValueKey(action), child: action),
+              Flexible(
+                child: Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (final action in actions)
+                        PressScale(key: ValueKey(action), child: action),
+                    ],
+                  ),
+                ),
               ),
             ],
           ],

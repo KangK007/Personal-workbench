@@ -14,9 +14,9 @@
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <!-- 品牌浅色底 #F6F8F6，避免初始化时白屏/黑屏闪烁 -->
-        <item name="android:windowBackground">#F6F8F6</item>
+        <item name="android:windowBackground">#F2F7F3</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:navigationBarColor">#FBFDFB</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

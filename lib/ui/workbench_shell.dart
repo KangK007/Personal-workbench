@@ -132,6 +132,8 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   @override
   void initState() {
     super.initState();
+    widget.controller.notificationService.onNavigationRequested =
+        _handleNotificationNavigation;
     behaviorMode = widget.controller.behaviorMode == 'policies'
         ? BehaviorMode.policies
         : BehaviorMode.habits;
@@ -142,7 +144,25 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         _registerHotKey();
       }
       _showGameFeaturesPrompt();
+      final pending = widget.controller.notificationService
+          .takePendingNavigation();
+      if (pending != null) _handleNotificationNavigation(pending);
     });
+  }
+
+  void _handleNotificationNavigation(String payload) {
+    if (!mounted) return;
+    final destination = switch (payload.split(':').first) {
+      'task' => WorkbenchSection.tasksAll,
+      'review-overdue' => WorkbenchSection.reviewDaily,
+      'focus' => WorkbenchSection.focus,
+      _ => null,
+    };
+    if (destination != null) _select(destination);
+    showWorkbenchSnackBar(
+      context,
+      SnackBar(content: Text(destination == null ? '已收到提醒' : '已打开相关页面')),
+    );
   }
 
   Future<void> _showGameFeaturesPrompt() async {
@@ -172,6 +192,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
 
   @override
   void dispose() {
+    widget.controller.notificationService.onNavigationRequested = null;
     final hotKey = captureHotKey;
     if (hotKey != null) hotKeyManager.unregister(hotKey);
     super.dispose();
@@ -183,9 +204,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       listenable: widget.controller,
       builder: (context, _) {
         final size = MediaQuery.sizeOf(context);
-        final compact =
-            size.width < AppBreakpoints.compact ||
-            size.height < AppBreakpoints.compactHeight;
+        final compact = _isCompactLayout(size);
         final compactNavigation = size.width < AppBreakpoints.expanded;
         return CallbackShortcuts(
           bindings: {
@@ -207,6 +226,20 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         );
       },
     );
+  }
+
+  bool _isCompactLayout(Size size) =>
+      size.width < AppBreakpoints.compact ||
+      size.height < AppBreakpoints.compactHeight;
+
+  bool _popMobileHistory() {
+    if (_mobileHistory.isEmpty) return false;
+    final previous = _mobileHistory.removeLast();
+    setState(() {
+      section = previous;
+      _visitedSections.add(previous);
+    });
+    return true;
   }
 
   Widget _desktopLayout({required bool compactNavigation}) {
@@ -274,7 +307,10 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     final index = _mobilePrimarySections.indexOf(primary);
     // Project detail pages are reachable from 更多 but are not bottom
     // destinations; keep NavigationBar on a valid neutral index.
-    final navigationIndex = index < 0 ? 0 : index;
+    final isSecondaryDestination = index < 0;
+    // NavigationBar requires a valid index. A compact page banner makes the
+    // fallback explicit so a secondary page is never mistaken for 今日.
+    final navigationIndex = isSecondaryDestination ? 0 : index;
     final title = switch (section) {
       WorkbenchSection.today => '今日',
       WorkbenchSection.tasksAll => '任务 · 全部',
@@ -309,21 +345,23 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     return PopScope(
       canPop: _mobileHistory.isEmpty,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop || _mobileHistory.isEmpty) return;
-        final previous = _mobileHistory.removeLast();
-        setState(() {
-          section = previous;
-          _visitedSections.add(previous);
-        });
+        if (didPop) return;
+        _popMobileHistory();
       },
       child: Scaffold(
         appBar: AppBar(
           toolbarHeight: 56,
           titleSpacing: 8,
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Center(child: SealLogo(size: 30)),
-          ),
+          leading: _mobileHistory.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Center(child: SealLogo(size: 30)),
+                )
+              : IconButton(
+                  onPressed: _popMobileHistory,
+                  tooltip: '返回',
+                  icon: const Icon(Icons.arrow_back),
+                ),
           title: Text(
             title,
             style: theme.textTheme.titleMedium?.copyWith(
@@ -369,6 +407,23 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (isSecondaryDestination)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                color: tokens.subtle,
+                child: Text(
+                  '当前页面：$title',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: tokens.mutedText,
+                  ),
+                ),
+              ),
             // 同步状态指示器 — 与桌面侧栏底部同步状态对齐
             Container(
               height: 26,
@@ -470,7 +525,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       ProjectsPage(
         key: ValueKey(value),
         controller: widget.controller,
-        initialTab: ProjectDetailTab.overview,
+        initialTab: tab,
         showHeader: _showPageHeader,
         showTabs: false,
         selectedProjectId: selectedProjectId,
@@ -484,7 +539,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   Widget _reviewPage(WorkbenchSection value, ReviewTab tab) => ReviewPage(
     key: ValueKey(value),
     controller: widget.controller,
-    initialTab: ReviewTab.diary,
+    initialTab: tab,
     showHeader: _showPageHeader,
     showPeriodSwitcher: true,
   );
@@ -516,12 +571,21 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       value,
       ProjectDetailTab.overview,
     ),
-    WorkbenchSection.projectsTasks ||
-    WorkbenchSection.projectsGroups ||
-    WorkbenchSection.projectsMilestones ||
+    WorkbenchSection.projectsTasks => _projectPage(
+      value,
+      ProjectDetailTab.tasks,
+    ),
+    WorkbenchSection.projectsGroups => _projectPage(
+      value,
+      ProjectDetailTab.groups,
+    ),
+    WorkbenchSection.projectsMilestones => _projectPage(
+      value,
+      ProjectDetailTab.milestones,
+    ),
     WorkbenchSection.projectsNotes => _projectPage(
       value,
-      ProjectDetailTab.overview,
+      ProjectDetailTab.notes,
     ),
     WorkbenchSection.focus => FocusHubPage(
       controller: widget.controller,
@@ -616,14 +680,13 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       WorkbenchSection.policiesLibrary ||
       WorkbenchSection.policiesHistory ||
       WorkbenchSection.policiesAnalytics => WorkbenchSection.behavior,
-      WorkbenchSection.protocols => WorkbenchSection.goals,
       _ => value,
     };
     final parentId = _navigationParentId(value);
     if (parentId != null) {
       widget.controller.setNavigationGroupExpanded(parentId, true);
     }
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact = _isCompactLayout(MediaQuery.sizeOf(context));
     setState(() {
       if (requestedBehaviorMode != null) {
         behaviorMode = requestedBehaviorMode;
@@ -656,10 +719,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         selected: section,
         controller: widget.controller,
         onSelected: (value) {
-          Navigator.pop(context);
-          _select(value);
-        },
-        onParentSelected: (value) {
           Navigator.pop(context);
           _select(value);
         },
@@ -751,6 +810,11 @@ const _navigationTree = [
     Icons.inbox_outlined,
   ),
   _NavigationNode.leaf(WorkbenchSection.focus, '专注', Icons.timer_outlined),
+  _NavigationNode.leaf(
+    WorkbenchSection.protocols,
+    '协议',
+    Icons.timeline_outlined,
+  ),
   _NavigationNode.leaf(
     WorkbenchSection.restriction,
     '自律',
@@ -1249,13 +1313,11 @@ class _MobileNavigationSheet extends StatelessWidget {
     required this.selected,
     required this.controller,
     required this.onSelected,
-    required this.onParentSelected,
   });
 
   final WorkbenchSection selected;
   final WorkbenchController controller;
   final ValueChanged<WorkbenchSection> onSelected;
-  final ValueChanged<WorkbenchSection> onParentSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -1281,12 +1343,6 @@ class _MobileNavigationSheet extends StatelessWidget {
                 title: Text(node.label),
                 onExpansionChanged: (expanded) {
                   controller.setNavigationGroupExpanded(node.id!, expanded);
-                  final containsSelected = node.children.any(
-                    (child) => child.section == selected,
-                  );
-                  if (!containsSelected) {
-                    onParentSelected(node.children.first.section!);
-                  }
                 },
                 children: [
                   for (final child in node.children)

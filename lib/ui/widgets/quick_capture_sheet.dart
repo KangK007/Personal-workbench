@@ -88,7 +88,7 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         20,
         18,
@@ -189,8 +189,11 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
             ),
           ],
           const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               if (kind != RecordKind.diary)
                 TextButton(
