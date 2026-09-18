@@ -15,7 +15,7 @@ Windows Release 与 Android Debug/Profile 均以最终代码完成干净构建�
 
 ## 2. 项目与测试环境
 
-Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；本地数据 SQLite（`sqflite_common_ffi`），可选 Supabase 同步。真实运行在 Windows 11 25H2（1280×720 初始窗口）执行；Android 证据来自既有 API 35 模拟器记录与离线构建验证。
+Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；本地数据 SQLite（`sqflite_common_ffi`），可选 Supabase 同步。真实运行在 Windows 11 25H2（1280×720 初始窗口）执行；Android 证据包括既有 API 35 模拟器记录、离线构建验证，以及 2026-09-18 在 OnePlus Ace 2 Pro（型号 `PJA110`，Android 16 / API 36，ADB `ec47ee9f`）上的复核。
 
 ## 3. 覆盖规模
 
@@ -72,6 +72,8 @@ Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；�
 - `docs/qa/screenshots/runtime_smoke_main.png`（1280×720 主界面）
 - `docs/qa/screenshots/runtime_narrow_mobile.png`（420×780 移动布局）
 
+Android 真机复核：应用冷启动、主界面/更多抽屉/笔记二级页返回路径正常；系统通知设置显示允许通知，应用设置触发的“通知已启用”即时通知出现在系统通知栏；`dumpsys notification` 可见 `workbench_updates` 渠道和应用 `PendingIntent`。本次未清除应用数据。定时通知经过锁屏、休眠、重启和进程被杀后的送达仍未完成，继续保持 `BLOCKED`。
+
 ## 9. 文档结果
 
 `docs/qa/PROJECT_MAP.md`、`TEST_MATRIX.md`、`BUGS.md`、`UI_UX_AUDIT_FINAL.md` 已更新至本轮证据；`docs/manual/个人工作台_用户使用手册.docx` 由 `python-docx` 重新生成（见第 10 节与手册章节）。
@@ -99,7 +101,7 @@ Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；�
 6. `ATT-004`：原生文件选择器修复后真实输入复验受窗口激活能力阻塞（焦点恢复自动回归通过）。
 7. `SET-006`：缺少隔离 Supabase 端点、密钥和账号（分页/冲突/并发已由 fake 覆盖）。
 8. `PLT-001`：真实托盘/开机启动/Windows 通知需要隔离用户会话（平台通道已自动覆盖）。
-9. `PLT-003`：Android 休眠/重启定时通知受模拟器宿主不稳定阻塞（即时通知已真实通过）。
+9. `PLT-003`：Android 定时通知经过锁屏、休眠、重启和进程被杀后的送达仍需专门时序复验；PJA110 真机已确认通知权限、通知渠道和即时通知通过。
 10. `DOC-006`：当前 DOCX 无可调用渲染器，逐页视觉复验需在 Word/LibreOffice 完成。
 11. `U4D-038`：Windows 原生完整四维交互无法激活捕获窗口（隔离启动与语义读取成功）。
 
@@ -107,7 +109,7 @@ Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；�
 
 - `flutter_markdown 0.7.7+1` 已停用；迁移需要独立 Markdown 兼容与视觉回归（RISK-001）。
 - Android 构建仍有第三方 Manifest namespace、Java 8 目标、SDK XML 与 Gradle 9 兼容警告（RISK-002）。
-- Android 模拟器宿主不稳定，长期后台/重启送达需要物理设备复验（RISK-003）。
+- Android 长期后台、休眠/重启和进程被杀后的送达仍需独立时序复验，厂商后台策略可能影响提醒到达时间（RISK-003）。
 - 没有真实远端同步证据；长期同步可靠性需在真实 Supabase 账号下验证。
 
 ## 13. 本轮修复摘要

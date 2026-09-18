@@ -117,7 +117,7 @@
 | --- | --- | --- |
 | Windows Flutter GUI | PARTIAL | 最终代码的隔离 Debug 已创建真实窗口和独立数据库，Release 随后重建；Computer Use 无法激活捕获窗口，完整原生指针/键盘状态遍历记为 `BLOCKED` |
 | Edge / Flutter Web | AVAILABLE | 可补充浏览器语义与多视口视觉验证，但不能替代 Windows 原生能力 |
-| Android 真机/模拟器 | AVAILABLE：Android 15 / API 35 模拟器、SDK 36、JDK 21、ADB | 已真实验证冷启动、IME、Back、权限拒绝/允许、即时通知、分享、横屏、800×1200 尺寸与持久化；模拟器宿主不稳定使休眠/重启定时通知 BLOCKED |
+| Android 真机/模拟器 | AVAILABLE：OnePlus Ace 2 Pro（`PJA110`，Android 16 / API 36，ADB `ec47ee9f`）及 Android 15 / API 35 模拟器、SDK 36、JDK 21、ADB | 已真实验证冷启动、IME、Back、权限拒绝/允许、即时通知、分享、横屏、尺寸变化与持久化；PJA110 已确认系统通知权限和 `workbench_updates` 渠道可用；休眠/重启/进程被杀后的定时送达仍 BLOCKED |
 | 截图 | AVAILABLE | Flutter Golden、Widget 截图与真实运行截图均可保存到 `docs/qa/screenshots/` |
 | Stitch MCP | BLOCKED | 当前没有 Stitch 工具、资源或模板；使用真实 GUI、Golden 和人工像素检查替代 |
 | Word 生成 | PASS | 已重新生成真实 DOCX；包含 20 个章节和 21 张真实界面截图，OOXML 结构检查通过 |

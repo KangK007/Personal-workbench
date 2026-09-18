@@ -168,7 +168,7 @@ powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration
 python -m unittest discover -v
 ```
 
-当前覆盖记录 JSON 往返、SQLite 软删除、AES 备份错误密码与 v1 外层兼容、04:00 边界、周期实例、任务结算、项目/笔记回收站、附件清理、CTDP/RSIP 状态机、RSIP 页面流程、回顾快照、Android 页面 Golden 和指南截图。Golden 使用独立临时数据库；真实数据库必须先手动完成旧版加密备份后再验收。发布前仍需要在真实 Android 设备上验收系统通知、休眠唤醒、离线同步去重、分享捕获、回收站和多尺寸文字布局。
+当前覆盖记录 JSON 往返、SQLite 软删除、AES 备份错误密码与 v1 外层兼容、04:00 边界、周期实例、任务结算、项目/笔记回收站、附件清理、CTDP/RSIP 状态机、RSIP 页面流程、回顾快照、Android 页面 Golden 和指南截图。Golden 使用独立临时数据库；真实数据库必须先手动完成旧版加密备份后再验收。PJA110 真机已验证系统通知权限、通知渠道和即时通知；正式发布前仍需要复验定时通知的休眠/重启/进程恢复、离线同步去重、分享捕获、回收站和多尺寸文字布局。
 
 2026-09-18 本机复核结果：`flutter pub get` 成功，`dart format --output=none --set-exit-if-changed lib test` 无格式变更，`flutter analyze` 无问题，`flutter test --reporter compact` 为 241/241 通过。历史 QA 文档中的测试数量对应各自记录日期，不覆盖本次复核结果。
 

@@ -310,8 +310,8 @@ flutter run -d <android-device-id>
 
 - Flutter：3.38.9 stable；Dart：3.10.8。
 - 主机：Windows x64；目标平台：Windows、Android。
-- 代码版本：工作区基线 `22ab09e` + 本轮未提交改动（提交前记录）。
-- Android 证据：官方 `tool/build_android.ps1` 生成 arm64 Debug APK；真实通知休眠/重启与 Release 签名仍受环境/凭据限制。
+- 代码版本：`53ed6d4`（Android/UI 优化提交）；本次仅补充真机 QA 证据与文档记录。
+- Android 证据：官方 `tool/build_android.ps1` 生成 arm64 Debug APK；2026-09-18 在 OnePlus Ace 2 Pro（`PJA110`，Android 16 / API 36，ADB `ec47ee9f`）确认通知权限、`workbench_updates` 渠道和即时通知可用；真实锁屏/休眠/重启/进程恢复时序与 Release 签名仍受环境/凭据限制。
 
 | 命令 | 结果 | 备注 |
 | --- | --- | --- |
@@ -361,15 +361,15 @@ flutter run -d <android-device-id>
 | C-12 | 通过 | 固定尺寸审计已纳入页面 Golden 与布局矩阵 |
 | D-01 | 通过 | Android 通知权限允许/拒绝路径已覆盖 |
 | D-02 | 通过 | 通知改用单色 `@drawable/ic_notification` |
-| D-03 | 阻塞 | 已启用精确闹钟并提供无权限降级；真实锁屏时序误差需实体设备复验 |
+| D-03 | 阻塞 | PJA110 已确认通知权限、渠道和即时通知；真实锁屏时序误差与定时送达仍需专门复验 |
 | D-04 | 通过 | 通知 payload 点击回调已接入导航 |
-| D-05 | 阻塞 | 重启后定时通知受模拟器/设备环境限制 |
+| D-05 | 阻塞 | PJA110 尚未完成重启后定时通知不丢失/不重复复验 |
 | D-06 | 通过 | Android 文本与网页链接分享捕获通过 |
 | D-07 | 通过 | `text/plain`、`text/html`、标题链接和长文本入口已兼容 |
 | D-08 | 通过 | Android 13+ predictive back 清单和 Flutter 返回路径已接入 |
 | D-09 | 通过 | 自适应图标、前景层和单色图层已加入 |
 | D-10 | 通过 | 启动主题颜色与 Flutter 首帧令牌对齐 |
-| D-11 | 阻塞 | 进程被杀后的长时间后台恢复需真实设备/隔离会话 |
+| D-11 | 阻塞 | 进程被杀后的长时间后台恢复和定时送达仍需真实设备时序复验 |
 | D-12 | 通过 | 深浅主题系统栏图标亮度已配置并回归 |
 | D-13 | 通过 | Manifest 显式关闭系统云备份，保留应用加密备份 |
 | D-14 | 阻塞 | 缺少 `android/key.properties` 和私有 keystore，不能伪造 Release 签名 |
