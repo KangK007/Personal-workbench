@@ -1,0 +1,6 @@
+# Copy this file to android/key.properties on the local machine only.
+# Keep the real file and the keystore outside Git and back up them separately.
+storeFile=../keystore/personal-workbench-release.jks
+storePassword=CHANGE_ME
+keyAlias=personal-workbench
+keyPassword=CHANGE_ME

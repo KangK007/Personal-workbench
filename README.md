@@ -6,6 +6,8 @@
 
 安装运行、任务结算、项目/笔记回收站、专注后台、日周月回顾、RSIP 国策和备份恢复，请参阅[《个人工作台新手使用指导》](docs/USER_GUIDE.md)。指南包含当前测试界面截图、按钮/字段说明、异常处理和恢复路径。RSIP 的语义依据为 [Momentum 公开源码](https://github.com/KenXiao1/momentum)；参考网页和本项目现状的逐项验收见[《功能复刻验收矩阵》](docs/FEATURE_PARITY.md)。
 
+项目目录、Git 纳入范围、迁移步骤和当前外部阻塞条件集中记录在[《项目维护与迁移说明》](docs/PROJECT_MAINTENANCE.md)。
+
 ## 项目简介
 
 首版以个人使用为边界，不包含多人协作、复杂依赖、第三方日历同步或 AI 自动代理。数据先保存到本地 SQLite，网络恢复后可选同步到 Supabase；离线期间仍可新增、编辑、搜索和回顾。
@@ -167,6 +169,8 @@ python -m unittest discover -v
 ```
 
 当前覆盖记录 JSON 往返、SQLite 软删除、AES 备份错误密码与 v1 外层兼容、04:00 边界、周期实例、任务结算、项目/笔记回收站、附件清理、CTDP/RSIP 状态机、RSIP 页面流程、回顾快照、Android 页面 Golden 和指南截图。Golden 使用独立临时数据库；真实数据库必须先手动完成旧版加密备份后再验收。发布前仍需要在真实 Android 设备上验收系统通知、休眠唤醒、离线同步去重、分享捕获、回收站和多尺寸文字布局。
+
+2026-09-18 本机复核结果：`flutter pub get` 成功，`dart format --output=none --set-exit-if-changed lib test` 无格式变更，`flutter analyze` 无问题，`flutter test --reporter compact` 为 241/241 通过。历史 QA 文档中的测试数量对应各自记录日期，不覆盖本次复核结果。
 
 ## 注意事项
 
