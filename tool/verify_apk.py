@@ -7,10 +7,22 @@
 """
 from __future__ import annotations
 
+import glob
 import os
 import zipfile
 
-APK = r"D:\Project\个人工作台\dist\apk\PersonalWorkbench_0.1.0_4_debug-arm64-v8a.apk"
+DIST_APK_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dist", "apk")
+
+
+def newest_apk() -> str:
+    """自动发现 dist/apk 下最新的 APK（避免版本号一变就要改脚本）。"""
+    candidates = glob.glob(os.path.join(DIST_APK_DIR, "PersonalWorkbench_*.apk"))
+    if not candidates:
+        raise SystemExit(f"dist/apk 下没有 APK: {DIST_APK_DIR}")
+    return max(candidates, key=os.path.getmtime)
+
+
+APK = newest_apk()
 
 # 本轮（2026-09-18 界面优化）引入 / 移除的符号
 SHOULD_EXIST = {

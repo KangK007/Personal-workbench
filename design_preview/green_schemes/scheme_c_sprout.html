@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{
+    /* ── 方案 C 绿色体系 · 新芽晨光 ── */
+    --canvas:#F5FAF0; --surface:#FFFFFF;
+    --sprout-900:#14311A; --sprout-800:#1D4A27; --sprout-700:#2F6B3C;
+    --sprout-600:#3F8F4F; --sprout-500:#5FAA6C; --sprout-400:#7FCB8E;
+    --sprout-300:#A8DFB4; --sprout-200:#C9EBD0; --sprout-100:#E2F3E5;
+    --sprout-050:#EFF8F0; --bud:#C3DA6B; --bud-deep:#8FA22E;
+    --ink:#17301B; --ink-muted:#5E7A62; --ink-faint:#90A894;
+    --line:#DFEBE1; --line-soft:#EDF5EE;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{width:1440px;height:900px;overflow:hidden;
+    font-family:"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+    background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(circle at 12% 8%, #E2F3E5 0%, transparent 42%),
+                     radial-gradient(circle at 88% 92%, #EAF6DE 0%, transparent 40%);}
+  .mono{font-family:"IBM Plex Mono",Consolas,monospace;font-variant-numeric:tabular-nums;}
+
+  .head{position:absolute;left:0;right:0;top:42px;display:flex;align-items:center;
+    justify-content:center;gap:24px;padding:0 44px;}
+  .h-tag{display:inline-flex;align-items:center;gap:8px;background:var(--surface);
+    border:1px solid var(--line);border-radius:999px;padding:7px 16px;
+    font-size:12.5px;font-weight:600;color:var(--sprout-700);letter-spacing:.4px;}
+  .h-tag i{width:8px;height:8px;border-radius:50%;background:var(--sprout-400);display:block;}
+  .h-t{font-size:22px;font-weight:600;color:var(--sprout-900);letter-spacing:.3px;white-space:nowrap;}
+  .h-s{font-size:12.5px;color:var(--ink-muted);line-height:1.6;max-width:470px;
+    border-left:1px solid var(--line);padding-left:24px;}
+
+  .stage{position:absolute;left:0;right:0;top:118px;display:flex;
+    justify-content:center;align-items:flex-start;gap:88px;}
+
+  .phone{width:376px;height:726px;border-radius:46px;background:#1B2A1E;padding:9px;
+    box-shadow:0 26px 60px rgba(20,49,26,.20), 0 3px 10px rgba(20,49,26,.10);position:relative;}
+  .screen{width:100%;height:100%;border-radius:38px;background:var(--canvas);
+    overflow:hidden;display:flex;flex-direction:column;position:relative;}
+  .notch{position:absolute;left:50%;transform:translateX(-50%);top:9px;width:104px;height:24px;
+    background:#1B2A1E;border-radius:0 0 16px 16px;z-index:20;}
+
+  .sbar{height:42px;flex:none;display:flex;align-items:center;justify-content:space-between;
+    padding:0 22px;font-size:11.5px;font-weight:600;color:var(--sprout-800);}
+  .sbar .r{display:flex;gap:5px;align-items:center;}
+  .bat{width:18px;height:9px;border:1.3px solid var(--sprout-800);border-radius:2.5px;position:relative;}
+  .bat::after{content:"";position:absolute;right:-3px;top:2.4px;width:1.6px;height:3.5px;
+    background:var(--sprout-800);border-radius:0 1px 1px 0;}
+  .bat i{position:absolute;left:1.4px;top:1.4px;bottom:1.4px;width:66%;
+    background:var(--sprout-600);border-radius:1px;display:block;}
+
+  .pbody{flex:1;overflow:hidden;padding:6px 20px 8px;display:flex;flex-direction:column;}
+  .pfoot{flex:none;padding:0 20px 4px;}
+
+  /* ── 捕获页 ── */
+  .cap-h{font-size:21px;font-weight:600;color:var(--sprout-900);margin-bottom:4px;}
+  .cap-s{font-size:12px;color:var(--ink-faint);margin-bottom:18px;}
+  .inbox{background:var(--surface);border:1.6px solid var(--sprout-300);border-radius:20px;
+    padding:15px 16px;min-height:122px;position:relative;
+    box-shadow:0 3px 14px rgba(63,143,79,.09);}
+  .inbox .ph{font-size:14.5px;color:var(--ink-faint);line-height:1.75;}
+  .inbox .typed{font-size:14.5px;color:var(--ink);line-height:1.75;}
+  .caret{display:inline-block;width:1.6px;height:16px;background:var(--sprout-600);
+    vertical-align:-3px;margin-left:1px;}
+  .inbox-f{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;
+    border-top:1px solid var(--line-soft);}
+  .ib-ic{width:30px;height:30px;border-radius:10px;background:var(--sprout-050);
+    display:grid;place-items:center;font-size:13px;color:var(--sprout-600);}
+  .ib-sp{margin-left:auto;font-size:11px;color:var(--ink-faint);}
+
+  .fld-lab{font-size:11px;color:var(--ink-faint);letter-spacing:1.1px;
+    margin:18px 0 9px;font-weight:600;}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;}
+  .chip{font-size:12.5px;padding:8px 14px;border-radius:12px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink-muted);display:flex;align-items:center;gap:6px;}
+  .chip.on{background:var(--sprout-600);border-color:var(--sprout-600);color:#F1F9F2;font-weight:600;}
+  .chip.on-l{background:var(--sprout-100);border-color:var(--sprout-300);color:var(--sprout-800);font-weight:600;}
+  .chip.bud{background:#F3F7DC;border-color:#DFE8A8;color:#5F6C15;font-weight:600;}
+
+  .rowcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:13px 15px;display:flex;align-items:center;gap:11px;}
+  .rowcard+.rowcard{margin-top:9px;}
+  .rc-i{width:32px;height:32px;border-radius:11px;background:var(--sprout-050);
+    display:grid;place-items:center;font-size:14px;color:var(--sprout-600);flex:none;}
+  .rc-b{flex:1;min-width:0;}
+  .rc-t{font-size:13.5px;color:var(--ink);font-weight:500;}
+  .rc-s{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .rc-v{font-size:12.5px;color:var(--sprout-700);font-weight:600;}
+
+  .actions{display:flex;gap:10px;margin-top:auto;padding-bottom:14px;}
+  .btn-main{flex:1;height:52px;border-radius:16px;background:var(--sprout-600);
+    color:#F2FAF3;font-size:15px;font-weight:600;display:grid;place-items:center;
+    box-shadow:0 6px 16px rgba(63,143,79,.28);}
+  .btn-ic{width:52px;height:52px;border-radius:16px;border:1.4px solid var(--sprout-300);
+    background:var(--surface);display:grid;place-items:center;font-size:17px;color:var(--sprout-700);}
+
+  .tabbar{height:58px;display:flex;align-items:center;justify-content:space-around;
+    background:var(--surface);border-top:1px solid var(--line);padding-bottom:6px;}
+  .tb{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;
+    color:var(--ink-faint);}
+  .tb .g{font-size:17px;line-height:1;}
+  .tb.on{color:var(--sprout-600);font-weight:600;}
+  .tb.on .g{position:relative;}
+  .tb.on .g::after{content:"";position:absolute;left:50%;transform:translateX(-50%);
+    bottom:-9px;width:16px;height:2.5px;border-radius:2px;background:var(--sprout-600);}
+  .home-ind{width:128px;height:4.5px;border-radius:3px;background:var(--sprout-900);
+    opacity:.22;margin:0 auto 7px;}
+
+  /* ── 今日页（移动） ── */
+  .mtop{display:flex;align-items:center;gap:11px;padding:0 0 10px;}
+  .mtop-b{flex:1;}
+  .mtop-d{font-size:11.5px;color:var(--ink-faint);letter-spacing:.5px;}
+  .mtop-t{font-size:20px;font-weight:600;color:var(--sprout-900);margin-top:3px;}
+  .mav{width:36px;height:36px;border-radius:13px;background:var(--sprout-100);
+    display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--sprout-700);}
+
+  .mhero{background:linear-gradient(125deg,var(--sprout-050),var(--sprout-100));
+    border:1px solid var(--sprout-200);border-radius:20px;padding:14px 16px;
+    display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;}
+  .mhero::after{content:"";position:absolute;right:-34px;top:-34px;width:110px;height:110px;
+    border-radius:50%;border:16px solid rgba(63,143,79,.07);}
+  .mh-b{flex:1;z-index:1;}
+  .mh-t{font-size:15px;font-weight:600;color:var(--sprout-900);}
+  .mh-s{font-size:11.5px;color:var(--sprout-700);margin-top:5px;line-height:1.55;}
+  .mh-p{display:flex;gap:5px;margin-top:11px;}
+  .mh-p i{height:5px;border-radius:3px;background:var(--sprout-200);flex:1;display:block;}
+  .mh-p i.f{background:var(--sprout-600);}
+  .mh-ring{width:64px;height:64px;flex:none;position:relative;z-index:1;}
+
+  .mt-sec{display:flex;align-items:center;gap:8px;margin:12px 0 7px;}
+  .mt-sec b{font-size:13.5px;font-weight:600;color:var(--sprout-900);}
+  .mt-sec span{font-size:11px;color:var(--ink-faint);}
+  .mt-sec em{margin-left:auto;font-size:11.5px;color:var(--sprout-600);font-style:normal;font-weight:600;}
+
+  .mtask{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:12px 14px;display:flex;gap:11px;align-items:flex-start;}
+  .mtask+.mtask{margin-top:7px;}
+  .mchk{width:20px;height:20px;border-radius:7px;border:1.8px solid var(--sprout-300);flex:none;margin-top:1px;}
+  .mchk.d{background:var(--sprout-600);border-color:var(--sprout-600);position:relative;}
+  .mchk.d::after{content:"";position:absolute;left:6px;top:2.5px;width:5px;height:9px;
+    border:2px solid #fff;border-top:0;border-left:0;transform:rotate(42deg);}
+  .mtask-b{flex:1;min-width:0;}
+  .mtask-t{font-size:13.5px;line-height:1.45;}
+  .mtask-t.d{color:var(--ink-faint);text-decoration:line-through;}
+  .mtask-m{display:flex;gap:6px;margin-top:7px;align-items:center;}
+  .tpill{font-size:10.5px;padding:2.5px 8px;border-radius:999px;font-weight:500;}
+  .tp-g{background:var(--sprout-100);color:var(--sprout-800);}
+  .tp-b{background:#F1F6DA;color:#5F6C15;}
+  .tp-o{background:#FBF3E6;color:#8A6220;}
+
+  .hab-row{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:12px 14px;display:flex;align-items:center;gap:11px;}
+  .hsq{width:17px;height:17px;border-radius:6px;background:var(--sprout-050);
+    border:1px solid var(--line);}
+  .hsq.f{background:var(--sprout-400);border-color:var(--sprout-400);}
+  .hab-row .n{font-size:13px;flex:1;color:var(--ink);}
+  .hab-row .c{font-size:11px;color:var(--sprout-700);font-weight:600;}
+
+  .fab{position:absolute;right:18px;bottom:80px;width:52px;height:52px;border-radius:19px;
+    background:var(--sprout-600);color:#F2FAF3;display:grid;place-items:center;font-size:22px;
+    box-shadow:0 10px 24px rgba(63,143,79,.36);z-index:10;}
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <div class="h-tag"><i></i>方案 C · 新芽晨光</div>
+    <div class="h-t">移动优先 · 浅嫩绿体系</div>
+    <div class="h-s">以「30 秒随手记」为第一场景：高亮度的嫩芽绿降低压迫感，大圆角与充足留白让单手操作更松弛。</div>
+  </div>
+
+  <div class="stage">
+
+    <!-- ══ 手机 1 · 快速捕获 ══ -->
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="sbar">
+          <span class="mono">19:55</span>
+          <div class="r">
+            <span style="font-size:10px;">▮▮▮</span>
+            <span style="font-size:10px;">◗</span>
+            <span class="bat"><i></i></span>
+          </div>
+        </div>
+
+        <div class="pbody">
+          <div class="cap-h">随手记</div>
+          <div class="cap-s">想到什么先丢进来，稍后再整理</div>
+
+          <div class="inbox">
+            <div class="typed">下周三之前把绿色体系的三套备选色卡<br>整理成一页对比图，方便评审时直接看<span class="caret"></span></div>
+            <div class="inbox-f">
+              <div class="ib-ic">◍</div>
+              <div class="ib-ic">▣</div>
+              <div class="ib-ic">⌘</div>
+              <div class="ib-sp mono">42 字</div>
+            </div>
+          </div>
+
+          <div class="fld-lab">这是</div>
+          <div class="chips">
+            <span class="chip on">✓ 任务</span>
+            <span class="chip">✎ 笔记</span>
+            <span class="chip">✦ 想法</span>
+            <span class="chip">↻ 习惯</span>
+          </div>
+
+          <div class="fld-lab">放到</div>
+          <div class="rowcard">
+            <div class="rc-i">◳</div>
+            <div class="rc-b">
+              <div class="rc-t">个人工作台</div>
+              <div class="rc-s">项目 · 进行中</div>
+            </div>
+            <div class="rc-v">更换</div>
+          </div>
+          <div class="rowcard">
+            <div class="rc-i">◷</div>
+            <div class="rc-b">
+              <div class="rc-t">9 月 24 日 · 周三</div>
+              <div class="rc-s">截止日 · 已设为「今日必达」前提醒</div>
+            </div>
+            <div class="rc-v">修改</div>
+          </div>
+
+          <div class="chips" style="margin-top:14px;">
+            <span class="chip bud">⚑ 高优先级</span>
+            <span class="chip on-l">⌗ 设计</span>
+            <span class="chip on-l">⌗ 配色</span>
+            <span class="chip">＋ 标签</span>
+          </div>
+
+          <div class="actions">
+            <div class="btn-main">保存到收件箱</div>
+            <div class="btn-ic">🎙</div>
+          </div>
+        </div>
+
+        <div class="pfoot">
+          <div class="home-ind"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 手机 2 · 今日 ══ -->
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="sbar">
+          <span class="mono">19:55</span>
+          <div class="r">
+            <span style="font-size:10px;">▮▮▮</span>
+            <span style="font-size:10px;">◗</span>
+            <span class="bat"><i></i></span>
+          </div>
+        </div>
+
+        <div class="pbody">
+          <div class="mtop">
+            <div class="mtop-b">
+              <div class="mtop-d">9 月 19 日 · 周六 · 第 38 周</div>
+              <div class="mtop-t">今日</div>
+            </div>
+            <div class="mav">康</div>
+          </div>
+
+          <div class="mhero">
+            <div class="mh-b">
+              <div class="mh-t">还剩 5 件事 ✦</div>
+              <div class="mh-s">已完成 7 项 · 专注 3h20m</div>
+              <div class="mh-p">
+                <i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i>
+                <i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
+            <svg class="mh-ring" viewBox="0 0 72 72">
+              <circle cx="36" cy="36" r="29" fill="none" stroke="#C9EBD0" stroke-width="7"/>
+              <circle cx="36" cy="36" r="29" fill="none" stroke="#3F8F4F" stroke-width="7"
+                stroke-linecap="round" stroke-dasharray="182" stroke-dashoffset="76"
+                transform="rotate(-90 36 36)"/>
+              <text x="36" y="40" text-anchor="middle" font-size="16" font-weight="600"
+                fill="#1D4A27" font-family="Consolas,monospace">58%</text>
+            </svg>
+          </div>
+
+          <div class="mt-sec"><b>今日重点</b><span>剩 3 项</span><em>全部 →</em></div>
+
+          <div class="mtask">
+            <div class="mchk d"></div>
+            <div class="mtask-b">
+              <div class="mtask-t d">完成绿色体系第三轮配色复核</div>
+              <div class="mtask-m"><span class="tpill tp-b">今日必达</span><span class="tpill tp-g">个人工作台</span></div>
+            </div>
+          </div>
+          <div class="mtask">
+            <div class="mchk"></div>
+            <div class="mtask-b">
+              <div class="mtask-t">撰写「柔壤 · 年轮」第 18 节验收记录</div>
+              <div class="mtask-m"><span class="tpill tp-b">今日必达</span><span class="tpill tp-o">约 40 分钟</span></div>
+            </div>
+          </div>
+          <div class="mtask">
+            <div class="mchk"></div>
+            <div class="mtask-b">
+              <div class="mtask-t">评审 Android 端触控目标收敛清单</div>
+              <div class="mtask-m"><span class="tpill tp-g">移动端</span></div>
+            </div>
+          </div>
+
+          <div class="mt-sec"><b>习惯打卡</b><span>已 2/4</span><em>全部 →</em></div>
+          <div class="hab-row">
+            <i class="hsq f"></i><span class="n">晨间阅读</span><span class="c">连续 12 天</span>
+          </div>
+          <div class="hab-row" style="margin-top:7px;">
+            <i class="hsq f"></i><span class="n">无手机时段</span><span class="c">连续 4 天</span>
+          </div>
+          <div class="hab-row" style="margin-top:7px;">
+            <i class="hsq"></i><span class="n">运动 30 分钟</span>
+          </div>
+        </div>
+
+        <div class="fab">＋</div>
+
+        <div class="pfoot">
+          <div class="tabbar">
+            <div class="tb on"><span class="g">◉</span>今日</div>
+            <div class="tb"><span class="g">▤</span>计划</div>
+            <div class="tb"><span class="g">▦</span>记录</div>
+            <div class="tb"><span class="g">◍</span>成长</div>
+            <div class="tb"><span class="g">⋯</span>更多</div>
+          </div>
+          <div class="home-ind"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

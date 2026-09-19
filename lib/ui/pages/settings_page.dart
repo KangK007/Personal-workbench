@@ -351,7 +351,7 @@ class SettingsPage extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                '个人工作台 0.1',
+                '个人工作台 0.2',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

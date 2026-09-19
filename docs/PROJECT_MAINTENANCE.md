@@ -7,7 +7,9 @@
 ## 当前状态
 
 - 当前分支：`main`；远程：`origin`（GitHub `KangK007/Personal-workbench`）。
-- 应用版本：`0.1.0+4`。
+- 应用版本：`0.2.0+5`。
+- 本轮提交准备聚焦 0.2.0+5 发布链：同步应用、Windows 版本资源、Markdown/DOCX 手册和发布清单；构建脚本新增安全删除状态校验与 Windows 插件符号链接预建。
+- 当前可用产物为 `dist/PersonalWorkbench_0.2.0+5_windows.zip` 与 `dist/apk/PersonalWorkbench_0.2.0_5_debug-arm64-v8a.apk`；它们属于构建产物，按约定不进入 Git。
 - 本轮界面与导航整理已完成：主题令牌、通用组件、6 域桌面导航、移动端“今日/计划/记录/成长/更多”底栏、页面配色、预览站和 Golden 基线已同步；被新导航取代的 `DiaryPage`、`MorePage` 及对应旧基线已移除。
 - 本轮还新增了 `ORGANIC_UI_SPEC.md`、`FILE_INVENTORY_AUDIT.md`、`design_preview/organic/index.html` 以及颜色、APK、Windows 构建验证脚本；`tool/build_android.ps1` 已同步签名和路径校验流程。
 - 已在本机完成 `dart format --output=none --set-exit-if-changed lib test`（无差异）、`flutter analyze`（无问题）和 `flutter test --reporter compact`（242/242 通过）；测试输出中的“磁盘满”仅为错误恢复测试主动注入的预期异常。
@@ -22,6 +24,9 @@
 - [x] 导航收敛为 6 个用户心智域，桌面端采用手风琴，移动端统一由底栏“更多”打开系统层入口。
 - [x] 页面级语义色、`VineRail` 芽点组件、容器对比度和底部导航净空完成同步；Golden 与回归测试已更新。
 - [x] 全量文件盘点、重复/死代码清理和维护文档更新完成；未发现应提交的密钥或发布签名文件。
+- [x] 0.2.0+5 的版本号、设置页显示、Windows 资源回退值、用户手册和发布清单已同步。
+- [x] Windows/Android 构建脚本的产物清理改为状态校验式删除；Windows 构建增加插件符号链接预建。
+- [x] 用户手册 DOCX 已按 0.2.0+5 重新生成，结构化 OOXML 校验通过；当前环境缺少 LibreOffice，尚未完成 PNG 视觉渲染复核。
 
 ### 待办
 
@@ -29,6 +34,8 @@
 - [ ] 完成 Android Release 签名构建、Windows 原生托盘/限制能力、通知休眠恢复和文件选择器窗口激活的外部条件验收。
 - [ ] 使用隔离账号复核 Supabase 分页、冲突、失败恢复和 RLS；不要把任何私有密钥写入仓库。
 - [ ] 单独评估 `flutter_markdown` → `flutter_markdown_plus` 的兼容性、视觉回归和迁移窗口。
+- [ ] 在管理员/真实 Windows 会话中复验插件符号链接预建和 Release 安装包清理；当前自动化环境无法替代系统权限与原生副作用验收。
+- [ ] 在具备 LibreOffice 的环境中渲染 `docs/manual/个人工作台_用户使用手册.docx`，逐页复核分页、字体、图片和表格布局。
 
 ## 目录约定
 

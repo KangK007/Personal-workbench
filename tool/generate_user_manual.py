@@ -16,6 +16,7 @@ from docx.shared import Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs" / "manual" / "USER_MANUAL.md"
 OUTPUT = ROOT / "docs" / "manual" / "个人工作台_用户使用手册.docx"
+APP_VERSION = "0.2.0+5"
 
 GREEN = "2F7D57"
 DARK_GREEN = "1F4D3A"
@@ -347,7 +348,7 @@ def configure_page(doc: Document) -> None:
     paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
     left = paragraph.add_run("个人工作台用户手册")
     set_run_font(left, size=9, color=MUTED, bold=True)
-    right = paragraph.add_run("\t0.1.0+4")
+    right = paragraph.add_run(f"\t{APP_VERSION}")
     set_run_font(right, size=9, color=MUTED)
     tabs = paragraph.paragraph_format.tab_stops
     tabs.add_tab_stop(Inches(6.5), WD_TAB_ALIGNMENT.RIGHT)
@@ -377,9 +378,9 @@ def add_cover(doc: Document) -> None:
     set_run_font(run, size=16, color=GREEN)
     for text, size, bold in (
         ("Windows 与 Android", 11, True),
-        ("版本 0.1.0+4", 10, False),
+        (f"版本 {APP_VERSION}", 10, False),
         ("依据实际代码、完整测试矩阵和真实运行界面编制", 10, False),
-        ("验证日期：2026-08-31", 10, False),
+        ("验证日期：2026-09-19", 10, False),
     ):
         paragraph = doc.add_paragraph()
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -418,7 +419,7 @@ def build_document() -> None:
     configure_styles(doc)
     configure_page(doc)
     doc.core_properties.title = "个人工作台用户使用手册"
-    doc.core_properties.subject = "个人工作台 0.1.0+4 Windows 与 Android 使用说明"
+    doc.core_properties.subject = f"个人工作台 {APP_VERSION} Windows 与 Android 使用说明"
     doc.core_properties.author = "个人工作台项目"
     doc.core_properties.keywords = "个人工作台, Windows, Android, 任务, 项目, 专注, 回顾"
     add_cover(doc)

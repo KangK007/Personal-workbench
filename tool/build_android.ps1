@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet('debug', 'profile', 'release')]
     [string]$Configuration = 'debug',
@@ -10,6 +10,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Configuration = $Configuration.ToLowerInvariant()
+
+# 安全删除助手：垫片环境下 Remove-Item 会「报错但已生效」，
+# 故删除一律走状态校验式助手，避免构建死在产物复制之前。
+. (Join-Path $PSScriptRoot 'lib\Remove-Verified.ps1')
 
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 if ($Configuration -eq 'release') {
@@ -278,7 +282,7 @@ foreach ($built in $builtApks) {
             Where-Object { $_.Name -ne $distributionName }
     )
     foreach ($staleDistribution in $staleDistributions) {
-        Remove-Item -LiteralPath $staleDistribution.FullName -Force
+        Remove-Verified -LiteralPath $staleDistribution.FullName
     }
     Copy-Item -LiteralPath $built.Path -Destination $distribution -Force
     Write-Output "Android build completed: $destination"

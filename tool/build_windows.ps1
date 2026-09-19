@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet('debug', 'profile', 'release')]
     [string]$Configuration = 'release',
@@ -74,6 +74,35 @@ try {
     & flutter pub get
     if ($LASTEXITCODE -ne 0) {
         throw "flutter pub get failed with exit code $LASTEXITCODE"
+    }
+
+    # 预建插件符号链接。本机调用 CreateSymbolicLink 时，链接会被正确建好，
+    # 但调用方收到 ERROR_FILE_NOT_FOUND(2) 的假错误，flutter_tools 据此中止构建。
+    # flutter_tools 的逻辑是「链接已存在就跳过」，故在此先行备好。
+    # 完整成因与验证过程见 tool\prelink_plugin_symlinks.dart 顶部注释。
+    $dartExecutable = $null
+    $flutterCommand = Get-Command -Name 'flutter' -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -ne $flutterCommand -and $flutterCommand.Source) {
+        $dartCandidate = Join-Path (Split-Path -Parent $flutterCommand.Source) 'cache\dart-sdk\bin\dart.exe'
+        if (Test-Path -LiteralPath $dartCandidate -PathType Leaf) {
+            $dartExecutable = $dartCandidate
+        }
+    }
+    if (-not $dartExecutable) {
+        $dartCommand = Get-Command -Name 'dart' -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($null -ne $dartCommand -and $dartCommand.Source) {
+            $dartExecutable = $dartCommand.Source
+        }
+    }
+    if (-not $dartExecutable) {
+        throw 'dart executable not found; cannot pre-create plugin symlinks.'
+    }
+
+    & $dartExecutable (Join-Path $PSScriptRoot 'prelink_plugin_symlinks.dart') $sourceCopy
+    if ($LASTEXITCODE -ne 0) {
+        throw "Plugin symlink pre-creation failed with exit code $LASTEXITCODE"
     }
 
     $buildArguments = @('build', 'windows', "--$Configuration", '--no-pub')

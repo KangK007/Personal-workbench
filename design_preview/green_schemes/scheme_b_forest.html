@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{
+    /* ── 方案 B 绿色体系 · 深林数据 ── */
+    --canvas:#F1F5F0; --surface:#FFFFFF; --rail:#14301F;
+    --forest-950:#082114; --forest-900:#0B2B1D; --forest-800:#123C28;
+    --forest-700:#1F5C3D; --forest-600:#2A7A52; --forest-500:#2E9E6B;
+    --forest-400:#4FB985; --forest-300:#7ED0A0; --forest-200:#B4E3C7;
+    --forest-100:#DCF0E3; --forest-050:#EDF7F1;
+    --lime:#A8C63F; --teal:#0E7C7B;
+    --ink:#0F1F17; --ink-muted:#5B6B62; --ink-faint:#8B9A91;
+    --line:#DCE5DE; --line-soft:#EDF1EE;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{width:1440px;height:900px;overflow:hidden;
+    font-family:"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+    background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .mono{font-family:"IBM Plex Mono",Consolas,monospace;font-variant-numeric:tabular-nums;}
+  .app{display:flex;width:1440px;height:900px;}
+
+  /* ═══ 图标栏 ═══ */
+  .rail{width:68px;flex:none;background:var(--rail);display:flex;flex-direction:column;
+    align-items:center;padding:18px 0;gap:6px;}
+  .rail-mark{width:36px;height:36px;border-radius:12px;background:var(--forest-500);
+    display:grid;place-items:center;margin-bottom:20px;}
+  .rail-mark i{width:13px;height:13px;border-radius:50%;border:2.5px solid #082114;
+    border-bottom-color:transparent;transform:rotate(-40deg);display:block;}
+  .r-ic{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;
+    color:rgba(180,227,199,.5);font-size:15px;position:relative;}
+  .r-ic.on{background:var(--forest-600);color:#DCF0E3;}
+  .r-ic.on::before{content:"";position:absolute;left:-14px;top:10px;width:3px;height:20px;
+    border-radius:0 3px 3px 0;background:var(--forest-400);}
+  .rail-foot{margin-top:auto;color:rgba(180,227,199,.45);font-size:15px;}
+
+  /* ═══ 主区 ═══ */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;}
+  .topbar{height:64px;flex:none;display:flex;align-items:center;gap:14px;padding:0 24px;
+    background:var(--surface);border-bottom:1px solid var(--line);}
+  .tb-t{font-size:18px;font-weight:600;color:var(--forest-900);}
+  .tb-c{font-size:12px;color:var(--ink-faint);margin-top:2px;}
+  .seg{display:flex;background:var(--forest-050);border-radius:12px;padding:3px;margin-left:14px;}
+  .seg span{font-size:12.5px;padding:6px 15px;border-radius:10px;color:var(--ink-muted);font-weight:500;}
+  .seg span.on{background:var(--forest-700);color:#EAF7EF;font-weight:600;}
+  .tb-r{margin-left:auto;display:flex;align-items:center;gap:10px;}
+  .btn-solid{background:var(--forest-700);color:#EAF7EF;font-size:12.5px;font-weight:600;
+    padding:9px 16px;border-radius:12px;}
+  .btn-ghost{border:1px solid var(--line);color:var(--ink-muted);font-size:12.5px;
+    padding:8px 14px;border-radius:12px;background:var(--surface);}
+
+  .body{flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:16px;overflow:hidden;}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;height:126px;flex:none;}
+  .kpi{padding:16px 18px;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+  .kpi-l{font-size:11.5px;color:var(--ink-faint);letter-spacing:.6px;}
+  .kpi-v{font-size:29px;font-weight:600;color:var(--forest-900);margin:9px 0 0;line-height:1;}
+  .kpi-v small{font-size:14px;font-weight:500;color:var(--ink-muted);margin-left:3px;}
+  .kpi-d{margin-top:auto;display:flex;align-items:center;gap:6px;font-size:11.5px;}
+  .up{color:var(--forest-600);font-weight:600;}
+  .dn{color:#B4593F;font-weight:600;}
+  .kpi-spark{position:absolute;right:14px;top:14px;opacity:.9;}
+  .kpi-accent{position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:0 4px 4px 0;}
+
+  /* 图表行 */
+  .mids{display:grid;grid-template-columns:1.92fr 1fr;gap:16px;height:304px;flex:none;}
+  .ch-h{display:flex;align-items:center;gap:10px;padding:16px 20px 0;}
+  .ch-t{font-size:14.5px;font-weight:600;color:var(--forest-900);}
+  .ch-s{font-size:11.5px;color:var(--ink-faint);}
+  .legend{margin-left:auto;display:flex;gap:14px;font-size:11.5px;color:var(--ink-muted);}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;}
+
+  .donut-wrap{display:flex;align-items:center;gap:14px;padding:8px 20px 0;}
+  .dlist{flex:1;display:flex;flex-direction:column;gap:11px;}
+  .dl{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+  .dl i{width:10px;height:10px;border-radius:3px;flex:none;}
+  .dl span.n{color:var(--ink-muted);flex:1;}
+  .dl span.v{font-weight:600;color:var(--forest-900);}
+
+  /* 底部行 */
+  .bots{display:grid;grid-template-columns:1.92fr 1fr;gap:16px;flex:1;min-height:0;}
+  .heat{padding:16px 20px;display:flex;flex-direction:column;}
+  .hm-row{display:flex;align-items:center;gap:10px;margin-top:9px;}
+  .hm-lab{width:74px;font-size:11.5px;color:var(--ink-muted);flex:none;}
+  .hm-cells{display:flex;gap:5px;flex:1;}
+  .hm-c{flex:1;height:24px;border-radius:6px;background:var(--forest-050);}
+  .hm-days{display:flex;gap:5px;margin-left:84px;margin-top:6px;}
+  .hm-days b{flex:1;text-align:center;font-size:10.5px;font-weight:500;color:var(--ink-faint);}
+  .hm-scale{display:flex;align-items:center;gap:5px;margin-left:auto;font-size:10.5px;color:var(--ink-faint);}
+  .hm-scale i{width:12px;height:12px;border-radius:4px;display:block;}
+
+  .proj{padding:16px 20px;display:flex;flex-direction:column;gap:12px;overflow:hidden;}
+  .pj{display:flex;flex-direction:column;gap:7px;}
+  .pj-t{display:flex;align-items:baseline;gap:8px;font-size:13px;}
+  .pj-t b{font-weight:600;color:var(--forest-900);}
+  .pj-t span{margin-left:auto;font-size:11.5px;color:var(--ink-faint);}
+  .bar{height:9px;border-radius:5px;background:var(--forest-050);overflow:hidden;}
+  .bar i{display:block;height:100%;border-radius:4px;}
+  .pj-m{font-size:11px;color:var(--ink-faint);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 图标栏 -->
+  <div class="rail">
+    <div class="rail-mark"><i></i></div>
+    <div class="r-ic on">◉</div>
+    <div class="r-ic">▤</div>
+    <div class="r-ic">◳</div>
+    <div class="r-ic">▦</div>
+    <div class="r-ic">◈</div>
+    <div class="r-ic">◍</div>
+    <div class="rail-foot">⚙</div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="tb-t">周回顾</div>
+        <div class="tb-c">第 38 周 · 9 月 14 日 — 9 月 20 日</div>
+      </div>
+      <div class="seg">
+        <span>日</span><span class="on">周</span><span>月</span><span>季</span>
+      </div>
+      <div class="tb-r">
+        <div class="btn-ghost">← 上一周</div>
+        <div class="btn-ghost">下一周 →</div>
+        <div class="btn-solid">导出报告</div>
+      </div>
+    </div>
+
+    <div class="body">
+
+      <!-- KPI 行 -->
+      <div class="kpis">
+        <div class="card kpi">
+          <div class="kpi-accent" style="background:var(--forest-700);"></div>
+          <div class="kpi-l">完成任务</div>
+          <div class="kpi-v mono">87<small>项</small></div>
+          <div class="kpi-d"><span class="up">▲ 12.4%</span><span style="color:var(--ink-faint)">对比上周 77</span></div>
+          <svg class="kpi-spark" width="64" height="26" viewBox="0 0 64 26">
+            <polyline points="0,20 9,16 18,18 27,11 36,13 45,7 54,9 64,4" fill="none"
+              stroke="#2E9E6B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-accent" style="background:var(--forest-500);"></div>
+          <div class="kpi-l">专注时长</div>
+          <div class="kpi-v mono">32<small>h</small> 25<small>m</small></div>
+          <div class="kpi-d"><span class="up">▲ 4h 10m</span><span style="color:var(--ink-faint)">日均 4h38m</span></div>
+          <svg class="kpi-spark" width="64" height="26" viewBox="0 0 64 26">
+            <polyline points="0,22 9,18 18,20 27,14 36,15 45,9 54,12 64,6" fill="none"
+              stroke="#2E9E6B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-accent" style="background:var(--lime);"></div>
+          <div class="kpi-l">习惯达成率</div>
+          <div class="kpi-v mono">92<small>%</small></div>
+          <div class="kpi-d"><span class="dn">▼ 2.1%</span><span style="color:var(--ink-faint)">运动项拖累</span></div>
+          <svg class="kpi-spark" width="64" height="26" viewBox="0 0 64 26">
+            <polyline points="0,10 9,8 18,12 27,9 36,14 45,12 54,16 64,17" fill="none"
+              stroke="#A8C63F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-accent" style="background:var(--teal);"></div>
+          <div class="kpi-l">沉淀笔记</div>
+          <div class="kpi-v mono">14<small>篇</small></div>
+          <div class="kpi-d"><span class="up">▲ 3 篇</span><span style="color:var(--ink-faint)">约 8,400 字</span></div>
+          <svg class="kpi-spark" width="64" height="26" viewBox="0 0 64 26">
+            <polyline points="0,19 9,14 18,16 27,10 36,12 45,6 54,8 64,3" fill="none"
+              stroke="#0E7C7B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- 图表行 -->
+      <div class="mids">
+        <div class="card" style="display:flex;flex-direction:column;">
+          <div class="ch-h">
+            <span class="ch-t">专注时长分布</span>
+            <span class="ch-s">按日 · 单位 小时</span>
+            <div class="legend">
+              <span><i style="background:#2E9E6B"></i>深度专注</span>
+              <span><i style="background:#B4E3C7"></i>浅度工作</span>
+            </div>
+          </div>
+          <svg width="100%" height="228" viewBox="0 0 830 228" preserveAspectRatio="none" style="margin-top:8px;">
+            <!-- grid -->
+            <g stroke="#EDF1EE" stroke-width="1">
+              <line x1="46" y1="20" x2="810" y2="20"/>
+              <line x1="46" y1="66" x2="810" y2="66"/>
+              <line x1="46" y1="112" x2="810" y2="112"/>
+              <line x1="46" y1="158" x2="810" y2="158"/>
+              <line x1="46" y1="196" x2="810" y2="196"/>
+            </g>
+            <g font-size="10" fill="#8B9A91" font-family="Consolas,monospace" text-anchor="end">
+              <text x="36" y="24">8h</text><text x="36" y="70">6h</text>
+              <text x="36" y="116">4h</text><text x="36" y="162">2h</text>
+              <text x="36" y="200">0</text>
+            </g>
+            <!-- stacked bars -->
+            <g>
+              <rect x="78"  y="150" width="42" height="46"  rx="6" fill="#2E9E6B"/>
+              <rect x="78"  y="122" width="42" height="26"  rx="6" fill="#B4E3C7"/>
+              <rect x="182" y="131" width="42" height="65"  rx="6" fill="#2E9E6B"/>
+              <rect x="182" y="104" width="42" height="25"  rx="6" fill="#B4E3C7"/>
+              <rect x="286" y="140" width="42" height="56"  rx="6" fill="#2E9E6B"/>
+              <rect x="286" y="112" width="42" height="26"  rx="6" fill="#B4E3C7"/>
+              <rect x="390" y="108" width="42" height="88"  rx="6" fill="#2E9E6B"/>
+              <rect x="390" y="80"  width="42" height="26"  rx="6" fill="#B4E3C7"/>
+              <rect x="494" y="120" width="42" height="76"  rx="6" fill="#2E9E6B"/>
+              <rect x="494" y="92"  width="42" height="26"  rx="6" fill="#B4E3C7"/>
+              <rect x="598" y="88"  width="42" height="108" rx="6" fill="#2E9E6B"/>
+              <rect x="598" y="60"  width="42" height="26"  rx="6" fill="#B4E3C7"/>
+              <rect x="702" y="146" width="42" height="50"  rx="6" fill="#2E9E6B"/>
+              <rect x="702" y="118" width="42" height="26"  rx="6" fill="#B4E3C7"/>
+            </g>
+            <!-- avg line -->
+            <polyline points="99,131 203,112 307,121 411,89 515,101 619,69 723,127"
+              fill="none" stroke="#0E7C7B" stroke-width="2" stroke-dasharray="5 4"
+              stroke-linecap="round" stroke-linejoin="round"/>
+            <g fill="#0E7C7B">
+              <circle cx="99" cy="131" r="3.2"/><circle cx="203" cy="112" r="3.2"/>
+              <circle cx="307" cy="121" r="3.2"/><circle cx="411" cy="89" r="3.2"/>
+              <circle cx="515" cy="101" r="3.2"/><circle cx="619" cy="69" r="3.2"/>
+              <circle cx="723" cy="127" r="3.2"/>
+            </g>
+            <g font-size="11" fill="#5B6B62" text-anchor="middle" font-family="Microsoft YaHei,sans-serif">
+              <text x="99" y="216">周一</text><text x="203" y="216">周二</text>
+              <text x="307" y="216">周三</text><text x="411" y="216">周四</text>
+              <text x="515" y="216">周五</text><text x="619" y="216">周六</text>
+              <text x="723" y="216">周日</text>
+            </g>
+          </svg>
+        </div>
+
+        <div class="card" style="display:flex;flex-direction:column;">
+          <div class="ch-h"><span class="ch-t">时间分配</span><span class="ch-s">本周 44h</span></div>
+          <div class="donut-wrap">
+            <svg width="130" height="130" viewBox="0 0 130 130">
+              <circle cx="65" cy="65" r="50" fill="none" stroke="#EDF7F1" stroke-width="17"/>
+              <circle cx="65" cy="65" r="50" fill="none" stroke="#1F5C3D" stroke-width="17"
+                stroke-dasharray="138 314" stroke-dashoffset="0" transform="rotate(-90 65 65)"/>
+              <circle cx="65" cy="65" r="50" fill="none" stroke="#2E9E6B" stroke-width="17"
+                stroke-dasharray="88 314" stroke-dashoffset="-138" transform="rotate(-90 65 65)"/>
+              <circle cx="65" cy="65" r="50" fill="none" stroke="#A8C63F" stroke-width="17"
+                stroke-dasharray="50 314" stroke-dashoffset="-226" transform="rotate(-90 65 65)"/>
+              <circle cx="65" cy="65" r="50" fill="none" stroke="#0E7C7B" stroke-width="17"
+                stroke-dasharray="38 314" stroke-dashoffset="-276" transform="rotate(-90 65 65)"/>
+              <text x="65" y="62" text-anchor="middle" font-size="21" font-weight="600"
+                fill="#0B2B1D" font-family="Consolas,monospace">74%</text>
+              <text x="65" y="79" text-anchor="middle" font-size="10"
+                fill="#8B9A91" font-family="Microsoft YaHei,sans-serif">有效投入</text>
+            </svg>
+            <div class="dlist">
+              <div class="dl"><i style="background:#1F5C3D"></i><span class="n">深度工作</span><span class="v mono">19.8h</span></div>
+              <div class="dl"><i style="background:#2E9E6B"></i><span class="n">浅度事务</span><span class="v mono">12.6h</span></div>
+              <div class="dl"><i style="background:#A8C63F"></i><span class="n">学习输入</span><span class="v mono">7.2h</span></div>
+              <div class="dl"><i style="background:#0E7C7B"></i><span class="n">复盘记录</span><span class="v mono">4.4h</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部行 -->
+      <div class="bots">
+        <div class="card heat">
+          <div class="ch-h" style="padding:0;">
+            <span class="ch-t">习惯热力</span>
+            <span class="ch-s">最近 7 天 · 颜色越深完成度越高</span>
+            <div class="hm-scale">
+              低<i style="background:#DCF0E3"></i><i style="background:#7ED0A0"></i>
+              <i style="background:#2E9E6B"></i><i style="background:#1F5C3D"></i>高
+            </div>
+          </div>
+          <div class="hm-row">
+            <span class="hm-lab">晨间阅读</span>
+            <div class="hm-cells"><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#7ED0A0"></i><i class="hm-c" style="background:#DCF0E3"></i></div>
+          </div>
+          <div class="hm-row">
+            <span class="hm-lab">运动 30 分钟</span>
+            <div class="hm-cells"><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#7ED0A0"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#DCF0E3"></i><i class="hm-c"></i><i class="hm-c"></i></div>
+          </div>
+          <div class="hm-row">
+            <span class="hm-lab">无手机时段</span>
+            <div class="hm-cells"><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#7ED0A0"></i></div>
+          </div>
+          <div class="hm-row">
+            <span class="hm-lab">日回顾</span>
+            <div class="hm-cells"><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#7ED0A0"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#DCF0E3"></i><i class="hm-c"></i></div>
+          </div>
+          <div class="hm-row">
+            <span class="hm-lab">冥想 10 分钟</span>
+            <div class="hm-cells"><i class="hm-c" style="background:#7ED0A0"></i><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#DCF0E3"></i><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#7ED0A0"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#2E9E6B"></i></div>
+          </div>
+          <div class="hm-row">
+            <span class="hm-lab">23:00 前入睡</span>
+            <div class="hm-cells"><i class="hm-c" style="background:#2E9E6B"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#1F5C3D"></i><i class="hm-c" style="background:#DCF0E3"></i><i class="hm-c"></i><i class="hm-c" style="background:#7ED0A0"></i><i class="hm-c" style="background:#2E9E6B"></i></div>
+          </div>
+          <div class="hm-days">
+            <b>一</b><b>二</b><b>三</b><b>四</b><b>五</b><b>六</b><b>日</b>
+          </div>
+        </div>
+
+        <div class="card proj">
+          <div class="ch-h" style="padding:0;">
+            <span class="ch-t">项目推进</span>
+            <span class="ch-s" style="margin-left:auto;">3 个进行中</span>
+          </div>
+          <div class="pj">
+            <div class="pj-t"><b>个人工作台</b><span>完成 34 / 48</span></div>
+            <div class="bar"><i style="width:71%;background:var(--forest-600);"></i></div>
+            <div class="pj-m">本周推进 9 项 · 里程碑「绿色体系定稿」</div>
+          </div>
+          <div class="pj">
+            <div class="pj-t"><b>技术笔记归档</b><span>完成 12 / 30</span></div>
+            <div class="bar"><i style="width:40%;background:var(--forest-500);"></i></div>
+            <div class="pj-m">本周推进 4 项 · 无阻塞</div>
+          </div>
+          <div class="pj">
+            <div class="pj-t"><b>年度阅读计划</b><span>完成 21 / 24</span></div>
+            <div class="bar"><i style="width:88%;background:var(--lime);"></i></div>
+            <div class="pj-m">本周推进 1 项 · 接近收尾</div>
+          </div>
+          <div class="pj">
+            <div class="pj-t"><b>英文精读</b><span>完成 6 / 20</span></div>
+            <div class="bar"><i style="width:30%;background:var(--teal);"></i></div>
+            <div class="pj-m">本周推进 2 项 · 有 1 项延期</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

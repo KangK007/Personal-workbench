@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{
+    /* ── 方案 D 绿色体系 · 松针夜航 ── */
+    --canvas:#0C1A12; --surface:#122419; --raised:#18301F;
+    --pine-900:#1F4328; --pine-700:#2F5F3C;
+    --pine-500:#3E7A50; --pine-400:#6FBF7C; --pine-300:#A8D98F;
+    --pine-200:#C9E8B8; --pine-100:#DCEFD2;
+    --ink:#E6F0E4; --ink-muted:#8FA694; --ink-faint:#63806C;
+    --line:rgba(111,191,124,.15); --line-2:rgba(111,191,124,.09);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{width:1440px;height:900px;overflow:hidden;
+    font-family:"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+    background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(circle at 50% 34%, rgba(111,191,124,.11) 0%, transparent 46%),
+                     radial-gradient(circle at 8% 92%, rgba(111,191,124,.05) 0%, transparent 34%);}
+  .mono{font-family:"IBM Plex Mono",Consolas,monospace;font-variant-numeric:tabular-nums;}
+  .app{display:flex;flex-direction:column;width:1440px;height:900px;}
+
+  /* ═══ 顶栏 ═══ */
+  .top{height:68px;flex:none;display:flex;align-items:center;gap:16px;padding:0 30px;
+    border-bottom:1px solid var(--line-2);}
+  .back{width:38px;height:38px;border-radius:13px;border:1px solid var(--line);
+    display:grid;place-items:center;font-size:15px;color:var(--ink-muted);}
+  .top-b{display:flex;flex-direction:column;gap:3px;}
+  .top-t{font-size:16px;font-weight:600;color:var(--pine-100);letter-spacing:.3px;}
+  .top-s{font-size:11.5px;color:var(--ink-faint);}
+  .live{margin-left:14px;display:flex;align-items:center;gap:7px;font-size:11.5px;
+    color:var(--pine-300);background:rgba(111,191,124,.10);border:1px solid var(--line);
+    padding:5px 12px;border-radius:999px;font-weight:500;}
+  .live i{width:7px;height:7px;border-radius:50%;background:var(--pine-400);display:block;
+    box-shadow:0 0 0 4px rgba(111,191,124,.13);}
+  .top-r{margin-left:auto;display:flex;gap:10px;align-items:center;}
+  .tbtn{border:1px solid var(--line);border-radius:13px;padding:9px 16px;font-size:12.5px;
+    color:var(--ink-muted);background:rgba(255,255,255,.02);}
+  .tbtn.warn{color:#E0A98F;border-color:rgba(224,169,143,.28);}
+
+  /* ═══ 主体 ═══ */
+  .body{flex:1;padding:26px 30px;display:flex;flex-direction:column;gap:20px;min-height:0;}
+  .grid{display:grid;grid-template-columns:296px 1fr 296px;gap:22px;height:472px;flex:none;}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:22px;
+    display:flex;flex-direction:column;overflow:hidden;}
+  .p-h{display:flex;align-items:center;gap:9px;padding:17px 20px 0;}
+  .p-t{font-size:13.5px;font-weight:600;color:var(--pine-100);}
+  .p-s{margin-left:auto;font-size:11px;color:var(--ink-faint);}
+  .p-c{padding:14px 20px 18px;display:flex;flex-direction:column;gap:9px;}
+
+  /* 环境音 */
+  .amb{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:15px;
+    border:1px solid transparent;}
+  .amb.on{background:rgba(111,191,124,.09);border-color:var(--line);}
+  .amb-i{width:32px;height:32px;border-radius:11px;background:rgba(111,191,124,.08);
+    display:grid;place-items:center;font-size:14px;color:var(--ink-faint);flex:none;}
+  .amb.on .amb-i{background:rgba(111,191,124,.16);color:var(--pine-300);}
+  .amb-b{flex:1;min-width:0;}
+  .amb-t{font-size:13px;color:var(--ink-muted);}
+  .amb.on .amb-t{color:var(--pine-100);font-weight:600;}
+  .amb-vol{display:flex;gap:3px;margin-top:6px;align-items:flex-end;height:11px;}
+  .amb-vol i{width:3px;border-radius:2px;background:var(--pine-700);display:block;}
+  .amb.on .amb-vol i{background:var(--pine-400);}
+
+  /* 中央 */
+  .center{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    position:relative;}
+  .ring-wrap{position:relative;width:322px;height:322px;}
+  .ring-txt{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;}
+  .rt-time{font-size:62px;font-weight:600;color:var(--pine-100);letter-spacing:1px;line-height:1;}
+  .rt-lab{font-size:12px;color:var(--ink-faint);margin-top:12px;letter-spacing:1px;}
+  .rt-seq{display:flex;gap:6px;margin-top:14px;}
+  .rt-seq i{width:7px;height:7px;border-radius:50%;background:var(--pine-700);display:block;}
+  .rt-seq i.f{background:var(--pine-300);}
+  .rt-seq i.cur{background:var(--pine-400);box-shadow:0 0 0 4px rgba(111,191,124,.18);}
+  .rt-goal{margin-top:16px;font-size:11.5px;color:var(--ink-muted);
+    background:rgba(255,255,255,.03);border:1px solid var(--line-2);
+    padding:5px 13px;border-radius:999px;}
+
+  .cur-task{margin-top:20px;width:100%;max-width:430px;background:var(--surface);
+    border:1px solid var(--line);border-radius:20px;padding:15px 18px;
+    display:flex;align-items:center;gap:13px;}
+  .ct-bar{width:3px;height:34px;border-radius:3px;background:var(--pine-400);flex:none;}
+  .ct-b{flex:1;min-width:0;}
+  .ct-t{font-size:14px;color:var(--pine-100);font-weight:500;}
+  .ct-s{font-size:11.5px;color:var(--ink-faint);margin-top:5px;display:flex;gap:12px;}
+  .ct-n{font-size:12px;color:var(--pine-300);font-weight:600;}
+
+  .ctrls{margin-top:18px;display:flex;gap:11px;align-items:center;}
+  .cb{width:46px;height:46px;border-radius:15px;border:1px solid var(--line);
+    display:grid;place-items:center;font-size:16px;color:var(--ink-muted);
+    background:rgba(255,255,255,.02);}
+  .cb.main{width:112px;height:46px;border-radius:15px;background:var(--pine-400);
+    color:#0C1A12;font-size:14.5px;font-weight:600;
+    box-shadow:0 8px 26px rgba(111,191,124,.26);}
+
+  /* 右侧本次详情 */
+  .stat{display:flex;align-items:baseline;gap:8px;padding:12px 0;}
+  .stat+.stat{border-top:1px solid var(--line-2);}
+  .stat-t{font-size:12.5px;color:var(--ink-muted);flex:1;}
+  .stat-v{font-size:15px;font-weight:600;color:var(--pine-100);}
+  .stat-v small{font-size:11px;color:var(--ink-faint);font-weight:500;margin-left:2px;}
+  .mini{margin-top:22px;}
+  .mini-t{font-size:11px;color:var(--ink-faint);letter-spacing:1.1px;font-weight:600;}
+  .mini-bars{display:flex;align-items:flex-end;gap:3.5px;height:62px;margin-top:11px;}
+  .mini-bars i{flex:1;border-radius:3.5px;background:var(--pine-700);display:block;}
+  .mini-bars i.hi{background:var(--pine-400);}
+  .mini-f{display:flex;justify-content:space-between;font-size:10.5px;
+    color:var(--ink-faint);margin-top:8px;}
+  .note{background:rgba(111,191,124,.07);border:1px solid var(--line);
+    border-radius:15px;padding:13px 15px;margin-top:14px;}
+  .note-t{font-size:11px;color:var(--pine-300);letter-spacing:1.1px;font-weight:600;}
+  .note-c{font-size:12.5px;color:var(--ink-muted);margin-top:8px;line-height:1.65;}
+
+  /* ═══ 底部统计 ═══ */
+  .stats{display:grid;grid-template-columns:300px 1fr;gap:22px;flex:1;min-height:0;}
+  .today{padding:18px 22px;display:flex;flex-direction:column;}
+  .td-v{font-size:40px;font-weight:600;color:var(--pine-100);line-height:1;margin:14px 0 0;}
+  .td-v small{font-size:16px;color:var(--ink-faint);font-weight:500;margin-left:4px;}
+  .td-m{font-size:11.5px;color:var(--ink-faint);margin-top:10px;}
+  .td-bar{height:8px;border-radius:5px;background:rgba(111,191,124,.10);margin-top:14px;
+    overflow:hidden;}
+  .td-bar i{display:block;height:100%;border-radius:5px;
+    background:linear-gradient(90deg,var(--pine-500),var(--pine-300));}
+  .td-chips{display:flex;gap:8px;margin-top:auto;padding-top:16px;}
+  .tchip{font-size:11.5px;padding:6px 12px;border-radius:999px;
+    background:rgba(111,191,124,.08);border:1px solid var(--line-2);color:var(--ink-muted);}
+  .tchip b{color:var(--pine-300);font-weight:600;}
+
+  .chart{padding:18px 22px;display:flex;flex-direction:column;}
+  .bars{flex:1;display:flex;align-items:flex-end;gap:9px;padding-top:14px;}
+  .bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;
+    justify-content:flex-end;}
+  .bstack{width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:3px;}
+  .b1{background:var(--pine-400);border-radius:6px;width:100%;}
+  .b2{background:rgba(111,191,124,.26);border-radius:6px;width:100%;}
+  .blab{font-size:10.5px;color:var(--ink-faint);}
+  .bcol.now .blab{color:var(--pine-300);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 顶栏 -->
+  <div class="top">
+    <div class="back">←</div>
+    <div class="top-b">
+      <div class="top-t">深度工作</div>
+      <div class="top-s">番茄钟 · 25 分钟 / 5 分钟休息 · 第 3 轮</div>
+    </div>
+    <div class="live"><i></i>专注中 · 已屏蔽 12 个应用通知</div>
+    <div class="top-r">
+      <div class="tbtn">全屏</div>
+      <div class="tbtn warn">结束本次</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <div class="grid">
+
+      <!-- 环境音 -->
+      <div class="panel">
+        <div class="p-h"><span class="p-t">环境音</span><span class="p-s">已开 1 项</span></div>
+        <div class="p-c">
+          <div class="amb on">
+            <div class="amb-i">☂</div>
+            <div class="amb-b">
+              <div class="amb-t">雨落屋顶</div>
+              <div class="amb-vol">
+                <i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i>
+                <i style="height:11px"></i><i style="height:8px"></i><i style="height:5px"></i>
+                <i style="height:9px"></i>
+              </div>
+            </div>
+          </div>
+          <div class="amb">
+            <div class="amb-i">♣</div>
+            <div class="amb-b">
+              <div class="amb-t">林间风声</div>
+              <div class="amb-vol"><i style="height:3px"></i><i style="height:4px"></i><i style="height:3px"></i><i style="height:5px"></i><i style="height:3px"></i><i style="height:4px"></i><i style="height:3px"></i></div>
+            </div>
+          </div>
+          <div class="amb">
+            <div class="amb-i">☕</div>
+            <div class="amb-b">
+              <div class="amb-t">咖啡馆</div>
+              <div class="amb-vol"><i style="height:3px"></i><i style="height:3px"></i><i style="height:4px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i></div>
+            </div>
+          </div>
+          <div class="amb">
+            <div class="amb-i">♪</div>
+            <div class="amb-b">
+              <div class="amb-t">低频钢琴</div>
+              <div class="amb-vol"><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i></div>
+            </div>
+          </div>
+          <div class="amb">
+            <div class="amb-i">◌</div>
+            <div class="amb-b">
+              <div class="amb-t">白噪音</div>
+              <div class="amb-vol"><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:3px"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 中央计时 -->
+      <div class="center">
+        <div class="ring-wrap">
+          <svg width="322" height="322" viewBox="0 0 322 322">
+            <circle cx="161" cy="161" r="141" fill="none" stroke="rgba(111,191,124,.10)" stroke-width="13"/>
+            <circle cx="161" cy="161" r="141" fill="none" stroke="#6FBF7C" stroke-width="13"
+              stroke-linecap="round" stroke-dasharray="223 886" transform="rotate(-90 161 161)"/>
+            <circle cx="161" cy="161" r="120" fill="none" stroke="rgba(111,191,124,.07)" stroke-width="1"/>
+            <!-- 刻度 -->
+            <g stroke="rgba(111,191,124,.22)" stroke-width="1.6">
+              <line x1="161" y1="14" x2="161" y2="24"/>
+              <line x1="308" y1="161" x2="298" y2="161"/>
+              <line x1="161" y1="308" x2="161" y2="298"/>
+              <line x1="14" y1="161" x2="24" y2="161"/>
+            </g>
+          </svg>
+          <div class="ring-txt">
+            <div class="rt-time mono">18:42</div>
+            <div class="rt-lab">剩余时间</div>
+            <div class="rt-seq">
+              <i class="f"></i><i class="f"></i><i class="cur"></i><i></i><i></i>
+            </div>
+            <div class="rt-goal">今日第 5 个番茄 · 目标 8 个</div>
+          </div>
+        </div>
+
+        <div class="cur-task">
+          <div class="ct-bar"></div>
+          <div class="ct-b">
+            <div class="ct-t">撰写「柔壤 · 年轮」第 18 节验收记录</div>
+            <div class="ct-s"><span>记录 · 长文</span><span>预计还需 2 个番茄</span></div>
+          </div>
+          <div class="ct-n">67%</div>
+        </div>
+
+        <div class="ctrls">
+          <div class="cb">↺</div>
+          <div class="cb main">⏸　暂停</div>
+          <div class="cb">⤼</div>
+        </div>
+      </div>
+
+      <!-- 本次详情 -->
+      <div class="panel">
+        <div class="p-h"><span class="p-t">本次专注</span><span class="p-s">19:36 开始</span></div>
+        <div class="p-c" style="gap:0;padding-top:8px;">
+          <div class="stat"><span class="stat-t">已投入</span><span class="stat-v mono">06:18</span></div>
+          <div class="stat"><span class="stat-t">计划时长</span><span class="stat-v mono">25<small>分</small></span></div>
+          <div class="stat"><span class="stat-t">被打断</span><span class="stat-v mono">0<small>次</small></span></div>
+          <div class="stat"><span class="stat-t">专注质量</span><span class="stat-v" style="color:#A8D98F;">优</span></div>
+
+          <div class="mini">
+            <div class="mini-t">近 14 天专注</div>
+            <div class="mini-bars">
+              <i style="height:42%"></i><i style="height:66%"></i><i style="height:30%"></i>
+              <i style="height:78%"></i><i style="height:54%"></i><i class="hi" style="height:92%"></i>
+              <i style="height:48%"></i><i style="height:70%"></i><i style="height:36%"></i>
+              <i style="height:82%"></i><i style="height:60%"></i><i style="height:44%"></i>
+              <i style="height:74%"></i><i class="hi" style="height:88%"></i>
+            </div>
+            <div class="mini-f"><span>9/06</span><span>9/19</span></div>
+          </div>
+
+          <div class="note">
+            <div class="note-t">本 周 提 示</div>
+            <div class="note-c">你在 19:30–21:00 的专注质量最高。<br>今晚还剩 2 个番茄，建议直接做完。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部统计 -->
+    <div class="stats">
+      <div class="panel today">
+        <div class="p-h"><span class="p-t">今日累计</span><span class="p-s">目标 4h</span></div>
+        <div class="td-v mono">3h 20m</div>
+        <div class="td-m">已完成 5 个番茄 · 平均每个 40 分钟</div>
+        <div class="td-bar"><i style="width:83%"></i></div>
+        <div class="td-chips">
+          <span class="tchip">连续 <b>9</b> 天达标</span>
+          <span class="tchip">本周 <b>32h25m</b></span>
+        </div>
+      </div>
+
+      <div class="panel chart">
+        <div class="p-h">
+          <span class="p-t">今日专注分布</span>
+          <span class="p-s">按小时 · 深色为深度工作，浅色为浅度事务</span>
+        </div>
+        <div class="bars">
+          <div class="bcol"><div class="bstack"><i class="b1" style="height:14%"></i></div><span class="blab">08</span></div>
+          <div class="bcol"><div class="bstack"><i class="b1" style="height:44%"></i><i class="b2" style="height:12%"></i></div><span class="blab">09</span></div>
+          <div class="bcol"><div class="bstack"><i class="b1" style="height:52%"></i><i class="b2" style="height:16%"></i></div><span class="blab">10</span></div>
+          <div class="bcol"><div class="bstack"><i class="b1" style="height:30%"></i><i class="b2" style="height:20%"></i></div><span class="blab">11</span></div>
+          <div class="bcol"><div class="bstack"><i class="b2" style="height:16%"></i></div><span class="blab">12</span></div>
+          <div class="bcol"><div class="bstack"><i class="b2" style="height:10%"></i></div><span class="blab">13</span></div>
+          <div class="bcol"><div class="bstack"><i class="b1" style="height:38%"></i><i class="b2" style="height:14%"></i></div><span class="blab">14</span></div>
+          <div class="bcol"><div class="bstack"><i class="b1" style="height:56%"></i><i class="b2" style="height:10%"></i></div><span class="blab">15</span></div>
+          <div class="bcol"><div class="bstack"><i class="b1" style="height:26%"></i><i class="b2" style="height:18%"></i></div><span class="blab">16</span></div>
+          <div class="bcol"><div class="bstack"><i class="b2" style="height:12%"></i></div><span class="blab">17</span></div>
+          <div class="bcol"><div class="bstack"><i class="b2" style="height:9%"></i></div><span class="blab">18</span></div>
+          <div class="bcol now"><div class="bstack"><i class="b1" style="height:34%"></i></div><span class="blab">19</span></div>
+          <div class="bcol"><div class="bstack"><i style="height:4%;background:rgba(111,191,124,.12);border-radius:6px;display:block;width:100%"></i></div><span class="blab">20</span></div>
+          <div class="bcol"><div class="bstack"><i style="height:4%;background:rgba(111,191,124,.12);border-radius:6px;display:block;width:100%"></i></div><span class="blab">21</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

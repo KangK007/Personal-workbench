@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>个人工作台 · 绿色体系四套界面优化方案</title>
+<style>
+  :root{
+    --page:#F4F7F1; --card:#FFFFFF; --ink:#1C2A1E; --ink-2:#5E6E60; --ink-3:#8B9A8D;
+    --line:#DFE7DC; --accent:#4A6E4C;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--page);color:var(--ink);
+    font-family:"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+    -webkit-font-smoothing:antialiased;padding:48px 40px 64px;}
+  .mono{font-family:"IBM Plex Mono",Consolas,monospace;font-variant-numeric:tabular-nums;}
+  .wrap{max-width:1400px;margin:0 auto;}
+
+  header{border-bottom:1px solid var(--line);padding-bottom:26px;margin-bottom:34px;}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;
+    color:var(--accent);background:#EAF1E8;border-radius:999px;padding:6px 15px;
+    letter-spacing:.4px;}
+  .kicker i{width:7px;height:7px;border-radius:50%;background:#6FA870;display:block;}
+  h1{font-size:32px;font-weight:600;margin-top:16px;letter-spacing:.4px;}
+  .sub{font-size:14px;color:var(--ink-2);margin-top:12px;line-height:1.75;max-width:820px;}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:22px;
+    overflow:hidden;display:flex;flex-direction:column;}
+  .shot{border-bottom:1px solid var(--line);background:#EDF1EA;line-height:0;}
+  .shot img{width:100%;display:block;}
+  .body{padding:22px 24px 24px;display:flex;flex-direction:column;gap:14px;flex:1;}
+  .hd{display:flex;align-items:baseline;gap:11px;}
+  .badge{font-size:11.5px;font-weight:700;color:#fff;border-radius:8px;padding:4px 9px;
+    letter-spacing:.6px;}
+  .nm{font-size:19px;font-weight:600;}
+  .tag{margin-left:auto;font-size:11.5px;color:var(--ink-3);}
+  .desc{font-size:13.5px;color:var(--ink-2);line-height:1.8;}
+  .sw{display:flex;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--line);}
+  .sw div{flex:1;height:44px;display:flex;align-items:flex-end;justify-content:center;
+    padding-bottom:5px;font-size:9.5px;font-weight:600;letter-spacing:.3px;}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:4px;}
+  .chip{font-size:11.5px;padding:5px 11px;border-radius:999px;background:#F1F5EE;
+    color:var(--ink-2);border:1px solid var(--line);}
+
+  .foot{margin-top:38px;background:var(--card);border:1px solid var(--line);
+    border-radius:22px;padding:26px 28px;}
+  .foot h2{font-size:17px;font-weight:600;margin-bottom:16px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);}
+  th{font-size:11.5px;color:var(--ink-3);font-weight:600;letter-spacing:.6px;}
+  td.mono{font-size:12.5px;}
+  .dot{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;
+    margin-right:7px;border:1px solid rgba(0,0,0,.08);}
+  tr:last-child td{border-bottom:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker"><i></i>绿色配色体系 · 界面优化方案</div>
+    <h1>个人工作台 · 四套绿色界面优化方案</h1>
+    <div class="sub">
+      四套方案均以绿色为主色调，构建从画布、容器到强调色的完整绿色阶梯，并各自匹配不同的使用场景与组件组合。
+      方案 A / B / D 为 1440×900 桌面视觉稿，方案 C 为 390×844 移动端视觉稿（双屏并列展示）。
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- A -->
+    <div class="card">
+      <div class="shot"><img src="scheme_a_moss.png" alt="方案 A 苔绿静水"></div>
+      <div class="body">
+        <div class="hd">
+          <span class="badge" style="background:#4A6E4C;">A</span>
+          <span class="nm">苔绿静水</span>
+          <span class="tag">桌面 · 今日页</span>
+        </div>
+        <div class="sw">
+          <div style="background:#F7F4EC;color:#8A9083;">F7F4EC</div>
+          <div style="background:#EDF3EA;color:#4A6E4C;">EDF3EA</div>
+          <div style="background:#DCE7D8;color:#2F4A31;">DCE7D8</div>
+          <div style="background:#4A6E4C;color:#DCE7D8;">4A6E4C</div>
+          <div style="background:#1E3320;color:#B5CDB2;">1E3320</div>
+        </div>
+        <div class="desc">
+          沿用现行「柔壤 · 年轮」苔绿基调，以米色画布托住绿意，压低饱和度换取长时段注视的舒适度。
+          三栏结构：左侧 6 域手风琴导航、中部任务与时间轴、右侧环形进度 / 习惯打卡 / 专注入口。
+          绿色在此承担「行动」语义——可按、可推进、可完成，其余信息交给中性色承载。
+        </div>
+        <div class="meta">
+          <span class="chip">环形进度</span><span class="chip">任务清单</span>
+          <span class="chip">时间轴</span><span class="chip">习惯格</span>
+          <span class="chip">状态标签</span><span class="chip">深浅双主题</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- B -->
+    <div class="card">
+      <div class="shot"><img src="scheme_b_forest.png" alt="方案 B 深林数据"></div>
+      <div class="body">
+        <div class="hd">
+          <span class="badge" style="background:#1F5C3D;">B</span>
+          <span class="nm">深林数据</span>
+          <span class="tag">桌面 · 周回顾看板</span>
+        </div>
+        <div class="sw">
+          <div style="background:#F1F5F0;color:#8B9A91;">F1F5F0</div>
+          <div style="background:#DCF0E3;color:#1F5C3D;">DCF0E3</div>
+          <div style="background:#2E9E6B;color:#FFFFFF;">2E9E6B</div>
+          <div style="background:#1F5C3D;color:#B4E3C7;">1F5C3D</div>
+          <div style="background:#0B2B1D;color:#7ED0A0;">0B2B1D</div>
+        </div>
+        <div class="desc">
+          把绿色推深、推冷，形成「森林梯度」，用足够的明度跨度承载高密度数据。
+          KPI 卡 + 堆叠柱状图 + 环形占比 + 习惯热力图 + 项目进度条，五种图表组件共用同一绿色阶梯，
+          深浅只表达数值高低，不引入第二种色相，保证看板在信息密集时依然统一。
+        </div>
+        <div class="meta">
+          <span class="chip">KPI 指标卡</span><span class="chip">堆叠柱图</span>
+          <span class="chip">环形占比</span><span class="chip">热力矩阵</span>
+          <span class="chip">进度条</span><span class="chip">时间粒度切换</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- C -->
+    <div class="card">
+      <div class="shot"><img src="scheme_c_sprout.png" alt="方案 C 新芽晨光"></div>
+      <div class="body">
+        <div class="hd">
+          <span class="badge" style="background:#3F8F4F;">C</span>
+          <span class="nm">新芽晨光</span>
+          <span class="tag">移动端 · 捕获 + 今日</span>
+        </div>
+        <div class="sw">
+          <div style="background:#F5FAF0;color:#90A894;">F5FAF0</div>
+          <div style="background:#E2F3E5;color:#3F8F4F;">E2F3E5</div>
+          <div style="background:#7FCB8E;color:#14311A;">7FCB8E</div>
+          <div style="background:#3F8F4F;color:#EFF8F0;">3F8F4F</div>
+          <div style="background:#C3DA6B;color:#5F6C15;">C3DA6B</div>
+        </div>
+        <div class="desc">
+          面向「掏手机 30 秒记一句」的高频短场景，绿色整体提亮、提高黄相，并混入嫩芽黄绿作次强调，
+          削弱压迫感。大圆角、大留白、下沉的主操作按钮与右下 FAB，全部服务于单手拇指可达；
+          类型 Chip 与「放到」分区让快速捕获不必填完整表单。
+        </div>
+        <div class="meta">
+          <span class="chip">多行输入</span><span class="chip">类型 Chip</span>
+          <span class="chip">选择行</span><span class="chip">标签组</span>
+          <span class="chip">悬浮按钮</span><span class="chip">底部导航</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- D -->
+    <div class="card">
+      <div class="shot"><img src="scheme_d_pine.png" alt="方案 D 松针夜航"></div>
+      <div class="body">
+        <div class="hd">
+          <span class="badge" style="background:#2F5F3C;">D</span>
+          <span class="nm">松针夜航</span>
+          <span class="tag">桌面 · 沉浸专注</span>
+        </div>
+        <div class="sw">
+          <div style="background:#0C1A12;color:#63806C;">0C1A12</div>
+          <div style="background:#122419;color:#8FA694;">122419</div>
+          <div style="background:#2F5F3C;color:#DCEFD2;">2F5F3C</div>
+          <div style="background:#6FBF7C;color:#0C1A12;">6FBF7C</div>
+          <div style="background:#A8D98F;color:#0C1A12;">A8D98F</div>
+        </div>
+        <div class="desc">
+          深色墨绿体系，把绿色从「背景色」翻转为「光源」：低明度松针底上只留一处高亮绿弧与数字，
+          其余全部退到近乎无彩的暗部，让视线自然锁定计时。左右浮动面板承载环境音与本次数据，
+          底部统计条与时段分布图保持同一绿色阶梯，兼顾沉浸感与信息密度。
+        </div>
+        <div class="meta">
+          <span class="chip">巨型环形计时</span><span class="chip">音频列表</span>
+          <span class="chip">数据明细</span><span class="chip">迷你趋势</span>
+          <span class="chip">分时段柱图</span><span class="chip">阶段指示点</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="foot">
+    <h2>四套绿色体系主色对照</h2>
+    <table>
+      <tr>
+        <th style="width:16%;">方案</th>
+        <th style="width:20%;">画布 / 底色</th>
+        <th style="width:18%;">主色（行动）</th>
+        <th style="width:18%;">容器色</th>
+        <th style="width:28%;">体系特征</th>
+      </tr>
+      <tr>
+        <td><b>A 苔绿静水</b></td>
+        <td class="mono"><span class="dot" style="background:#F7F4EC;"></span>#F7F4EC</td>
+        <td class="mono"><span class="dot" style="background:#4A6E4C;"></span>#4A6E4C</td>
+        <td class="mono"><span class="dot" style="background:#DCE7D8;"></span>#DCE7D8</td>
+        <td>暖米画布 + 低饱和苔绿，中性、耐看</td>
+      </tr>
+      <tr>
+        <td><b>B 深林数据</b></td>
+        <td class="mono"><span class="dot" style="background:#F1F5F0;"></span>#F1F5F0</td>
+        <td class="mono"><span class="dot" style="background:#1F5C3D;"></span>#1F5C3D</td>
+        <td class="mono"><span class="dot" style="background:#DCF0E3;"></span>#DCF0E3</td>
+        <td>冷调浅绿灰 + 深森林绿，明度跨度大，适数据</td>
+      </tr>
+      <tr>
+        <td><b>C 新芽晨光</b></td>
+        <td class="mono"><span class="dot" style="background:#F5FAF0;"></span>#F5FAF0</td>
+        <td class="mono"><span class="dot" style="background:#3F8F4F;"></span>#3F8F4F</td>
+        <td class="mono"><span class="dot" style="background:#E2F3E5;"></span>#E2F3E5</td>
+        <td>高亮度嫩绿 + 黄绿点缀，轻快、亲和</td>
+      </tr>
+      <tr>
+        <td><b>D 松针夜航</b></td>
+        <td class="mono"><span class="dot" style="background:#0C1A12;"></span>#0C1A12</td>
+        <td class="mono"><span class="dot" style="background:#6FBF7C;"></span>#6FBF7C</td>
+        <td class="mono"><span class="dot" style="background:#122419;"></span>#122419</td>
+        <td>深色松针底 + 亮绿焦点，沉浸、低干扰</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

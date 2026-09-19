@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet('debug', 'profile', 'release')]
     [string]$Configuration = 'release',
@@ -9,6 +9,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Configuration = $Configuration.ToLowerInvariant()
+
+# 安全删除助手：垫片环境下 Remove-Item 会「报错但已生效」，
+# 故删除一律走状态校验式助手，避免构建死在产物复制之前。
+. (Join-Path $PSScriptRoot 'lib\Remove-Verified.ps1')
 
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $buildScript = Join-Path $projectRoot 'tool\build_windows.ps1'
@@ -59,9 +63,7 @@ if (-not $resolvedDistributionRoot.StartsWith(
     throw 'The Windows distribution path validation failed.'
 }
 
-if (Test-Path -LiteralPath $distributionRoot) {
-    Remove-Item -LiteralPath $distributionRoot -Recurse -Force
-}
+Remove-Verified -LiteralPath $distributionRoot -Recurse
 New-Item -ItemType Directory -Force -Path $packageApp | Out-Null
 Get-ChildItem -LiteralPath $releaseRoot -Force |
     Copy-Item -Destination $packageApp -Recurse -Force
@@ -70,10 +72,22 @@ $packagingSource = Join-Path $projectRoot 'packaging\windows'
 Get-ChildItem -LiteralPath $packagingSource -File |
     Copy-Item -Destination $distributionRoot -Force
 
-if (Test-Path -LiteralPath $archive) {
-    Remove-Item -LiteralPath $archive -Force
-}
+Remove-Verified -LiteralPath $archive
 Compress-Archive -Path (Join-Path $distributionRoot '*') -DestinationPath $archive -CompressionLevel Optimal
+
+# 清理历史版本 zip：新版本名与旧版本名不同，仅按当前版本名删除会漏掉旧包，
+# 导致 dist\ 里同时堆着多个版本的 Windows 安装包。与 build_android.ps1 的
+# 「按同一形态模式清理」保持一致。
+# 放在 Compress-Archive **之后**：重建若中途失败，旧的可用安装包仍然保留。
+$distRoot = Join-Path $projectRoot 'dist'
+$staleArchives = @(
+    Get-ChildItem -LiteralPath $distRoot -Filter 'PersonalWorkbench_*_windows.zip' -File |
+        Where-Object { $_.Name -ne [System.IO.Path]::GetFileName($archive) }
+)
+foreach ($staleArchive in $staleArchives) {
+    Write-Output "Removing stale archive: $($staleArchive.Name)"
+    Remove-Verified -LiteralPath $staleArchive.FullName
+}
 
 if ($Install.IsPresent) {
     $installer = Join-Path $distributionRoot 'Install-PersonalWorkbench.ps1'
