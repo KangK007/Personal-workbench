@@ -107,13 +107,21 @@ class WorkbenchShell extends StatefulWidget {
 }
 
 class _WorkbenchShellState extends State<WorkbenchShell> {
+  /// 移动端底部导航（规范 2.3）。
+  ///
+  /// 每项对应一个**用户心智域**而非一个页面。原方案「今日/任务/回顾/行为/设置」
+  /// 的问题是高频道「成长」缺席、低频的「设置」占了主位。现改为
+  /// 今日 / 计划 / 记录 / 成长 / 更多——末位「更多」打开系统层弹层。
+  /// `WorkbenchSection` 枚举值全部保持不变，仅重新归组。
   static const _mobilePrimarySections = [
     WorkbenchSection.today,
     WorkbenchSection.tasksAll,
     WorkbenchSection.reviewDaily,
-    WorkbenchSection.behavior,
-    WorkbenchSection.settings,
+    WorkbenchSection.growth,
   ];
+
+  /// 末位「更多」在 destinations 中的索引。它不是某个 section，而是打开弹层。
+  static const _mobileMoreIndex = 4;
 
   WorkbenchSection section = WorkbenchSection.today;
   BehaviorMode behaviorMode = BehaviorMode.habits;
@@ -305,8 +313,8 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   Widget _mobileLayout() {
     final primary = _mobilePrimaryFor(section) ?? _lastMobilePrimary;
     final index = _mobilePrimarySections.indexOf(primary);
-    // Project detail pages are reachable from 更多 but are not bottom
-    // destinations; keep NavigationBar on a valid neutral index.
+    // 项目详情页等可通过「更多」进入，但它们不是底部导航项；
+    // NavigationBar 需要一个有效索引，故回落到 0 并由横幅说明当前页面。
     final isSecondaryDestination = index < 0;
     // NavigationBar requires a valid index. A compact page banner makes the
     // fallback explicit so a secondary page is never mistaken for 今日.
@@ -381,11 +389,9 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               tooltip: '全局搜索',
               icon: const Icon(Icons.search),
             ),
-            IconButton(
-              tooltip: '更多',
-              icon: const Icon(Icons.apps_outlined),
-              onPressed: () => _openMobileNavigation(context),
-            ),
+            // 「更多」入口唯一：底部导航末位（规范 2.3）。此处曾另放一个同功能
+            // 图标按钮，与底栏同屏重复，且两个同名 tooltip 会让无障碍朗读与
+            // 自动化定位产生歧义，故移除。
           ],
           flexibleSpace: DecoratedBox(
             decoration: BoxDecoration(
@@ -458,10 +464,16 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
             ),
             NavigationBar(
               selectedIndex: navigationIndex,
-              onDestinationSelected: (value) => _select(
-                _lastMobileChild[_mobilePrimarySections[value]] ??
-                    _mobilePrimarySections[value],
-              ),
+              onDestinationSelected: (value) {
+                if (value == _mobileMoreIndex) {
+                  _openMobileNavigation(context);
+                  return;
+                }
+                _select(
+                  _lastMobileChild[_mobilePrimarySections[value]] ??
+                      _mobilePrimarySections[value],
+                );
+              },
               destinations: const [
                 NavigationDestination(
                   icon: Icon(Icons.today_outlined),
@@ -469,24 +481,24 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                   label: '今日',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.checklist_outlined),
-                  selectedIcon: Icon(Icons.checklist),
-                  label: '任务',
+                  icon: Icon(Icons.event_note_outlined),
+                  selectedIcon: Icon(Icons.event_note),
+                  label: '计划',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.insights_outlined),
-                  selectedIcon: Icon(Icons.insights),
-                  label: '回顾',
+                  icon: Icon(Icons.menu_book_outlined),
+                  selectedIcon: Icon(Icons.menu_book),
+                  label: '记录',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.psychology_outlined),
-                  selectedIcon: Icon(Icons.psychology),
-                  label: '行为',
+                  icon: Icon(Icons.trending_up_outlined),
+                  selectedIcon: Icon(Icons.trending_up),
+                  label: '成长',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings),
-                  label: '设置',
+                  icon: Icon(Icons.more_horiz),
+                  selectedIcon: Icon(Icons.more_horiz),
+                  label: '更多',
                 ),
               ],
             ),
@@ -780,13 +792,23 @@ class _NavigationNode {
   bool get isLeaf => children.isEmpty;
 }
 
+/// 6 域导航树（规范 2.1）。
+///
+/// 原方案是 14 个平铺入口 + 2 个折叠组，线性扫描成本高。改为「域 → 子页」两级后，
+/// 可见决策项从约 20 降到 6 域 + 至多 4 个子项。所有 `WorkbenchSection` 枚举值
+/// 保持不变——只是重新归组，不触碰路由语义与控制器。
 const _navigationTree = [
   _NavigationNode.leaf(WorkbenchSection.today, '今日', Icons.today_outlined),
-  _NavigationNode.parent('tasks', '任务', Icons.checklist_outlined, [
+  _NavigationNode.parent('plan', '计划', Icons.event_note_outlined, [
     _NavigationNode.leaf(
       WorkbenchSection.tasksAll,
-      '全部',
+      '全部任务',
       Icons.checklist_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.tasksInbox,
+      '收件箱',
+      Icons.inbox_outlined,
     ),
     _NavigationNode.leaf(
       WorkbenchSection.tasksWeek,
@@ -799,44 +821,59 @@ const _navigationTree = [
       Icons.account_tree_outlined,
     ),
   ]),
+  // 项目是跨域容器且使用频率高，保持一级入口；概览/任务/任务群/里程碑/笔记
+  // 落在页内 Tab，不占用导航层级（规范 2.2 第 4 条：深度上限 3 层）。
   _NavigationNode.leaf(
     WorkbenchSection.projectsOverview,
     '项目',
     Icons.folder_outlined,
   ),
-  _NavigationNode.leaf(
-    WorkbenchSection.tasksInbox,
-    '收件箱',
-    Icons.inbox_outlined,
-  ),
-  _NavigationNode.leaf(WorkbenchSection.focus, '专注', Icons.timer_outlined),
-  _NavigationNode.leaf(
-    WorkbenchSection.protocols,
-    '协议',
-    Icons.timeline_outlined,
-  ),
-  _NavigationNode.leaf(
-    WorkbenchSection.restriction,
-    '自律',
-    Icons.shield_outlined,
-  ),
-  _NavigationNode.leaf(WorkbenchSection.notes, '笔记', Icons.note_alt_outlined),
-  _NavigationNode.leaf(
-    WorkbenchSection.reviewDaily,
-    '回顾',
-    Icons.insights_outlined,
-  ),
-  _NavigationNode.leaf(WorkbenchSection.goals, '目标', Icons.flag_outlined),
-  _NavigationNode.leaf(
-    WorkbenchSection.behavior,
-    '行为',
-    Icons.psychology_outlined,
-  ),
-  _NavigationNode.leaf(
-    WorkbenchSection.growth,
-    '成长',
-    Icons.trending_up_outlined,
-  ),
+  _NavigationNode.parent('record', '记录', Icons.menu_book_outlined, [
+    _NavigationNode.leaf(WorkbenchSection.notes, '笔记', Icons.note_alt_outlined),
+    _NavigationNode.leaf(
+      WorkbenchSection.reviewDaily,
+      '日回顾',
+      Icons.today_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.reviewWeekly,
+      '周回顾',
+      Icons.date_range_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.reviewMonthly,
+      '月回顾',
+      Icons.calendar_month_outlined,
+    ),
+  ]),
+  _NavigationNode.parent('execute', '执行', Icons.timer_outlined, [
+    _NavigationNode.leaf(WorkbenchSection.focus, '专注', Icons.timer_outlined),
+    _NavigationNode.leaf(
+      WorkbenchSection.protocols,
+      '协议',
+      Icons.timeline_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.restriction,
+      '自律',
+      Icons.shield_outlined,
+    ),
+  ]),
+  _NavigationNode.parent('growth', '成长', Icons.trending_up_outlined, [
+    _NavigationNode.leaf(WorkbenchSection.goals, '目标', Icons.flag_outlined),
+    _NavigationNode.leaf(WorkbenchSection.habits, '习惯', Icons.repeat_outlined),
+    _NavigationNode.leaf(
+      WorkbenchSection.behavior,
+      '行为',
+      Icons.psychology_outlined,
+    ),
+    _NavigationNode.leaf(
+      WorkbenchSection.growth,
+      '成长',
+      Icons.stacked_line_chart_outlined,
+    ),
+  ]),
+  // 系统层常驻，不占导航层级：设置始终可直达。
   _NavigationNode.leaf(
     WorkbenchSection.settings,
     '设置',
@@ -846,13 +883,20 @@ const _navigationTree = [
 
 String? _navigationParentId(WorkbenchSection value) => switch (value) {
   WorkbenchSection.tasksAll ||
+  WorkbenchSection.tasksInbox ||
   WorkbenchSection.tasksWeek ||
-  WorkbenchSection.tasksGroups => 'tasks',
-  WorkbenchSection.projectsTasks ||
-  WorkbenchSection.projectsGroups ||
-  WorkbenchSection.projectsMilestones ||
-  WorkbenchSection.projectsNotes => 'projects',
-  WorkbenchSection.reviewWeekly || WorkbenchSection.reviewMonthly => 'review',
+  WorkbenchSection.tasksGroups => 'plan',
+  WorkbenchSection.notes ||
+  WorkbenchSection.reviewDaily ||
+  WorkbenchSection.reviewWeekly ||
+  WorkbenchSection.reviewMonthly => 'record',
+  WorkbenchSection.focus ||
+  WorkbenchSection.protocols ||
+  WorkbenchSection.restriction => 'execute',
+  WorkbenchSection.goals ||
+  WorkbenchSection.habits ||
+  WorkbenchSection.behavior ||
+  WorkbenchSection.growth => 'growth',
   _ => null,
 };
 
@@ -1112,7 +1156,11 @@ class _DesktopNavigation extends StatelessWidget {
     final containsSelected = node.children.any(
       (child) => child.section == selected,
     );
-    final expanded = controller.navigationGroupExpanded(node.id!);
+    // 手风琴（规范 2.2 第 1 条）：只默认展开当前域，同时最多展开一个。
+    // 非当前域恒为收起——点击其标题会先进入该域（`_select` 会展开它），
+    // 所以不需要再为「哪个域展开」维护一份互斥状态。
+    final expanded =
+        containsSelected && controller.navigationGroupExpanded(node.id!);
     if (collapsed) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
@@ -1138,7 +1186,12 @@ class _DesktopNavigation extends StatelessWidget {
             if (event is! KeyDownEvent) return KeyEventResult.ignored;
             if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
                 !expanded) {
-              controller.setNavigationGroupExpanded(node.id!, true);
+              // 手风琴下非当前域无法就地展开，→ 直接进入该域首个子页。
+              if (!containsSelected) {
+                onSelected(node.children.first.section!);
+              } else {
+                controller.setNavigationGroupExpanded(node.id!, true);
+              }
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.arrowLeft && expanded) {
@@ -1239,6 +1292,10 @@ class _DesktopNavigation extends StatelessWidget {
         ),
       );
     }
+    // P8：原先同时使用「12% 底色 + 25% 描边 + 3px 竖条」三种强调手段，
+    // 过度强调反而拖慢辨识。现收敛为「容器底 + 圆头竖条」两种。
+    // 文字同步切到 onPrimaryContainer —— 原 primary 字压在 12% 绿底上
+    // 实测仅 4.21:1，不满足 4.5:1，改后为 10.32:1。
     final tile = AnimatedContainer(
       duration: MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
@@ -1246,14 +1303,9 @@ class _DesktopNavigation extends StatelessWidget {
       curve: Curves.easeOut,
       decoration: BoxDecoration(
         color: isSelected
-            ? theme.colorScheme.primary.withValues(alpha: 0.12)
+            ? theme.colorScheme.primaryContainer
             : Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.control),
-        border: isSelected
-            ? Border.all(
-                color: theme.colorScheme.primary.withValues(alpha: 0.25),
-              )
-            : null,
       ),
       child: Stack(
         children: [
@@ -1266,9 +1318,9 @@ class _DesktopNavigation extends StatelessWidget {
             hoverColor: theme.colorScheme.primary.withValues(alpha: 0.06),
             focusColor: theme.colorScheme.primary.withValues(alpha: 0.1),
             selected: isSelected,
-            selectedColor: theme.colorScheme.primary,
+            selectedColor: theme.colorScheme.onPrimaryContainer,
             iconColor: isSelected
-                ? theme.colorScheme.primary
+                ? theme.colorScheme.onPrimaryContainer
                 : theme.colorScheme.onSurfaceVariant,
             leading: Padding(
               padding: EdgeInsets.only(left: nested ? 16 : 0),
@@ -1278,7 +1330,7 @@ class _DesktopNavigation extends StatelessWidget {
               node.label,
               style: isSelected
                   ? TextStyle(
-                      color: theme.colorScheme.primary,
+                      color: theme.colorScheme.onPrimaryContainer,
                       fontWeight: FontWeight.w600,
                     )
                   : null,

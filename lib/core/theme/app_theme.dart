@@ -5,41 +5,85 @@ import 'package:flutter/material.dart';
 // 清新叶绿承载行动，信号红标记风险，黄铜色标记证据；画布和文字保持中性。
 
 abstract final class AppColors {
-  // ═══ 浅色 · 记录纸张 ═══
-  static const lightCanvas = Color(0xFFF2F7F3);
-  static const lightSurface = Color(0xFFFBFDFB);
-  static const lightRaised = Color(0xFFFFFFFF);
-  static const lightInk = Color(0xFF1B2B20);
-  static const lightInkMuted = Color(0xFF617268);
-  static const lightDivider = Color(0xFFD6E3D8);
-  static const lightPrimary = Color(0xFF2F7D57); // 叶片绿行动色
-  static const lightPrimaryContainer = Color(0xFFDDEFE4);
-  static const lightSecondary = Color(0xFF4F7561);
-  static const lightSecondaryContainer = Color(0xFFE9F3EC);
-  static const lightSignal = Color(0xFFC84F45); // 信号红
-  static const lightReward = Color(0xFFB8862D); // 黄铜证据
-  static const lightRewardContainer = Color(0xFFF4EBD8);
-  static const lightInfo = Color(0xFF3F7FA0);
-  static const lightDanger = Color(0xFFB53D3A);
-  static const lightGold = Color(0xFFB8862D); // 黄铜证据
+  // 命名约定：规范用语义名描述色板（苔绿 moss / 陶土 clay / 砖红 signal），
+  // 实现层沿用既有字段名以免大规模重命名。二者是同一令牌，对照见
+  // ORGANIC_UI_SPEC.md 第 18 节。全部色值经 WCAG 2.1 实算达标。
 
-  // ═══ 深色 · 夜间记录台 ═══
-  static const darkCanvas = Color(0xFF0F1712);
-  static const darkSurface = Color(0xFF16231B);
-  static const darkRaised = Color(0xFF1D2D23);
-  static const darkInk = Color(0xFFE8F2EA);
-  static const darkInkMuted = Color(0xFFA5B8AA);
-  static const darkDivider = Color(0xFF31443A);
-  static const darkPrimary = Color(0xFF76C893);
-  static const darkPrimaryContainer = Color(0xFF21452F);
-  static const darkSecondary = Color(0xFF9BC4A8);
-  static const darkSecondaryContainer = Color(0xFF263C2E);
-  static const darkSignal = Color(0xFFF07A6F);
-  static const darkReward = Color(0xFFDDB65B);
-  static const darkRewardContainer = Color(0xFF4A3D22);
-  static const darkInfo = Color(0xFF7EA9D0);
-  static const darkDanger = Color(0xFFF07A6F);
-  static const darkGold = Color(0xFFDDB65B);
+  // ═══ 浅色 · 晨间陶土 ═══
+  static const lightCanvas = Color(0xFFF7F4EC); // 燕麦米画布
+  static const lightSurface = Color(0xFFFFFDF9); // 宣纸白工作面
+  static const lightRaised = Color(0xFFFFFFFF); // 对话框 / 菜单 / 浮层
+  static const lightSubtle = Color(0xFFEFEAE0); // 输入框 / 次级填充
+  static const lightInk = Color(0xFF232A22); // 正文 14.50:1
+  static const lightInkMuted = Color(0xFF636B5E); // 辅助 5.45:1
+  static const lightInkFaint = Color(0xFF8A9083); // 装饰级 3.23:1，禁止承载信息
+  static const lightDivider = Color(0xFFE3DCCF); // 柔化分组线
+  static const lightBorderStrong = Color(0xFFD2CFC5); // 控件边界
+
+  // 苔绿 · 唯一行动色 5.70:1
+  static const lightPrimary = Color(0xFF4A6E4C);
+  static const lightPrimaryContainer = Color(0xFFDCE7D8);
+  static const lightPrimaryOnContainer = Color(0xFF1E3320); // 10.63:1
+
+  // 分类色层：8 类节点专用。允许比语义色更高彩度——3px 细条需要更大色差才可辨。
+  // goal 原 #5F6B1F 在新暖色基座上与苔绿仅 ΔE00 12.9，已调向黄绿以拉开。
+  static const lightTeal = Color(0xFF0F6668); // 习惯
+  static const lightOlive = Color(0xFF8F931A); // 目标
+  static const lightViolet = Color(0xFF6B4A8C); // 触发器
+  // 奖励节点专用琥珀。不复用 lightReward：后者是语义成果色（陶土），
+  // 二者在新基座上互相挤到 ΔE00 12.4，故分家。
+  static const lightAmber = Color(0xFFBB811B);
+
+  // 砖红 · 系统唯一红 6.66:1
+  static const lightSignal = Color(0xFF9E3A32);
+  static const lightSignalContainer = Color(0xFFF7DEDA);
+  static const lightSignalOnContainer = Color(0xFF5A1F19); // 9.98:1
+
+  // 陶土 · 成果与证据 5.69:1
+  static const lightReward = Color(0xFF9B5227);
+  static const lightRewardContainer = Color(0xFFF5E3D6);
+  static const lightRewardOnContainer = Color(0xFF4A2410); // 10.86:1
+
+  // 靛蓝 · 中性提示 5.88:1
+  static const lightInfo = Color(0xFF3E6883);
+  static const lightInfoContainer = Color(0xFFDCE8F0);
+  static const lightInfoOnContainer = Color(0xFF1C3947); // 9.76:1
+
+  static const lightOutline = Color(0xFF918783); // 提醒节点中性 accent
+
+  // ═══ 深色 · 夜间炭壤 ═══
+  static const darkCanvas = Color(0xFF171612);
+  static const darkSurface = Color(0xFF1E1D18);
+  static const darkRaised = Color(0xFF26251E);
+  static const darkSubtle = Color(0xFF2C2A22);
+  static const darkInk = Color(0xFFEFEDE4);
+  static const darkInkMuted = Color(0xFFA9A797);
+  static const darkInkFaint = Color(0xFF7C7A6C);
+  static const darkDivider = Color(0xFF3A382E);
+  static const darkBorderStrong = Color(0xFF4F4D45);
+
+  static const darkPrimary = Color(0xFF93C08D);
+  static const darkPrimaryContainer = Color(0xFF2C3A2B);
+  static const darkPrimaryOnContainer = Color(0xFFCFE8CB);
+
+  static const darkTeal = Color(0xFF5FC0BD);
+  static const darkOlive = Color(0xFFD4D864);
+  static const darkViolet = Color(0xFFC2A6E4);
+  static const darkAmber = Color(0xFFDBA657);
+
+  static const darkSignal = Color(0xFFE88C7E);
+  static const darkSignalContainer = Color(0xFF4C2A26);
+  static const darkSignalOnContainer = Color(0xFFF9D9D3);
+
+  static const darkReward = Color(0xFFE2A176);
+  static const darkRewardContainer = Color(0xFF4A3629);
+  static const darkRewardOnContainer = Color(0xFFF7DCC6);
+
+  static const darkInfo = Color(0xFF93B7CF);
+  static const darkInfoContainer = Color(0xFF27333D);
+  static const darkInfoOnContainer = Color(0xFFC7DCE8);
+
+  static const darkOutline = Color(0xFF938B85);
 }
 
 // ─── 响应式断点（强制收敛：仅此两档）───
@@ -49,12 +93,15 @@ abstract final class AppBreakpoints {
   static const expanded = 1200.0; // ≥1200: 完整展开
 }
 
-// ─── 圆角标尺：外层工作面柔和，内层控件保持同心层级 ───
+// ─── 圆角标尺（圆润有机）：外层工作面柔和，内层控件保持同心层级 ───
+// 同心圆角规则（硬约束）：内边距 P < 外层圆角 R 时，内层必须用 r = R − P。
 abstract final class AppRadius {
-  static const card = 12.0; // 卡片/FAB
-  static const control = 8.0; // 按钮/输入框/Chip
-  static const dialog = 16.0; // 对话框
-  static const sheetTop = 16.0; // 底部弹层顶部角
+  static const xs = 8.0; // 小标签 / 复选框 / 色块
+  static const control = 12.0; // 按钮 / 输入框 / Chip / 列表选中底
+  static const card = 16.0; // 卡片 / FAB / 菜单
+  static const panel = 20.0; // 主要工作面 / 证据块
+  static const dialog = 24.0; // 对话框
+  static const sheetTop = 28.0; // 底部弹层顶部角
   static const indicator = 12.0; // NavigationBar indicator / Snackbar
   static const tooltip = 8.0; // Tooltip
   static const pill = 999.0; // 短状态标签
@@ -97,11 +144,20 @@ abstract final class AppSpacing {
   static const lg = 16.0;
   static const xl = 24.0;
   static const xxl = 32.0;
-  static const xxxl = 32.0;
+  // P6：原与 xxl 同为 32，导致标尺实际只有 6 档，无法表达页面级分区。
+  static const xxxl = 56.0;
   // 页面横向边距
-  static const pageCompact = 16.0;
-  static const pageMedium = 20.0;
-  static const pageWide = 24.0;
+  static const pageCompact = 20.0;
+  static const pageMedium = 28.0;
+  static const pageWide = 36.0;
+
+  /// 移动端底部导航净空。
+  ///
+  /// 由 `workbench_shell.dart` 底部导航 Column 的实际构成推导：
+  /// NavigationBar 80 + 同步状态条 26 + 次级页面横幅约 29 ≈ 135，取 132 作余量。
+  /// 页面底部内边距使用它，避免内容被底部导航遮挡。
+  /// 此前该数值在 15 个文件里硬编码 24 次，任一处漏改都会造成遮挡错位。
+  static const bottomNavClearance = 132.0;
 }
 
 // ─── 自定义主题令牌 ───
@@ -113,18 +169,27 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     required this.raised,
     required this.subtle,
     required this.panelBorder,
+    required this.borderStrong,
     required this.panelShadow,
     required this.raisedShadow,
     required this.focusRing,
     required this.mutedText,
+    required this.inkFaint,
     required this.divider,
     required this.reward,
     required this.rewardContainer,
+    required this.rewardOnContainer,
     required this.info,
-    required this.danger,
+    required this.infoContainer,
+    required this.infoOnContainer,
+    required this.teal,
+    required this.olive,
+    required this.violet,
+    required this.amber,
     required this.route,
     required this.signal,
-    required this.marker,
+    required this.signalContainer,
+    required this.signalOnContainer,
   });
 
   final Color canvas;
@@ -135,6 +200,10 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
   /// 面板 1px 描边，保持中性，不参与状态编码。
   final Color panelBorder;
 
+  /// 交互控件边界（输入框 / 复选框）。与 [subtle] 填充共同构成边界，
+  /// 不依赖单一线条承载可辨识性。
+  final Color borderStrong;
+
   /// 保留给悬停等短暂抬升反馈；普通面板默认不使用投影。
   final Color panelShadow;
 
@@ -142,16 +211,55 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
   final Color raisedShadow;
 
   /// 键盘焦点 2px 外环。
+  ///
+  /// 必须是**实色**：半透明会与底层混合导致对比度塌陷（原 primary@32%
+  /// 实测仅 1.54:1 / 2.45:1，不满足 WCAG 1.4.11 的 3:1）。
+  /// 现为实色 moss：5.70:1（浅）/ 8.17:1（深）。
   final Color focusRing;
+
+  /// 辅助说明、次要元数据。
   final Color mutedText;
+
+  /// 禁用文字与纯装饰。装饰级对比度（3.2–3.9:1），**禁止承载任何必须被读到的信息**。
+  final Color inkFaint;
+
+  /// 柔化分组线。对比度仅 1.3–1.4:1 是刻意的柔化取向：
+  /// 分组职责由留白承担（组间 ≥ 组内 2 倍），线条只做次要提示。
   final Color divider;
+
+  /// 成果色（陶土）：完成证据、里程碑、XP。**绝不用于错误或警告。**
   final Color reward;
   final Color rewardContainer;
+
+  /// 容器底上的文字——**永远**用这个，不要直接叠 [reward]。
+  final Color rewardOnContainer;
+
+  /// 中性提示、同步状态。
   final Color info;
-  final Color danger;
+  final Color infoContainer;
+  final Color infoOnContainer;
+
+  /// 8 类节点独立色相之青碧（习惯 habit）。
+  final Color teal;
+
+  /// 8 类节点独立色相之橄榄（目标 goal）。
+  final Color olive;
+
+  /// 8 类节点独立色相之紫（触发器 trigger）；同时是 ColorScheme.tertiary 的值。
+  final Color violet;
+
+  /// 分类色层之琥珀（奖励 reward 节点）。
+  ///
+  /// 不复用 [reward]：后者是语义成果色（陶土）。在新暖色基座上二者
+  /// 互相挤到 ΔE00 12.4，低于分类色可用区间上沿，故分开。
+  final Color amber;
+
   final Color route;
+
+  /// 系统唯一红：冲突 / 危险 / 停止。原 `danger` 字段已并入此处。
   final Color signal;
-  final Color marker;
+  final Color signalContainer;
+  final Color signalOnContainer;
 
   @override
   WorkbenchTokens copyWith({
@@ -160,18 +268,27 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     Color? raised,
     Color? subtle,
     Color? panelBorder,
+    Color? borderStrong,
     Color? panelShadow,
     Color? raisedShadow,
     Color? focusRing,
     Color? mutedText,
+    Color? inkFaint,
     Color? divider,
     Color? reward,
     Color? rewardContainer,
+    Color? rewardOnContainer,
     Color? info,
-    Color? danger,
+    Color? infoContainer,
+    Color? infoOnContainer,
+    Color? teal,
+    Color? olive,
+    Color? violet,
+    Color? amber,
     Color? route,
     Color? signal,
-    Color? marker,
+    Color? signalContainer,
+    Color? signalOnContainer,
   }) {
     return WorkbenchTokens(
       canvas: canvas ?? this.canvas,
@@ -179,18 +296,27 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       raised: raised ?? this.raised,
       subtle: subtle ?? this.subtle,
       panelBorder: panelBorder ?? this.panelBorder,
+      borderStrong: borderStrong ?? this.borderStrong,
       panelShadow: panelShadow ?? this.panelShadow,
       raisedShadow: raisedShadow ?? this.raisedShadow,
       focusRing: focusRing ?? this.focusRing,
       mutedText: mutedText ?? this.mutedText,
+      inkFaint: inkFaint ?? this.inkFaint,
       divider: divider ?? this.divider,
       reward: reward ?? this.reward,
       rewardContainer: rewardContainer ?? this.rewardContainer,
+      rewardOnContainer: rewardOnContainer ?? this.rewardOnContainer,
       info: info ?? this.info,
-      danger: danger ?? this.danger,
+      infoContainer: infoContainer ?? this.infoContainer,
+      infoOnContainer: infoOnContainer ?? this.infoOnContainer,
+      teal: teal ?? this.teal,
+      olive: olive ?? this.olive,
+      violet: violet ?? this.violet,
+      amber: amber ?? this.amber,
       route: route ?? this.route,
       signal: signal ?? this.signal,
-      marker: marker ?? this.marker,
+      signalContainer: signalContainer ?? this.signalContainer,
+      signalOnContainer: signalOnContainer ?? this.signalOnContainer,
     );
   }
 
@@ -203,18 +329,35 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       raised: Color.lerp(raised, other.raised, t)!,
       subtle: Color.lerp(subtle, other.subtle, t)!,
       panelBorder: Color.lerp(panelBorder, other.panelBorder, t)!,
+      borderStrong: Color.lerp(borderStrong, other.borderStrong, t)!,
       panelShadow: Color.lerp(panelShadow, other.panelShadow, t)!,
       raisedShadow: Color.lerp(raisedShadow, other.raisedShadow, t)!,
       focusRing: Color.lerp(focusRing, other.focusRing, t)!,
       mutedText: Color.lerp(mutedText, other.mutedText, t)!,
+      inkFaint: Color.lerp(inkFaint, other.inkFaint, t)!,
       divider: Color.lerp(divider, other.divider, t)!,
       reward: Color.lerp(reward, other.reward, t)!,
       rewardContainer: Color.lerp(rewardContainer, other.rewardContainer, t)!,
+      rewardOnContainer: Color.lerp(
+        rewardOnContainer,
+        other.rewardOnContainer,
+        t,
+      )!,
       info: Color.lerp(info, other.info, t)!,
-      danger: Color.lerp(danger, other.danger, t)!,
+      infoContainer: Color.lerp(infoContainer, other.infoContainer, t)!,
+      infoOnContainer: Color.lerp(infoOnContainer, other.infoOnContainer, t)!,
+      teal: Color.lerp(teal, other.teal, t)!,
+      olive: Color.lerp(olive, other.olive, t)!,
+      violet: Color.lerp(violet, other.violet, t)!,
+      amber: Color.lerp(amber, other.amber, t)!,
       route: Color.lerp(route, other.route, t)!,
       signal: Color.lerp(signal, other.signal, t)!,
-      marker: Color.lerp(marker, other.marker, t)!,
+      signalContainer: Color.lerp(signalContainer, other.signalContainer, t)!,
+      signalOnContainer: Color.lerp(
+        signalOnContainer,
+        other.signalOnContainer,
+        t,
+      )!,
     );
   }
 }
@@ -285,44 +428,57 @@ abstract final class AppTheme {
       canvas: AppColors.lightCanvas,
       panel: AppColors.lightSurface,
       raised: AppColors.lightRaised,
-      subtle: Color(0xFFE8F1EA),
-      panelBorder: Color(0xFFD6E3D8),
-      panelShadow: Color(0x0A17251A),
-      raisedShadow: Color(0x1A17251A),
-      focusRing: Color(0x522F7D57),
+      subtle: AppColors.lightSubtle,
+      panelBorder: AppColors.lightDivider,
+      borderStrong: AppColors.lightBorderStrong,
+      panelShadow: Color(0x0A2A2418),
+      raisedShadow: Color(0x1F2A2418),
+      focusRing: AppColors.lightPrimary,
       mutedText: AppColors.lightInkMuted,
+      inkFaint: AppColors.lightInkFaint,
       divider: AppColors.lightDivider,
       reward: AppColors.lightReward,
       rewardContainer: AppColors.lightRewardContainer,
+      rewardOnContainer: AppColors.lightRewardOnContainer,
       info: AppColors.lightInfo,
-      danger: AppColors.lightDanger,
+      infoContainer: AppColors.lightInfoContainer,
+      infoOnContainer: AppColors.lightInfoOnContainer,
+      teal: AppColors.lightTeal,
+      olive: AppColors.lightOlive,
+      violet: AppColors.lightViolet,
+      amber: AppColors.lightAmber,
       route: AppColors.lightPrimary,
       signal: AppColors.lightSignal,
-      marker: AppColors.lightGold,
+      signalContainer: AppColors.lightSignalContainer,
+      signalOnContainer: AppColors.lightSignalOnContainer,
     ),
     scheme: const ColorScheme(
       brightness: Brightness.light,
       primary: AppColors.lightPrimary,
       onPrimary: Color(0xFFFFFFFF),
       primaryContainer: AppColors.lightPrimaryContainer,
-      onPrimaryContainer: Color(0xFF123C26),
-      secondary: AppColors.lightSecondary,
+      onPrimaryContainer: AppColors.lightPrimaryOnContainer,
+      // secondary 不参与本产品视觉：原 lightSecondary 与 primary 是同义冗余，
+      // 已删除。Material 要求该槽位非空，故指向 primary 族（无调用点依赖）。
+      secondary: AppColors.lightPrimary,
       onSecondary: Color(0xFFFFFFFF),
-      secondaryContainer: AppColors.lightSecondaryContainer,
-      onSecondaryContainer: Color(0xFF123C26),
-      tertiary: AppColors.lightSignal,
+      secondaryContainer: AppColors.lightPrimaryContainer,
+      onSecondaryContainer: AppColors.lightPrimaryOnContainer,
+      // tertiary 原 = signal(红)，与 error 语义错位（凡当第三强调色用处都渲染成危险红）。
+      // 现独立为紫：vs signal ΔE 31.0，on/onContainer 对比度 7.04:1 / 10.47:1。
+      tertiary: AppColors.lightViolet,
       onTertiary: Color(0xFFFFFFFF),
-      tertiaryContainer: Color(0xFFF8E5E2),
-      onTertiaryContainer: Color(0xFF6E241F),
-      error: AppColors.lightDanger,
+      tertiaryContainer: Color(0xFFEDE4F6),
+      onTertiaryContainer: Color(0xFF3E2755),
+      error: AppColors.lightSignal,
       onError: Color(0xFFFFFFFF),
-      errorContainer: Color(0xFFFEE2E2),
-      onErrorContainer: Color(0xFF450A0A),
+      errorContainer: AppColors.lightSignalContainer,
+      onErrorContainer: AppColors.lightSignalOnContainer,
       surface: AppColors.lightSurface,
       onSurface: AppColors.lightInk,
-      surfaceContainerHighest: Color(0xFFE8F1EA),
+      surfaceContainerHighest: AppColors.lightSubtle,
       onSurfaceVariant: AppColors.lightInkMuted,
-      outline: Color(0xFF758781),
+      outline: AppColors.lightOutline,
       outlineVariant: AppColors.lightDivider,
       shadow: Color(0x14000000),
       scrim: Color(0x66000000),
@@ -339,44 +495,53 @@ abstract final class AppTheme {
       canvas: AppColors.darkCanvas,
       panel: AppColors.darkSurface,
       raised: AppColors.darkRaised,
-      subtle: Color(0xFF263C2E),
-      panelBorder: Color(0xFF31443A),
-      panelShadow: Color(0x47000000), // rgba(0,0,0,0.28)
-      raisedShadow: Color(0x66000000), // rgba(0,0,0,0.40)
-      focusRing: Color(0x6676C893),
+      subtle: AppColors.darkSubtle,
+      panelBorder: AppColors.darkDivider,
+      borderStrong: AppColors.darkBorderStrong,
+      panelShadow: Color(0x47000000),
+      raisedShadow: Color(0x66000000),
+      focusRing: AppColors.darkPrimary,
       mutedText: AppColors.darkInkMuted,
+      inkFaint: AppColors.darkInkFaint,
       divider: AppColors.darkDivider,
       reward: AppColors.darkReward,
       rewardContainer: AppColors.darkRewardContainer,
+      rewardOnContainer: AppColors.darkRewardOnContainer,
       info: AppColors.darkInfo,
-      danger: AppColors.darkDanger,
+      infoContainer: AppColors.darkInfoContainer,
+      infoOnContainer: AppColors.darkInfoOnContainer,
+      teal: AppColors.darkTeal,
+      olive: AppColors.darkOlive,
+      violet: AppColors.darkViolet,
+      amber: AppColors.darkAmber,
       route: AppColors.darkPrimary,
       signal: AppColors.darkSignal,
-      marker: AppColors.darkGold,
+      signalContainer: AppColors.darkSignalContainer,
+      signalOnContainer: AppColors.darkSignalOnContainer,
     ),
     scheme: const ColorScheme(
       brightness: Brightness.dark,
       primary: AppColors.darkPrimary,
-      onPrimary: Color(0xFF0B2A18),
+      onPrimary: Color(0xFF171612),
       primaryContainer: AppColors.darkPrimaryContainer,
-      onPrimaryContainer: Color(0xFFD8F4DF),
-      secondary: AppColors.darkSecondary,
-      onSecondary: Color(0xFF0B2A18),
-      secondaryContainer: AppColors.darkSecondaryContainer,
-      onSecondaryContainer: Color(0xFFD8F4DF),
-      tertiary: AppColors.darkSignal,
-      onTertiary: Color(0xFF321312),
-      tertiaryContainer: Color(0xFF4A2725),
-      onTertiaryContainer: Color(0xFFFFDAD5),
-      error: AppColors.darkDanger,
-      onError: Color(0xFF450A0A),
-      errorContainer: Color(0xFF7F1D1D),
-      onErrorContainer: Color(0xFFFECACA),
+      onPrimaryContainer: AppColors.darkPrimaryOnContainer,
+      secondary: AppColors.darkPrimary,
+      onSecondary: Color(0xFF171612),
+      secondaryContainer: AppColors.darkPrimaryContainer,
+      onSecondaryContainer: AppColors.darkPrimaryOnContainer,
+      tertiary: AppColors.darkViolet,
+      onTertiary: Color(0xFF2C1A40),
+      tertiaryContainer: Color(0xFF3B2A4F),
+      onTertiaryContainer: Color(0xFFE9DCF8),
+      error: AppColors.darkSignal,
+      onError: Color(0xFF3A1512),
+      errorContainer: AppColors.darkSignalContainer,
+      onErrorContainer: AppColors.darkSignalOnContainer,
       surface: AppColors.darkSurface,
       onSurface: AppColors.darkInk,
       surfaceContainerHighest: AppColors.darkRaised,
       onSurfaceVariant: AppColors.darkInkMuted,
-      outline: Color(0xFF83958F),
+      outline: AppColors.darkOutline,
       outlineVariant: AppColors.darkDivider,
       shadow: Colors.black,
       scrim: Colors.black,
@@ -409,74 +574,76 @@ abstract final class AppTheme {
     // 正文: 15px；辅助: 13px，均交给平台系统字体渲染
     final textTheme = base.textTheme.copyWith(
       displayLarge: _displayStyle(
-        fontSize: 28,
-        height: 1.3,
+        fontSize: 30,
+        height: 1.32,
         color: scheme.onSurface,
       ),
       headlineMedium: _displayStyle(
         fontSize: 22,
-        height: 1.35,
+        height: 1.4,
         color: scheme.onSurface,
       ),
       titleLarge: _bodyStyle(
         fontSize: 18,
-        height: 1.4,
+        height: 1.5,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
       titleMedium: _bodyStyle(
         fontSize: 16,
-        height: 1.375,
+        height: 1.45,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
       titleSmall: _bodyStyle(
         fontSize: 14,
-        height: 1.45,
+        height: 1.5,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
-      bodyLarge: _bodyStyle(fontSize: 16, height: 1.5, color: scheme.onSurface),
-      bodyMedium: _bodyStyle(
+      // P3：bodyLarge 与 bodyMedium 原为同一档（16 / 1.5），语义重叠、易误用。
+      // 现分家——bodyLarge 专供长文阅读列（行高放宽），bodyMedium 为界面正文
+      // （桌面 15px；Android 保留 16px 正文下限）。
+      bodyLarge: _bodyStyle(
         fontSize: 16,
-        height: 1.5,
+        height: 1.65,
+        color: scheme.onSurface,
+      ),
+      bodyMedium: _bodyStyle(
+        fontSize: isAndroid ? 16 : 15,
+        height: 1.6,
         color: scheme.onSurface,
       ),
       bodySmall: _bodyStyle(
         fontSize: 13,
-        height: 1.35,
+        height: 1.5,
         color: scheme.onSurfaceVariant,
       ),
       labelLarge: _bodyStyle(
         fontSize: 15,
-        height: 1.4,
+        height: 1.45,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
       labelMedium: _bodyStyle(
         fontSize: 13,
-        height: 1.35,
+        height: 1.45,
         color: scheme.onSurface,
       ),
       labelSmall: _bodyStyle(
         fontSize: 12,
-        height: 1.3,
+        height: 1.4,
         color: scheme.onSurface,
       ),
     );
 
-    final controlHeight = isAndroid ? 48.0 : 36.0;
+    // 密度（规范 6.4）：桌面 40 / 移动 52。触控目标 ≥48dp 由命中区矩形保证。
+    final controlHeight = isAndroid ? 52.0 : 40.0;
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.control),
     );
     final cardShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.card),
-    );
-    final inputBorderColor = Color.alphaBlend(
-      scheme.onSurface.withValues(
-        alpha: brightness == Brightness.light ? 0.14 : 0.18,
-      ),
-      tokens.subtle,
     );
 
     return base.copyWith(
@@ -548,13 +715,14 @@ abstract final class AppTheme {
           horizontal: 14,
           vertical: 12,
         ),
+        // 交互控件不依赖单一线条：subtle 填充 + borderStrong 描边 + 文字标签。
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.control),
-          borderSide: BorderSide(color: tokens.panelBorder),
+          borderSide: BorderSide(color: tokens.borderStrong),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.control),
-          borderSide: BorderSide(color: inputBorderColor),
+          borderSide: BorderSide(color: tokens.borderStrong),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.control),
@@ -691,12 +859,12 @@ abstract final class AppTheme {
       // ─── Checkbox ───
       checkboxTheme: CheckboxThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-        side: BorderSide(color: scheme.outline, width: 1.5),
+        side: BorderSide(color: tokens.borderStrong, width: 1.5),
       ),
 
       // ─── ListTile：桌面 44px、Android 48px，保证文字和图标有稳定节奏 ───
       listTileTheme: ListTileThemeData(
-        minTileHeight: isAndroid ? 48 : 44,
+        minTileHeight: isAndroid ? 60 : 48,
         shape: shape,
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         minLeadingWidth: 36,

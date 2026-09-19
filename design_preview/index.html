@@ -17,7 +17,7 @@
 
   .sec-title { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
   .sec-title .bar { width: 3px; height: 18px; border-radius: 2px; background: color-mix(in srgb, var(--primary) 60%, transparent); }
-  .sec-title h2 { font-size: 17px; font-weight: 600; }
+  .sec-title h2 { font-size: 18px; font-weight: 600; }
   .sec-title .note { font-size: 12px; color: var(--ink-muted); margin-left: 4px; }
 
   .grid { display: grid; gap: 10px; }
@@ -32,10 +32,13 @@
   .g-shape { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
   .shape-card { padding: 18px 16px; text-align: center; }
   .shape-card .demo { height: 56px; margin: 0 auto 12px; width: 100px; background: var(--surface); border: 1px solid var(--panel-border); }
-  .shape-card .demo.r6 { border-radius: var(--r-card); }
-  .shape-card .demo.r4-control { border-radius: var(--r-btn); width: 84px; }
-  .shape-card .demo.r8 { border: 0; border-radius: var(--r-dialog); box-shadow: var(--raised-shadow); width: 110px; }
-  .shape-card .demo.r4 { border-radius: var(--r-pill); width: 70px; }
+  .shape-card .demo.r-xs { border-radius: var(--r-xs); width: 56px; height: 32px; }
+  .shape-card .demo.r-control { border-radius: var(--r-btn); width: 84px; }
+  .shape-card .demo.r-card { border-radius: var(--r-card); }
+  .shape-card .demo.r-panel { border-radius: var(--r-panel); }
+  .shape-card .demo.r-dialog { border: 0; border-radius: var(--r-dialog); box-shadow: var(--raised-shadow); width: 110px; }
+  .shape-card .demo.r-sheet { border-radius: var(--r-sheet) var(--r-sheet) 0 0; width: 110px; height: 44px; }
+  .shape-card .demo.r-pill { border-radius: var(--r-pill); width: 70px; height: 32px; }
   .shape-card .name { font-size: 13px; font-weight: 600; }
   .shape-card .val { font-size: 11.5px; color: var(--ink-muted); }
   .shape-card .delta { font-size: 11px; color: var(--reward); margin-top: 2px; }
@@ -109,7 +112,7 @@
     <span class="pill">面板 12px / 控件 8px</span>
     <span class="pill">桌面 44px / 移动 52px</span>
     <span class="pill reward">120 / 180 / 220ms</span>
-    <span class="pill gold">离线字体</span>
+    <span class="pill amber">离线字体</span>
   </div>
 </section>
 
@@ -117,32 +120,40 @@
 
   <!-- 色彩令牌 -->
   <section>
-    <div class="sec-title"><span class="bar"></span><h2>色彩令牌</h2><span class="note">保留 v1 语义色 · 新增 panel 面板令牌 · 点击右上角切换主题查看双套</span></div>
+    <div class="sec-title"><span class="bar"></span><h2>色彩令牌</h2><span class="note">语义色板 4 族 + 分类色层 5 色 · 点击右上角切换主题查看双套</span></div>
     <div class="grid g-colors">
-      <div class="swatch"><div class="chip" style="background:var(--canvas);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">canvas</div><div class="val num">#F2F7F3 / #0F1712</div><div class="pair">清新浅绿日志画布</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--surface);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">surface</div><div class="val num">#FBFDFB / #16231B</div><div class="pair">稳定阅读面</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--subtle)"></div><div class="info"><div class="name">subtle</div><div class="val num">#E8F1EA / #263C2E</div><div class="pair">输入与次级区域</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--primary)"></div><div class="info"><div class="name">route</div><div class="val num">#2F7D57 / #76C893</div><div class="pair">当前路径与主操作</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--primary-container)"></div><div class="info"><div class="name">routeContainer</div><div class="val num">#DDEFE4 / #21452F</div><div class="pair">路径容器</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="info"><div class="name">signal</div><div class="val num">#C84F45 / #F07A6F</div><div class="pair">冲突与危险操作</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--gold)"></div><div class="info"><div class="name">marker</div><div class="val num">#B8862D / #DDB65B</div><div class="pair">完成证据与里程碑</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--info)"></div><div class="info"><div class="name">info</div><div class="val num">#3F7FA0 / #7EA9D0</div><div class="pair">信息状态</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="info"><div class="name">danger</div><div class="val num">#B53D3A / #F07A6F</div><div class="pair">危险状态</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--ink)"></div><div class="info"><div class="name">ink</div><div class="val num">#1B2B20 / #E8F2EA</div><div class="pair">主文字</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--ink-muted)"></div><div class="info"><div class="name">inkMuted</div><div class="val num">#617268 / #A5B8AA</div><div class="pair">次级文字</div></div></div>
-      <div class="swatch"><div class="chip" style="background:var(--panel-border)"></div><div class="info"><div class="name">panelBorder ★</div><div class="val num">#D6E3D8 / #31443A</div><div class="pair">v2 新增 · 1px 面板描边</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--canvas);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">canvas</div><div class="val num">#F7F4EC / #171612</div><div class="pair">燕麦米画布</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--surface);border-bottom:1px solid var(--panel-border)"></div><div class="info"><div class="name">surface</div><div class="val num">#FFFDF9 / #1E1D18</div><div class="pair">宣纸白工作面</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--subtle)"></div><div class="info"><div class="name">subtle</div><div class="val num">#EFEAE0 / #2C2A22</div><div class="pair">输入与次级填充</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--primary)"></div><div class="info"><div class="name">primary · 苔绿</div><div class="val num">#4A6E4C / #93C08D</div><div class="pair">唯一行动色 5.70:1</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--primary-container)"></div><div class="info"><div class="name">primaryContainer</div><div class="val num">#DCE7D8 / #2C3A2B</div><div class="pair">其上文字须用 onContainer</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--primary-on-container)"></div><div class="info"><div class="name">primaryOnContainer</div><div class="val num">#1E3320 / #CFE8CB</div><div class="pair">10.63:1</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--signal)"></div><div class="info"><div class="name">signal · 砖红</div><div class="val num">#9E3A32 / #E88C7E</div><div class="pair">系统唯一红 6.66:1</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--signal-container)"></div><div class="info"><div class="name">signalContainer</div><div class="val num">#F7DEDA / #4C2A26</div><div class="pair">原 danger 已合并至此</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--reward)"></div><div class="info"><div class="name">reward · 陶土</div><div class="val num">#9B5227 / #E2A176</div><div class="pair">成果与证据 5.69:1</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--reward-container)"></div><div class="info"><div class="name">rewardContainer</div><div class="val num">#F5E3D6 / #4A3629</div><div class="pair">承接旧 marker 语义</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--info)"></div><div class="info"><div class="name">info · 靛蓝</div><div class="val num">#3E6883 / #93B7CF</div><div class="pair">中性提示 5.88:1</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--info-container)"></div><div class="info"><div class="name">infoContainer</div><div class="val num">#DCE8F0 / #27333D</div><div class="pair">信息状态底</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink)"></div><div class="info"><div class="name">ink</div><div class="val num">#232A22 / #EFEDE4</div><div class="pair">正文 14.50:1</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink-muted)"></div><div class="info"><div class="name">inkMuted</div><div class="val num">#636B5E / #A9A797</div><div class="pair">辅助文字 5.45:1</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink-faint)"></div><div class="info"><div class="name">inkFaint ★</div><div class="val num">#8A9083 / #7C7A6C</div><div class="pair">装饰级 3.23:1 · 禁止承载信息</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--panel-border)"></div><div class="info"><div class="name">panelBorder</div><div class="val num">#E3DCCF / #3A382E</div><div class="pair">1px 分组线</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--border-strong)"></div><div class="info"><div class="name">borderStrong ★</div><div class="val num">#D2CFC5 / #4F4D45</div><div class="pair">控件边界 · 输入框与复选框</div></div></div>
     </div>
-    <p class="token-note" style="margin-top:12px">普通工作面使用 panelBorder 1px；raisedShadow 使用 blur24 / y10，仅用于对话框、弹层和菜单。所有工作面均为实色，不使用背景模糊。</p>
+    <p class="token-note" style="margin-top:12px">分类色层（teal 习惯 / olive 目标 / violet 触发器 / amber 奖励节点 / outline 提醒）专供 8 类节点区分，允许比语义色更高彩度——3px 细条需要更大色差才可辨。原 gold 已更名 amber，与语义成果色（陶土）分家。</p>
   </section>
 
   <!-- 形状 -->
   <section>
-    <div class="sec-title"><span class="bar"></span><h2>形状语言 · 柔和同心</h2><span class="note">外层半径大于内层控件，避免嵌套圆角争抢</span></div>
+    <div class="sec-title"><span class="bar"></span><h2>形状语言 · 柔和同心</h2><span class="note">内层半径 = 外层 − 内边距，避免嵌套圆角争抢</span></div>
     <div class="grid g-shape">
-      <div class="panel shape-card"><div class="demo r6"></div><div class="name">卡片 / FAB</div><div class="val num">12px</div><div class="delta">外层工作面</div></div>
-      <div class="panel shape-card"><div class="demo r4-control"></div><div class="name">按钮 / 输入 / Chip</div><div class="val num">8px</div><div class="delta">内层小于外层面板</div></div>
-      <div class="panel shape-card"><div class="demo r8"></div><div class="name">对话框 / 底部弹层</div><div class="val num">16px</div><div class="delta">独立 raised 浮层</div></div>
-      <div class="panel shape-card"><div class="demo r4"></div><div class="name">状态标签</div><div class="val num">pill</div><div class="delta">仅用于短状态文字</div></div>
+      <div class="panel shape-card"><div class="demo r-xs"></div><div class="name">小标签 / 复选框</div><div class="val num">8px</div><div class="delta">xs</div></div>
+      <div class="panel shape-card"><div class="demo r-control"></div><div class="name">按钮 / 输入 / Chip</div><div class="val num">12px</div><div class="delta">control</div></div>
+      <div class="panel shape-card"><div class="demo r-card"></div><div class="name">卡片 / FAB / 菜单</div><div class="val num">16px</div><div class="delta">card</div></div>
+      <div class="panel shape-card"><div class="demo r-panel"></div><div class="name">主要工作面 / 证据块</div><div class="val num">20px</div><div class="delta">panel</div></div>
+      <div class="panel shape-card"><div class="demo r-dialog"></div><div class="name">对话框</div><div class="val num">24px</div><div class="delta">dialog · raised</div></div>
+      <div class="panel shape-card"><div class="demo r-sheet"></div><div class="name">底部弹层</div><div class="val num">28px</div><div class="delta">sheetTop · 仅上角</div></div>
+      <div class="panel shape-card"><div class="demo r-pill"></div><div class="name">状态标签</div><div class="val num">pill</div><div class="delta">仅用于短状态文字</div></div>
     </div>
   </section>
 
@@ -179,20 +190,20 @@
 
   <!-- 密度 -->
   <section>
-    <div class="sec-title"><span class="bar"></span><h2>间距与密度</h2><span class="note">整体收紧 15-20%</span></div>
+    <div class="sec-title"><span class="bar"></span><h2>间距与密度</h2><span class="note">4pt 基准 · 原 xxl 与 xxxl 同为 32，已修复为 56</span></div>
     <div class="grid g-spacing">
       <div class="panel spacing-card">
-        <div class="row"><span class="lbl">列表行高</span><div class="blk" style="width:88px"></div><span class="num muted">48 → 44px</span></div>
-        <div class="row"><span class="lbl">行内边距</span><div class="blk" style="width:64px"></div><span class="num muted">16px</span></div>
-        <div class="row"><span class="lbl">分区间距</span><div class="blk" style="width:96px"></div><span class="num muted">24px</span></div>
-        <div class="row"><span class="lbl">页面边距 wide</span><div class="blk" style="width:96px"></div><span class="num muted">24px</span></div>
-        <div class="row"><span class="lbl">卡片内边距</span><div class="blk" style="width:64px"></div><span class="num muted">16px</span></div>
+        <div class="row"><span class="lbl">列表行高</span><div class="blk" style="width:88px"></div><span class="num muted">48 / 60px</span></div>
+        <div class="row"><span class="lbl">控件高度</span><div class="blk" style="width:72px"></div><span class="num muted">40 / 52px</span></div>
+        <div class="row"><span class="lbl">分区间距</span><div class="blk" style="width:48px"></div><span class="num muted">24px</span></div>
+        <div class="row"><span class="lbl">页面边距</span><div class="blk" style="width:72px"></div><span class="num muted">20 / 28 / 36px</span></div>
+        <div class="row"><span class="lbl">分区上留白</span><div class="blk" style="width:112px"></div><span class="num muted">56px</span></div>
       </div>
       <div class="panel spacing-card">
-        <div class="row"><span class="lbl">间距标尺</span><span class="num muted" style="margin-left:auto">4/8/12/16/24/32</span></div>
+        <div class="row"><span class="lbl">间距标尺</span><span class="num muted" style="margin-left:auto">4/8/12/16/24/32/56</span></div>
+        <div class="row"><span class="lbl">圆角标尺</span><span class="num muted" style="margin-left:auto">8/12/16/20/24/28</span></div>
         <div class="row"><span class="lbl">响应式断点</span><span class="num muted" style="margin-left:auto">768 / 1200 仅两个</span></div>
-        <div class="row"><span class="lbl">视觉密度</span><span class="num muted" style="margin-left:auto">桌面 (-1,-1) 不变</span></div>
-        <div class="row"><span class="lbl">H1 字号</span><span class="num muted" style="margin-left:auto">28px · ls 0</span></div>
+        <div class="row"><span class="lbl">页名字号</span><span class="num muted" style="margin-left:auto">30px · displayLarge</span></div>
         <div class="row"><span class="lbl">数字</span><span class="num muted" style="margin-left:auto">tabular-nums + w600</span></div>
       </div>
     </div>
@@ -203,16 +214,17 @@
     <div class="sec-title"><span class="bar"></span><h2>强调元素 · 纯色实心</h2><span class="note">全部渐变表达改实心单色</span></div>
     <div class="grid g-accent">
       <div class="panel accent-demo">
-        <div class="item"><span class="vbar h30"></span><span>PageHeader 竖条 — 3px 实心 primary 全高 <span class="muted">（v1 渐变+圆点）</span></span></div>
-        <div class="item"><span class="vbar h16"></span><span>SectionHeading 窄条 — primary@60% <span class="muted">（层级低于页头）</span></span></div>
+        <div class="item"><span class="vbar h30"></span><span>PageHeader 竖条 — 3px 实心 primary 全高</span></div>
         <div class="item"><span class="vbar h24"></span><span>选中态左缘条 — 3px 实心 primary</span></div>
+        <div class="item"><span class="vbar h16"></span><span>SectionHeading — 已移除装饰条，改用 24px 上留白建立层级</span></div>
       </div>
       <div class="panel accent-demo">
         <div class="item">
-          <span style="width:40px;height:40px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--primary) 40%,transparent);background:color-mix(in srgb,var(--primary) 8%,transparent);display:inline-flex;align-items:center;justify-content:center;color:var(--primary)"><svg class="ic" viewBox="0 0 24 24" style="width:19px;height:19px"><path d="M12 5v14M5 12h14"/></svg></span>
-          <span>空态徽章 — 单色描边圆 <span class="muted">（v1 双层渐变环+玻璃圆）</span></span>
+          <span style="width:40px;height:40px;border-radius:50%;background:var(--primary-container);display:inline-flex;align-items:center;justify-content:center;color:var(--primary-on-container)"><svg class="ic" viewBox="0 0 24 24" style="width:19px;height:19px"><path d="M12 5v14M5 12h14"/></svg></span>
+          <span>空态徽章 — 容器底 + onContainer 前景 <span class="muted">（v1 双层渐变环+玻璃圆）</span></span>
         </div>
-        <div class="item"><span class="pill primary">状态胶囊</span><span>subtle 底 · 对比度自适应前景</span></div>
+        <div class="item"><span class="pill primary">状态胶囊</span><span>容器底 · onContainer 前景（自色压同色淡底仅 4.49:1）</span></div>
+        <div class="item"><span class="pill amber">奖励节点</span><span>分类色层胶囊</span></div>
       </div>
     </div>
   </section>

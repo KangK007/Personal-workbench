@@ -269,9 +269,17 @@ foreach ($built in $builtApks) {
     } else {
         "PersonalWorkbench_*_${Configuration}.apk"
     }
-    Get-ChildItem -LiteralPath $distributionDirectory -Filter $distributionPattern -File |
-        Where-Object { $_.Name -ne $distributionName } |
-        Remove-Item -Force
+    # 先显式收集待清理的旧产物再逐个删除：零匹配时必须完全不调用
+    # Remove-Item。管道形式在正常的 PowerShell 下因「空管道不执行命令」
+    # 而安全，但在注入式安全删除垫片（把 Remove-Item 换成回收站实现）
+    # 的环境下，垫片仍会进入 end 块并以「缺失路径操作数」报错。
+    $staleDistributions = @(
+        Get-ChildItem -LiteralPath $distributionDirectory -Filter $distributionPattern -File |
+            Where-Object { $_.Name -ne $distributionName }
+    )
+    foreach ($staleDistribution in $staleDistributions) {
+        Remove-Item -LiteralPath $staleDistribution.FullName -Force
+    }
     Copy-Item -LiteralPath $built.Path -Destination $distribution -Force
     Write-Output "Android build completed: $destination"
     Write-Output "Android distribution APK: $distribution"

@@ -444,7 +444,7 @@ class _TodayContent extends StatelessWidget {
         20,
         0,
         20,
-        132 + MediaQuery.paddingOf(context).bottom,
+        AppSpacing.bottomNavClearance + MediaQuery.paddingOf(context).bottom,
       ),
       children: [
         nextStep,
@@ -904,7 +904,7 @@ class _ExpandableTodayTaskState extends State<_ExpandableTodayTask> {
       WorkStatus.rescheduled => (
         '已改期',
         Icons.event_repeat_outlined,
-        theme.colorScheme.tertiary,
+        context.tokens.info,
       ),
       WorkStatus.doing => (
         '进行中',
@@ -1422,9 +1422,9 @@ class _Timeline extends StatelessWidget {
       }
     }
     final now = controller.currentTime();
-    LogRailState stateFor(WorkspaceRecord block) {
-      if (conflicts.contains(block.id)) return LogRailState.warning;
-      if (block.isDone) return LogRailState.completed;
+    VineRailState stateFor(WorkspaceRecord block) {
+      if (conflicts.contains(block.id)) return VineRailState.warning;
+      if (block.isDone) return VineRailState.completed;
       final start = block.scheduledFor!;
       final end = start.add(
         Duration(
@@ -1432,17 +1432,17 @@ class _Timeline extends StatelessWidget {
         ),
       );
       if (!now.isBefore(start) && now.isBefore(end)) {
-        return LogRailState.current;
+        return VineRailState.current;
       }
-      return LogRailState.pending;
+      return VineRailState.pending;
     }
 
     return LogSurface(
       padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
-      child: LogRail(
+      child: VineRail(
         entries: [
           for (final block in blocks)
-            LogRailEntry(
+            VineRailEntry(
               label: block.title,
               detail:
                   '${formatTime(block.scheduledFor!)} · ${block.data['durationMinutes'] ?? 25} 分钟${conflicts.contains(block.id) ? ' · 时间冲突' : ''}',

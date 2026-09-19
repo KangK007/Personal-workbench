@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// 统一实色面板组件。
+/// 统一实色面板组件（OrganicPanel）。
 ///
 /// 层次手法：普通工作面使用中性边框，浮层使用克制阴影，避免重复描边。
 /// - [elevated] 为 `false` 时只使用 1px 中性边框；
@@ -29,7 +29,7 @@ class SolidPanel extends StatelessWidget {
   /// 左侧强调条颜色（优先级低于 [selected]）。
   final Color? accent;
 
-  /// 圆角半径，默认 [AppRadius.card]（12px）。
+  /// 圆角半径，默认 [AppRadius.panel]（20px，主要工作面）。
   final double? radius;
 
   /// 是否为浮层（对话框/弹层/菜单）——使用更深的投影。
@@ -48,7 +48,7 @@ class SolidPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final r = radius ?? AppRadius.card;
+    final r = radius ?? AppRadius.panel;
     final selectedBorderColor = scheme.primary.withValues(alpha: 0.4);
     final effectiveBorder =
         borderColor ??

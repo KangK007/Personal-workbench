@@ -334,6 +334,80 @@ Future<_Fixture> _createGuideFixture() async {
       'rsipChainCount': 3,
     },
   );
+  // 色板覆盖：补齐 habit / ritual / goal / reward / penalty / trigger，
+  // 使节点卡片 golden 覆盖全部 8 种类型配色——此前夹具只含 policy 与 reminder
+  // （ritual 那条被归档，不出现在界面上），8 色体系在视觉回归中实际零覆盖。
+  WorkspaceRecord colorNode(
+    String title,
+    String emoji,
+    RsipNodeType type,
+    String rule,
+    String action,
+    int chain,
+  ) => WorkspaceRecord.create(
+    kind: RecordKind.habit,
+    title: title,
+    data: {
+      'protocol': 'rsip',
+      'recordType': 'rsipNode',
+      'rsipNodeType': type.name,
+      'rsipRule': rule,
+      'rsipMinimumAction': action,
+      'rsipGroupId': group.id,
+      'rsipEmoji': emoji,
+      'rsipActive': true,
+      'rsipChainCount': chain,
+    },
+  );
+  final habitNode = colorNode(
+    '晨间参数巡检',
+    '🌱',
+    RsipNodeType.habit,
+    '每天开工前巡一遍仪器参数',
+    '看一项参数',
+    12,
+  );
+  final ritualNode = colorNode(
+    '每周仪器校准仪式',
+    '🔁',
+    RsipNodeType.ritual,
+    '每周五收工前跑一次校准流程',
+    '跑完校准第一步',
+    6,
+  );
+  final goalNode = colorNode(
+    '本月完整复现两轮',
+    '🎯',
+    RsipNodeType.goal,
+    '完成两轮端到端复现并留存日志',
+    '写完一轮结论',
+    4,
+  );
+  final rewardNode = colorNode(
+    '复现通过后休整一天',
+    '🏅',
+    RsipNodeType.reward,
+    '两轮复现全部通过后休息一天',
+    '确认通过',
+    2,
+  );
+  final penaltyNode = colorNode(
+    '漏记则次日双倍补写',
+    '⛔',
+    RsipNodeType.penalty,
+    '漏记一次，次日补写双倍内容',
+    '补写一条',
+    3,
+  );
+  final triggerNode = colorNode(
+    '收到评审邮件即核对',
+    '⚡',
+    RsipNodeType.trigger,
+    '收到评审邮件后立即核对附议项',
+    '打开邮件',
+    5,
+  );
+
   final archived = WorkspaceRecord.create(
     kind: RecordKind.habit,
     title: '旧版晨间参数抄录',
@@ -351,6 +425,12 @@ Future<_Fixture> _createGuideFixture() async {
   );
   await controller.addRecord(root);
   await controller.addRecord(child);
+  await controller.addRecord(habitNode);
+  await controller.addRecord(ritualNode);
+  await controller.addRecord(goalNode);
+  await controller.addRecord(rewardNode);
+  await controller.addRecord(penaltyNode);
+  await controller.addRecord(triggerNode);
   await controller.addRecord(archived);
   await controller.archiveRsipNode(archived, reason: '已合并到实验记录收尾流程');
 
@@ -519,6 +599,30 @@ void main() {
     expect(fixture.controller.tasks, hasLength(5));
     expect(fixture.controller.timeBlocks, hasLength(3));
     expect(fixture.controller.growthSnapshot.totalXp, 70);
+  });
+
+  // 回归守卫：8 类节点必须各自独立一色。
+  //
+  // 直接断言色板映射，不经界面渲染——节点色只体现在 3px 的 accent 条上，
+  // 落在视口外时截图里就是 0 像素，靠 golden 守不住（实测 reward / penalty /
+  // trigger 三色在 1440×900 树视图下命中 0 像素；实测界面渲染断言也只找得到
+  // 1 种）。故这里断言纯函数，覆盖完整且与视口无关。
+  test('节点类型 8 色各自独立', () {
+    for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+      final tokens = theme.extension<WorkbenchTokens>()!;
+      final scheme = theme.colorScheme;
+      final colors = {
+        for (final type in RsipNodeType.values)
+          type: rsipNodeTypeColor(tokens, scheme, type),
+      };
+      expect(
+        colors.values.toSet(),
+        hasLength(8),
+        reason:
+            '${theme.brightness.name}：8 个类型必须各自独立一色——'
+            '出现重复即说明有类型又被合并成了同色：$colors',
+      );
+    }
   });
 
   testWidgets('Wide today light', (tester) async {

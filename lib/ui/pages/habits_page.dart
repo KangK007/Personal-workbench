@@ -48,7 +48,12 @@ class HabitsPage extends StatelessWidget {
         Expanded(
           child: habits.isEmpty
               ? ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 132),
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    0,
+                    20,
+                    AppSpacing.bottomNavClearance,
+                  ),
                   children: [
                     EmptyState(
                       icon: Icons.repeat,
@@ -68,7 +73,12 @@ class HabitsPage extends StatelessWidget {
                   ],
                 )
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 132),
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    0,
+                    20,
+                    AppSpacing.bottomNavClearance,
+                  ),
                   children: [
                     SectionHeading(
                       title: '近期记录',
@@ -450,7 +460,7 @@ class _HabitCell extends StatelessWidget {
                     ? Colors.transparent
                     : color,
                 border: Border.all(
-                  color: isToday ? context.tokens.marker : color,
+                  color: isToday ? context.tokens.info : color,
                   width: isToday ? 2 : 1,
                 ),
                 borderRadius: BorderRadius.circular(2),

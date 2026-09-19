@@ -1,3 +1,11 @@
+"""已废弃：本脚本产出的 glass_today.html 属「玻璃拟态」时期产物。
+
+现行规范 ORGANIC_UI_SPEC.md 明令禁用 BackdropFilter 与玻璃拟态，所有工作面
+一律实色 + 1px 中性边框。此文件仅作历史留档，**不再与现行令牌同步**——其
+调色板仍是旧的冷绿配色。请勿重新运行，以免产出与规范冲突的稿子。当前色值
+以 assets/tokens.css 与 lib/core/theme/app_theme.dart 为准。
+"""
+
 from __future__ import annotations
 
 from pathlib import Path

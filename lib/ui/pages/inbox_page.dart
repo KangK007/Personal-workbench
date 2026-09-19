@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/models/workspace_record.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
@@ -167,7 +168,12 @@ class _InboxPageState extends State<InboxPage> {
                           : null,
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
+                      padding: const EdgeInsets.fromLTRB(
+                        20,
+                        18,
+                        20,
+                        AppSpacing.bottomNavClearance,
+                      ),
                       itemCount: displayRecords.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {

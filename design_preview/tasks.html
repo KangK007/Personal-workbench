@@ -22,7 +22,7 @@
 
   .task-row .due { font-size: 11.5px; color: var(--ink-muted); }
   .task-row .due.warn { color: var(--reward); }
-  .task-row .due.over { color: var(--danger); }
+  .task-row .due.over { color: var(--signal); }
 
   .subtask-indent { display: flex; align-items: center; gap: 4px; margin-left: 26px; }
   .subtask-line { color: var(--ink-muted); font-size: 12px; }
@@ -91,7 +91,7 @@
           <span class="chip">待办 <span class="num">6</span></span>
           <span class="chip">进行中 <span class="num">2</span></span>
           <span class="chip">今日到期 <span class="num">4</span></span>
-          <span class="chip">逾期 <span class="num" style="color:var(--danger)">3</span></span>
+          <span class="chip">逾期 <span class="num" style="color:var(--signal)">3</span></span>
           <span class="chip">收件箱 <span class="num">5</span></span>
         </div>
         <div class="spacer"></div>
@@ -128,7 +128,7 @@
           <span class="checkbox on"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
           <span class="title">三路代码探索与事实收集</span>
           <span class="spacer"></span>
-          <span class="pill gold">已完成</span>
+          <span class="pill amber">已完成</span>
           <span class="due num">昨天</span>
         </div>
         <div class="task-row" data-status="todo" onclick="this.querySelector('.checkbox').classList.toggle('on')">

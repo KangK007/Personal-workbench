@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>柔壤 · 年轮 — 个人工作台 UI 设计方案 v1.0</title>
+<style>
+/* ══════ 字体：复用项目现有离线资产（../../assets/fonts/），零新增字库 ══════ */
+@font-face { font-family:"LXGW WenKai GB"; src:url("../../assets/fonts/LXGWWenKaiGB-Medium.ttf") format("truetype"); font-weight:500; font-display:swap; }
+@font-face { font-family:"IBM Plex Sans SC"; src:url("../../assets/fonts/IBMPlexSansSC-Regular.otf") format("opentype"); font-weight:400; font-display:swap; }
+@font-face { font-family:"IBM Plex Sans SC"; src:url("../../assets/fonts/IBMPlexSansSC-Medium.otf") format("opentype"); font-weight:500; font-display:swap; }
+@font-face { font-family:"IBM Plex Sans SC"; src:url("../../assets/fonts/IBMPlexSansSC-SemiBold.otf") format("opentype"); font-weight:600; font-display:swap; }
+@font-face { font-family:"IBM Plex Mono"; src:url("../../assets/fonts/IBMPlexMono-Medium.ttf") format("truetype"); font-weight:500; font-display:swap; }
+
+/* ══════ 令牌 —— 与 ORGANIC_UI_SPEC.md 第 4 节逐项对应 ══════ */
+:root{
+  --canvas:#F7F4EC; --surface:#FFFDF9; --raised:#FFFFFF; --subtle:#EFEAE0;
+  --ink:#232A22; --ink-muted:#636B5E; --ink-faint:#8A9083;
+  --divider:#E3DCCF; --border-strong:#D2CFC5;
+  --moss:#4A6E4C; --moss-container:#DCE7D8; --moss-on-container:#1E3320;
+  --clay:#9B5227; --clay-container:#F5E3D6; --clay-on-container:#4A2410;
+  --signal:#9E3A32; --signal-container:#F7DEDA; --signal-on-container:#5A1F19;
+  --info:#3E6883; --info-container:#DCE8F0; --info-on-container:#1C3947;
+  --focus-ring:var(--moss); --on-solid:#FFFFFF;
+  --shadow:0 6px 16px rgb(35 42 34 / .08);
+  --r-xs:8px; --r-control:12px; --r-card:16px; --r-panel:20px;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+[data-theme="dark"]{
+  --canvas:#171612; --surface:#1E1D18; --raised:#26251E; --subtle:#2C2A22;
+  --ink:#EFEDE4; --ink-muted:#A9A797; --ink-faint:#7C7A6C;
+  --divider:#3A382E; --border-strong:#4F4D45;
+  --moss:#93C08D; --moss-container:#2C3A2B; --moss-on-container:#CFE8CB;
+  --clay:#E2A176; --clay-container:#4A3629; --clay-on-container:#F7DCC6;
+  --signal:#E88C7E; --signal-container:#4C2A26; --signal-on-container:#F9D9D3;
+  --info:#93B7CF; --info-container:#27333D; --info-on-container:#C7DCE8;
+  --on-solid:#171612;
+  --shadow:0 6px 16px rgb(0 0 0 / .40);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--canvas); color:var(--ink);
+  font-family:"IBM Plex Sans SC",system-ui,"Microsoft YaHei UI",sans-serif;
+  font-size:15px; line-height:1.6; letter-spacing:0; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:500;font-variant-numeric:tabular-nums}
+.disp{font-family:"LXGW WenKai GB",serif;font-weight:500;letter-spacing:0}
+
+/* ── 布局 ── */
+.shell{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--surface);border-right:1px solid var(--divider);padding:28px 0 40px}
+.side-brand{padding:0 24px 20px;border-bottom:1px solid var(--divider)}
+.side-brand .seal{width:34px;height:34px;border-radius:11px;background:var(--moss);color:var(--on-solid);display:grid;place-items:center;font-family:"LXGW WenKai GB",serif;font-size:17px;margin-bottom:12px}
+.side-brand h1{font-family:"LXGW WenKai GB",serif;font-weight:500;font-size:19px;line-height:1.32}
+.side-brand .sub{font-size:12px;line-height:1.45;color:var(--ink-muted);margin-top:2px}
+.side nav{padding:16px 12px}
+.side nav a{display:block;padding:8px 12px;border-radius:var(--r-control);color:var(--ink-muted);text-decoration:none;font-size:13px;line-height:1.45;border-left:3px solid transparent;transition:all 120ms var(--ease)}
+.side nav a:hover{background:var(--subtle);color:var(--ink)}
+.side nav a.on{background:var(--moss-container);color:var(--moss-on-container);border-left-color:var(--moss);font-weight:600}
+.side nav .grp{padding:16px 12px 6px;font-size:11px;font-weight:600;color:var(--ink-faint);letter-spacing:.06em}
+.side-foot{margin-top:8px;padding:14px 24px 0;border-top:1px solid var(--divider);font-size:11px;line-height:1.5;color:var(--ink-faint)}
+.main{padding:0 0 96px;min-width:0}
+.inner{max-width:1000px;margin:0 auto;padding:0 36px}
+section{padding:56px 0;border-top:1px solid var(--divider)}
+.hero{padding:64px 0 56px}
+.hero .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--moss);background:var(--moss-container);padding:5px 12px;border-radius:999px;margin-bottom:20px}
+.hero .eyebrow i{width:6px;height:6px;border-radius:999px;background:var(--moss);display:block}
+.hero h2{font-family:"LXGW WenKai GB",serif;font-weight:500;font-size:34px;line-height:1.32;margin-bottom:16px}
+.hero .lead{font-size:16px;line-height:1.65;color:var(--ink-muted);max-width:660px}
+.hero .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}
+.tag{font-size:12px;line-height:1.4;padding:4px 10px;border-radius:999px;background:var(--subtle);color:var(--ink-muted);border:1px solid var(--border-strong)}
+h3.sec{font-size:22px;font-weight:600;line-height:1.4;margin-bottom:8px;display:flex;align-items:baseline;gap:12px}
+h3.sec .idx{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;color:var(--moss)}
+h4{font-size:16px;font-weight:600;line-height:1.45;margin:32px 0 12px}
+h5{font-size:14px;font-weight:600;line-height:1.5;margin:24px 0 8px;color:var(--ink)}
+.sec-lead{font-size:15px;line-height:1.65;color:var(--ink-muted);max-width:720px;margin-bottom:8px}
+.panel{background:var(--surface);border:1px solid var(--divider);border-radius:var(--r-panel);padding:20px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
+
+/* ── 色卡 ── */
+.sw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:12px}
+.sw{border:1px solid var(--divider);border-radius:var(--r-card);overflow:hidden;background:var(--surface)}
+.sw .chip{height:64px;display:block}
+.sw .info{padding:10px 12px 12px}
+.sw .nm{font-size:12px;font-weight:600;font-family:"IBM Plex Mono",monospace;line-height:1.4}
+.sw .hx{font-size:11px;font-family:"IBM Plex Mono",monospace;color:var(--ink-muted);margin-top:2px}
+.sw .use{font-size:11px;line-height:1.45;color:var(--ink-muted);margin-top:6px}
+.sw .ratio{font-size:11px;font-family:"IBM Plex Mono",monospace;margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ok{color:var(--moss)} .warn{color:var(--clay)}
+.badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:999px;background:var(--moss-container);color:var(--moss-on-container)}
+.badge.dec{background:var(--subtle);color:var(--ink-muted)}
+
+/* ── 表格 ── */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:600;font-size:12px;color:var(--ink-muted);padding:10px 12px;border-bottom:1px solid var(--border-strong);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--divider);vertical-align:top;line-height:1.5}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.wrap-t{overflow-x:auto;border:1px solid var(--divider);border-radius:var(--r-card);background:var(--surface)}
+
+/* ── 组件实验室 ── */
+.lab{background:var(--canvas);border:1px solid var(--divider);border-radius:var(--r-card);padding:24px}
+.lab+.lab{margin-top:12px}
+.lab .lbl{font-size:11px;font-family:"IBM Plex Mono",monospace;color:var(--ink-faint);margin-bottom:12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 18px;border-radius:var(--r-control);font-family:inherit;font-size:15px;font-weight:600;line-height:1.45;border:1px solid transparent;cursor:pointer;transition:all 120ms var(--ease)}
+.btn:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.btn.filled{background:var(--moss);color:var(--on-solid)}
+.btn.filled:hover{filter:brightness(1.08)}
+.btn.tonal{background:var(--moss-container);color:var(--moss-on-container)}
+.btn.outline{background:transparent;border-color:var(--border-strong);color:var(--moss)}
+.btn.outline:hover{border-color:var(--moss)}
+.btn.ghost{background:transparent;color:var(--moss)}
+.btn.ghost:hover{background:var(--subtle)}
+.btn.danger{background:var(--signal);color:var(--on-solid)}
+.btn[disabled]{opacity:.42;cursor:not-allowed}
+.btn.mob{height:52px}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;line-height:1.4}
+.pill.done{background:var(--clay-container);color:var(--clay-on-container)}
+.pill.run{background:var(--moss-container);color:var(--moss-on-container)}
+.pill.warn{background:var(--signal-container);color:var(--signal-on-container)}
+.pill.info{background:var(--info-container);color:var(--info-on-container)}
+.pill.idle{background:var(--subtle);color:var(--ink-muted)}
+.pill i{width:6px;height:6px;border-radius:999px;background:currentColor;display:block}
+.field{display:flex;flex-direction:column;gap:6px;max-width:320px}
+.field label{font-size:13px;font-weight:600;line-height:1.45}
+.field input{height:40px;padding:0 14px;border-radius:var(--r-control);background:var(--subtle);border:1px solid var(--border-strong);color:var(--ink);font-family:inherit;font-size:15px;outline:none;transition:all 120ms var(--ease)}
+.field input::placeholder{color:var(--ink-faint)}
+.field input:focus{border-color:var(--moss);border-width:2px;padding:0 13px;outline:2px solid var(--focus-ring);outline-offset:2px}
+.field .hint{font-size:12px;line-height:1.45;color:var(--ink-muted)}
+.field .err{font-size:12px;line-height:1.45;color:var(--signal);font-weight:600}
+.taskrow{display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-radius:var(--r-control);transition:background 120ms var(--ease)}
+.taskrow:hover{background:var(--subtle)}
+.taskrow.mob{height:60px}
+.cb{width:22px;height:22px;border-radius:var(--r-xs);flex:0 0 auto;border:1.5px solid var(--border-strong);display:grid;place-items:center;background:var(--surface);font-size:12px}
+.cb.on{background:var(--moss);border-color:var(--moss);color:var(--on-solid)}
+.taskrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;line-height:1.6}
+.taskrow.done .t{color:var(--ink-muted)}
+.taskrow .tm{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
+
+/* ── 藤线 ── */
+.vine{position:relative;padding-left:28px}
+.vine .node{position:absolute;left:0;top:6px;width:10px;height:10px;border-radius:999px;background:var(--surface);border:2px solid var(--moss);opacity:.55}
+.vine .node.grow{background:var(--moss);border-color:var(--moss);opacity:1;box-shadow:0 0 0 4px var(--moss-container)}
+.vine .node.done{background:var(--clay);border-color:var(--clay);opacity:1}
+.vine .node.gap{background:var(--surface);border-color:var(--signal);border-style:dashed;width:14px;height:14px;left:-2px;top:4px;border-radius:4px}
+.vine .line{position:absolute;left:4px;top:18px;bottom:-14px;width:1.5px;background:var(--divider);border-radius:999px}
+.vine .line.cut{bottom:auto;height:12px;background:var(--signal);opacity:.6}
+.vine .item{padding-bottom:24px;position:relative}
+.vine .item .ti{font-size:15px;font-weight:600;line-height:1.5}
+.vine .item .me{font-size:13px;line-height:1.45;color:var(--ink-muted);margin-top:2px}
+.vine .item:last-child{padding-bottom:0}
+.vine .item:last-child .line{display:none}
+
+/* ── 线框图 ── */
+.wf{border:1px solid var(--divider);border-radius:var(--r-card);overflow:hidden;background:var(--canvas)}
+.wf .bar{height:34px;background:var(--surface);border-bottom:1px solid var(--divider);display:flex;align-items:center;gap:6px;padding:0 12px;font-size:11px;font-family:"IBM Plex Mono",monospace;color:var(--ink-muted)}
+.wf .bar i{width:8px;height:8px;border-radius:999px;background:var(--border-strong);display:block}
+.wf .body{padding:12px;display:grid;gap:8px}
+.wf .z{border:1px dashed var(--border-strong);border-radius:var(--r-xs);padding:8px 10px;font-size:11px;line-height:1.45;color:var(--ink-muted);background:var(--surface)}
+.wf .z.fill{border-style:solid;border-color:var(--divider)}
+.wf .z.hi{border-style:solid;border-color:var(--moss);color:var(--moss-on-container);background:var(--moss-container)}
+.wf .z.cl{border-style:solid;border-color:var(--clay);background:var(--clay-container);color:var(--clay-on-container)}
+.wf .z b{display:block;color:var(--ink);font-weight:600;font-size:12px;margin-bottom:2px}
+.wf .z.hi b{color:var(--moss-on-container)} .wf .z.cl b{color:var(--clay-on-container)}
+.wf-3col{display:grid;grid-template-columns:120px 1fr 140px;gap:8px;min-height:260px}
+.wf-3col .z{display:flex;flex-direction:column;gap:6px}
+.wf-mob{max-width:296px}
+.wf-nav{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:8px;background:var(--surface);border-top:1px solid var(--divider);font-size:10px;text-align:center;color:var(--ink-muted)}
+.wf-nav span.on{color:var(--moss);font-weight:600}
+@media(max-width:640px){.wf-3col{grid-template-columns:1fr}}
+.space-demo{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.space-demo .b{background:var(--moss);border-radius:2px;width:20px}
+.principle{background:var(--surface);border:1px solid var(--divider);border-radius:var(--r-card);padding:18px 20px}
+.principle .n{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;color:var(--moss);margin-bottom:8px}
+.principle .h{font-size:16px;font-weight:600;line-height:1.45;margin-bottom:6px}
+.principle .d{font-size:13px;line-height:1.6;color:var(--ink-muted)}
+.principle .loc{margin-top:10px;font-size:11px;font-family:"IBM Plex Mono",monospace;color:var(--ink-faint);padding-top:8px;border-top:1px solid var(--divider);word-break:break-all}
+.note{display:flex;gap:12px;background:var(--info-container);color:var(--info-on-container);border-radius:var(--r-card);padding:14px 18px;font-size:13px;line-height:1.6}
+.note.warnbox{background:var(--clay-container);color:var(--clay-on-container)}
+.note .mk{font-weight:600;flex:0 0 auto}
+.bando{display:flex;height:52px;border-radius:var(--r-card);overflow:hidden;border:1px solid var(--divider)}
+.bando div{flex:1}
+.tgl{position:fixed;top:20px;right:24px;z-index:50;display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:999px;background:var(--raised);border:1px solid var(--border-strong);color:var(--ink);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:var(--shadow);transition:all 120ms var(--ease)}
+.tgl:hover{border-color:var(--moss);color:var(--moss)}
+.tgl:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.hair{border:0;border-top:1px solid var(--divider);margin:22px 0}
+.mini{font-size:12px;line-height:1.6;color:var(--ink-muted)}
+ol.mini,ul.mini{padding-left:18px}
+code{font-family:"IBM Plex Mono",monospace;font-size:.92em;background:var(--subtle);padding:1px 5px;border-radius:5px}
+kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--subtle);border:1px solid var(--border-strong);border-radius:5px;padding:1px 6px}
+ul.clean{list-style:none;padding-left:0;display:flex;flex-direction:column;gap:6px}
+@media(max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--divider)}
+  .side nav{display:flex;flex-wrap:wrap}
+  .inner{padding:0 20px}
+  .hero h2{font-size:27px}
+  .tgl{top:auto;bottom:20px;right:16px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<button class="tgl" id="tgl" aria-label="切换深浅色">◐ <span>暖光 · 浅色</span></button>
+
+<div class="shell">
+
+  <aside class="side">
+    <div class="side-brand">
+      <div class="seal">柔</div>
+      <h1>柔壤 · 年轮</h1>
+      <div class="sub">个人工作台 UI 设计方案<br>v1.0 · 温柔有机</div>
+    </div>
+    <nav>
+      <div class="grp">方案总览</div>
+      <a href="#overview">目标用户与设计靶子</a>
+      <a href="#ia">信息架构</a>
+      <div class="grp">设计语言</div>
+      <a href="#color">色彩令牌</a>
+      <a href="#type">字体与排版</a>
+      <a href="#shape">形状 · 圆角 · 留白</a>
+      <div class="grp">落地</div>
+      <a href="#components">关键组件规范</a>
+      <a href="#pages">主要页面布局</a>
+      <a href="#interaction">降低认知负荷</a>
+      <a href="#motion">动效与可访问性</a>
+      <a href="#handoff">迁移与执行清单</a>
+    </nav>
+    <div class="side-foot">令牌与文档同源<br><span class="mono">ORGANIC_UI_SPEC.md</span></div>
+  </aside>
+
+  <main class="main">
+
+    <div class="inner">
+      <header class="hero">
+        <div class="eyebrow"><i></i>个人工作台 · 全量视觉改版</div>
+        <h2>柔壤 · 年轮</h2>
+        <p class="lead">
+          一套以「温柔有机」为方向的界面方案：燕麦米底、苔绿行动色、陶土成果色，圆润同心圆角，用留白承担分组职责。
+          <strong>有机形态只编码真实数据</strong>——年轮弧表达周期与时长，藤线表达顺序与状态，不做任何装饰性曲线。
+        </p>
+        <div class="meta">
+          <span class="tag">目标平台 Windows 桌面 + Android</span>
+          <span class="tag">Flutter 3.38.9 / Dart 3.10.8</span>
+          <span class="tag">适配现有 <span class="mono">app_theme.dart</span></span>
+          <span class="tag">58 组对比度实测 · 全部达标</span>
+          <span class="tag">零新增字库</span>
+        </div>
+      </header>
+    </div>
+
+    <!-- ════════════════ 01 总览 ════════════════ -->
+    <section id="overview">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">01</span>目标用户的真实操作习惯</h3>
+        <p class="sec-lead">先看清人怎么用，再决定界面长什么样。这是本方案所有取舍的依据。</p>
+
+        <div class="grid2" style="margin-top:20px">
+          <div class="panel">
+            <h5 style="margin-top:0">桌面 · 周中晚上规划</h5>
+            <p class="mini">2 小时连续操作，多窗口切换，键盘为主，长时间阅读任务与笔记。</p>
+            <hr class="hair">
+            <p class="mini"><b style="color:var(--moss)">界面要求</b><br>低视觉噪声；留白用于分组而非装饰；数字必须等宽防抖。</p>
+          </div>
+          <div class="panel">
+            <h5 style="margin-top:0">移动 · 白天随手记录</h5>
+            <p class="mini">单手、30 秒、掏出即记。记一句、勾一个、放回口袋。</p>
+            <hr class="hair">
+            <p class="mini"><b style="color:var(--moss)">界面要求</b><br>拇指可达；主操作下沉；<strong>不要求填完整表单</strong>。</p>
+          </div>
+          <div class="panel">
+            <h5 style="margin-top:0">桌面 · 周末周期回顾</h5>
+            <p class="mini">40 分钟浏览一周记录、看趋势、写总结。</p>
+            <hr class="hair">
+            <p class="mini"><b style="color:var(--moss)">界面要求</b><br>长文阅读舒适（行长、行高）；时间与序号纵向对齐。</p>
+          </div>
+          <div class="panel">
+            <h5 style="margin-top:0">双端 · 打断后回到工作</h5>
+            <p class="mini">从通知点进来，想立刻知道「到哪了」，随后回到原处。</p>
+            <hr class="hair">
+            <p class="mini"><b style="color:var(--moss)">界面要求</b><br>状态一眼可辨；返回不丢滚动位置与展开状态。</p>
+          </div>
+        </div>
+
+        <h4>本次改版的靶子 —— 现行界面的 8 个具体问题</h4>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th style="width:52px">#</th><th>问题</th><th>证据</th><th>后果</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">P1</td><td>侧栏 <b>14 个平铺一级入口</b> + 2 个折叠组</td><td class="mono" style="font-size:11px">workbench_shell.dart:783</td><td>找页面＝线性扫描，认知负荷随入口数线性上升</td></tr>
+              <tr><td class="mono">P2</td><td>移动端底部 5 项中<b>没有「成长」</b>，低频的「设置」占主位</td><td class="mono" style="font-size:11px">workbench_shell.dart:110</td><td>习惯打卡、日记需绕道「更多」，与「30 秒完成」冲突</td></tr>
+              <tr><td class="mono">P3</td><td>正文行高 1.35–1.5，中文长文偏紧</td><td class="mono" style="font-size:11px">app_theme.dart:439</td><td>阅读疲劳；<code>bodyLarge</code> 与 <code>bodyMedium</code> 同为 16/1.5，语义重叠</td></tr>
+              <tr><td class="mono">P4</td><td>冷绿画布 + 翡翠绿，对比强、偏「软件感」</td><td class="mono" style="font-size:11px">app_theme.dart:9,15</td><td>与「温柔有机」方向相反，长时间注视偏刺激</td></tr>
+              <tr><td class="mono">P5</td><td><code>signal #C84F45</code> 与 <code>danger #B53D3A</code> 语义重复</td><td class="mono" style="font-size:11px">app_theme.dart:19,23</td><td>两个红并存，实现者无法判断该用哪个</td></tr>
+              <tr><td class="mono">P6</td><td><code>AppSpacing.xxl</code> 与 <code>xxxl</code> 取值相同（均 32）</td><td class="mono" style="font-size:11px">app_theme.dart:99</td><td>标尺实际只有 5 档，无法表达页面级分区</td></tr>
+              <tr><td class="mono">P7</td><td><code>SectionHeading</code> 旁带航迹装饰条</td><td class="mono" style="font-size:11px">common.dart:529</td><td>装饰元素占用注意力，却不编码信息</td></tr>
+              <tr><td class="mono">P8</td><td>侧栏选中态同时用「12% 底 + 25% 描边 + 3px 竖条」</td><td class="mono" style="font-size:11px">workbench_shell.dart:1247</td><td>过度强调，反而削弱选中态的辨识速度</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>两条不可让步的设计理念</h4>
+        <div class="note">
+          <span class="mk">形态纪律</span>
+          <div>「温柔有机」不是加圆角、换绿色。<strong>所有有机形态必须编码真实数据，否则删除。</strong>
+          这条纪律继承原 <span class="mono">MASTER.md</span>「不添加船舶、海浪、虚构坐标、装饰编号」的原则——<strong>换的是形态语言，不是严谨度</strong>。</div>
+        </div>
+        <div class="note warnbox" style="margin-top:12px">
+          <span class="mk">留白纪律</span>
+          <div><strong>分组职责由留白承担，线条只做次要提示。</strong>组间留白 ≥ 组内留白的 2 倍。即使完全看不见分隔线，结构依然成立。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ 02 信息架构 ════════════════ -->
+    <section id="ia">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">02</span>信息架构：14 个平铺入口 → 6 个域</h3>
+        <p class="sec-lead">把「一屏列全部页面」改为「按用户心智分域」，并让侧栏默认只展开当前域。</p>
+
+        <h4>域模型</h4>
+        <div class="grid3">
+          <div class="panel" style="border-color:var(--moss)">
+            <div class="mono" style="font-size:11px;color:var(--moss);margin-bottom:8px">01 · 默认落地页</div>
+            <h5 style="margin:0 0 6px">今日 Today</h5>
+            <p class="mini">只回答「现在做什么」。承诺上限 3 条。</p>
+          </div>
+          <div class="panel">
+            <div class="mono" style="font-size:11px;color:var(--moss);margin-bottom:8px">02 · 4 个子页</div>
+            <h5 style="margin:0 0 6px">计划 Plan</h5>
+            <p class="mini">全部任务 · 收件箱 · 周视图 · 任务群</p>
+          </div>
+          <div class="panel">
+            <div class="mono" style="font-size:11px;color:var(--moss);margin-bottom:8px">03 · 5 个子页</div>
+            <h5 style="margin:0 0 6px">项目 Projects</h5>
+            <p class="mini">概览 · 任务 · 任务群 · 里程碑 · 笔记与回顾</p>
+          </div>
+          <div class="panel">
+            <div class="mono" style="font-size:11px;color:var(--moss);margin-bottom:8px">04 · 4 个子页</div>
+            <h5 style="margin:0 0 6px">记录 Record</h5>
+            <p class="mini">笔记 · 日回顾 · 周回顾 · 月回顾</p>
+          </div>
+          <div class="panel">
+            <div class="mono" style="font-size:11px;color:var(--moss);margin-bottom:8px">05 · 3 个子页</div>
+            <h5 style="margin:0 0 6px">执行 Execute</h5>
+            <p class="mini">专注 · 协议 · 自律 / 限制</p>
+          </div>
+          <div class="panel">
+            <div class="mono" style="font-size:11px;color:var(--moss);margin-bottom:8px">06 · 4 个子页</div>
+            <h5 style="margin:0 0 6px">成长 Growth</h5>
+            <p class="mini">目标 · 习惯 · 行为（国策）· 成长</p>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top:12px">
+          <span class="mk">系统层</span>
+          <div>全局搜索 <kbd>Ctrl K</kbd> · 快速捕获 <kbd>Ctrl Shift Space</kbd> · 设置 · 同步状态。
+          <strong>不占用导航位</strong>，常驻于侧栏顶部操作区与底部状态位。</div>
+        </div>
+
+        <h4>导航行为规则</h4>
+        <div class="grid2">
+          <div class="panel">
+            <h5 style="margin-top:0">四项硬规则</h5>
+            <ol class="mini">
+              <li>侧栏<b>只默认展开当前域</b>（手风琴，同时最多一个）。可见决策项从 ~20 降到 <b>6 域 + ≤5 子项</b>。</li>
+              <li>域标题整行可点：非当前域＝展开并进入首个子页；当前域＝折叠/展开。</li>
+              <li>子项缩进 20px，字重比域标题<b>低一级</b>（域 600 / 子项 400）建立层级，不加装饰。</li>
+              <li>深度上限 3 层（域 → 子页 → 页内 Tab），超过即用页内 Tab，不新增导航层。</li>
+            </ol>
+          </div>
+          <div class="panel">
+            <h5 style="margin-top:0">移动端底部导航：换掉「设置」，补上「成长」</h5>
+            <div class="wf" style="margin-bottom:14px">
+              <div class="wf-nav"><span class="on">今日</span><span>计划</span><span>记录</span><span>成长</span><span>更多</span></div>
+            </div>
+            <p class="mini">
+              <b style="color:var(--clay)">现状</b>：今日 / 任务 / 回顾 / 行为 / 设置 —— 高频的「成长」缺席，低频的「设置」占据主位。<br><br>
+              <b style="color:var(--moss)">新方案</b>：把设置降级进「更多」Sheet（含 项目 / 执行 / 行为 / 搜索 / 设置），把「成长」提到主位。
+            </p>
+          </div>
+        </div>
+
+        <div class="note warnbox" style="margin-top:12px">
+          <span class="mk">工程边界</span>
+          <div>所有 <span class="mono">WorkbenchSection</span> 枚举值保持不变，<strong>仅重新归组</strong>——不破坏路由、控制器调用与本地数据。落地位置：<span class="mono">workbench_shell.dart:110-116</span> 与 <span class="mono">:465-491</span>。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ 03 色彩 ════════════════ -->
+    <section id="color">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">03</span>色彩令牌</h3>
+        <p class="sec-lead">
+          苔绿承载行动、陶土承载成果、砖红承载风险、燕麦米承载底。每个令牌的对比度均为
+          <strong>按 WCAG 2.1 相对亮度公式实算</strong>，不是估算。
+        </p>
+        <div class="bando" style="margin:20px 0 28px">
+          <div style="background:#F7F4EC"></div><div style="background:#EFEAE0"></div>
+          <div style="background:#4A6E4C"></div><div style="background:#9B5227"></div>
+          <div style="background:#9E3A32"></div><div style="background:#3E6883"></div>
+          <div style="background:#232A22"></div>
+        </div>
+
+        <h4>浅色 · 晨间陶土</h4>
+        <div class="sw-grid" id="sw-light"></div>
+
+        <h4>深色 · 夜间炭壤</h4>
+        <div class="sw-grid" id="sw-dark"></div>
+
+        <h4>对比度实测明细</h4>
+        <p class="mini" style="margin-bottom:12px">共核算 33 组配对，<b class="ok">零未达标项</b>。正文/语义文字需 ≥4.5:1，焦点环与选中指示条需 ≥3:1。</p>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th>配对</th><th class="num">浅色</th><th class="num">深色</th><th>判定标准</th><th>结论</th></tr></thead>
+            <tbody>
+              <tr><td><code>ink</code> on <code>surface</code></td><td class="num">14.50:1</td><td class="num">14.39:1</td><td>正文 ≥4.5</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>inkMuted</code> on <code>surface</code></td><td class="num">5.45:1</td><td class="num">6.96:1</td><td>正文 ≥4.5</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>moss</code> on <code>surface</code></td><td class="num">5.70:1</td><td class="num">8.17:1</td><td>正文 ≥4.5</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>clay</code> on <code>surface</code></td><td class="num">5.69:1</td><td class="num">7.71:1</td><td>正文 ≥4.5</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>signal</code> on <code>surface</code></td><td class="num">6.66:1</td><td class="num">6.82:1</td><td>正文 ≥4.5</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>info</code> on <code>surface</code></td><td class="num">5.88:1</td><td class="num">7.97:1</td><td>正文 ≥4.5</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>inkMuted</code> on <code>subtle</code>（输入底）</td><td class="num">4.62:1</td><td class="num">5.93:1</td><td>正文 ≥4.5</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>*OnContainer</code> on <code>*Container</code></td><td class="num">9.76–10.86</td><td class="num">8.65–9.54</td><td>正文 ≥4.5</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td>主按钮 solid 文字 on moss/clay/signal/info</td><td class="num">5.79–6.76</td><td class="num">7.31–8.76</td><td>正文 ≥4.5</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>focusRing</code>（实色 moss）vs <code>surface</code></td><td class="num">5.70:1</td><td class="num">8.17:1</td><td>焦点环 ≥3.0</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>moss</code> vs <code>mossContainer</code>（选中竖条）</td><td class="num">4.54:1</td><td class="num">5.82:1</td><td>指示条 ≥3.0</td><td><span class="badge">PASS</span></td></tr>
+              <tr><td><code>divider</code> vs <code>surface</code></td><td class="num">1.34:1</td><td class="num">1.43:1</td><td>装饰级（见下）</td><td><span class="badge dec">柔化取向</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>语义纪律（硬规则）</h4>
+        <div class="grid2">
+          <div class="panel">
+            <ol class="mini">
+              <li><code>clay</code> <b>只用于成果与证据</b>，绝不用于错误、警告或危险。</li>
+              <li><code>signal</code> <b>只用于冲突、危险、停止</b>，绝不用于成就或强调。</li>
+              <li><code>moss</code> 是唯一的<b>行动色</b>：每个工作面只允许一个 moss 实心主按钮。</li>
+              <li>容器底上的文字<b>永远使用对应的 <code>*OnContainer</code></b>，不直接叠 moss/clay/signal。</li>
+              <li>颜色<b>不得作为唯一状态提示</b>，必须同时有形状/图标或文字冗余。</li>
+              <li><code>inkFaint</code> 与 <code>divider</code> 是装饰级对比度，<b>禁止承载必须被读到的信息</b>。</li>
+            </ol>
+          </div>
+          <div class="panel">
+            <h5 style="margin-top:0">为什么柔化线条是安全的</h5>
+            <p class="mini"><code>divider</code> 对比度仅 1.3–1.4:1，这是刻意的柔化取向。安全性来自三条兜底：</p>
+            <hr class="hair">
+            <p class="mini">
+              <b>1 · 留白兜底</b>　组间留白 ≥ 组内 2 倍，看不见线也能分组。<br>
+              <b>2 · 三重兜底</b>　输入框＝<code>subtle</code> 填充 + <code>borderStrong</code> 描边 + 文字标签。<br>
+              <b>3 · 焦点兜底</b>　键盘焦点用<b>实色 moss 2px 外环</b>（5.70:1 / 8.17:1），满足 <span class="mono">WCAG 1.4.11</span>。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ 04 字体 ════════════════ -->
+    <section id="type">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">04</span>字体与排版</h3>
+        <p class="sec-lead">
+          <strong>全部复用现有离线资产，APK 字体体积零增量。</strong>
+          霞鹜文楷本身即手写楷体质感，天然符合「温柔有机」，无需引入新字库。
+        </p>
+
+        <div class="grid3" style="margin:20px 0 8px">
+          <div class="panel">
+            <div class="disp" style="font-size:26px;line-height:1.32;margin-bottom:10px">霞鹜文楷</div>
+            <div class="mono" style="font-size:11px;color:var(--ink-muted)">LXGW WenKai GB · 500</div>
+            <hr class="hair">
+            <p class="mini">页名与少量章节标题。手写楷体质感即「温柔有机」的字体来源。</p>
+          </div>
+          <div class="panel">
+            <div style="font-size:26px;line-height:1.32;font-weight:600;margin-bottom:10px">IBM Plex 思源黑</div>
+            <div class="mono" style="font-size:11px;color:var(--ink-muted)">IBM Plex Sans SC · 400 / 500 / 600</div>
+            <hr class="hair">
+            <p class="mini">正文、表单、导航、按钮、说明。中性、耐读、中文覆盖完整。</p>
+          </div>
+          <div class="panel">
+            <div class="mono" style="font-size:26px;line-height:1.32;margin-bottom:10px">0123 45:67</div>
+            <div class="mono" style="font-size:11px;color:var(--ink-muted)">IBM Plex Mono · 500 · tabular</div>
+            <hr class="hair">
+            <p class="mini">时间、XP、序号、计时器、参数。等宽 + tabular figures 防抖动。</p>
+          </div>
+        </div>
+
+        <h4>字阶：相对现行的变化</h4>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th>令牌</th><th>现行</th><th>新值</th><th>变化理由</th></tr></thead>
+            <tbody>
+              <tr><td><code>displayLarge</code></td><td class="mono">28 / 1.30</td><td class="mono" style="color:var(--moss)"><b>30 / 1.32</b></td><td>页名更像「摊开的一页」，配合更大留白不显局促</td></tr>
+              <tr><td><code>headlineMedium</code></td><td class="mono">22 / 1.35</td><td class="mono" style="color:var(--moss)"><b>22 / 1.40</b></td><td>—</td></tr>
+              <tr><td><code>titleLarge</code></td><td class="mono">18 / 1.40 w600</td><td class="mono" style="color:var(--moss)"><b>18 / 1.50 w600</b></td><td>中文行距放宽</td></tr>
+              <tr><td><code>titleMedium</code></td><td class="mono">16 / 1.375 w600</td><td class="mono" style="color:var(--moss)"><b>16 / 1.45 w600</b></td><td>—</td></tr>
+              <tr><td><code>titleSmall</code></td><td class="mono">14 / 1.45 w600</td><td class="mono" style="color:var(--moss)"><b>14 / 1.50 w600</b></td><td>—</td></tr>
+              <tr><td><code>bodyLarge</code></td><td class="mono">16 / 1.50</td><td class="mono" style="color:var(--moss)"><b>16 / 1.65</b></td><td>阅读列专用；中文字符方块感强，行高需显著大于西文</td></tr>
+              <tr><td><code>bodyMedium</code></td><td class="mono">16 / 1.50</td><td class="mono" style="color:var(--moss)"><b>15 / 1.60</b></td><td><b>修正 P3</b>：与 bodyLarge 重叠，改为桌面界面正文 15px</td></tr>
+              <tr><td><code>bodySmall</code></td><td class="mono">13 / 1.35</td><td class="mono" style="color:var(--moss)"><b>13 / 1.50</b></td><td>辅助文字同样需要呼吸</td></tr>
+              <tr><td>阅读列</td><td class="mono">—</td><td class="mono" style="color:var(--moss)"><b>16 / 1.80</b></td><td>长文稳定阅读列，最大宽度 620px（约 38 中文字/行）</td></tr>
+              <tr><td>移动正文</td><td class="mono">≥16</td><td class="mono" style="color:var(--moss)"><b>≥16（不变）</b></td><td>沿用现行硬约束</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>实时排版对照</h4>
+        <div class="panel">
+          <div class="disp" style="font-size:30px;line-height:1.32;margin-bottom:4px">今日 · 2026 年 9 月 18 日 星期五</div>
+          <div class="mini mono" style="margin-bottom:20px">displayLarge　30 / 1.32　LXGW WenKai GB 500</div>
+
+          <div style="font-size:22px;line-height:1.40;font-weight:600;margin-bottom:4px">本周节奏</div>
+          <div class="mini mono" style="margin-bottom:20px">headlineMedium　22 / 1.40　Sans SC 600</div>
+
+          <div style="font-size:16px;line-height:1.65;max-width:620px;margin-bottom:4px">
+            把「今天」单独放在最上层，是因为一天里真正需要当场决定的只有少数几件事。其余的任务、项目与笔记，
+            都应该在需要时被找到，而不是一直摆在眼前——界面越安静，注意力越容易留在手上的这一件事。
+          </div>
+          <div class="mini mono" style="margin-bottom:20px">bodyLarge　16 / 1.65　阅读列 620px</div>
+
+          <div class="row" style="gap:28px">
+            <div>
+              <div class="mono" style="font-size:24px">03<span style="color:var(--ink-faint)"> / </span>05</div>
+              <div class="mini mono">等宽 · tabular</div>
+            </div>
+            <div>
+              <div class="mono" style="font-size:24px">04:12:38</div>
+              <div class="mini mono">计时器不抖动</div>
+            </div>
+            <div>
+              <div class="mono" style="font-size:24px">+180 <span style="font-size:13px;color:var(--ink-muted)">XP</span></div>
+              <div class="mini mono">证据计数</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ 05 形状留白 ════════════════ -->
+    <section id="shape">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">05</span>形状 · 圆角 · 留白</h3>
+        <p class="sec-lead">圆润来自「同心圆角」的一致规则，留白来自「组间 ≥ 组内 2 倍」的分组纪律。</p>
+
+        <h4>圆角标尺（圆润有机）</h4>
+        <div class="wrap-t" style="margin-bottom:20px">
+          <table>
+            <thead><tr><th>令牌</th><th>现行</th><th>新值</th><th>用途</th><th style="width:110px">形态</th></tr></thead>
+            <tbody>
+              <tr><td><code>xs</code></td><td class="mono">—</td><td class="mono" style="color:var(--moss)"><b>8</b></td><td>小标签、复选框、色块</td><td><div style="height:34px;border-radius:8px;background:var(--moss-container);border:1px solid var(--border-strong)"></div></td></tr>
+              <tr><td><code>control</code></td><td class="mono">8</td><td class="mono" style="color:var(--moss)"><b>12</b></td><td>按钮、输入框、Chip、列表选中底</td><td><div style="height:34px;border-radius:12px;background:var(--moss-container);border:1px solid var(--border-strong)"></div></td></tr>
+              <tr><td><code>card</code></td><td class="mono">12</td><td class="mono" style="color:var(--moss)"><b>16</b></td><td>卡片、FAB、菜单</td><td><div style="height:34px;border-radius:16px;background:var(--moss-container);border:1px solid var(--border-strong)"></div></td></tr>
+              <tr><td><code>panel</code></td><td class="mono">—</td><td class="mono" style="color:var(--moss)"><b>20</b></td><td>主要工作面、证据块</td><td><div style="height:34px;border-radius:20px;background:var(--moss-container);border:1px solid var(--border-strong)"></div></td></tr>
+              <tr><td><code>dialog</code></td><td class="mono">16</td><td class="mono" style="color:var(--moss)"><b>24</b></td><td>对话框</td><td><div style="height:34px;border-radius:24px;background:var(--moss-container);border:1px solid var(--border-strong)"></div></td></tr>
+              <tr><td><code>sheetTop</code></td><td class="mono">16</td><td class="mono" style="color:var(--moss)"><b>28</b></td><td>底部弹层顶角</td><td><div style="height:34px;border-radius:28px 28px 4px 4px;background:var(--moss-container);border:1px solid var(--border-strong)"></div></td></tr>
+              <tr><td><code>pill</code></td><td class="mono">999</td><td class="mono"><b>999</b></td><td>短状态标签</td><td><div style="height:34px;border-radius:999px;background:var(--moss-container);border:1px solid var(--border-strong)"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          <span class="mk">同心圆角规则</span>
+          <div>
+            当内边距 <code>P</code> &lt; 外层圆角 <code>R</code> 时，内层元素必须使用 <code>r = R − P</code>；当 <code>P ≥ R</code> 时，内层自由使用 <code>control</code>。<br>
+            <b>例</b>：面板 <span class="mono">R=20</span>、内边距 <span class="mono">P=8</span> → 内层必须用 <span class="mono">12</span>（20−8=12，恰为 control）。面板 <span class="mono">R=20</span>、内边距 <span class="mono">P=20</span> → 已视觉分离，内层自由用 12。
+          </div>
+        </div>
+
+        <h4>间距标尺（修正 P6）</h4>
+        <div class="grid2">
+          <div class="panel">
+            <div class="space-demo">
+              <div style="text-align:center"><div class="b" style="height:4px"></div><div class="mono mini">4</div></div>
+              <div style="text-align:center"><div class="b" style="height:8px"></div><div class="mono mini">8</div></div>
+              <div style="text-align:center"><div class="b" style="height:12px"></div><div class="mono mini">12</div></div>
+              <div style="text-align:center"><div class="b" style="height:16px"></div><div class="mono mini">16</div></div>
+              <div style="text-align:center"><div class="b" style="height:24px"></div><div class="mono mini">24</div></div>
+              <div style="text-align:center"><div class="b" style="height:32px"></div><div class="mono mini">32</div></div>
+              <div style="text-align:center"><div class="b" style="height:56px;background:var(--clay)"></div><div class="mono mini" style="color:var(--clay)">56</div></div>
+            </div>
+            <hr class="hair">
+            <p class="mini"><code>xxxl</code> 由 <b>32 → 56</b>。现行 <code>xxl</code> 与 <code>xxxl</code> 取值相同（均 32），标尺实际只有 5 档，无法表达页面级分区。</p>
+          </div>
+          <div class="panel">
+            <h5 style="margin-top:0">页面横向边距</h5>
+            <div class="wrap-t">
+              <table>
+                <tbody>
+                  <tr><td>Compact &lt;768</td><td class="mono" style="text-align:right">16 → <b style="color:var(--moss)">20</b></td></tr>
+                  <tr><td>Medium 768–1199</td><td class="mono" style="text-align:right">20 → <b style="color:var(--moss)">28</b></td></tr>
+                  <tr><td>Expanded ≥1200</td><td class="mono" style="text-align:right">24 → <b style="color:var(--moss)">36</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <hr class="hair">
+            <p class="mini">更大的边距让内容像「摊在纸上」，而不是「贴着屏幕边」。</p>
+          </div>
+        </div>
+
+        <h4>留白即分组 —— 本方案的核心手法</h4>
+        <div class="panel" style="background:var(--canvas)">
+          <div class="mini mono" style="margin-bottom:14px">组内 8　·　组间 24　·　比值 3.0</div>
+          <div style="background:var(--surface);border:1px solid var(--divider);border-radius:var(--r-panel);padding:20px">
+            <div class="taskrow" style="background:transparent"><div class="cb on">✓</div><div class="t" style="color:var(--ink-muted)">整理上周实验记录</div><div class="tm">09:00</div></div>
+            <div class="taskrow" style="background:transparent"><div class="cb on">✓</div><div class="t" style="color:var(--ink-muted)">回复导师邮件</div><div class="tm">10:30</div></div>
+            <div class="taskrow" style="background:transparent;margin-top:24px"><div class="cb"></div><div class="t">写第三章方法部分</div><div class="tm">14:00</div></div>
+            <div class="taskrow" style="background:transparent"><div class="cb"></div><div class="t">读两篇参考文献</div><div class="tm">16:00</div></div>
+          </div>
+          <p class="mini" style="margin-top:14px">
+            注意：<b>没有任何分隔线</b>。24px 的组间留白已经把「上午已完成」和「下午待办」分开。
+            这就是移除 <code>SectionHeading</code> 装饰航迹条（P7）后结构依然清晰的原因。
+          </p>
+        </div>
+
+        <h4>密度调整</h4>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th>项</th><th>现行</th><th>新值</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td>桌面列表行高</td><td class="mono">44</td><td class="mono" style="color:var(--moss)"><b>48</b></td><td>每屏可见行数下降约 8%，换取扫读准确率</td></tr>
+              <tr><td>移动列表行高</td><td class="mono">52</td><td class="mono" style="color:var(--moss)"><b>60</b></td><td>仍满足 ≥48dp 触控目标（整行可点）</td></tr>
+              <tr><td>桌面控件高</td><td class="mono">36</td><td class="mono" style="color:var(--moss)"><b>40</b></td><td>—</td></tr>
+              <tr><td>移动控件高</td><td class="mono">48</td><td class="mono" style="color:var(--moss)"><b>52</b></td><td>—</td></tr>
+              <tr><td>触控目标下限</td><td class="mono">48dp</td><td class="mono"><b>48dp（不变）</b></td><td>视觉圆角不改变命中区矩形</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>两个结构性元素</h4>
+        <div class="grid2">
+          <div class="panel">
+            <h5 style="margin-top:0">VineRail 藤线（取代 LogRail）</h5>
+            <p class="mini" style="margin-bottom:16px">编码真实时间顺序与任务状态。芽点 10px 圆头，连线 1.5px 圆头。</p>
+            <div class="vine">
+              <div class="item">
+                <div class="node done"></div><div class="line"></div>
+                <div class="ti">整理上周实验记录</div><div class="me mono">09:00 · 已结果</div>
+              </div>
+              <div class="item">
+                <div class="node grow"></div><div class="line"></div>
+                <div class="ti">写第三章方法部分</div><div class="me mono">14:00 · 进行中</div>
+              </div>
+              <div class="item">
+                <div class="node"></div><div class="line cut"></div>
+                <div class="ti">读两篇参考文献</div><div class="me mono" style="color:var(--signal)">16:00 · 与组会冲突</div>
+              </div>
+              <div class="item">
+                <div class="node gap"></div>
+                <div class="ti">与导师讨论</div><div class="me mono">17:30 · 未开始</div>
+              </div>
+            </div>
+            <hr class="hair">
+            <p class="mini">
+              <b>断口而非红点</b>：冲突与中断表现为「生长被打断」——连线断开 6px + <code>signal</code> 缺口弧，
+              天然具备<b>形状冗余</b>，不依赖颜色即可识别。
+            </p>
+          </div>
+          <div class="panel">
+            <h5 style="margin-top:0">GrowthArc 年轮弧</h5>
+            <p class="mini" style="margin-bottom:16px">编码真实进度百分比与时长。<code>strokeCap: round</code>，圆心放等宽数字。</p>
+            <div class="row" style="gap:16px;align-items:center">
+              <svg width="130" height="130" viewBox="0 0 140 140" role="img" aria-label="专注计时进行中">
+                <circle cx="70" cy="70" r="58" fill="none" stroke="var(--divider)" stroke-width="10"/>
+                <circle cx="70" cy="70" r="58" fill="none" stroke="var(--moss)" stroke-width="10" stroke-linecap="round"
+                        stroke-dasharray="364" stroke-dashoffset="116" transform="rotate(-90 70 70)"/>
+                <text x="70" y="66" text-anchor="middle" fill="var(--ink)" font-family="IBM Plex Mono,monospace" font-size="21" font-weight="500">25:00</text>
+                <text x="70" y="86" text-anchor="middle" fill="var(--ink-muted)" font-family="IBM Plex Sans SC,sans-serif" font-size="11">专注中</text>
+              </svg>
+              <svg width="130" height="130" viewBox="0 0 140 140" role="img" aria-label="周期已达成">
+                <circle cx="70" cy="70" r="58" fill="none" stroke="var(--clay)" stroke-width="10" stroke-linecap="round"
+                        stroke-dasharray="364" stroke-dashoffset="0" transform="rotate(-90 70 70)"/>
+                <text x="70" y="66" text-anchor="middle" fill="var(--clay)" font-family="IBM Plex Mono,monospace" font-size="21" font-weight="500">7/7</text>
+                <text x="70" y="86" text-anchor="middle" fill="var(--ink-muted)" font-family="IBM Plex Sans SC,sans-serif" font-size="11">本周达成</text>
+              </svg>
+            </div>
+            <hr class="hair">
+            <p class="mini">轨道 <code>divider</code> → 进行中 <code>moss</code> → 达成 <code>clay</code>。减少动效模式下<b>不做扫弧动画</b>，直接呈现终态。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ 06 组件 ════════════════ -->
+    <section id="components">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">06</span>关键组件规范</h3>
+        <p class="sec-lead">全部组件映射到现有实现，可直接改写而不新增架构。</p>
+
+        <h4>按钮 · SoftButton（四型）</h4>
+        <div class="lab">
+          <div class="lbl">桌面 40px / 圆角 12px —— 每个工作面只允许一个 filled</div>
+          <div class="row">
+            <button class="btn filled">开始今天</button>
+            <button class="btn tonal">快速新增</button>
+            <button class="btn outline">全局搜索</button>
+            <button class="btn ghost">全部</button>
+            <button class="btn danger">删除项目</button>
+            <button class="btn filled" disabled>提交中…</button>
+          </div>
+          <hr class="hair">
+          <div class="lbl">移动 52px</div>
+          <div class="row">
+            <button class="btn filled mob">开始专注</button>
+            <button class="btn outline mob">稍后</button>
+          </div>
+          <hr class="hair">
+          <div class="lbl">小尺寸 32px（行内操作）</div>
+          <div class="row">
+            <button class="btn sm ghost">编辑</button>
+            <button class="btn sm ghost">延期</button>
+            <button class="btn sm outline">专注</button>
+          </div>
+          <hr class="hair">
+          <p class="mini"><b>单一主行动原则</b>：一屏内 moss 实心按钮只有一个，其余降为 tonal / outline / ghost，让用户无需判断「该按哪个」。映射 <span class="mono">app_theme.dart:578-679</span>。</p>
+        </div>
+
+        <h4>状态标签 · StatusPill</h4>
+        <div class="lab">
+          <div class="lbl">胶囊 R=999 · 内边距 8×4 · 12/1.40 w600 · 容器底 + OnContainer 文字 · 必须含文字</div>
+          <div class="row">
+            <span class="pill done"><i></i>已结果</span>
+            <span class="pill run"><i></i>进行中</span>
+            <span class="pill warn"><i></i>与组会冲突</span>
+            <span class="pill info"><i></i>待同步</span>
+            <span class="pill idle"><i></i>未开始</span>
+          </div>
+          <hr class="hair">
+          <p class="mini">标签文字必须完整可读；<b>颜色仅作辅助</b>，状态由文字与圆点共同表达，两维中任一缺失仍可判断。</p>
+        </div>
+
+        <h4>表单 · Field</h4>
+        <div class="lab">
+          <div class="lbl">输入底 subtle + 描边 borderStrong + 文字标签 —— 三重构成，不依赖单一线条</div>
+          <div class="row" style="align-items:flex-start;gap:28px">
+            <div class="field">
+              <label for="f1">任务标题</label>
+              <input id="f1" placeholder="写第三章方法部分">
+              <div class="hint">只需要填这一项就能创建</div>
+            </div>
+            <div class="field">
+              <label for="f2">时间</label>
+              <input id="f2" class="mono" value="14:00 — 16:00">
+              <div class="hint">等宽数字，与列表右对齐</div>
+            </div>
+            <div class="field">
+              <label for="f3">所属项目</label>
+              <input id="f3" value="毕业论文" aria-invalid="true" style="border-color:var(--signal)">
+              <div class="err">⚠ 该项目已归档，请重新选择</div>
+            </div>
+          </div>
+          <hr class="hair">
+          <p class="mini"><b>错误不用红色边框单独表达</b>——同时给出图标（⚠）、加粗文字说明与颜色。</p>
+        </div>
+
+        <h4>任务行 · TaskRow</h4>
+        <div class="lab">
+          <div class="lbl">桌面 48px（前三行）／ 移动 60px（末行）· 完成态＝勾选 + 转 inkMuted，<b>不使用删除线</b></div>
+          <div style="background:var(--surface);border:1px solid var(--divider);border-radius:var(--r-panel);padding:8px">
+            <div class="taskrow"><div class="cb"></div><div class="t">写第三章方法部分</div><div class="tm">14:00 — 16:00</div><span class="pill run"><i></i>进行中</span></div>
+            <div class="taskrow done"><div class="cb on">✓</div><div class="t">整理上周实验记录</div><div class="tm">09:00</div><span class="pill done"><i></i>已结果</span></div>
+            <div class="taskrow"><div class="cb"></div><div class="t">读两篇参考文献</div><div class="tm">16:00</div><span class="pill warn"><i></i>冲突</span></div>
+            <div class="taskrow mob"><div class="cb"></div><div class="t">与导师讨论进展</div><div class="tm">17:30</div></div>
+          </div>
+          <hr class="hair">
+          <p class="mini">
+            <b>为什么不用删除线</b>：中文笔画密度高，删除线会显著降低可读性。完成态改用「勾选形状 + 墨色降级 + 陶土色 pill」三重表达，扫读同样快且更温和。映射 <span class="mono">lib/ui/widgets/task_row.dart</span>。
+          </p>
+        </div>
+
+        <h4>空态 · EmptyState</h4>
+        <div class="lab">
+          <div class="lbl">上下各 56px 留白 · 一句说明 + 一个 filled 主操作 · 禁止插画式装饰</div>
+          <div style="background:var(--surface);border:1px solid var(--divider);border-radius:var(--r-panel);padding:56px 20px;text-align:center">
+            <div style="width:44px;height:44px;border-radius:14px;background:var(--moss-container);display:grid;place-items:center;margin:0 auto 16px;color:var(--moss-on-container);font-size:20px">☰</div>
+            <div style="font-size:15px;line-height:1.6;color:var(--ink-muted);margin-bottom:20px">收件箱是空的。所有随手记下的事项都已归类。</div>
+            <button class="btn filled">快速新增</button>
+          </div>
+          <hr class="hair">
+          <p class="mini"><b>空态即引导</b>：只给<b>唯一推荐动作</b>，不并列多个选项。</p>
+        </div>
+
+        <h4>可见焦点（键盘）</h4>
+        <div class="lab">
+          <div class="lbl">实色 moss 2px 外环 + offset 2px · 实测 5.70:1（浅）／ 8.17:1（深），满足 ≥3:1</div>
+          <div class="row">
+            <button class="btn outline" style="outline:2px solid var(--focus-ring);outline-offset:2px">获得焦点</button>
+            <div class="taskrow" style="width:280px;background:var(--surface);outline:2px solid var(--focus-ring);outline-offset:2px"><div class="cb"></div><div class="t">列表行焦点</div></div>
+          </div>
+          <hr class="hair">
+          <p class="mini">原实现使用 <code>moss @ 32%</code> 半透明环，实测仅 <b style="color:var(--signal)">1.58:1</b>（浅）／<b style="color:var(--signal)">2.42:1</b>（深），<b>均不达标</b>。改为实色后通过。</p>
+        </div>
+
+        <h4>组件映射总表</h4>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th>组件</th><th>现有实现</th><th>规范要点</th></tr></thead>
+            <tbody>
+              <tr><td><b>OrganicPanel</b></td><td class="mono" style="font-size:11px">widgets/solid_panel.dart</td><td>实色 surface，1px divider 描边，R=20，内边距 20，<b>默认无阴影</b>；hover 抬升 2px + raisedShadow（blur 16 / offset 0,6）</td></tr>
+              <tr><td><b>PageHeader</b></td><td class="mono" style="font-size:11px">common.dart:437</td><td>页名 displayLarge；下接 4px 一行 meta（bodySmall + inkMuted）；<b>移除下边框</b>，用 24px 下留白分组</td></tr>
+              <tr><td><b>SectionHeading</b></td><td class="mono" style="font-size:11px">common.dart:529</td><td>18/1.50 w600；<b>移除装饰航迹条</b>；层级由 24px 上留白确立</td></tr>
+              <tr><td><b>VineRail</b></td><td class="mono" style="font-size:11px">common.dart:628</td><td>原 LogRail 重命名；芽点 10px 圆头、连线 1.5px 圆头、四态见 05 节。<b>设置页等无序内容不得创建假藤线</b></td></tr>
+              <tr><td><b>GrowthArc</b></td><td style="color:var(--clay)">新增</td><td>strokeCap round；线宽 10（大）/ 6（小）；轨道 divider → 进度 moss → 达成 clay；圆心等宽数字</td></tr>
+              <tr><td><b>TaskRow</b></td><td class="mono" style="font-size:11px">widgets/task_row.dart</td><td>行高 48/60；复选框 22px R=8；完成态去删除线；右侧时间等宽右对齐</td></tr>
+              <tr><td><b>SoftButton</b></td><td class="mono" style="font-size:11px">app_theme.dart:578</td><td>四型 filled / tonal / outline / ghost；高度 40 / 52；R=12；<b>每工作面一个 filled</b></td></tr>
+              <tr><td><b>StatusPill</b></td><td class="mono" style="font-size:11px">common.dart:918</td><td>R=999；8×4 内边距；12/1.40 w600；容器底 + OnContainer 文字；必须含文字</td></tr>
+              <tr><td><b>NumericText</b></td><td class="mono" style="font-size:11px">common.dart:960</td><td>Plex Mono 500 + tabular figures；与相邻文字间距 4</td></tr>
+              <tr><td><b>SurfaceIcon</b></td><td class="mono" style="font-size:11px">common.dart:16</td><td>32px 底 R=10 + 18px 描边图标；语义底用对应 *Container</td></tr>
+              <tr><td><b>EmptyState</b></td><td class="mono" style="font-size:11px">common.dart:790</td><td>上下各 56px 留白；一句说明 + <b>一个</b> filled；禁止插画装饰</td></tr>
+              <tr><td><b>SkeletonBlock</b></td><td class="mono" style="font-size:11px">common.dart:321</td><td>圆角＝被替换元素真实圆角；脉冲 1.6s；reduce-motion 下静态；异步 &gt;300ms 必须出现</td></tr>
+              <tr><td><b>TickDivider</b></td><td class="mono" style="font-size:11px">common.dart:1011</td><td>保留，改为<b>左右内缩 20px 的柔化刻度</b>（不贯穿满宽），形成呼吸断点</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ 07 页面 ════════════════ -->
+    <section id="pages">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">07</span>主要页面布局</h3>
+        <p class="sec-lead">通用骨架 + 6 个页面族的差异点。</p>
+
+        <h4>通用桌面骨架（≥1200）</h4>
+        <div class="wf">
+          <div class="bar"><i></i><span>Expanded ≥1200 · 侧栏 240（可收 76）+ 主工作区 + 证据侧轨 248</span></div>
+          <div class="body">
+            <div class="wf-3col">
+              <div class="z fill">
+                <b>侧栏 240</b>
+                域导航（手风琴）
+                <span class="mono" style="font-size:10px;margin-top:auto">快速新增<br>全局搜索</span>
+                <hr class="hair" style="margin:6px 0">
+                <span class="mono" style="font-size:10px">6 域</span>
+                <hr class="hair" style="margin:6px 0">
+                <span class="mono" style="font-size:10px">同步状态</span>
+              </div>
+              <div class="z" style="gap:10px">
+                <div class="z fill"><b>PageHeader</b>页名 30/1.32 + 一行 meta</div>
+                <div class="z hi" style="min-height:120px">
+                  <b>主工作区（弹性）</b>
+                  单列内容 max 620 居中<br>
+                  组间 24 · 组内 8<br>
+                  无分隔线，靠留白分组
+                </div>
+                <div class="z fill"><b>权威操作区</b>仅一个 filled 主按钮</div>
+              </div>
+              <div class="z fill">
+                <b>证据侧轨 248</b>
+                可折叠
+                <span class="mono" style="font-size:10px;margin-top:auto">年轮弧<br>待处理计数<br>回顾到期</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:24px">
+          <div>
+            <h5>今日 Today · 桌面三段式</h5>
+            <div class="wf">
+              <div class="bar"><i></i><span>Today · ≥1200</span></div>
+              <div class="body">
+                <div class="z hi"><b>① 今日承诺（焦点区）</b>最多 3 条 · 全部完成时整体降级为 inkMuted + 一行说明</div>
+                <div class="z fill"><b>② 时间藤线 VineRail</b>06:00–24:00 · 当前时间 moss 芽点 · 冲突显示为断口</div>
+                <div class="z cl"><b>③ 完成证据</b>clay 年轮弧 + 等宽 XP，只呈现可追溯的执行事实</div>
+              </div>
+            </div>
+            <p class="mini" style="margin-top:10px">
+              今日页是<b>唯一</b>默认落地页，只回答「现在做什么」。完成三条承诺时<b>不弹庆祝层</b>，庆祝仪式保留给周回顾等真实周期节点。
+            </p>
+          </div>
+          <div>
+            <h5>今日 Today · 移动单列</h5>
+            <div class="wf wf-mob" style="margin:0 auto">
+              <div class="bar"><i></i><span>Today</span></div>
+              <div class="body">
+                <div class="z fill" style="display:flex;justify-content:space-between;align-items:center">
+                  <span>9 月 18 日 周五</span><span class="mono">03 / 05</span>
+                </div>
+                <div class="z hi"><b>今日承诺</b>60px 行 · 整行可点 · 勾选框 48dp 命中</div>
+                <div class="z fill">写第三章方法部分</div>
+                <div class="z fill">读两篇参考文献</div>
+                <div class="z fill" style="opacity:.6">整理上周实验记录（已完成）</div>
+                <div class="z" style="text-align:center;border-style:solid;border-color:var(--moss);background:var(--moss);color:var(--on-solid);font-weight:600">开始专注</div>
+              </div>
+              <div class="wf-nav"><span class="on">今日</span><span>计划</span><span>记录</span><span>成长</span><span>更多</span></div>
+            </div>
+            <p class="mini" style="margin-top:10px">
+              <b>不显示横向时间藤线</b>——横向手势在拇指场景下命中率低，改为按时段分组的纵向列表。
+            </p>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:24px">
+          <div>
+            <h5>计划 Plan · 列表 + 内联详情</h5>
+            <div class="wf">
+              <div class="bar"><i></i><span>Plan · ≥1200</span></div>
+              <div class="body">
+                <div style="display:grid;grid-template-columns:1fr 190px;gap:8px;min-height:170px">
+                  <div class="z fill" style="display:flex;flex-direction:column;gap:6px">
+                    <b>任务列表</b>
+                    <span>分组标题 + 48px 行</span>
+                    <span>分组之间 24px 留白</span>
+                    <span class="mono" style="font-size:10px;margin-top:auto">筛选 · 2　（默认收起）</span>
+                  </div>
+                  <div class="z hi"><b>内联详情</b>点击行就地展开<br>不跳页、不弹窗</div>
+                </div>
+              </div>
+            </div>
+            <p class="mini" style="margin-top:10px">
+              对话框只保留给<b>长文本</b>（笔记正文、日记）与<b>危险操作</b>。一屏内筛选/排序控件 ≤3 个，其余收进面板并显示已启用数量。
+            </p>
+          </div>
+          <div>
+            <h5>专注 Focus · 收束型</h5>
+            <div class="wf">
+              <div class="bar"><i></i><span>Focus · 运行态</span></div>
+              <div class="body" style="text-align:center;padding:24px 12px">
+                <div class="mini mono" style="color:var(--ink-faint);margin-bottom:14px">侧栏隐藏 · 底部导航隐藏 · 返回需二次确认</div>
+                <svg width="150" height="150" viewBox="0 0 150 150" style="margin:0 auto">
+                  <circle cx="75" cy="75" r="62" fill="none" stroke="var(--divider)" stroke-width="10"/>
+                  <circle cx="75" cy="75" r="62" fill="none" stroke="var(--moss)" stroke-width="10" stroke-linecap="round"
+                          stroke-dasharray="389" stroke-dashoffset="124" transform="rotate(-90 75 75)"/>
+                  <text x="75" y="71" text-anchor="middle" fill="var(--ink)" font-family="IBM Plex Mono,monospace" font-size="23" font-weight="500">25:00</text>
+                  <text x="75" y="92" text-anchor="middle" fill="var(--ink-muted)" font-family="IBM Plex Sans SC,sans-serif" font-size="11">写第三章</text>
+                </svg>
+                <div style="margin-top:16px"><button class="btn outline">结束专注</button></div>
+              </div>
+            </div>
+            <p class="mini" style="margin-top:10px">
+              进入专注后界面元素数量<b>单调减少</b>：默认态有任务与时长选择（25/45/90），运行态只保留年轮 + 倒计时 + 任务名 + 一个次按钮。结束时弧线由 moss 转 clay 并落一条真实记录。
+            </p>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:24px">
+          <div>
+            <h5>记录 Record · 稳定阅读列</h5>
+            <div class="wf">
+              <div class="bar"><i></i><span>Record · 阅读列 620 居中</span></div>
+              <div class="body" style="padding:20px">
+                <div style="max-width:280px;margin:0 auto">
+                  <div class="mini mono" style="margin-bottom:8px">2026-09-18 · 第 38 周</div>
+                  <div style="font-size:15px;line-height:1.80;max-height:108px;overflow:hidden">
+                    今天把方法部分的第一节写完了。原本以为卡在实验设计上，实际上真正花时间的是把三组对照条件说清楚——写作的困难往往不在想清楚，而在于把「想清楚的东西」按读者能接受的顺序排出来。
+                  </div>
+                </div>
+                <div class="mini mono" style="text-align:center;margin-top:12px;color:var(--ink-faint)">bodyLarge 16 / 1.80 · 滚动条常显</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h5>成长 Growth · 28 日矩阵</h5>
+            <div class="wf">
+              <div class="bar"><i></i><span>Growth · 单元格 R=8 · 间距 8 · 禁用渐变</span></div>
+              <div class="body" style="display:flex;justify-content:center;padding:20px">
+                <div id="matrix"></div>
+              </div>
+              <div style="padding:0 20px 16px;display:flex;gap:16px;justify-content:center" class="mini">
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--subtle);border:1px solid var(--border-strong);vertical-align:-1px"></span> 未记录</span>
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--moss);vertical-align:-1px"></span> 已完成</span>
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--clay);vertical-align:-1px"></span> 里程碑</span>
+              </div>
+            </div>
+            <p class="mini" style="margin-top:10px">
+              <b>不使用颜色渐变</b>——渐变会造成「程度」的虚假暗示。移动端矩阵横向可滑，但<b>当前日期列默认吸附可见</b>。
+            </p>
+          </div>
+        </div>
+
+        <h4>响应式断点（沿用现行三档，不新增）</h4>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th>档位</th><th>范围</th><th>形态</th></tr></thead>
+            <tbody>
+              <tr><td><b>Compact</b></td><td class="mono">&lt;768 或高 &lt;600</td><td>单列；底部 5 项导航；FAB 快速捕获；全屏编辑用 <code>Dialog.fullscreen</code></td></tr>
+              <tr><td><b>Medium</b></td><td class="mono">768–1199</td><td>侧栏折叠为 76px 图标索引；主区 + 证据侧轨保持最小可读宽度</td></tr>
+              <tr><td><b>Expanded</b></td><td class="mono">≥1200</td><td>侧栏 240（可收 76）+ 主工作区 + 证据侧轨 248</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mini" style="margin-top:12px">
+          必须检查视口：<span class="mono">375×812</span>、<span class="mono">412×915</span>、<span class="mono">768</span>、<span class="mono">1024</span>、<span class="mono">1200</span>、<span class="mono">1440</span>、<span class="mono">1536×864</span>。硬性要求：无横向溢出、无重叠、无因字体加载产生的位移。
+        </p>
+      </div>
+    </section>
+
+    <!-- ════════════════ 08 交互 ════════════════ -->
+    <section id="interaction">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">08</span>降低认知负荷的交互设计</h3>
+        <p class="sec-lead">10 条原则，每条都有可验收的规则与落地位置。</p>
+
+        <div class="grid2" style="margin-top:20px">
+          <div class="principle">
+            <div class="n">规则 01</div><div class="h">单一主行动</div>
+            <div class="d">每个工作面<b>只有一个</b> moss 实心按钮，其余降为 tonal / outline / ghost。用户无需判断「该按哪个」。</div>
+            <div class="loc">app_theme.dart:578-679</div>
+          </div>
+          <div class="principle">
+            <div class="n">规则 02</div><div class="h">默认值优先</div>
+            <div class="d">快速捕获<b>只强制一个字段（标题）</b>，其余按上下文预填：今日页＝今天＋待办，笔记页＝笔记类型。</div>
+            <div class="loc">已实现于 workbench_shell.dart:731-743，推广到全部入口</div>
+          </div>
+          <div class="principle">
+            <div class="n">规则 03</div><div class="h">渐进披露</div>
+            <div class="d">首屏只显示决策必需字段；深层字段折叠在「更多字段」内且默认收起。一次只暴露必要层级。</div>
+            <div class="loc">quick_capture_sheet.dart · record_editor_dialog.dart</div>
+          </div>
+          <div class="principle">
+            <div class="n">规则 04</div><div class="h">就地编辑</div>
+            <div class="d">列表行可直接改标题／状态／日期，<b>不跳页、不弹窗</b>。对话框只留给长文本与危险操作。</div>
+            <div class="loc">task_row.dart · task_hierarchy.dart</div>
+          </div>
+          <div class="principle">
+            <div class="n">规则 05</div><div class="h">稳定骨架</div>
+            <div class="d">切页保留滚动位置与展开状态（IndexedStack 已具备）；数字用等宽防抖；骨架屏尺寸＝真实内容尺寸。</div>
+            <div class="loc">workbench_shell.dart:499-511 · common.dart:321-436</div>
+          </div>
+          <div class="principle">
+            <div class="n">规则 06</div><div class="h">状态三重冗余</div>
+            <div class="d">任一状态必须同时有「颜色＋形状/图标＋文字」，任何一维缺失仍可正确判断。</div>
+            <div class="loc">全文；验收见 09 节</div>
+          </div>
+          <div class="principle">
+            <div class="n">规则 07</div><div class="h">导航收敛</div>
+            <div class="d">底部导航 ≤5 项；导航深度 ≤3 层；第 3 层用页内 Tab 而非新导航层。</div>
+            <div class="loc">第 02 节 · 信息架构</div>
+          </div>
+          <div class="principle">
+            <div class="n">规则 08</div><div class="h">宽容可恢复</div>
+            <div class="d">破坏性操作给 <b>8 秒撤销</b>（SnackBar + 撤销）而非二次确认弹窗；编辑草稿自动保存。</div>
+            <div class="loc">showWorkbenchSnackBar · record_editor_dialog.dart</div>
+          </div>
+          <div class="principle">
+            <div class="n">规则 09</div><div class="h">减少决策点</div>
+            <div class="d">一屏内筛选／排序控件 ≤3 个，其余收进「筛选」面板且<b>显示已启用数量</b>（如「筛选 · 2」）。</div>
+            <div class="loc">plan_page.dart · notes_page.dart</div>
+          </div>
+          <div class="principle">
+            <div class="n">规则 10</div><div class="h">空态即引导</div>
+            <div class="d">空态给出<b>唯一推荐动作</b>，而不是多个并列选项。</div>
+            <div class="loc">common.dart:790</div>
+          </div>
+        </div>
+
+        <h4>与「温柔」直接相关的两条补充</h4>
+        <div class="grid2">
+          <div class="note">
+            <span class="mk">不用红点催促</span>
+            <div>所有待办提示使用 <code>info</code> 而非 <code>signal</code>。<code>signal</code> 只保留给真正的冲突与破坏性风险，避免界面长期处于「警告态」——那会让人疲惫。</div>
+          </div>
+          <div class="note warnbox">
+            <span class="mk">完成不奖励弹窗</span>
+            <div>勾选完成只做 120ms 的芽点推进，不弹庆祝层。庆祝仪式仅在周回顾等<b>真实周期节点</b>出现，不制造廉价正反馈。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ 09 动效与验收 ════════════════ -->
+    <section id="motion">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">09</span>动效与可访问性验收</h3>
+
+        <h4>动效：时长沿用，曲线改为有机缓动</h4>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th>场景</th><th>时长</th><th>Flutter</th><th>CSS</th></tr></thead>
+            <tbody>
+              <tr><td>控件反馈（按压/悬停/开关/焦点）</td><td class="mono">120ms</td><td class="mono">Curves.easeOut</td><td class="mono">cubic-bezier(.22,1,.36,1)</td></tr>
+              <tr><td>状态变化（淡入/尺寸/Snackbar/弹层入场）</td><td class="mono">180ms</td><td class="mono">Curves.easeOutCubic</td><td class="mono">cubic-bezier(.22,1,.36,1)</td></tr>
+              <tr><td>元素退场</td><td class="mono">150ms</td><td class="mono">Curves.easeInQuad</td><td class="mono">cubic-bezier(.4,0,1,1)</td></tr>
+              <tr><td>页面切换</td><td class="mono">220ms</td><td class="mono">Curves.easeOutCubic</td><td class="mono">同上</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mini" style="margin-top:12px">
+          不使用持续环境动画、装饰性漂浮、过长过渡、仅 Hover 可用的关键操作。Flutter 用 <code>MediaQuery.disableAnimationsOf(context)</code>；Web 用 <code>prefers-reduced-motion: reduce</code>，<b>静态终态必须完整可用</b>。
+        </p>
+
+        <h4>可访问性验收清单</h4>
+        <div class="grid2">
+          <div class="panel">
+            <h5 style="margin-top:0">键盘与触控</h5>
+            <ul class="mini clean">
+              <li>焦点环：实色 moss 2px + offset 2px；实测 <b class="ok">5.70:1</b>（浅）/ <b class="ok">8.17:1</b>（深），满足 ≥3:1</li>
+              <li>焦点顺序＝视觉顺序；侧栏 <code>←/→</code> 折叠，<code>Enter/Space</code> 进入</li>
+              <li>Android 系统返回、底部导航、FAB、侧栏折叠全部可用</li>
+              <li>触控目标 ≥48dp；视觉圆角不缩小命中区（命中区为矩形）</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h5 style="margin-top:0">缩放与动效</h5>
+            <ul class="mini clean">
+              <li>支持系统文本缩放到 <b>200%</b>，无遮挡、无截断、无横向滚动</li>
+              <li>所有容器使用自然高度，<b>禁止固定高度裁切文字</b></li>
+              <li><code>prefers-reduced-motion</code> 下终态完整可用</li>
+              <li>状态不依赖颜色单维表达（三重冗余）</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>对比度核算方法</h4>
+        <div class="panel">
+          <div class="mono mini" style="line-height:1.9">
+            L = 0.2126·R_lin + 0.7152·G_lin + 0.0722·B_lin<br>
+            &nbsp;&nbsp;c_lin = c / 12.92&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(c ≤ 0.04045)<br>
+            &nbsp;&nbsp;c_lin = ((c + 0.055) / 1.055)^2.4&nbsp;&nbsp;&nbsp;(c &gt; 0.04045)<br>
+            contrast = (L_亮 + 0.05) / (L_暗 + 0.05)
+          </div>
+          <hr class="hair">
+          <p class="mini">共核算 58 组配对（浅色 29 + 深色 29），<b class="ok">零未达标项</b>。过程中修正了 3 处：浅色 <code>clay</code> 在画布上仅 4.37:1、<code>inkMuted</code> 在输入底上仅 4.20:1、焦点环半透明仅 1.58:1——均已调整至达标。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ 10 交付 ════════════════ -->
+    <section id="handoff">
+      <div class="inner">
+        <h3 class="sec"><span class="idx">10</span>迁移与执行清单</h3>
+        <p class="sec-lead">20 项改动，精确到文件与行号，可直接交给自动化代理执行。</p>
+
+        <h4>令牌迁移对照（节选 · 完整表见文档 13.1）</h4>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th>旧令牌</th><th>旧值</th><th>新令牌</th><th>新值</th><th>备注</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">lightCanvas</td><td class="mono">#F2F7F3</td><td class="mono">canvas</td><td class="mono" style="color:var(--moss)"><b>#F7F4EC</b></td><td>冷绿画布 → 燕麦米</td></tr>
+              <tr><td class="mono">lightSurface</td><td class="mono">#FBFDFB</td><td class="mono">surface</td><td class="mono" style="color:var(--moss)"><b>#FFFDF9</b></td><td>中性白 → 暖白</td></tr>
+              <tr><td class="mono">lightInk</td><td class="mono">#1B2B20</td><td class="mono">ink</td><td class="mono" style="color:var(--moss)"><b>#232A22</b></td><td>冷墨绿 → 暖墨</td></tr>
+              <tr><td class="mono">lightInkMuted</td><td class="mono">#617268</td><td class="mono">inkMuted</td><td class="mono" style="color:var(--moss)"><b>#636B5E</b></td><td>修正输入底上 4.20:1 不达标</td></tr>
+              <tr><td class="mono">lightDivider</td><td class="mono">#D6E3D8</td><td class="mono">divider</td><td class="mono" style="color:var(--moss)"><b>#E3DCCF</b></td><td>冷绿线 → 暖沙线</td></tr>
+              <tr><td class="mono">—</td><td class="mono">—</td><td class="mono">inkFaint</td><td class="mono" style="color:var(--clay)"><b>#8A9083</b></td><td><b>新增</b>（禁用/装饰）</td></tr>
+              <tr><td class="mono">—</td><td class="mono">—</td><td class="mono">borderStrong</td><td class="mono" style="color:var(--clay)"><b>#D2CFC5</b></td><td><b>新增</b>（控件边界）</td></tr>
+              <tr><td class="mono">lightPrimary</td><td class="mono">#2F7D57</td><td class="mono">moss</td><td class="mono" style="color:var(--moss)"><b>#4A6E4C</b></td><td>翡翠绿 → 苔绿（降饱和、更沉稳）</td></tr>
+              <tr><td class="mono">lightSecondary</td><td class="mono">#4F7561</td><td class="mono">—</td><td class="mono">删除</td><td>与 inkMuted 语义重叠</td></tr>
+              <tr><td class="mono">lightSecondaryContainer</td><td class="mono">#E9F3EC</td><td class="mono">subtle</td><td class="mono" style="color:var(--moss)"><b>#EFEAE0</b></td><td>合并为中性次级填充</td></tr>
+              <tr><td class="mono">lightReward / lightGold</td><td class="mono">#B8862D</td><td class="mono">clay</td><td class="mono" style="color:var(--moss)"><b>#9B5227</b></td><td>黄铜 → 陶土（金属感 → 泥土感）</td></tr>
+              <tr><td class="mono">lightSignal</td><td class="mono">#C84F45</td><td class="mono">signal</td><td class="mono" style="color:var(--moss)"><b>#9E3A32</b></td><td>亮红 → 砖红</td></tr>
+              <tr><td class="mono">lightDanger</td><td class="mono">#B53D3A</td><td class="mono">signal</td><td class="mono" style="color:var(--moss)"><b>#9E3A32</b></td><td><b>合并</b>（原两红语义重复，P5）</td></tr>
+              <tr><td class="mono">lightInfo</td><td class="mono">#3F7FA0</td><td class="mono">info</td><td class="mono" style="color:var(--moss)"><b>#3E6883</b></td><td>降饱和</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>改动清单</h4>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th style="width:44px">#</th><th>文件</th><th>位置</th><th>改动</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">1</td><td class="mono" style="font-size:11px">theme/app_theme.dart</td><td class="mono" style="font-size:11px">AppColors 7–43</td><td>按对照表全量替换；新增 inkFaint / borderStrong / 各 *OnContainer</td></tr>
+              <tr><td class="mono">2</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">AppRadius 53–61</td><td>新增 xs=8 / panel=20；card 12→16、dialog 16→24、sheetTop 16→28</td></tr>
+              <tr><td class="mono">3</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">AppSpacing 93–105</td><td><b>xxxl 32→56</b>（修正 P6）；page 边距 → 20/28/36</td></tr>
+              <tr><td class="mono">4</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">WorkbenchTokens 109–220</td><td>扩展字段并同步 copyWith / lerp</td></tr>
+              <tr><td class="mono">5</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">textTheme 410–466</td><td>按 04 节更新行高与 bodyMedium 字号</td></tr>
+              <tr><td class="mono">6</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">controlHeight 468</td><td>36→40（桌面）/ 48→52（Android）</td></tr>
+              <tr><td class="mono">7</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">listTileTheme 699</td><td>minTileHeight 44→48 / 48→60</td></tr>
+              <tr><td class="mono">8</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">focusRing 292, 346</td><td>半透明 → <b>实色 moss</b>（原 1.58:1 不达标）</td></tr>
+              <tr><td class="mono">9</td><td class="mono" style="font-size:11px">widgets/common.dart</td><td class="mono" style="font-size:11px">SectionHeading 529</td><td>移除装饰航迹条，改 24px 上留白</td></tr>
+              <tr><td class="mono">10</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">LogRail 628 → VineRail</td><td>四态与圆头化改造</td></tr>
+              <tr><td class="mono">11</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">StatusPill 918 / NumericText 960</td><td>按 06 节规范</td></tr>
+              <tr><td class="mono">12</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">SkeletonBlock 321 / EmptyState 790</td><td>圆角对齐被替换元素；留白 56</td></tr>
+              <tr><td class="mono">13</td><td class="mono" style="font-size:11px">widgets/task_row.dart</td><td class="mono" style="font-size:11px">全文件</td><td>行高 48/60；完成态去删除线</td></tr>
+              <tr><td class="mono">14</td><td class="mono" style="font-size:11px">ui/workbench_shell.dart</td><td class="mono" style="font-size:11px">_mobilePrimarySections 110</td><td>调整为 今日/计划/记录/成长/更多</td></tr>
+              <tr><td class="mono">15</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">destinations 465–491</td><td>同步图标与文案</td></tr>
+              <tr><td class="mono">16</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">_navigationTree 783–845</td><td>重构为 6 域树 + 域首子页映射</td></tr>
+              <tr><td class="mono">17</td><td class="mono" style="font-size:11px">同上</td><td class="mono" style="font-size:11px">_leaf 1247–1300</td><td>选中态去掉 25% 描边，保留圆角底 + 圆头竖条</td></tr>
+              <tr><td class="mono">18</td><td class="mono" style="font-size:11px">design_preview/assets/tokens.css</td><td class="mono" style="font-size:11px">全文件</td><td>色值同步，保证预览与实现同源</td></tr>
+              <tr><td class="mono">19</td><td class="mono" style="font-size:11px">test/visual_golden_test.dart</td><td class="mono" style="font-size:11px">全量</td><td><b>必须重新生成 Golden</b>（令牌全量变更）</td></tr>
+              <tr><td class="mono">20</td><td class="mono" style="font-size:11px">MASTER.md</td><td class="mono" style="font-size:11px">第 2–8 节</td><td>由 ORGANIC_UI_SPEC.md 取代或标注为准</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>执行顺序</h4>
+        <div class="grid4">
+          <div class="panel"><div class="mono" style="font-size:11px;color:var(--moss)">STEP 1</div><h5 style="margin:6px 0">令牌层</h5><p class="mini">#1–8 → <code>flutter analyze</code></p></div>
+          <div class="panel"><div class="mono" style="font-size:11px;color:var(--moss)">STEP 2</div><h5 style="margin:6px 0">组件层</h5><p class="mini">#9–13 → <code>flutter test</code>，重生 Golden</p></div>
+          <div class="panel"><div class="mono" style="font-size:11px;color:var(--moss)">STEP 3</div><h5 style="margin:6px 0">导航层</h5><p class="mini">#14–17 → 人工走查 7 档视口</p></div>
+          <div class="panel"><div class="mono" style="font-size:11px;color:var(--moss)">STEP 4</div><h5 style="margin:6px 0">终检</h5><p class="mini">分析 + 全量测试 + 双主题 + reduce-motion + 200% 缩放</p></div>
+        </div>
+
+        <h4>与现行规范的取舍</h4>
+        <div class="wrap-t">
+          <table>
+            <thead><tr><th>冲突点</th><th>现行 MASTER.md</th><th>本方案</th><th>取舍理由</th></tr></thead>
+            <tbody>
+              <tr><td>面板圆角</td><td class="mono">12</td><td class="mono" style="color:var(--moss)"><b>20</b></td><td>「圆润有机」方向的直接体现；同心圆角规则保证嵌套不打架</td></tr>
+              <tr><td>间距标尺</td><td class="mono">4/8/12/16/24/32</td><td class="mono" style="color:var(--moss)"><b>增加 56</b></td><td>原 xxxl 与 xxl 重复（P6），标尺实际只有 5 档</td></tr>
+              <tr><td>侧栏结构</td><td>平铺 + 2 折叠组</td><td><b>6 域手风琴</b></td><td>P1：14 个平铺入口的线性扫描成本</td></tr>
+              <tr><td>移动底部导航</td><td>今日/任务/回顾/行为/设置</td><td><b>今日/计划/记录/成长/更多</b></td><td>P2：高频成长功能缺席，低频设置占主位</td></tr>
+              <tr><td>危险色与信号色</td><td>signal + danger 双红</td><td><b>合并为单一 signal</b></td><td>P5：语义重复导致实现歧义</td></tr>
+              <tr><td>SectionHeading 航迹条</td><td>保留</td><td><b>移除</b></td><td>P7：装饰元素不编码信息</td></tr>
+              <tr><td>侧栏选中态</td><td>底 + 描边 + 竖条</td><td><b>底 + 竖条</b></td><td>P8：同时生效的强调手段过多</td></tr>
+              <tr><td>列表行高</td><td class="mono">44 / 52</td><td class="mono" style="color:var(--moss)"><b>48 / 60</b></td><td>充足留白方向；触控下限 48dp 不变</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note" style="margin-top:20px">
+          <span class="mk">不改变</span>
+          <div>全部 <span class="mono">WorkbenchSection</span> 枚举、控制器调用、数据模型、路由语义、本地优先存储策略、离线可用性、<span class="mono">SolidPanel</span> 实色体系（不引入玻璃拟态）。<strong>换的是外观与归组方式，不是产品行为。</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="inner" style="padding-top:32px;border-top:1px solid var(--divider)">
+        <div class="mono mini" style="color:var(--ink-faint)">
+          柔壤 · 年轮 v1.0　·　2026-09-18　·　令牌全部实测达标　·　配套文档 ORGANIC_UI_SPEC.md
+        </div>
+      </div>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+/* ══ 主题切换 ══ */
+(function () {
+  var root = document.documentElement, btn = document.getElementById('tgl');
+  function set(t) {
+    root.setAttribute('data-theme', t);
+    btn.querySelector('span').textContent = t === 'dark' ? '夜光 · 深色' : '暖光 · 浅色';
+    try { localStorage.setItem('rouang-theme', t); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem('rouang-theme'); } catch (e) {}
+  set(saved || 'light');
+  btn.addEventListener('click', function () {
+    set(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+})();
+
+/* ══ 色卡：真实令牌值 + 实测对比度 ══
+   kind 1 = 正文级 PASS(≥4.5) ／ 2 = 装饰级 ／ 0 = 面层不承载文字 */
+var LIGHT = [
+  ['canvas','#F7F4EC','页面画布 · 燕麦米','',0],
+  ['surface','#FFFDF9','主工作面 · 宣纸白','',0],
+  ['raised','#FFFFFF','对话框 / 菜单 / 浮层','',0],
+  ['subtle','#EFEAE0','输入框 / 次级填充','',0],
+  ['ink','#232A22','正文与标题','14.50:1',1],
+  ['inkMuted','#636B5E','辅助说明、次要元数据','5.45:1',1],
+  ['inkFaint','#8A9083','禁用文字、纯装饰','3.05:1',2],
+  ['divider','#E3DCCF','柔化分组线','1.34:1',2],
+  ['borderStrong','#D2CFC5','输入框 / 控件边界','1.53:1',2],
+  ['moss','#4A6E4C','主行动色：主按钮、当前路线、链接','5.70:1',1],
+  ['mossContainer','#DCE7D8','选中底、tonal 按钮底','',0],
+  ['mossOnContainer','#1E3320','容器底上的文字','10.63:1',1],
+  ['clay','#9B5227','成果色：完成证据、里程碑、XP','5.69:1',1],
+  ['clayContainer','#F5E3D6','成果背景','',0],
+  ['clayOnContainer','#4A2410','容器底上的文字','10.86:1',1],
+  ['signal','#9E3A32','冲突 / 危险 / 停止','6.66:1',1],
+  ['signalContainer','#F7DEDA','危险底','',0],
+  ['signalOnContainer','#5A1F19','容器底上的文字','9.98:1',1],
+  ['info','#3E6883','中性提示、同步状态','5.88:1',1],
+  ['infoContainer','#DCE8F0','提示底','',0],
+  ['infoOnContainer','#1C3947','容器底上的文字','9.76:1',1]
+];
+var DARK = [
+  ['canvas','#171612','页面画布 · 深夜炭壤','',0],
+  ['surface','#1E1D18','主工作面','',0],
+  ['raised','#26251E','对话框 / 菜单 / 浮层','',0],
+  ['subtle','#2C2A22','输入框 / 次级填充','',0],
+  ['ink','#EFEDE4','正文与标题','14.39:1',1],
+  ['inkMuted','#A9A797','辅助说明、次要元数据','6.96:1',1],
+  ['inkFaint','#7C7A6C','禁用文字、纯装饰','3.61:1',2],
+  ['divider','#3A382E','柔化分组线','1.43:1',2],
+  ['borderStrong','#4F4D45','输入框 / 控件边界','1.99:1',2],
+  ['moss','#93C08D','主行动色','8.17:1',1],
+  ['mossContainer','#2C3A2B','选中底、tonal 按钮底','',0],
+  ['mossOnContainer','#CFE8CB','容器底上的文字','9.19:1',1],
+  ['clay','#E2A176','成果色：完成证据、里程碑、XP','7.71:1',1],
+  ['clayContainer','#4A3629','成果背景','',0],
+  ['clayOnContainer','#F7DCC6','容器底上的文字','8.65:1',1],
+  ['signal','#E88C7E','冲突 / 危险 / 停止','6.82:1',1],
+  ['signalContainer','#4C2A26','危险底','',0],
+  ['signalOnContainer','#F9D9D3','容器底上的文字','9.54:1',1],
+  ['info','#93B7CF','中性提示、同步状态','7.97:1',1],
+  ['infoContainer','#27333D','提示底','',0],
+  ['infoOnContainer','#C7DCE8','容器底上的文字','9.11:1',1]
+];
+
+function renderSwatches(list, mountId, withRing) {
+  var host = document.getElementById(mountId);
+  if (!host) return;
+  host.innerHTML = list.map(function (r) {
+    var name = r[0], hex = r[1], use = r[2], ratio = r[3], kind = r[4];
+    var ring = withRing ? 'box-shadow:inset 0 0 0 1px rgba(128,128,128,.28);' : '';
+    var rt;
+    if (kind === 1) {
+      rt = '<div class="ratio ok">● ' + ratio + ' <span class="badge">PASS ≥4.5</span></div>';
+    } else if (kind === 2) {
+      rt = '<div class="ratio warn">○ ' + ratio + ' <span class="badge dec">装饰级</span></div>';
+    } else {
+      rt = '<div class="ratio" style="color:var(--ink-faint)">— 面层，不承载文字</div>';
+    }
+    return '<div class="sw">' +
+      '<span class="chip" style="background:' + hex + ';' + ring + '"></span>' +
+      '<div class="info">' +
+        '<div class="nm">' + name + '</div>' +
+        '<div class="hx">' + hex + '</div>' +
+        '<div class="use">' + use + '</div>' + rt +
+      '</div></div>';
+  }).join('');
+}
+renderSwatches(LIGHT, 'sw-light', true);
+renderSwatches(DARK, 'sw-dark', false);
+
+/* ══ 28 日矩阵（固定演示数据：里程碑落在第 7、21 天） ══ */
+(function () {
+  var host = document.getElementById('matrix');
+  if (!host) return;
+  host.style.gridTemplateColumns = 'repeat(7, 18px)';
+  host.style.gap = '8px';
+  var done = [1,2,3,5,6,9,10,11,13,15,16,18,19,22,23,25,26,27,28];
+  var miles = [7, 21];
+  var today = 18;
+  var html = '';
+  for (var d = 1; d <= 28; d++) {
+    var bg, bd;
+    if (miles.indexOf(d) >= 0) { bg = 'var(--clay)'; bd = 'none'; }
+    else if (done.indexOf(d) >= 0) { bg = 'var(--moss)'; bd = 'none'; }
+    else { bg = 'var(--subtle)'; bd = '1px solid var(--border-strong)'; }
+    var ring = d === today ? 'outline:2px solid var(--focus-ring);outline-offset:2px;' : '';
+    var label = (miles.indexOf(d) >= 0 ? '里程碑' : (done.indexOf(d) >= 0 ? '已完成' : '未记录'));
+    html += '<span role="img" aria-label="第 ' + d + ' 日 ' + label + '" ' +
+            'style="width:18px;height:18px;border-radius:8px;display:block;background:' + bg +
+            ';border:' + bd + ';' + ring + '"></span>';
+  }
+  host.innerHTML = html;
+})();
+
+/* ══ 侧栏滚动高亮 ══ */
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.side nav a'));
+  var sections = links.map(function (a) {
+    return document.querySelector(a.getAttribute('href'));
+  }).filter(Boolean);
+  if (!('IntersectionObserver' in window)) return;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (!en.isIntersecting) return;
+      var i = sections.indexOf(en.target);
+      links.forEach(function (l) { l.classList.remove('on'); });
+      if (i >= 0) links[i].classList.add('on');
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  sections.forEach(function (s) { io.observe(s); });
+})();
+</script>
+</body>
+</html>

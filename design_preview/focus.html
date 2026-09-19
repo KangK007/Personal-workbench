@@ -145,7 +145,7 @@
   <div class="cele-sub num">50 分钟深度专注 · 记录已保存 · +15 分押注达成</div>
   <div class="cele-stats">
     <span class="pill primary">连续第 2 段</span>
-    <span class="pill gold">+15 分</span>
+    <span class="pill amber">+15 分</span>
     <span class="pill">XP +50</span>
   </div>
   <button class="btn outline cele-close" onclick="hideCelebration()">继续下一段</button>
@@ -157,7 +157,7 @@
     var overlay = document.getElementById("cele");
     overlay.classList.add("show");
     // 22 片纯色四色彩纸（primary/secondary/reward/gold —— v2 去渐变改实心）
-    var colors = ["var(--primary)", "var(--secondary)", "var(--reward)", "var(--gold)"];
+    var colors = ["var(--primary)", "var(--primary)", "var(--reward)", "var(--amber)"];
     for (var i = 0; i < 22; i++) {
       var c = document.createElement("span");
       c.className = "confetti";

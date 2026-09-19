@@ -119,8 +119,8 @@ class _FocusCelebrationState extends State<FocusCelebration>
                   colors: [
                     scheme.primary,
                     scheme.tertiary,
-                    tokens.marker,
                     tokens.reward,
+                    tokens.info,
                   ],
                 ),
               ),

@@ -2,6 +2,22 @@
 
 > 本文件是 Flutter 应用与 `design_preview/` 静态预览的共同设计源。任何新增页面、组件或状态都先对照本文件，再在对应实现中落地。产品语义、路由、控制器、数据模型和真实文案不因视觉调整而改变。
 
+> [!IMPORTANT]
+> **视觉规范主源已于 2026-09-18 变更为 [`ORGANIC_UI_SPEC.md`](ORGANIC_UI_SPEC.md)（代号「柔壤 · 年轮」）。**
+> 本文件第 2–8 节（视觉方向、色彩令牌、字体排版、形状与留白、响应式、页面布局、组件视觉）
+> 与新规范冲突时，**一律以 `ORGANIC_UI_SPEC.md` 为准**。这些章节保留是为了说明设计沿革，
+> 不再具有约束力——其中 `LogRail` 已完成向 `VineRail` 的重命名，色彩、圆角、间距标尺
+> 均已整族替换。
+>
+> 本文件**仍然有效**的部分：第 1 节产品定位与页面族划分、产品边界、路由与控制器约定，
+> 以及实施清单中的流程性要求。
+>
+> 现行权威色值与标尺：`lib/core/theme/app_theme.dart`（`AppColors` / `WorkbenchTokens` /
+> `AppRadius` / `AppSpacing`）与 `design_preview/assets/tokens.css`。两者同源，改一处必须改另一处。
+>
+> 另注：`design-system/default/MASTER.md` 仅为 `ui-ux-pro-max` 的检索基线，不具约束力；
+> `UI_AUDIT_CODEX_OPTIMIZATION.md`（2026-08-19）结论已与代码脱节，**勿引用**。
+
 ## 1. 产品定位
 
 ### 目标用户

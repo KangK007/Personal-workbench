@@ -22,7 +22,7 @@ class SealLogo extends StatelessWidget {
         painter: _SealLogoPainter(
           primaryColor: color,
           surfaceColor: context.tokens.panel,
-          accentColor: context.tokens.marker,
+          accentColor: context.tokens.reward,
         ),
       ),
     );

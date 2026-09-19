@@ -223,7 +223,12 @@ class _AllTasksPageState extends State<_AllTasksPage> {
               ),
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+                padding: const EdgeInsets.fromLTRB(
+                  20,
+                  16,
+                  20,
+                  AppSpacing.bottomNavClearance,
+                ),
                 itemCount: entries.length,
                 separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
@@ -309,7 +314,12 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
         .where((task) => task.ctdpIsGroup)
         .toList();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         Align(
           alignment: Alignment.centerRight,

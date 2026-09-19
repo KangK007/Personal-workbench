@@ -195,7 +195,12 @@ class _ProtocolsPageState extends State<ProtocolsPage>
     final chains = widget.controller.ctdpTasks;
     final roots = chains.where((task) => task.parentId == null).toList();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        18,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         _MetricStrip(
           values: [
@@ -408,7 +413,12 @@ class _ProtocolsPageState extends State<ProtocolsPage>
           rule.body.toLowerCase().contains(query);
     }).toList();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        18,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         Row(
           children: [
@@ -483,7 +493,12 @@ class _ProtocolsPageState extends State<ProtocolsPage>
     final resolved = successes + failures;
     final successRate = resolved == 0 ? 0.0 : successes / resolved;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        18,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         _MetricStrip(
           values: [

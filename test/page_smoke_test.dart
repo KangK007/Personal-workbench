@@ -12,7 +12,6 @@ import 'package:personal_workbench/services/search_service.dart';
 import 'package:personal_workbench/services/share_capture_service.dart';
 import 'package:personal_workbench/services/supabase_sync_service.dart';
 import 'package:personal_workbench/state/workbench_controller.dart';
-import 'package:personal_workbench/ui/pages/diary_page.dart';
 import 'package:personal_workbench/ui/pages/focus_page.dart';
 import 'package:personal_workbench/ui/pages/goals_page.dart';
 import 'package:personal_workbench/ui/pages/inbox_page.dart';
@@ -180,7 +179,6 @@ void main() {
         onOpenProjects: () {},
       ),
       ReviewPage(controller: controller),
-      DiaryPage(controller: controller),
       GoalsPage(controller: controller),
       InboxPage(controller: controller),
       NotesPage(controller: controller),
@@ -291,7 +289,6 @@ void main() {
     final controller = await _createController();
     addTearDown(controller.dispose);
 
-    await _pumpPage(tester, DiaryPage(controller: controller));
     await _pumpPage(tester, ProjectsPage(controller: controller));
     await _pumpPage(tester, SettingsPage(controller: controller));
     await _pumpPage(tester, QuickCaptureSheet(controller: controller));

@@ -325,7 +325,12 @@ class _ProjectsPageState extends State<ProjectsPage> {
         ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              AppSpacing.bottomNavClearance,
+            ),
             children: [
               panel(
                 id: 'tasks',

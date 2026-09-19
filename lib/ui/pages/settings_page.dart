@@ -58,7 +58,7 @@ class SettingsPage extends StatelessWidget {
               20,
               20,
               MediaQuery.sizeOf(context).width < AppBreakpoints.compact
-                  ? 132
+                  ? AppSpacing.bottomNavClearance
                   : 96,
             ),
             children: [

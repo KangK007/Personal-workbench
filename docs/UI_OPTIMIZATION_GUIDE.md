@@ -150,7 +150,7 @@ Windows 构建产物为 `build/windows/x64/runner/Release/personal_workbench.exe
 
 ## 7. 截图对照
 
-![Windows 今日亮色](../test/goldens/windows_today_light.png)
+![Windows 今日亮色](../test/goldens/wide_today_light.png)
 
 ![Android 今日亮色](../test/goldens/android_today.png)
 

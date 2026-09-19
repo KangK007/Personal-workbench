@@ -91,7 +91,12 @@ class _FocusTab extends StatelessWidget {
         .take(6)
         .toList();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         if (controller.pendingFocusPresets.isNotEmpty) ...[
           const SectionHeading(title: '待确认启动'),
@@ -817,7 +822,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                                                 width: 5,
                                                 height: 5,
                                                 decoration: BoxDecoration(
-                                                  color: context.tokens.marker,
+                                                  color: context.tokens.reward,
                                                   shape: BoxShape.circle,
                                                 ),
                                               ),

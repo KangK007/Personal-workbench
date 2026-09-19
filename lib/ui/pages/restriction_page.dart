@@ -35,7 +35,7 @@ class RestrictionSection extends StatelessWidget {
         compact ? AppSpacing.pageCompact : AppSpacing.pageMedium,
         0,
         compact ? AppSpacing.pageCompact : AppSpacing.pageMedium,
-        132,
+        AppSpacing.bottomNavClearance,
       ),
       children: [
         if (controller.restrictionExitRequested)
@@ -1370,7 +1370,7 @@ class _PlatformNotice extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: LogSurface(
-      accent: Theme.of(context).colorScheme.tertiary,
+      accent: context.tokens.info,
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: const Row(
         children: [

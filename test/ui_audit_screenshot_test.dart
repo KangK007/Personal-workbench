@@ -18,13 +18,11 @@ import 'package:personal_workbench/services/supabase_sync_service.dart';
 import 'package:personal_workbench/state/workbench_controller.dart';
 import 'package:personal_workbench/ui/pages/behavior_page.dart';
 import 'package:personal_workbench/ui/pages/calendar_page.dart';
-import 'package:personal_workbench/ui/pages/diary_page.dart';
 import 'package:personal_workbench/ui/pages/focus_page.dart';
 import 'package:personal_workbench/ui/pages/goals_page.dart';
 import 'package:personal_workbench/ui/pages/growth_page.dart';
 import 'package:personal_workbench/ui/pages/habits_page.dart';
 import 'package:personal_workbench/ui/pages/inbox_page.dart';
-import 'package:personal_workbench/ui/pages/more_page.dart';
 import 'package:personal_workbench/ui/pages/notes_page.dart';
 import 'package:personal_workbench/ui/pages/plan_page.dart';
 import 'package:personal_workbench/ui/pages/policies_page.dart';
@@ -616,13 +614,6 @@ List<_AuditSurface> _auditSurfaces(WorkbenchController controller) => [
       ),
     ),
   _AuditSurface(
-    'legacy_diary',
-    (size) => DiaryPage(
-      controller: controller,
-      showHeader: size.width >= AppBreakpoints.compact,
-    ),
-  ),
-  _AuditSurface(
     'goals',
     (size) => GoalsPage(
       controller: controller,
@@ -687,7 +678,6 @@ List<_AuditSurface> _auditSurfaces(WorkbenchController controller) => [
       showHeader: size.width >= AppBreakpoints.compact,
     ),
   ),
-  _AuditSurface('more', (_) => MorePage(onSelected: (_) {})),
 ];
 
 Future<void> _verifySurface(
@@ -772,7 +762,6 @@ void main() {
       'review_desktop',
       ReviewPage(controller: controller),
     );
-    await _capture(tester, 'diary_desktop', DiaryPage(controller: controller));
     await _capture(tester, 'goals_desktop', GoalsPage(controller: controller));
     await _capture(
       tester,
@@ -821,12 +810,6 @@ void main() {
       tester,
       'settings_desktop',
       SettingsPage(controller: controller),
-    );
-    await _capture(
-      tester,
-      'more_mobile',
-      MorePage(onSelected: (_) {}),
-      size: const Size(412, 915),
     );
     await _capture(
       tester,

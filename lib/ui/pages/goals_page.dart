@@ -58,7 +58,12 @@ class GoalsPage extends StatelessWidget {
                   ),
                 )
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 132),
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    0,
+                    20,
+                    AppSpacing.bottomNavClearance,
+                  ),
                   children: [
                     SectionHeading(
                       title: '目标树',

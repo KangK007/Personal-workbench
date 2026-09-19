@@ -196,7 +196,12 @@ class _NoteIndex extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 132),
+      padding: const EdgeInsets.fromLTRB(
+        12,
+        8,
+        12,
+        AppSpacing.bottomNavClearance,
+      ),
       itemCount: notes.length,
       separatorBuilder: (_, _) => const SizedBox(height: 3),
       itemBuilder: (context, index) {

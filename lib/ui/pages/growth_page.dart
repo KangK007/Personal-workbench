@@ -34,7 +34,12 @@ class GrowthPage extends StatelessWidget {
           ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 132),
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              0,
+              20,
+              AppSpacing.bottomNavClearance,
+            ),
             children: [
               if (controller.gameFeaturesEnabled) ...[
                 _GameProfilePanel(controller: controller),
@@ -714,10 +719,10 @@ class _Stamp extends StatelessWidget {
   Widget build(BuildContext context) {
     // 未解锁印章：边框与说明文字提高对比度（≥1.15:1 边框基准），去掉低对比渐变。
     final borderColor = unlocked
-        ? context.tokens.marker
+        ? context.tokens.reward
         : context.tokens.mutedText.withValues(alpha: 0.45);
     final detailColor = unlocked
-        ? context.tokens.marker
+        ? context.tokens.reward
         : context.tokens.mutedText.withValues(alpha: 0.85);
     final titleColor = Theme.of(context).colorScheme.onSurface;
     return Semantics(
@@ -728,7 +733,7 @@ class _Stamp extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: unlocked
-              ? context.tokens.marker.withValues(alpha: 0.1)
+              ? context.tokens.reward.withValues(alpha: 0.1)
               : context.tokens.subtle,
           border: Border.all(color: borderColor, width: 2),
         ),

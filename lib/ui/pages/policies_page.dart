@@ -202,7 +202,12 @@ class _PoliciesPageState extends State<PoliciesPage> {
     final canvasHeight = math.max(560.0, (maxDepth + 1) * 190.0);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        6,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         LogSurface(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -588,7 +593,12 @@ class _PoliciesPageState extends State<PoliciesPage> {
   Widget _library() {
     final values = widget.controller.rsipLibraryNodes;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        6,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         const SectionHeading(title: '已归档国策'),
         if (values.isEmpty)
@@ -631,7 +641,12 @@ class _PoliciesPageState extends State<PoliciesPage> {
     final executions = widget.controller.rsipExecutionRecords.toList()
       ..sort((a, b) => b.record.createdAt.compareTo(a.record.createdAt));
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        6,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         const SectionHeading(title: '轮次'),
         if (runs.isEmpty)
@@ -684,7 +699,12 @@ class _PoliciesPageState extends State<PoliciesPage> {
   Widget _analytics() {
     final insights = widget.controller.rsipInsights;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        6,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         const SectionHeading(title: '规则启发式'),
         const Text('以下结果只根据本地记录和公开规则计算，不是预测、诊断或科学证明。'),
@@ -2150,19 +2170,63 @@ IconData _typeIcon(RsipNodeType type) => switch (type) {
   RsipNodeType.reminder => Icons.notifications_outlined,
 };
 
-Color _typeColor(BuildContext context, RsipNodeType type) {
-  final scheme = Theme.of(context).colorScheme;
-  return switch (type) {
-    RsipNodeType.policy => scheme.primary,
-    RsipNodeType.habit => scheme.tertiary,
-    RsipNodeType.reward => context.tokens.marker,
-    RsipNodeType.penalty => scheme.error,
-    RsipNodeType.ritual => context.tokens.marker,
-    RsipNodeType.goal => context.tokens.info,
-    RsipNodeType.trigger => scheme.error,
-    RsipNodeType.reminder => scheme.secondary,
-  };
-}
+/// 节点类型强调色。
+///
+/// **8 种类型各自独立一色**，不再有共享色。原「同色必须同语义」的分组约束
+/// 已解除，改为**邻近色同语义**——同一语义组的类别在色相环上相邻，既保留
+/// 关系暗示，又能逐类单独指认：
+///   规则：policy 绿 · habit 青碧（相邻）
+///   流程：ritual 蓝
+///   成果：goal 橄榄 · reward 黄铜（相邻）
+///   后果：penalty 红
+///   触发：trigger 紫 · reminder 中性（色相两端）
+///
+/// 色值经实测（accent 渲染为面板左缘 3px 竖条，属非文字图形元素）：
+///   两两 CIEDE2000 ΔE 最小 14.7（浅）/ 16.4（深）
+///   面板底色上对比度最低 3.25:1（浅）/ 5.04:1（深）——满足 WCAG 1.4.11 的 3:1
+///   （在 subtle 上更低：2.76 / 4.29。但 accent 条只贴在面板上，以面板为准。）
+///
+/// **「柔壤」换色带来的回退，以及为什么只调两个色相。** 旧配色下 8 色的最小
+/// ΔE00 是 17.0 / 15.6；新配色刻意**降饱和**（这是「温柔有机」的核心手法），
+/// 而分类可辨性需要**彩度差**，两者在暖色区直接冲突，最小 ΔE00 一度塌到
+/// 12.4 / 11.7。最弱两对是「陶土成果 ↔ 砖红惩罚」与「苔绿国策 ↔ 橄榄目标」。
+///
+/// 处置：语义色板（苔绿/陶土/砖红/靛蓝）严格照规范不动；只把处于瓶颈的
+/// `goal` 调向黄绿、并为「奖励」节点改用分类色层的 `amber`（不复用语义
+/// `reward`）。其余 6 类继续锚定语义令牌——分类色与语义色分家会让系统更难
+/// 解释，实测再放开 `ritual` 也只能换来 16.4 / 17.8，不值这一处解耦。
+///
+/// 最终最弱一对是「习惯青碧 ↔ 仪式蓝」14.7 / 16.4：青碧夹在绿与蓝之间，
+/// 已是最优，无法再拉开。颜色始终只作辅助线索：每类另有独立图标与简称，
+/// 形状冗余，不依赖颜色单独成立。
+///
+/// 历史：原实现把 reward 与 ritual 同置黄铜、habit/penalty/trigger 三置红色，
+/// 后者还把「习惯」标成了危险色；中间态曾收敛为「五组共享色」。
+/// 上表的实现见下方 `rsipNodeTypeColor`——刻意抽成不依赖 `BuildContext` 的
+/// 纯函数，好让回归测试**直接断言色板**，而不必经过界面渲染：节点色只体现在
+/// 3px 的 accent 条上，一旦落在视口外，截图里就是 0 像素，靠 golden 守不住
+/// （实测 reward / penalty / trigger 三色在 1440×900 树视图下命中 0 像素）。
+Color _typeColor(BuildContext context, RsipNodeType type) =>
+    rsipNodeTypeColor(context.tokens, Theme.of(context).colorScheme, type);
+
+/// 节点类型 → 强调色的纯映射。设计说明与实测数据见上方 `_typeColor` 注释。
+@visibleForTesting
+Color rsipNodeTypeColor(
+  WorkbenchTokens tokens,
+  ColorScheme scheme,
+  RsipNodeType type,
+) => switch (type) {
+  RsipNodeType.policy => scheme.primary,
+  RsipNodeType.habit => tokens.teal,
+  RsipNodeType.ritual => tokens.info,
+  RsipNodeType.goal => tokens.olive,
+  // 奖励节点用分类色层的琥珀，而非语义成果色（陶土）。理由见上方注释：
+  // 二者在新暖色基座上互相挤到 ΔE00 12.4，低于分类色可用区间上沿。
+  RsipNodeType.reward => tokens.amber,
+  RsipNodeType.penalty => tokens.signal,
+  RsipNodeType.trigger => tokens.violet,
+  RsipNodeType.reminder => scheme.outline,
+};
 
 String _executionLabel(RsipExecutionStatus status) => switch (status) {
   RsipExecutionStatus.executed => '已执行',

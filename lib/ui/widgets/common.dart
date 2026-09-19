@@ -324,7 +324,7 @@ class SkeletonBlock extends StatefulWidget {
     this.width,
     this.height = 12,
     this.widthFactor,
-    this.borderRadius = 5,
+    this.borderRadius = AppRadius.xs,
   });
 
   final double? width;
@@ -414,7 +414,11 @@ class SkeletonListTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SkeletonBlock(width: 34, height: 34, borderRadius: 5),
+          const SkeletonBlock(
+            width: 34,
+            height: 34,
+            borderRadius: AppRadius.xs,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -457,12 +461,14 @@ class PageHeader extends StatelessWidget {
       radius: 0,
       padding: EdgeInsets.zero,
       color: tokens.panel,
+      // 移除下边框：页头与内容的分离改由 24px 下留白承担（规范 9）。
+      borderColor: Colors.transparent,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           compact ? AppSpacing.pageCompact : AppSpacing.pageWide,
           wide ? 18 : 14,
           compact ? 10 : AppSpacing.pageWide,
-          wide ? 14 : 12,
+          AppSpacing.xl,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -482,9 +488,10 @@ class PageHeader extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontSize: wide ? 24 : null,
-                      height: wide ? 1.25 : null,
+                    maxLines: compact ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.displayLarge?.copyWith(
+                      fontSize: compact ? 24 : 30,
                     ),
                   ),
                   if (subtitle != null)
@@ -544,33 +551,20 @@ class SectionHeading extends StatelessWidget {
     final tokens = context.tokens;
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < AppBreakpoints.compact;
-    final wide = width >= AppBreakpoints.expanded;
     return Padding(
-      padding: EdgeInsets.only(top: wide ? 20 : 16, bottom: 8),
+      // 移除装饰航迹条后，层级由 24px 上留白确立（规范 6.3 / 9）。
+      padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
       child: Row(
         children: [
           Expanded(
             child: Row(
               children: [
-                Container(
-                  width: 3,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
                 Flexible(
                   child: Text(
                     title,
                     maxLines: compact ? 2 : 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontSize: 18,
-                      height: 1.25,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: theme.textTheme.titleLarge,
                   ),
                 ),
                 if (scale != null) ...[
@@ -607,28 +601,34 @@ class SectionHeading extends StatelessWidget {
   }
 }
 
-enum LogRailState { pending, current, completed, warning }
+enum VineRailState { pending, current, completed, warning }
 
 @immutable
-class LogRailEntry {
-  const LogRailEntry({
+class VineRailEntry {
+  const VineRailEntry({
     required this.label,
     this.detail,
-    this.state = LogRailState.pending,
+    this.state = VineRailState.pending,
     this.trailing,
   });
 
   final String label;
   final String? detail;
-  final LogRailState state;
+  final VineRailState state;
   final Widget? trailing;
 }
 
-/// 只用于真实时间、顺序或证据的日志航迹；调用方负责提供已有数据。
-class LogRail extends StatelessWidget {
-  const LogRail({super.key, required this.entries});
+/// 藤线航迹：只用于真实时间、顺序或证据；调用方负责提供已有数据。
+///
+/// 状态以**形状**表达，不依赖颜色（规范 3.2）：
+/// - 未开始 = 空心芽点（行动色 30% 描边）
+/// - 进行中 = 实心芽点 + 外环
+/// - 已结果 = 实心芽点（陶土成果色）
+/// - 断口   = 连线断开 6px + 缺口弧（砖红）
+class VineRail extends StatelessWidget {
+  const VineRail({super.key, required this.entries});
 
-  final List<LogRailEntry> entries;
+  final List<VineRailEntry> entries;
 
   @override
   Widget build(BuildContext context) {
@@ -636,7 +636,7 @@ class LogRail extends StatelessWidget {
     return Column(
       children: [
         for (var index = 0; index < entries.length; index++)
-          _LogRailRow(
+          _VineRailRow(
             entry: entries[index],
             first: index == 0,
             last: index == entries.length - 1,
@@ -647,76 +647,171 @@ class LogRail extends StatelessWidget {
   }
 }
 
-class _LogRailRow extends StatelessWidget {
-  const _LogRailRow({
+/// 藤线连线：1.5px 圆头，柔化分组色。
+class _VineLine extends StatelessWidget {
+  const _VineLine({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 1.5,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(1),
+        ),
+      ),
+    );
+  }
+}
+
+/// 芽点：四态各有一种轮廓，形状本身即可区分。
+class _VineBud extends StatelessWidget {
+  const _VineBud({super.key, required this.state, required this.tokens});
+
+  final VineRailState state;
+  final WorkbenchTokens tokens;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (state) {
+      case VineRailState.pending:
+        return Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: tokens.focusRing.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+        );
+      case VineRailState.current:
+        return Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: tokens.focusRing, width: 1.5),
+          ),
+          child: Center(
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: tokens.focusRing,
+              ),
+            ),
+          ),
+        );
+      case VineRailState.completed:
+        return Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: tokens.reward,
+          ),
+        );
+      case VineRailState.warning:
+        return SizedBox(
+          width: 14,
+          height: 14,
+          child: CustomPaint(painter: _GapArcPainter(color: tokens.signal)),
+        );
+    }
+  }
+}
+
+/// 缺口弧：生长被打断的形态，比红点更易扫读，且不依赖颜色。
+class _GapArcPainter extends CustomPainter {
+  const _GapArcPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromLTWH(1, 1, size.width - 2, size.height - 2),
+      -math.pi / 2,
+      math.pi * 1.5,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GapArcPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+class _VineRailRow extends StatelessWidget {
+  const _VineRailRow({
     required this.entry,
     required this.first,
     required this.last,
     required this.tokens,
   });
 
-  final LogRailEntry entry;
+  final VineRailEntry entry;
   final bool first;
   final bool last;
   final WorkbenchTokens tokens;
-
-  Color get color => switch (entry.state) {
-    LogRailState.current => tokens.route,
-    LogRailState.completed => tokens.marker,
-    LogRailState.warning => tokens.signal,
-    LogRailState.pending => tokens.mutedText.withValues(alpha: 0.55),
-  };
-
-  IconData get icon => switch (entry.state) {
-    LogRailState.current => Icons.adjust,
-    LogRailState.completed => Icons.check,
-    LogRailState.warning => Icons.priority_high,
-    LogRailState.pending => Icons.circle_outlined,
-  };
 
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     final stateLabel = switch (entry.state) {
-      LogRailState.pending => '待进行',
-      LogRailState.current => '进行中',
-      LogRailState.completed => '已完成',
-      LogRailState.warning => '需要注意',
+      VineRailState.pending => '待进行',
+      VineRailState.current => '进行中',
+      VineRailState.completed => '已完成',
+      VineRailState.warning => '需要注意',
     };
+    final broken = entry.state == VineRailState.warning;
     return IntrinsicHeight(
       child: Semantics(
         label: '${entry.label}，$stateLabel',
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: compact ? 52 : 44),
+          constraints: BoxConstraints(minHeight: compact ? 60 : 48),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
                 width: 28,
-                child: Stack(
-                  alignment: Alignment.topCenter,
+                child: Column(
                   children: [
-                    Positioned(
-                      top: first ? 18 : 0,
-                      bottom: last ? 18 : 0,
-                      child: Container(width: 1, color: tokens.divider),
+                    SizedBox(
+                      height: 12,
+                      child: first ? null : _VineLine(color: tokens.divider),
                     ),
-                    Positioned(
-                      top: 10,
-                      child: AnimatedContainer(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : AppMotion.standard,
-                        width: 17,
-                        height: 17,
-                        decoration: BoxDecoration(
-                          color: tokens.panel,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: color, width: 1.5),
+                    SizedBox(
+                      height: 20,
+                      child: Center(
+                        // 键按状态区分，使回归测试能直接断言「四态各有独立结构」，
+                        // 而不必依赖颜色或图标。
+                        child: _VineBud(
+                          key: ValueKey('vine-bud:${entry.state.name}'),
+                          state: entry.state,
+                          tokens: tokens,
                         ),
-                        child: Icon(icon, size: 11, color: color),
                       ),
                     ),
+                    // 断口：连线在此断开 6px。
+                    if (broken) const SizedBox(height: 6),
+                    if (last)
+                      const Spacer()
+                    else
+                      Expanded(child: _VineLine(color: tokens.divider)),
                   ],
                 ),
               ),
@@ -810,13 +905,9 @@ class EmptyState extends StatelessWidget {
       height: 56,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: scheme.primary.withValues(alpha: 0.08),
-        border: Border.all(
-          color: scheme.primary.withValues(alpha: 0.4),
-          width: 1.5,
-        ),
+        color: scheme.primaryContainer,
       ),
-      child: Icon(icon, size: 26, color: scheme.primary),
+      child: Icon(icon, size: 26, color: scheme.onPrimaryContainer),
     );
 
     Widget content = Column(
@@ -850,7 +941,13 @@ class EmptyState extends StatelessWidget {
       return Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(padding: const EdgeInsets.all(24), child: content),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: 56,
+            ),
+            child: content,
+          ),
         ),
       );
     }
@@ -860,7 +957,10 @@ class EmptyState extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: 56,
+          ),
           child: TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: 1),
             duration: AppMotion.emphasized,
@@ -924,14 +1024,17 @@ class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background =
-        color ?? Theme.of(context).colorScheme.secondaryContainer;
-    final foreground = bestContrastingText(background);
+    final scheme = Theme.of(context).colorScheme;
+    final background = color ?? scheme.primaryContainer;
+    // 未指定颜色时使用成对的容器/容器上文字令牌；指定颜色时才做自动取色兜底。
+    final foreground = color == null
+        ? scheme.onPrimaryContainer
+        : bestContrastingText(background);
     return Semantics(
       label: '标签：$label',
       child: ExcludeSemantics(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: background,
             borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -945,9 +1048,10 @@ class StatusPill extends StatelessWidget {
               ],
               Text(
                 label,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: foreground),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -1009,10 +1113,18 @@ class NumericText extends StatelessWidget {
 }
 
 class TickDivider extends StatelessWidget {
-  const TickDivider({super.key, this.height = 6, this.dashed = false});
+  const TickDivider({
+    super.key,
+    this.height = 6,
+    this.dashed = false,
+    this.inset = AppSpacing.pageCompact,
+  });
 
   final double height;
   final bool dashed;
+
+  /// 左右内缩，形成呼吸断点而非贯穿满宽（规范 9）。
+  final double inset;
 
   @override
   Widget build(BuildContext context) {
@@ -1023,6 +1135,7 @@ class TickDivider extends StatelessWidget {
         painter: _TickDividerPainter(
           color: context.tokens.divider,
           dashed: dashed,
+          inset: inset,
         ),
       ),
     );
@@ -1030,29 +1143,38 @@ class TickDivider extends StatelessWidget {
 }
 
 class _TickDividerPainter extends CustomPainter {
-  const _TickDividerPainter({required this.color, required this.dashed});
+  const _TickDividerPainter({
+    required this.color,
+    required this.dashed,
+    required this.inset,
+  });
 
   final Color color;
   final bool dashed;
+  final double inset;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final left = inset;
+    final right = size.width - inset;
+    if (right <= left) return;
     final paint = Paint()
       ..color = color
       ..strokeWidth = 1;
     if (dashed) {
-      for (var x = 0.0; x < size.width; x += 8) {
+      for (var x = left; x < right; x += 8) {
         canvas.drawLine(
           Offset(x, size.height / 2),
-          Offset(math.min(x + 4, size.width), size.height / 2),
+          Offset(math.min(x + 4, right), size.height / 2),
           paint,
         );
       }
       return;
     }
-    canvas.drawLine(Offset.zero, Offset(size.width, 0), paint);
-    for (var index = 0; index * 16 <= size.width; index++) {
-      final x = index * 16.0;
+    canvas.drawLine(Offset(left, 0), Offset(right, 0), paint);
+    for (var index = 0; ; index++) {
+      final x = left + index * 16.0;
+      if (x > right) break;
       final tick = index % 4 == 0 ? size.height : size.height * 0.55;
       canvas.drawLine(Offset(x, 0), Offset(x, tick), paint);
     }
@@ -1060,7 +1182,9 @@ class _TickDividerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TickDividerPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.dashed != dashed;
+      oldDelegate.color != color ||
+      oldDelegate.dashed != dashed ||
+      oldDelegate.inset != inset;
 }
 
 List<FontFeature>? _numericFeaturesIfUseful(String value) =>
@@ -1070,8 +1194,8 @@ List<FontFeature>? _numericFeaturesIfUseful(String value) =>
 /// 对比度更高的前景色（深 ink 或近白）。
 Color bestContrastingText(
   Color background, {
-  Color dark = const Color(0xFF1A1F1C),
-  Color light = const Color(0xFFF1F5F9),
+  Color dark = const Color(0xFF232A22),
+  Color light = const Color(0xFFFFFDF9),
 }) {
   double contrast(Color foreground) {
     final lighter = math.max(

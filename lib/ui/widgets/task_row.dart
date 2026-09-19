@@ -73,7 +73,7 @@ class TaskRow extends StatelessWidget {
           constraints: BoxConstraints(
             minHeight: task.isDone && commitmentIndex != null
                 ? 42
-                : (dense ? 48 : 58),
+                : (dense ? 48 : 60),
           ),
           child: Padding(
             padding: EdgeInsets.symmetric(
@@ -171,9 +171,9 @@ class TaskRow extends StatelessWidget {
                             duration: const Duration(milliseconds: 200),
                             curve: Curves.easeOut,
                             style: theme.textTheme.bodyLarge!.copyWith(
-                              decoration: task.isDone
-                                  ? TextDecoration.lineThrough
-                                  : TextDecoration.none,
+                              // 完成态不画删除线：删除线降低中文可读性（规范 9）。
+                              // 状态由「勾选形状 + 文字 + 颜色」三重表达。
+                              decoration: TextDecoration.none,
                               color: task.isDone
                                   ? theme.colorScheme.onSurfaceVariant
                                   : theme.textTheme.bodyLarge!.color,
@@ -325,7 +325,7 @@ class TaskRow extends StatelessWidget {
                     icon: Icon(
                       task.isFocus ? Icons.star : Icons.star_border,
                       color: task.isFocus
-                          ? theme.colorScheme.tertiary
+                          ? context.tokens.reward
                           : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -736,7 +736,7 @@ class _CompletionNodeState extends State<_CompletionNode>
                   size: const Size.square(48),
                   painter: _NodePulsePainter(
                     progress: _pulse.value,
-                    color: context.tokens.marker,
+                    color: context.tokens.reward,
                   ),
                 );
               },

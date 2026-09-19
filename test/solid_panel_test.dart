@@ -104,12 +104,12 @@ void main() {
       _host(
         const SizedBox(
           width: 320,
-          child: LogRail(
+          child: VineRail(
             entries: [
-              LogRailEntry(label: '已完成时段', state: LogRailState.completed),
-              LogRailEntry(label: '当前时段', state: LogRailState.current),
-              LogRailEntry(label: '冲突时段', state: LogRailState.warning),
-              LogRailEntry(label: '下一时段'),
+              VineRailEntry(label: '已完成时段', state: VineRailState.completed),
+              VineRailEntry(label: '当前时段', state: VineRailState.current),
+              VineRailEntry(label: '冲突时段', state: VineRailState.warning),
+              VineRailEntry(label: '下一时段'),
             ],
           ),
         ),
@@ -124,9 +124,53 @@ void main() {
     expect(labels, contains('当前时段，进行中'));
     expect(labels, contains('冲突时段，需要注意'));
     expect(labels, contains('下一时段，待进行'));
-    expect(find.byIcon(Icons.check), findsOneWidget);
-    expect(find.byIcon(Icons.adjust), findsOneWidget);
-    expect(find.byIcon(Icons.priority_high), findsOneWidget);
-    expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
+    // 状态由「形状」承载（不依赖颜色，也不再依赖图标）：四态各有独立芽点结构。
+    for (final state in VineRailState.values) {
+      expect(
+        find.byKey(ValueKey('vine-bud:${state.name}')),
+        findsOneWidget,
+        reason: '${state.name} 态必须有独立芽点结构',
+      );
+    }
+
+    BoxDecoration budDecoration(String state) {
+      final container = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byKey(ValueKey('vine-bud:$state')),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      return container.decoration! as BoxDecoration;
+    }
+
+    // 未开始 = 空心芽点；已结果 = 实心芽点。颜色之外，填充方式本身即可区分。
+    final pending = budDecoration('pending');
+    expect(pending.color, isNull);
+    expect(pending.border, isNotNull);
+
+    final completed = budDecoration('completed');
+    expect(completed.color, isNotNull);
+    expect(completed.border, isNull);
+
+    // 进行中 = 实心芽点 + 外环（两层同心圆）。
+    expect(budDecoration('current').border, isNotNull);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('vine-bud:current')),
+        matching: find.byType(Container),
+      ),
+      findsNWidgets(2),
+    );
+
+    // 断口 = 缺口弧（CustomPaint 绘制的 3/4 圆弧），不是圆点。
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('vine-bud:warning')),
+        matching: find.byType(CustomPaint),
+      ),
+      findsWidgets,
+    );
   });
 }

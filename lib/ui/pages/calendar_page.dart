@@ -534,7 +534,7 @@ class _BlockTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: conflict
-                            ? Theme.of(context).colorScheme.onTertiaryContainer
+                            ? Theme.of(context).colorScheme.onErrorContainer
                             : Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                     ),
@@ -576,7 +576,12 @@ class _MobileWeek extends StatelessWidget {
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final dayPickerHeight = math.max(68.0, 44 + 24 * textScale);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 132),
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         SizedBox(
           height: dayPickerHeight,

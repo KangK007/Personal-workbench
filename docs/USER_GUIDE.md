@@ -62,7 +62,7 @@ powershell -ExecutionPolicy Bypass -File .\tool\package_windows_test_entry.ps1
 
 桌面左侧有应用标题、个人别名、快速新增、全局搜索和八个固定页面。导航栏可以用右上角的收起按钮缩窄；收起只改变宽度，不隐藏页面。点击左下角同步状态可以查看本地或云端连接提示。
 
-![Windows 今日页和八栏导航](../test/goldens/windows_shell_today_light.png)
+![Windows 今日页和八栏导航](../test/goldens/wide_shell_today_light.png)
 
 图 1  Windows 宽屏首屏。左侧是固定八栏和全局入口，右侧的“今日”包含下一步、时间安排和今日重点；状态线、图标和文字共同表达状态，不应只凭颜色判断。
 
@@ -108,7 +108,7 @@ powershell -ExecutionPolicy Bypass -File .\tool\package_windows_test_entry.ps1
 4. 点击“收下”只保存最小记录；点击“完善信息”进入完整编辑器。
 5. 标题为空、链接不是 `http://` 或 `https://` 时，表单会显示错误且保留输入内容。
 
-![空白今日页和快速新增入口](../test/goldens/windows_shell_empty_today_light.png)
+![空白今日页和快速新增入口](../test/goldens/wide_shell_empty_today_light.png)
 
 图 2  新安装的空白今日页。没有演示任务时，页面只突出“添加今天的第一项任务”，避免新手在空白页面中寻找入口。
 
@@ -152,7 +152,7 @@ powershell -ExecutionPolicy Bypass -File .\tool\package_windows_test_entry.ps1
 2. **今日**：当前逻辑日需要处理的任务，包含一次性任务和按周期生成的实例。
 3. **已结算**：完成、失败、跳过、改期或退回收集箱后的历史结果。结算后任务仍保留，便于解释当天发生了什么。
 
-![今日页的下一步、时间安排和今日重点](../test/goldens/windows_shell_today_light.png)
+![今日页的下一步、时间安排和今日重点](../test/goldens/wide_shell_today_light.png)
 
 图 3  今日执行台。下一步卡片只突出一个主动作；右侧今日重点最多保留三项；下方时间安排显示时间块和冲突提示。
 
@@ -216,7 +216,7 @@ powershell -ExecutionPolicy Bypass -File .\tool\package_windows_test_entry.ps1
 - **周视图**：按周一至周日排列任务和时间块；宽屏为七列，窄窗口变为按日纵向列表。
 - **任务群**：创建并行任务群或顺序任务链，查看锁定、完成和调整历史。
 
-![任务周视图和时间冲突提示](../test/goldens/windows_workweek_conflict.png)
+![任务周视图和时间冲突提示](../test/goldens/wide_workweek_conflict.png)
 
 图 4  周视图示例。每列代表一天，任务块显示时间和冲突状态；宽屏适合比较一周，窗口变窄后页面会改为纵向阅读。
 

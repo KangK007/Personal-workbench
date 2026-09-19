@@ -204,7 +204,12 @@ class _ReviewPageState extends State<ReviewPage> {
     final statisticsChanged =
         existing != null && controller.reviewStatisticsChanged(existing!);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        8,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         if (widget.showPeriodSwitcher)
           _PeriodToolbar(
@@ -513,7 +518,12 @@ class _ReviewPageState extends State<ReviewPage> {
                   message: '调整期间筛选或搜索内容。',
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 132),
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    4,
+                    20,
+                    AppSpacing.bottomNavClearance,
+                  ),
                   itemCount: records.length,
                   separatorBuilder: (_, _) => const Divider(),
                   itemBuilder: (context, index) {
@@ -592,7 +602,12 @@ class _ReviewPageState extends State<ReviewPage> {
     ).map(_findRecord).whereType<WorkspaceRecord>().toList(growable: false);
     final snapshot = review.data['snapshot'];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 132),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
       children: [
         Row(
           children: [

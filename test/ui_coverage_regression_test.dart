@@ -711,10 +711,7 @@ void main() {
       tester.getTopLeft(primaryActions).dy - tester.getBottomLeft(brand).dy,
       greaterThanOrEqualTo(12),
     );
-    expect(
-      find.byKey(const ValueKey('navigation-group:tasks')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('navigation-group:plan')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('navigation-leaf:projectsOverview')),
       findsOneWidget,
@@ -723,14 +720,17 @@ void main() {
       find.byKey(const ValueKey('navigation-leaf:settings')),
       findsOneWidget,
     );
-    expect(find.widgetWithText(ListTile, '计划'), findsNothing);
-    expect(find.widgetWithText(ListTile, '执行'), findsNothing);
-    await fixture.controller.setNavigationGroupExpanded('tasks', false);
+    // 6 域导航：域标题本身常显（旧版是折叠组标题，默认不可见）。
+    expect(find.widgetWithText(ListTile, '计划'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, '执行'), findsOneWidget);
+    await fixture.controller.setNavigationGroupExpanded('plan', false);
     await tester.pumpAndSettle();
+    // 手风琴：非当前域恒收起，其子页不可见。
     for (final key in ['tasksAll', 'tasksWeek', 'tasksGroups']) {
       expect(find.byKey(ValueKey('navigation-leaf:$key')), findsNothing);
     }
-    await tester.tap(find.byKey(const ValueKey('navigation-group:tasks')));
+    // 点击非当前域标题 = 展开该域并进入其首个子页（规范 2.2 第 1 条）。
+    await tester.tap(find.byKey(const ValueKey('navigation-group:plan')));
     await tester.pumpAndSettle();
     for (final key in ['tasksAll', 'tasksWeek', 'tasksGroups']) {
       expect(find.byKey(ValueKey('navigation-leaf:$key')), findsOneWidget);
@@ -746,18 +746,24 @@ void main() {
     expect(find.byType(TabBar), findsNothing);
     expect(find.widgetWithText(ListTile, '系统'), findsNothing);
     expect(find.byKey(const ValueKey('navigation-leaf:diary')), findsNothing);
+    // 旧折叠组 policies / goals_habits 已分别并入「执行」「成长」两域。
     expect(
-      find.byKey(const ValueKey('navigation-group:policies')),
-      findsNothing,
+      find.byKey(const ValueKey('navigation-group:execute')),
+      findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('navigation-group:goals_habits')),
-      findsNothing,
+      find.byKey(const ValueKey('navigation-group:growth')),
+      findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('navigation-leaf:goals')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('navigation-group:record')),
+      findsOneWidget,
+    );
+    // 当前域是「项目」，故「成长」子页保持收起。
+    expect(find.byKey(const ValueKey('navigation-leaf:goals')), findsNothing);
     expect(
       find.byKey(const ValueKey('navigation-leaf:behavior')),
-      findsOneWidget,
+      findsNothing,
     );
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -776,15 +782,25 @@ void main() {
         .cast<NavigationDestination>()
         .map((destination) => destination.label)
         .toList();
-    expect(labels, ['今日', '任务', '回顾', '行为', '设置']);
+    expect(labels, ['今日', '计划', '记录', '成长', '更多']);
     expect(find.byType(PageHeader), findsNothing);
     expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.byKey(const ValueKey('mobile-quick-capture')), findsOneWidget);
     expect(find.byTooltip('快速新增'), findsOneWidget);
     expect(find.byTooltip('全局搜索'), findsOneWidget);
-    expect(find.byTooltip('更多'), findsOneWidget);
+    // 「更多」入口唯一：底部导航末位。AppBar 曾另放一个同功能按钮，
+    // 与底栏同屏重复且同名 tooltip 会干扰无障碍与自动化定位，已移除。
+    final moreDestination = find.descendant(
+      of: find.byType(NavigationBar),
+      matching: find.byTooltip('更多'),
+    );
+    expect(moreDestination, findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.byTooltip('更多')),
+      findsNothing,
+    );
 
-    await tester.tap(find.byTooltip('更多'));
+    await tester.tap(moreDestination);
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('navigation-leaf:projectsOverview')),
@@ -830,7 +846,12 @@ void main() {
     expect(tester.takeException(), isNull);
     final navigation = tester.widget<NavigationBar>(find.byType(NavigationBar));
     expect(navigation.destinations, hasLength(5));
-    await tester.tap(find.byTooltip('更多'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.byTooltip('更多'),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('navigation-leaf:focus')),
@@ -1272,8 +1293,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       expect(fixture.controller.activeCommitmentIds, contains(replacementId));
 
+      // 前序「开始今天」会弹出一个 8 秒的浮动 SnackBar（带「撤销」操作），
+      // 它悬停在底部；密度调整后「安排」按钮位于其遮挡带内。这里显式等它退场，
+      // 而不是依赖「按钮恰好不在遮挡带里」这一偶然的垂直位置。
+      await tester.pump(const Duration(seconds: 9));
+      await tester.pump(const Duration(milliseconds: 500));
+
       final arrange = find.text('安排', skipOffstage: false);
       await tester.ensureVisible(arrange);
+      await tester.pump();
       await tester.tap(arrange);
       await tester.pump();
       await tester.tap(find.text('安排').last);
