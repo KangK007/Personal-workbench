@@ -9,8 +9,9 @@
 - 当前分支：`main`；远程：`origin`（GitHub `KangK007/Personal-workbench`）。
 - 应用版本：`0.2.1+6`（上一轮为 `0.2.0+5`）。
 - 本轮聚焦 0.2.1+6 发布链：把「柔壤 · 年轮」的**形态**落到页面（上一轮只换了色）、应用图标全链路重制、新增两项门禁，并重新构建两端安装包。
-- 当前可用产物为 `dist/PersonalWorkbench_0.2.1+6_windows.zip`（SHA-256 `48D5FFBF4A331BA64CC54D766D501715A718077B375C443269B76D9BB1D52200`）与 `dist/apk/PersonalWorkbench_0.2.1_6_debug-arm64-v8a.apk`（SHA-256 `A5EF2F83962152BC7A1E6BDFD446D28AE400AC99DEF517663DDA1D1EFBFA445B`）；它们属于构建产物，按约定不进入 Git。2026-09-20 已从当前工作区重新构建并安装 Windows Release，Android arm64 Debug 分发副本也已刷新。
-- Windows Release EXE 与稳定安装目录 EXE 的 SHA-256 均为 `02EA7753F96D7C43266F833D8DC0FB4B4376A1FB1E5A424CD2AA9E3132B257EF`，版本资源为 `0.2.1+6`；三个快捷方式（桌面 `Personal Workbench.lnk`、开始菜单 `Personal Workbench.lnk` 和 `个人工作台.lnk`）均已刷新并全部指向 `%LOCALAPPDATA%\Programs\PersonalWorkbench\personal_workbench.exe`。
+- 当前可用产物为 `dist/PersonalWorkbench_0.2.1+6_windows.zip`（SHA-256 `CD4C2654BB89172D3D02683BEBE26DACFF68FFFB281B7CCDABF3E8CC08BB3F96`）与 `dist/apk/PersonalWorkbench_0.2.1_6_debug-arm64-v8a.apk`（SHA-256 `A5EF2F83962152BC7A1E6BDFD446D28AE400AC99DEF517663DDA1D1EFBFA445B`）；它们属于构建产物，按约定不进入 Git。2026-09-20 已从当前工作区重新构建并安装 Windows Release，Android arm64 Debug 分发副本也已刷新；当日二次复核后又重跑了一次 Windows 打包，使 `dist/` 里的安装器带上快捷方式重试修复。
+- Windows Release EXE 与稳定安装目录 EXE 的 SHA-256 均为 `6354AB9BD6E00C791DA1A472A25BDB0DFB608339AA49FF7230B412841032A8D3`，版本资源为 `0.2.1+6`；三个快捷方式（桌面 `Personal Workbench.lnk`、开始菜单 `Personal Workbench.lnk` 和 `个人工作台.lnk`）均已刷新并全部指向 `%LOCALAPPDATA%\Programs\PersonalWorkbench\personal_workbench.exe`。
+  - ⚠️ **Windows 构建不是逐字节可复现的**：同一份源码两次构建的 `personal_workbench.exe` 体积相同（575,488 字节）但哈希不同。因此「产物一致」的判据是**版本资源 + AOT 符号探针 + 打包副本与安装副本哈希相同**，不要拿跨构建的哈希互相比对，也不要把某一轮的哈希当成不变量写进验收项。
 - Android 分发 APK 的清单版本元数据经 `aapt dump badging` 实测为 `versionCode=6 / versionName=0.2.1`，与 `pubspec.yaml` 一致。
 - 本轮界面形态改动已落地：今日页新增概览 Hero 与「下一步行动」层级、列表语言统一为「一行一卡」、语义/分类色按 `rsipNodeTypeColor` 纯函数归位、移动端底栏抽为独立文件 `lib/ui/widgets/mobile_bottom_bar.dart`、`workbench_shell.dart` 导航骨架与 `quick_capture_sheet.dart` 捕获面板重构；`app_theme.dart` 令牌同步扩充。
 - 本轮应用图标重制为「新芽 · 破土」：`tool/build_app_icon.py` 为**单一真源**，一次重出品牌母版、Windows `.ico`（7 档逐档渲染）、Android 传统档 + 自适应三层矢量 + 单色档和 `design_preview/icon/` 预览页；规范见 `APP_ICON_SPEC.md`。Windows 图标由 41 KB 增至约 372 KB，是 `personal_workbench.exe` 体积由 243 KB 增至 575 KB 的主因。
@@ -36,10 +37,21 @@
 - [x] 从当前工作区重建 Android arm64 Debug APK；构建副本和 `dist/apk` 分发副本已通过 SHA-256 一致性检查，清单版本元数据为 `0.2.1 / 6`。
 - [x] 用户手册 DOCX 的版本号已同步至 0.2.1+6；结构化 OOXML 校验通过；当前环境缺少 LibreOffice，尚未完成 PNG 视觉渲染复核。
 
+### 已完成（2026-09-20 二次复核：发布链加固）
+
+- [x] **快捷方式写入不再因瞬时锁致发布失败**。`tool/update_all_shortcuts.ps1` 的 `Update-Shortcut` 与 `packaging/windows/Install-PersonalWorkbench.ps1` 的写入循环各改为 **5 次指数退避重试**（250/500/1000/2000 ms，合计约 3.75 s），每次重试重建 COM 对象（失败的 `Save()` 会让原实例不可用）。安装器随包分发、不能 dot-source 工具库，故该循环在其中刻意重写一份。
+- [x] **`build_windows.ps1` 的快捷方式步骤降级为非致命**。该步骤包进 `try/catch`，失败只 `Write-Warning` 并追加一行 `NOTE: software entry points were NOT refreshed…`，脚本退出码仍为 0。判据依据：`package_windows_release.ps1` 只看本脚本的**进程退出码**，而「退出码 1」并不等于「构建失败」；且这一步只是把入口临时指向产物目录，最终由 `Install-PersonalWorkbench.ps1` 收敛到稳定安装目录。
+- [x] **三层故障注入验证**（全部实测，非推演）：
+  - 用「另一进程以 `FileShare.None` 独占 `.lnk`」注入故障，报错与线上逐字一致（`无法保存快捷方式…`，`FileLoadException`）。
+  - 瞬时锁（持锁 4 s）→ `RETRY 1/5…4/5` 后**成功恢复**，退出码 0，耗时 4,078 ms。
+  - 持续锁（持锁 60 s）→ 4 次重试后**如实抛错**，耗时 4,071 ms（≈250+500+1000+2000），说明重试没有吞掉真错误。
+  - 无锁 → 310 ms 直接成功，零重试。
+  - **端到端**：持锁 1800 s 期间跑完真实 `build_windows.ps1`（61 s，`√ Built …exe` 已打印）→ 快捷方式步骤失败 → 只告警 → **退出码 0**，`dist/` 可正常发布。修复前同一路径会以退出码 1 结束。
+- [x] **`$LASTEXITCODE` 泄漏一并修掉**。该变量只由原生命令设置，且会**从调用方会话继承**；子脚本自己不归零，调用方拿到的就还是它进来时的值。`package_windows_release.ps1` 与 `build_android.ps1` 末尾缺少归零，于是**成功的打包**可能对外报非零码 —— 实测：直接调用 `package_windows_release.ps1 -SkipBuild` 返回 `-1`，而 `dist/` 已正确刷新、`$?` 为 `True`。两个脚本已与 `build_windows.ps1` 统一补上 `$global:LASTEXITCODE = 0`；回归验证：先把会话里的 `$LASTEXITCODE` 污染成 1，再直接调用，结果为 0。
+- [x] **`test/failures/` 陈旧产物已清理**：100 个文件 / 8.22 MB（时间戳 2026-09-18 22:18 ~ 2026-09-20 11:35）。陈旧判定基于证据而非时间窗 —— 最近一次全绿测试（2026-09-20 16:50，`+243 All tests passed!`）之后，该目录**新增文件数为 0**。目录本身也已删除；`flutter_test` 用 `output.parent.createSync(recursive: true)` 按需重建，故不会影响后续失败产物的落盘。清理走项目约定的 `Remove-Verified` 状态校验式删除。
+
 ### 待办
 
-- [ ] **`build_windows.ps1` 的快捷方式步骤会把构建拖死**。2026-09-20 实测：本次 Windows Release 已 `Built …\personal_workbench.exe` 成功，但紧随其后的 `update_all_shortcuts.ps1` 在保存桌面 `.lnk` 时遇到瞬时占用（新图标 372 KB，Explorer 正在刷新图标缓存），`-Required` 分支抛错 → `build_windows.ps1` 以退出码 1 结束 → `package_windows_release.ps1` 判定构建失败，`dist/` 未发布。同一调用在事后单独重跑一次即成功，**未复现**，故判为瞬时占用而非逻辑缺陷。建议把该步骤改为「重试 + 非致命告警」：快捷方式本就由 `Install-PersonalWorkbench.ps1` 最终指回稳定安装目录，构建脚本里的这次更新只是中间态，不应有权终止整个发布流程。
-- [ ] `test/failures/` 现存 100 个文件、约 8.5 MB 的陈旧 golden 失败产物（时间戳 2026-09-19 20:19 / 20:45 与 2026-09-20 11:27，属优化过程中间态；当前 243/243 全绿，不再复现）。该目录已被 `.gitignore` 声明，按 `FILE_INVENTORY_AUDIT.md` A-1 的既有判定可安全清理。
 - [ ] 在真实 Windows 会话和 Android 真机上复核本轮视觉 Golden 变化、触控/键盘焦点和底栏安全区；仓库测试不能替代平台验收。
 - [ ] 完成 Android Release 签名构建、Windows 原生托盘/限制能力、通知休眠恢复和文件选择器窗口激活的外部条件验收。
 - [ ] 使用隔离账号复核 Supabase 分页、冲突、失败恢复和 RLS；不要把任何私有密钥写入仓库。

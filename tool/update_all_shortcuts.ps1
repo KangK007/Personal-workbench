@@ -35,6 +35,23 @@ if (-not (Test-Path -LiteralPath $startMenu -PathType Container)) {
 $workingDirectory = Split-Path -Parent $target
 $shell = New-Object -ComObject WScript.Shell
 
+# Number of Save() attempts per shortcut.
+#
+# Why retry: Explorer keeps the .lnk open for a moment while it re-reads the
+# icon and re-renders the shell item -- most likely right after the target
+# executable's icon resource itself changed. While that handle is open, Save()
+# fails with "cannot save shortcut" / access-denied. The lock is *transient*
+# (observed to clear within a second or two), so the correct response is a
+# bounded retry, not an immediate hard failure.
+#
+# Observed 2026-09-20: build_windows.ps1 had already printed "Built ...exe"
+# when this exact step threw, and because the desktop entry is -Required the
+# exception bubbled out of the build script -> exit code 1 -> the release
+# packaging script treated the whole build as failed and published nothing at
+# all, even though the artifacts were complete and valid. Rerunning this script
+# by hand then succeeded on the first attempt.
+$saveAttempts = 5
+
 function Update-Shortcut {
     param(
         [string]$Path,
@@ -48,21 +65,43 @@ function Update-Shortcut {
         Write-Output "SKIP (parent missing): $Path"
         return
     }
-    try {
-        $shortcut = $shell.CreateShortcut($Path)
-        $shortcut.TargetPath = $target
-        $shortcut.WorkingDirectory = $workingDirectory
-        $shortcut.IconLocation = "$target,0"
-        $shortcut.Description = 'Launch the latest Personal Workbench Windows build'
-        $shortcut.Save()
-        Write-Output "Shortcut updated: $Path -> $target"
-    } catch {
-        if ($Required) {
-            throw "Failed to update required shortcut $Path : $($_.Exception.Message)"
+
+    # Set-StrictMode is on: initialise before the loop closed over it.
+    $lastMessage = 'unknown error'
+    for ($attempt = 1; $attempt -le $saveAttempts; $attempt++) {
+        try {
+            # A fresh object per attempt: a failed Save() can leave the
+            # previous shortcut instance in an unusable state.
+            $shortcut = $shell.CreateShortcut($Path)
+            $shortcut.TargetPath = $target
+            $shortcut.WorkingDirectory = $workingDirectory
+            $shortcut.IconLocation = "$target,0"
+            $shortcut.Description = 'Launch the latest Personal Workbench Windows build'
+            $shortcut.Save()
+            Write-Output "Shortcut updated: $Path -> $target"
+            return
+        } catch {
+            $lastMessage = $_.Exception.Message
+            if ($attempt -ge $saveAttempts) {
+                break
+            }
+            # Exponential backoff, 250/500/1000/2000 ms (~3.75 s total):
+            # long enough for a shell icon-cache refresh to release the handle,
+            # short enough not to stall a build.
+            $delayMs = [int](250 * [Math]::Pow(2, $attempt - 1))
+            Write-Output (
+                "RETRY $attempt/$saveAttempts for $Path (transient lock?): $lastMessage"
+            )
+            Start-Sleep -Milliseconds $delayMs
         }
-        # An optional protected Start Menu entry must not block the desktop link.
-        Write-Output "WARN: failed to update $Path : $($_.Exception.Message)"
     }
+
+    $failure = "Failed to update shortcut '$Path' after $saveAttempts attempts: $lastMessage"
+    if ($Required) {
+        throw $failure
+    }
+    # An optional protected Start Menu entry must not block the desktop link.
+    Write-Output "WARN: $failure"
 }
 
 Update-Shortcut -Path (Join-Path $desktop $ShortcutName) -Required

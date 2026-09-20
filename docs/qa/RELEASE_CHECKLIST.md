@@ -20,9 +20,9 @@
 > `dist/apk/PersonalWorkbench_0.2.1_6_debug-arm64-v8a.apk`。
 > **提交前复核（2026-09-20）**：`dart format` 99 文件 0 差异、`flutter analyze` 无问题、`flutter test` **243/243 通过**；
 > `verify_colors` / `verify_token_parity` / `verify_glyph_coverage` / `verify_windows_build` / `verify_apk` 五支门禁全部通过。
-> Windows Release EXE 与稳定安装目录 EXE SHA-256 一致（`02EA7753…`），版本资源 `0.2.1+6`；三个快捷方式全部指向稳定安装目录。
+> Windows Release EXE 与稳定安装目录 EXE SHA-256 一致（`6354AB9B…`），版本资源 `0.2.1+6`；三个快捷方式全部指向稳定安装目录。
 > Android 分发 APK 经 `aapt dump badging` 实测 `versionCode=6 / versionName=0.2.1`。
-> ⚠️ 构建期异常：`build_windows.ps1` 的快捷方式步骤因桌面 `.lnk` 瞬时占用抛错，导致该次构建以退出码 1 结束、`dist/` 未发布；事后单独重跑同一调用即成功，未复现。详见 `docs/PROJECT_MAINTENANCE.md` 待办第 1 项。
+> **发布链加固（2026-09-20 二次复核）**：上一轮遗留的两项已闭环 —— ① 快捷方式写入改为「有限次重试」，且 `build_windows.ps1` 中该步骤降级为**非致命告警**（原会让成功的构建以退出码 1 结束、`dist/` 完全不发布）；② `test/failures/` 100 个陈旧 golden 产物（8.22 MB）已清理。同时修掉同类隐患：`package_windows_release.ps1` 与 `build_android.ps1` 末尾缺退出码归零，会把调用方遗留的 `$LASTEXITCODE` 原样抛给调用者。三项均已用故障注入逐条验证，详见 `docs/PROJECT_MAINTENANCE.md`。
 
 ## 1. 已满足
 
@@ -37,6 +37,9 @@
 - [x] Windows 隔离数据库真实核心流通过。
 - [x] Android 启动、IME、Back、权限、即时通知、分享、横屏和尺寸变化通过。
 - [x] 三个 Windows 快捷方式（桌面、开始菜单英文、开始菜单中文）均指向稳定安装目录；安装 EXE 与本次 Release EXE SHA-256 一致，版本资源均为 `0.2.1+6`。
+- [x] 快捷方式写入的瞬时锁已可自愈：`tool/update_all_shortcuts.ps1` 与 `packaging/windows/Install-PersonalWorkbench.ps1` 各带 5 次指数退避重试（250/500/1000/2000 ms）；`build_windows.ps1` 的该步骤失败只告警、不再终止发布。已用「另一进程独占句柄」注入故障并跑完真实构建做端到端验证。
+- [x] 三个入口脚本（`build_windows.ps1` / `package_windows_release.ps1` / `build_android.ps1`）末尾统一把 `$LASTEXITCODE` 归零，不再把调用方遗留的退出码当作自身结果上报。
+- [x] `test/failures/` 的 100 个陈旧 golden 失败产物（8.22 MB）已清理；该目录被 `.gitignore` 忽略，`flutter_test` 需要时按需重建。
 - [x] 源码敏感信息扫描未发现提交的密钥。
 - [x] 缺陷、回归、UI/UX 和最终 QA 报告齐全。
 - [x] Word 用户手册已生成，OOXML 结构与可访问性审计通过。
@@ -57,7 +60,7 @@
 | 平台 | 路径 | 状态 |
 | --- | --- | --- |
 | Windows Release | `build/windows/x64/runner/Release/` | 构建 PASS；平台副作用验收未完成 |
-| Windows 安装 ZIP（当前版本） | `dist/PersonalWorkbench_0.2.1+6_windows.zip` | 已用当前 Release 刷新并安装；SHA-256 `48D5FFBF4A331BA64CC54D766D501715A718077B375C443269B76D9BB1D52200` |
+| Windows 安装 ZIP（当前版本） | `dist/PersonalWorkbench_0.2.1+6_windows.zip` | 已用当前 Release 刷新并安装；SHA-256 `CD4C2654BB89172D3D02683BEBE26DACFF68FFFB281B7CCDABF3E8CC08BB3F96` |
 | Android Debug | `build/app/outputs/flutter-apk/app-debug.apk` | QA 侧载 PASS，不是正式发布包 |
 | Android Debug 分发副本 | `dist/apk/` | 本轮只重新生成 arm64-v8a |
 | Android Debug arm64-v8a（当前版本） | `dist/apk/PersonalWorkbench_0.2.1_6_debug-arm64-v8a.apk` | 当前 arm64 分架构侧载包；SHA-256 `A5EF2F83962152BC7A1E6BDFD446D28AE400AC99DEF517663DDA1D1EFBFA445B`；`aapt` 实测 `versionCode=6 / versionName=0.2.1`，不是正式发布包 |
@@ -68,9 +71,11 @@
 | Android Release | 无 | BLOCKED：缺少签名配置 |
 | —— 历史记录（0.2.0+5） | `dist/PersonalWorkbench_0.2.0+5_windows.zip`、`dist/apk/PersonalWorkbench_0.2.0_5_debug-arm64-v8a.apk` | 已被本轮新包替换，旧文件由构建脚本按「同形态模式清理」自动删除 |
 
-Windows 安装 ZIP SHA-256（0.2.1+6）：`48D5FFBF4A331BA64CC54D766D501715A718077B375C443269B76D9BB1D52200`。
+Windows 安装 ZIP SHA-256（0.2.1+6）：`CD4C2654BB89172D3D02683BEBE26DACFF68FFFB281B7CCDABF3E8CC08BB3F96`。
 
-Windows Release EXE / 稳定安装目录 EXE SHA-256（0.2.1+6，两者一致）：`02EA7753F96D7C43266F833D8DC0FB4B4376A1FB1E5A424CD2AA9E3132B257EF`。
+Windows Release EXE / 稳定安装目录 EXE SHA-256（0.2.1+6，两者一致）：`6354AB9BD6E00C791DA1A472A25BDB0DFB608339AA49FF7230B412841032A8D3`。
+
+> 注：Windows 构建**不是逐字节可复现的**（同一份源码两次构建的 EXE 哈希不同，体积一致）。因此「产物一致」的判据取**版本资源 + AOT 符号探针 + 打包/安装两份哈希相同**，而非跨构建比较哈希。上一轮的 `02EA7753F96D7C43266F833D8DC0FB4B4376A1FB1E5A424CD2AA9E3132B257EF` 记录作废。
 
 Android Debug arm64-v8a APK SHA-256（0.2.1+6）：`A5EF2F83962152BC7A1E6BDFD446D28AE400AC99DEF517663DDA1D1EFBFA445B`。
 

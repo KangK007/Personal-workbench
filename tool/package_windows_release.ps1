@@ -103,3 +103,12 @@ if ($Install.IsPresent) {
 
 Write-Output "Windows distribution directory: $distributionRoot"
 Write-Output "Windows installer archive: $archive"
+
+# $LASTEXITCODE 只由**原生命令**设置，并且会**从调用方会话继承**：子脚本自己不
+# 归零，调用方拿到的就还是它进来时的那个值。本脚本成功路径的收尾全是 cmdlet
+# （Copy-Item / Compress-Archive / 安全删除助手都不碰该变量），于是一次**成功的**
+# 打包可能对外报出非零退出码 —— 2026-09-20 实测：直接调用返回 -1，而 dist/ 其实
+# 已正确刷新、$? 为 True，调用方据此判成败会把成功当失败。
+# 真实失败一律由 throw 终止、走不到这一行，故此处归零是安全的。
+# 与 build_windows.ps1 末尾同一处理（那里防的是 robocopy 的 0-7 泄漏）。
+$global:LASTEXITCODE = 0

@@ -43,6 +43,8 @@
 - **是否为删除候选**：都不是。两个预览目录虽是生成物，但 `design_preview/` 一向入库（`green_schemes/scheme_*.png`、`glass_today_*.png` 均已跟踪），且它们由 `tool/build_app_icon.py` 与 `tool/build_scheme_c_compare.py` 可重复重出。若日后要瘦身，应连同生成脚本的调用约定一起决策，不要单独删图。
 - **卫生复扫**：`*.bak` / `*.tmp` / `*~` / `*副本*` / `.DS_Store` 残留 **0**；空目录 **0**；未见临时调试文件残留（本轮会话产生的临时脚本已全部清理或写在 `%TEMP%`）。
 - **`test/failures/` 状态变更**：由 0 变为 **100 个文件 / 8.5 MB**（时间戳 2026-09-19 20:19、20:45 与 2026-09-20 11:27）。这是重构过程中 golden 未及时重录的**中间态产物**；其中 09-20 那批只涉及 `protocols_desktop` 与 `wide_protocols_light` 两张基线，二者随后被重录，当前 `flutter test` **243/243 全绿**，不再复现。目录已由根 `.gitignore` 声明，按 A-1 既有判定属可安全清理项。
+- **✅ 同日二次复核：`test/failures/` 已清理完毕**（100 个文件 / 8.22 MB，含目录本身）。陈旧判据不取时间窗而取**证据**：最近一次全绿测试（2026-09-20 16:50，`+243 All tests passed!`）之后该目录**新增文件数为 0**，即全部产物都早于那次全绿运行。删除走项目约定的 `Remove-Verified` 状态校验式删除，删后以「路径确实消失」为判据而非「命令是否抛错」。目录不会因此缺席：`flutter_test` 的 `File getFailureFile(...)` 写入前会执行 `output.parent.createSync(recursive: true)`，需要时按需重建。⇒ A-1 项自此归零。
+- **发布链脚本加固（非文件清理，但与「卫生」同源）**：本轮修掉三处会让**成功**被误判成失败的退出码处理 —— ① 快捷方式写入改为 5 次指数退避重试；② `build_windows.ps1` 的快捷方式步骤降级为非致命告警；③ `package_windows_release.ps1` 与 `build_android.ps1` 末尾补 `$global:LASTEXITCODE = 0`（原先会把调用方会话继承来的退出码原样抛出，实测一次成功打包返回 `-1`）。
 - **验证基线刷新**：`dart format --output=none --set-exit-if-changed lib test` → 99 文件 0 差异；`flutter analyze` → `No issues found!`；`flutter test --reporter compact` → **243/243 通过**（上一轮基线 242）。门禁 `verify_colors.py`（未达标配对 0）、`verify_token_parity.py`（56 对逐值一致）、`verify_glyph_coverage.py`（无缺字）、`verify_windows_build.py`（探针全 PASS）、`verify_apk.py`（7/7）全部通过。
 - **仍然成立的结论**：仓库无垃圾堆积；B-3 ～ B-8 维持「全部保留」；`docs/images/ui_audit/` 被忽略却被 `UI_V2_PREVIEW.html` 引用的可移植性隐患（第三批隐患 #1）与 `WorkbenchSection.diary` 死枚举值（隐患 #2）均未处理，状态不变。
 

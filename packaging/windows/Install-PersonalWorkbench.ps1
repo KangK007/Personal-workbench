@@ -48,13 +48,46 @@ $shortcutPaths = @(
     (Join-Path $startMenu ($chineseName + '.lnk')),
     (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Personal Workbench.lnk')
 )
+
+# Install-time shortcut write, with the same bounded retry as
+# tool\update_all_shortcuts.ps1. This file ships standalone inside the
+# distribution, so it cannot dot-source the tool library -- the loop is
+# duplicated on purpose.
+#
+# Why: Explorer holds a .lnk open for a moment while it re-reads the icon and
+# re-renders the shell item, which happens right after the target executable is
+# replaced by this very script. Save() then fails with "cannot save shortcut" /
+# access-denied. The lock is transient, so retry instead of failing the install.
+function Set-PersonalWorkbenchShortcut {
+    param([string]$Path)
+
+    $attempts = 5
+    $lastMessage = 'unknown error'
+    for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+        try {
+            # Fresh object per attempt: a failed Save() can leave the previous
+            # shortcut instance in an unusable state.
+            $shortcut = $shell.CreateShortcut($Path)
+            $shortcut.TargetPath = $executable
+            $shortcut.WorkingDirectory = $installDirectory
+            $shortcut.IconLocation = "$executable,0"
+            $shortcut.Description = 'Launch the latest Personal Workbench Windows build'
+            $shortcut.Save()
+            return
+        } catch {
+            $lastMessage = $_.Exception.Message
+            if ($attempt -lt $attempts) {
+                $delayMs = [int](250 * [Math]::Pow(2, $attempt - 1))
+                Write-Warning "Retrying shortcut write $attempt/$attempts for '$Path': $lastMessage"
+                Start-Sleep -Milliseconds $delayMs
+            }
+        }
+    }
+    throw "Failed to write shortcut '$Path' after $attempts attempts: $lastMessage"
+}
+
 foreach ($shortcutPath in $shortcutPaths) {
-    $shortcut = $shell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = $executable
-    $shortcut.WorkingDirectory = $installDirectory
-    $shortcut.IconLocation = "$executable,0"
-    $shortcut.Description = 'Launch the latest Personal Workbench Windows build'
-    $shortcut.Save()
+    Set-PersonalWorkbenchShortcut -Path $shortcutPath
 }
 
 Write-Host "Personal Workbench was installed to: $installDirectory"

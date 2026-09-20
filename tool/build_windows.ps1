@@ -147,10 +147,39 @@ if (-not (Test-Path -LiteralPath $executable)) {
     throw "Build completed without the expected executable: $executable"
 }
 
+# 刷新软件入口（桌面 + 开始菜单）。
+#
+# 这一步**不得**让构建失败。原因：package_windows_release.ps1 只看本脚本的进程
+# 退出码，此处一旦抛错，整个 `dist\` 就不发布 —— 而产物其实已经构建成功了
+# （「进程退出码 1」与「构建失败」并不等价）。2026-09-20 实测踩到：`√ Built …exe`
+# 已经打印，却因桌面 .lnk 被 Explorer 瞬时占用而整包不发，事后手动重跑即成。
+#
+# 降级为警告的另一个依据：这一步只是把入口**临时**指向产物目录，最终由
+# Install-PersonalWorkbench.ps1 把三个入口收敛到稳定安装目录。所以这里失败
+# 不会把用户引向坏路径。
+# update_all_shortcuts.ps1 内部已自带重试，能走到这里说明是持续性失败。
 $shortcutScript = Join-Path $projectRoot 'tool\update_all_shortcuts.ps1'
-& $shortcutScript -TargetPath $executable
+$shortcutRefreshOk = $true
+try {
+    & $shortcutScript -TargetPath $executable
+} catch {
+    $shortcutRefreshOk = $false
+    Write-Warning (
+        'Shortcut refresh failed (non-fatal: the build itself succeeded): ' +
+        $_.Exception.Message
+    )
+}
 
 Write-Output "Windows build completed: $executable"
+if ($shortcutRefreshOk) {
+    Write-Output 'Software entry points refreshed: desktop + start menu.'
+} else {
+    Write-Output (
+        'NOTE: software entry points were NOT refreshed. The build output and the ' +
+        'distribution archive are still valid; rerun ' +
+        "& '$shortcutScript' -TargetPath '$executable' to fix the shortcuts."
+    )
+}
 
 # Robocopy uses 0-7 for successful copies; do not leak those values to callers.
 $global:LASTEXITCODE = 0
