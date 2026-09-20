@@ -669,6 +669,7 @@ class _ReviewPageState extends State<ReviewPage> {
         Text(review.title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         LogSurface(
+          padding: const EdgeInsets.all(16),
           child: MarkdownBody(
             data: review.body.isEmpty ? '*暂无正文*' : review.body,
             selectable: true,
@@ -682,7 +683,10 @@ class _ReviewPageState extends State<ReviewPage> {
           const SizedBox(height: 16),
           Text('事实快照', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          LogSurface(child: Text(_snapshotSummary(snapshot))),
+          LogSurface(
+            padding: const EdgeInsets.all(16),
+            child: Text(_snapshotSummary(snapshot)),
+          ),
         ],
         const SizedBox(height: 16),
         _PreviewRelations(

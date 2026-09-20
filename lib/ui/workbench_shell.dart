@@ -7,6 +7,7 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 
 import '../core/models/workspace_record.dart';
 import '../core/theme/app_theme.dart';
+import '../core/utils/formatters.dart';
 import '../state/workbench_controller.dart';
 import 'pages/behavior_page.dart';
 import 'pages/focus_page.dart';
@@ -26,6 +27,7 @@ import 'pages/today_page.dart';
 import 'widgets/global_search_dialog.dart';
 import 'widgets/common.dart';
 import 'widgets/ink_decoration.dart';
+import 'widgets/mobile_bottom_bar.dart';
 import 'widgets/quick_capture_sheet.dart';
 
 enum WorkbenchSection {
@@ -126,7 +128,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   WorkbenchSection section = WorkbenchSection.today;
   BehaviorMode behaviorMode = BehaviorMode.habits;
   PolicyTab behaviorPolicyTab = PolicyTab.tree;
-  ProtocolTab protocolTab = ProtocolTab.goals;
+  ProtocolTab protocolTab = ProtocolTab.execution;
   String? selectedProjectId;
   HotKey? captureHotKey;
   final Set<WorkbenchSection> _visitedSections = {WorkbenchSection.today};
@@ -319,6 +321,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     // NavigationBar requires a valid index. A compact page banner makes the
     // fallback explicit so a secondary page is never mistaken for 今日.
     final navigationIndex = isSecondaryDestination ? 0 : index;
+    final isTodayDestination = section == WorkbenchSection.today;
     final title = switch (section) {
       WorkbenchSection.today => '今日',
       WorkbenchSection.tasksAll => '任务 · 全部',
@@ -342,7 +345,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       WorkbenchSection.policiesHistory => '行为 · 轮次历史',
       WorkbenchSection.policiesAnalytics => '行为 · 高级分析',
       WorkbenchSection.goals => '目标',
-      WorkbenchSection.habits => '行为 · 习惯追踪',
+      WorkbenchSection.habits => '成长 · 习惯',
       WorkbenchSection.behavior => '行为',
       WorkbenchSection.growth => '成长',
       WorkbenchSection.settings => '设置',
@@ -358,24 +361,53 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       },
       child: Scaffold(
         appBar: AppBar(
-          toolbarHeight: 56,
-          titleSpacing: 8,
+          // 「今日」多一行日期小字，工具栏相应加高。
+          toolbarHeight: isTodayDestination ? 64 : 56,
+          titleSpacing: isTodayDestination ? AppSpacing.pageCompact : 8,
+          // 方案 C 的移动页头左起就是日期与标题，没有品牌块。
+          automaticallyImplyLeading: false,
           leading: _mobileHistory.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: Center(child: SealLogo(size: 30)),
-                )
+              ? (isTodayDestination
+                    ? null
+                    : Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: Center(child: SealLogo(size: 30)),
+                      ))
               : IconButton(
                   onPressed: _popMobileHistory,
                   tooltip: '返回',
                   icon: const Icon(Icons.arrow_back),
                 ),
-          title: Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-              fontFamily: AppFonts.display,
-            ),
+          // 方案 C 的移动页头是「日期小字 / 页面标题 / 右侧头像」三件套。
+          // 日期只在「今日」出现——其他分区挂一个当日日期没有意义。
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isTodayDestination)
+                Text(
+                  formatFullDate(widget.controller.currentTime()),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 11.5,
+                    color: tokens.inkFaint,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: isTodayDestination
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                  fontSize: isTodayDestination ? 20 : null,
+                  fontFamily: AppFonts.display,
+                ),
+              ),
+            ],
           ),
           actions: [
             IconButton(
@@ -389,6 +421,15 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               tooltip: '全局搜索',
               icon: const Icon(Icons.search),
             ),
+            // 头像 = 身份入口，落点是「设置」（别名在那里维护）。
+            if (isTodayDestination)
+              Padding(
+                padding: const EdgeInsets.only(left: 2, right: 12),
+                child: _MobileIdentityAvatar(
+                  alias: widget.controller.profileAlias,
+                  onTap: () => _select(WorkbenchSection.settings),
+                ),
+              ),
             // 「更多」入口唯一：底部导航末位（规范 2.3）。此处曾另放一个同功能
             // 图标按钮，与底栏同屏重复，且两个同名 tooltip 会让无障碍朗读与
             // 自动化定位产生歧义，故移除。
@@ -403,7 +444,9 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         ),
         body: SafeArea(top: false, child: _pageStack(slidable: true)),
         floatingActionButton: _shouldShowPersistentAdd
-            ? FloatingActionButton.small(
+            // 方案 C：52×52、圆角 19。尺寸与圆角都由
+            // floatingActionButtonTheme 下发，故此处用常规构造即可。
+            ? FloatingActionButton(
                 key: const ValueKey('mobile-quick-capture'),
                 onPressed: _openCapture,
                 tooltip: '快速新增',
@@ -430,41 +473,19 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                   ),
                 ),
               ),
-            // 同步状态指示器 — 与桌面侧栏底部同步状态对齐
-            Container(
-              height: 26,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: tokens.panel,
-                border: Border(top: BorderSide(color: tokens.panelBorder)),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    widget.controller.cloudConfigured
-                        ? Icons.cloud_outlined
-                        : Icons.cloud_off_outlined,
-                    size: 13,
-                    color: tokens.mutedText,
-                  ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      widget.controller.syncMessage,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: tokens.mutedText,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            NavigationBar(
+            // 同步状态指示器 — 与桌面侧栏底部同步状态对齐。
+            //
+            // 仅在云端同步真正配置过时出现：方案 C 的 pfoot
+            // 只有 tabbar 一条，而「本地数据已就绪」这类常态文案
+            // 在未配置同步的机器上是纯噪声（每屏恒定占 26px），
+            // 且设置页已有权威展示。
+            if (widget.controller.cloudConfigured)
+              _MobileSyncStrip(message: widget.controller.syncMessage),
+            // 方案 C 的选中语言是「主色文字 + 标签下方短指示条」，
+            // 不是 Material 的图标胶囊底座，故不用 NavigationBar。
+            MobileBottomBar(
               selectedIndex: navigationIndex,
-              onDestinationSelected: (value) {
+              onSelected: (value) {
                 if (value == _mobileMoreIndex) {
                   _openMobileNavigation(context);
                   return;
@@ -474,30 +495,30 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                       _mobilePrimarySections[value],
                 );
               },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.today_outlined),
-                  selectedIcon: Icon(Icons.today),
+              items: const [
+                MobileBottomBarItem(
+                  icon: Icons.today_outlined,
+                  selectedIcon: Icons.today,
                   label: '今日',
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.event_note_outlined),
-                  selectedIcon: Icon(Icons.event_note),
+                MobileBottomBarItem(
+                  icon: Icons.event_note_outlined,
+                  selectedIcon: Icons.event_note,
                   label: '计划',
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.menu_book_outlined),
-                  selectedIcon: Icon(Icons.menu_book),
+                MobileBottomBarItem(
+                  icon: Icons.menu_book_outlined,
+                  selectedIcon: Icons.menu_book,
                   label: '记录',
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.trending_up_outlined),
-                  selectedIcon: Icon(Icons.trending_up),
+                MobileBottomBarItem(
+                  icon: Icons.trending_up_outlined,
+                  selectedIcon: Icons.trending_up,
                   label: '成长',
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.more_horiz),
-                  selectedIcon: Icon(Icons.more_horiz),
+                MobileBottomBarItem(
+                  icon: Icons.more_horiz,
+                  selectedIcon: Icons.more_horiz,
                   label: '更多',
                 ),
               ],
@@ -571,6 +592,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       onOpenPlan: () => _select(WorkbenchSection.tasksAll),
       onOpenInbox: () => _select(WorkbenchSection.tasksInbox),
       onOpenReview: () => _select(WorkbenchSection.reviewDaily),
+      onOpenHabits: () => _select(WorkbenchSection.habits),
     ),
     WorkbenchSection.tasksAll => _planPage(value, PlanTab.all),
     WorkbenchSection.tasksInbox => InboxPage(
@@ -832,18 +854,8 @@ const _navigationTree = [
     _NavigationNode.leaf(WorkbenchSection.notes, '笔记', Icons.note_alt_outlined),
     _NavigationNode.leaf(
       WorkbenchSection.reviewDaily,
-      '日回顾',
+      '回顾',
       Icons.today_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.reviewWeekly,
-      '周回顾',
-      Icons.date_range_outlined,
-    ),
-    _NavigationNode.leaf(
-      WorkbenchSection.reviewMonthly,
-      '月回顾',
-      Icons.calendar_month_outlined,
     ),
   ]),
   _NavigationNode.parent('execute', '执行', Icons.timer_outlined, [
@@ -986,12 +998,6 @@ class _DesktopNavigation extends StatelessWidget {
                         ),
                       ),
                     ],
-                    if (!collapsed && allowCollapseToggle)
-                      IconButton(
-                        onPressed: onToggleCollapsed,
-                        tooltip: '收起导航',
-                        icon: const Icon(Icons.keyboard_double_arrow_left),
-                      ),
                   ],
                 ),
               ),
@@ -1088,54 +1094,82 @@ class _DesktopNavigation extends StatelessWidget {
               ),
             ),
             const Divider(),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                collapsed
-                    ? 16
-                    : expanded
-                    ? 28
-                    : 14,
-                10,
-                collapsed
-                    ? 16
-                    : expanded
-                    ? 28
-                    : 14,
-                12,
+            // 收起入口下移到页脚：与收起态右下角的「展开导航」对称，
+            // 也给品牌块的标题腾出完整宽度（见上）。
+            if (!collapsed && allowCollapseToggle)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  expanded ? 20 : 12,
+                  8,
+                  expanded ? 20 : 12,
+                  0,
+                ),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton.icon(
+                    onPressed: onToggleCollapsed,
+                    icon: const Icon(
+                      Icons.keyboard_double_arrow_left,
+                      size: 18,
+                    ),
+                    label: const Text('收起导航'),
+                  ),
+                ),
               ),
-              child: collapsed
-                  ? Tooltip(
-                      message: controller.syncMessage,
-                      child: Icon(
-                        controller.cloudConfigured
-                            ? Icons.cloud_outlined
-                            : Icons.cloud_off_outlined,
-                        size: 19,
-                        color: context.tokens.mutedText,
-                      ),
-                    )
-                  : Row(
-                      children: [
-                        Icon(
+            // 同步状态行**只在云端同步真正配置过时出现**。
+            //
+            // 未配置同步时它恒显「本地数据已就绪」——每屏占一行、零信息量，
+            // 而 cloud_off 图标已经表达了「本地模式」。规范 §20.4 已按此判据
+            // 收敛了移动端，桌面此处对齐，两端页脚因此同构。
+            if (controller.cloudConfigured)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  collapsed
+                      ? 16
+                      : expanded
+                      ? 28
+                      : 14,
+                  10,
+                  collapsed
+                      ? 16
+                      : expanded
+                      ? 28
+                      : 14,
+                  12,
+                ),
+                child: collapsed
+                    ? Tooltip(
+                        message: controller.syncMessage,
+                        child: Icon(
                           controller.cloudConfigured
                               ? Icons.cloud_outlined
                               : Icons.cloud_off_outlined,
-                          size: 18,
+                          size: 19,
                           color: context.tokens.mutedText,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            controller.syncMessage,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: context.tokens.mutedText),
+                      )
+                    : Row(
+                        children: [
+                          Icon(
+                            controller.cloudConfigured
+                                ? Icons.cloud_outlined
+                                : Icons.cloud_off_outlined,
+                            size: 18,
+                            color: context.tokens.mutedText,
                           ),
-                        ),
-                      ],
-                    ),
-            ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              controller.syncMessage,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: context.tokens.mutedText),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
             if (collapsed && allowCollapseToggle)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -1482,6 +1516,91 @@ class _SectionTransitionState extends State<_SectionTransition>
       child: SlideTransition(
         position: Tween<Offset>(begin: begin, end: Offset.zero).animate(_curve),
         child: widget.child,
+      ),
+    );
+  }
+}
+
+/// 移动页头右上角的身份头像（方案 C 规格：36×36、圆角 12、主色淡底）。
+///
+/// 别名未设置时退化为「我」——这个入口的价值在于「知道点进去是设置」，
+/// 而不是展示一个空圆。
+class _MobileSyncStrip extends StatelessWidget {
+  const _MobileSyncStrip({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    return Container(
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: tokens.panel,
+        border: Border(top: BorderSide(color: tokens.panelBorder)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_outlined, size: 13, color: tokens.mutedText),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: tokens.mutedText,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileIdentityAvatar extends StatelessWidget {
+  const _MobileIdentityAvatar({required this.alias, required this.onTap});
+
+  final String alias;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final initial = alias.trim().isEmpty ? '我' : alias.trim().characters.first;
+    return Semantics(
+      button: true,
+      label: '个人设置',
+      child: Tooltip(
+        message: '个人设置',
+        child: Material(
+          color: scheme.primaryContainer,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.control),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            child: SizedBox(
+              width: 36,
+              height: 36,
+              child: Center(
+                child: Text(
+                  initial,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

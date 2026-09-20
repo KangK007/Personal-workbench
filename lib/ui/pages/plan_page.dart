@@ -230,25 +230,33 @@ class _AllTasksPageState extends State<_AllTasksPage> {
                   AppSpacing.bottomNavClearance,
                 ),
                 itemCount: entries.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
+                // 一项一张独立卡，卡间 8px 留白分组。
+                //
+                // 原先是裸行 + `Divider(height: 1)`。§8.2 对这个列表的要求是
+                // 「分组之间留白，**无分隔线**」，§1 也写明「留白承担分组职责，
+                // 线条只做次要提示」。收件箱页与项目看板早已是「一行一卡」，
+                // 此处补齐后全应用只剩一种列表语言。
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final entry = entries[index];
-                  return TaskRow(
-                    task: entry.task,
-                    controller: widget.controller,
-                    hierarchyDepth: entry.depth,
-                    hasChildren: entry.hasChildren,
-                    expanded: entry.expanded,
-                    relationInfo: entry.relation,
-                    onToggleExpanded: () => setState(() {
-                      entry.expanded
-                          ? _collapsedTaskIds.add(entry.task.id)
-                          : _collapsedTaskIds.remove(entry.task.id);
-                    }),
-                    selectionMode: _selectionMode,
-                    selected: _selectedIds.contains(entry.task.id),
-                    onSelectionChanged: (value) =>
-                        _toggleSelection(entry.task.id, value, tasks),
+                  return Card(
+                    child: TaskRow(
+                      task: entry.task,
+                      controller: widget.controller,
+                      hierarchyDepth: entry.depth,
+                      hasChildren: entry.hasChildren,
+                      expanded: entry.expanded,
+                      relationInfo: entry.relation,
+                      onToggleExpanded: () => setState(() {
+                        entry.expanded
+                            ? _collapsedTaskIds.add(entry.task.id)
+                            : _collapsedTaskIds.remove(entry.task.id);
+                      }),
+                      selectionMode: _selectionMode,
+                      selected: _selectedIds.contains(entry.task.id),
+                      onSelectionChanged: (value) =>
+                          _toggleSelection(entry.task.id, value, tasks),
+                    ),
                   );
                 },
               ),

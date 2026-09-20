@@ -114,7 +114,6 @@ class _BehaviorPageState extends State<BehaviorPage> {
             ],
           ),
         ),
-        if (widget.showHeader) const Divider(height: 1),
         Expanded(
           child: IndexedStack(
             index: mode.index,

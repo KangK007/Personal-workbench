@@ -16,7 +16,7 @@ from docx.shared import Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs" / "manual" / "USER_MANUAL.md"
 OUTPUT = ROOT / "docs" / "manual" / "个人工作台_用户使用手册.docx"
-APP_VERSION = "0.2.0+5"
+APP_VERSION = "0.2.1+6"
 
 GREEN = "2F7D57"
 DARK_GREEN = "1F4D3A"

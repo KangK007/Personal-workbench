@@ -41,34 +41,35 @@
    正文级 ≥ 4.5:1，图形与焦点环 ≥ 3:1。
    ────────────────────────────────────── */
 :root {
-  /* ═══ 浅色 · 晨间陶土 ═══ */
-  --canvas: #F7F4EC;              /* 燕麦米画布 */
-  --surface: #FFFDF9;             /* 宣纸白工作面 */
+  /* ═══ 浅色 · 新芽晨光 ═══ */
+  --canvas: #F5FAF0;              /* 晨露绿画布 */
+  --surface: #FFFFFF;             /* 纯白工作面 */
   --raised: #FFFFFF;              /* 对话框 / 菜单 / 浮层 */
-  --subtle: #EFEAE0;              /* 输入框 / 次级填充 */
-  --ink: #232A22;                 /* 正文 14.50:1 */
-  --ink-muted: #636B5E;           /* 辅助 5.45:1 */
-  --ink-faint: #8A9083;           /* 装饰级 3.23:1，禁止承载信息 */
-  --divider: #E3DCCF;             /* 柔化分组线 */
-  --border-strong: #D2CFC5;       /* 控件边界 */
+  --subtle: #EFF8F0;              /* 输入框 / 次级填充 */
+  --ink: #17301B;                 /* 正文 14.24:1 */
+  --ink-muted: #5D7961;           /* 辅助 4.80:1 */
+  --ink-faint: #849A88;           /* 装饰级 3.02:1，禁止承载信息 */
+  --divider: #DFEBE1;             /* 柔化分组线 */
+  --border-strong: #C4D8C9;       /* 控件边界 */
 
-  /* 苔绿 · 唯一行动色 5.70:1 */
-  --primary: #4A6E4C;
+  /* 新芽绿 · 唯一行动色 4.84:1。原稿 sprout-600 #3F8F4F 在白底仅 3.99:1，
+     不足以承载按钮标签与链接文本；此值是同色相主轴上的「最亮达标值」。 */
+  --primary: #3E7F4B;
   --route: var(--primary);        /* 相容别名（历史命名） */
-  --primary-container: #DCE7D8;
-  --primary-on-container: #1E3320; /* 10.63:1 */
+  --primary-container: #E2F3E5;
+  --primary-on-container: #1D4A27; /* 8.82:1 */
 
-  /* 砖红 · 系统唯一红 6.66:1。原 --danger 与 --signal 语义重复，已合并至此 */
+  /* 砖红 · 系统唯一红 6.76:1。原 --danger 与 --signal 语义重复，已合并至此 */
   --signal: #9E3A32;
   --signal-container: #F7DEDA;
   --signal-on-container: #5A1F19; /* 9.98:1 */
 
-  /* 陶土 · 成果与证据 5.69:1。原 --marker 的语义由 --reward 承接 */
+  /* 陶土 · 成果与证据 5.79:1。原 --marker 的语义由 --reward 承接 */
   --reward: #9B5227;
   --reward-container: #F5E3D6;
   --reward-on-container: #4A2410; /* 10.86:1 */
 
-  /* 靛蓝 · 中性提示 5.88:1 */
+  /* 靛蓝 · 中性提示 5.98:1 */
   --info: #3E6883;
   --info-container: #DCE8F0;
   --info-on-container: #1C3947;   /* 9.76:1 */
@@ -78,14 +79,16 @@
      与语义成果色（陶土）分家：新暖色基座上二者会互相挤到 ΔE00 12.4。 */
   --teal: #0F6668;                /* 习惯 */
   --olive: #8F931A;               /* 目标 */
+  --olive-container: #F1F6DA;     /* 强调标签底（今日必达） */
+  --olive-on-container: #5F6C15;  /* 强调标签字 5.20:1 */
   --violet: #6B4A8C;              /* 触发器 */
   --amber: #BB811B;               /* 奖励节点 */
-  --outline: #918783;             /* 提醒节点中性 accent */
+  --outline: #7E9284;             /* 提醒节点中性 accent（绿灰，压白 3.32:1） */
 
   /* 面板：普通工作面用边框，浮层用阴影 */
   --panel-border: var(--divider);
-  --panel-shadow: 0 2px 8px rgba(35, 42, 34, 0.05);
-  --raised-shadow: 0 10px 24px rgba(35, 42, 34, 0.12);
+  --panel-shadow: 0 2px 8px rgba(20, 37, 26, 0.05);
+  --raised-shadow: 0 10px 24px rgba(20, 37, 26, 0.12);
   /* 实色焦点环。原半透明 rgba(47,125,87,.32) 实测仅 1.58:1，
      不满足 WCAG 1.4.11 的 3:1 图形对比度要求。 */
   --focus-ring: var(--primary);
@@ -115,22 +118,22 @@
   --row-h: 48px;
 }
 
-/* ---------- 暗色令牌 ---------- */
+/* ---------- 暗色令牌 · 夜露 ---------- */
 html[data-theme="dark"] {
-  --canvas: #171612;
-  --surface: #1E1D18;
-  --raised: #26251E;
-  --subtle: #2C2A22;
-  --ink: #EFEDE4;
-  --ink-muted: #A9A797;
-  --ink-faint: #7C7A6C;
-  --divider: #3A382E;
-  --border-strong: #4F4D45;
+  --canvas: #0F1A13;
+  --surface: #16231A;
+  --raised: #1E2C21;
+  --subtle: #243528;
+  --ink: #E4EFE6;
+  --ink-muted: #A2B5A6;
+  --ink-faint: #73867A;
+  --divider: #2A3A2F;
+  --border-strong: #3D5044;
 
-  --primary: #93C08D;
+  --primary: #7FCB8E;
   --route: var(--primary);
-  --primary-container: #2C3A2B;
-  --primary-on-container: #CFE8CB;
+  --primary-container: #1D3A26;
+  --primary-on-container: #C9EBD0;
 
   --signal: #E88C7E;
   --signal-container: #4C2A26;
@@ -146,9 +149,11 @@ html[data-theme="dark"] {
 
   --teal: #5FC0BD;
   --olive: #D4D864;
+  --olive-container: #2B3312;
+  --olive-on-container: #D4D864;
   --violet: #C2A6E4;
   --amber: #DBA657;
-  --outline: #938B85;
+  --outline: #8A968C;
 
   --panel-border: var(--divider);
   --panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);

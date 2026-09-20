@@ -122,7 +122,6 @@ class _CalendarPageState extends State<CalendarPage> {
               ],
             ),
           ),
-        if (widget.showHeader) const Divider(),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {

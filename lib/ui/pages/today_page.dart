@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +15,7 @@ import '../widgets/celebration.dart';
 import '../widgets/common.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
-import '../widgets/task_row.dart';
+import '../widgets/solid_panel.dart';
 import 'focus_page.dart';
 
 class TodayPage extends StatelessWidget {
@@ -26,6 +27,7 @@ class TodayPage extends StatelessWidget {
     this.onOpenPlan,
     this.onOpenInbox,
     this.onOpenReview,
+    this.onOpenHabits,
   });
 
   final WorkbenchController controller;
@@ -34,6 +36,7 @@ class TodayPage extends StatelessWidget {
   final VoidCallback? onOpenPlan;
   final VoidCallback? onOpenInbox;
   final VoidCallback? onOpenReview;
+  final VoidCallback? onOpenHabits;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +46,10 @@ class TodayPage extends StatelessWidget {
         if (showHeader)
           PageHeader(
             title: '今日',
-            subtitle: formatFullDate(date),
+            // 方案 C 的页头把日期放在标题**之上**，移动端 AppBar 即此排布
+            // （规格 §20.4）。桌面原先把同一段日期放在标题**下方**，
+            // 同一天在两个端上是两种读法，故改为 kicker。
+            kicker: formatFullDate(date),
             actions: [
               IconButton(
                 onPressed: () => showWorkbenchDialog<void>(
@@ -71,6 +77,7 @@ class TodayPage extends StatelessWidget {
             onOpenPlan: onOpenPlan,
             onOpenInbox: onOpenInbox,
             onOpenReview: onOpenReview,
+            onOpenHabits: onOpenHabits,
           ),
         ),
       ],
@@ -292,6 +299,7 @@ class _TodayContent extends StatelessWidget {
     this.onOpenPlan,
     this.onOpenInbox,
     this.onOpenReview,
+    this.onOpenHabits,
   });
 
   final WorkbenchController controller;
@@ -299,6 +307,7 @@ class _TodayContent extends StatelessWidget {
   final VoidCallback? onOpenPlan;
   final VoidCallback? onOpenInbox;
   final VoidCallback? onOpenReview;
+  final VoidCallback? onOpenHabits;
 
   @override
   Widget build(BuildContext context) {
@@ -339,22 +348,40 @@ class _TodayContent extends StatelessWidget {
       tasks: overdue,
       controller: controller,
       emptyMessage: '没有逾期待处理的任务。',
-      accent: Theme.of(context).colorScheme.error,
+      overdue: true,
     );
     final todaySection = _TodayTaskSection(
       title: '今日',
       tasks: today,
       controller: controller,
       emptyMessage: '今天还没有待处理任务。',
-      accent: Theme.of(context).colorScheme.primary,
+      action: '全部',
+      onAction: onOpenPlan,
+      countLabel: '剩 ${today.length} 项',
     );
     final settledSection = _TodayTaskSection(
       title: '已结算',
       tasks: settled,
       controller: controller,
       emptyMessage: '今天还没有已结算任务。',
-      accent: context.tokens.reward,
       settled: true,
+    );
+    // 方案 C 的手机页只画了「今日重点 → 习惯打卡」两段。
+    // 承诺本身就是今日任务的子集，若再把全量任务列一遍，
+    // 同一个标题会在同屏出现两次。故移动端「今日」只列
+    // 未被聚光的那部分；全为承诺时整段省略，页面顺序即与源稿一致。
+    final spotlightIds = controller.commitmentIds.toSet();
+    final todayRest = today
+        .where((task) => !spotlightIds.contains(task.id))
+        .toList();
+    final todayRestSection = _TodayTaskSection(
+      title: '今日',
+      tasks: todayRest,
+      controller: controller,
+      emptyMessage: '今天还没有待处理任务。',
+      action: '全部',
+      onAction: onOpenPlan,
+      countLabel: '剩 ${todayRest.length} 项',
     );
     final taskSections = <Widget>[overdueSection, todaySection, settledSection];
     final details = <Widget>[
@@ -367,10 +394,37 @@ class _TodayContent extends StatelessWidget {
         _CompactGrowth(controller: controller),
       ],
     ];
+    // 移动端把「计划习惯」提为顶层分区（方案 C 的「习惯打卡」），
+    // 故「今日详情」里不再重复；桌面仍留在折叠区，信息架构未变。
+    final compactDetails = <Widget>[
+      const SectionHeading(title: '每日收尾'),
+      _ClosePanel(controller: controller, onClosed: onOpenReview),
+      if (controller.advancedFeaturesEnabled) ...[
+        const SectionHeading(title: '成长记录'),
+        _CompactGrowth(controller: controller),
+      ],
+    ];
+    final habitCount = controller.habits.length;
+    final habitDone = controller.habits
+        .where(
+          (habit) =>
+              controller.habitLogForDay(habit.id, date)?.status ==
+              WorkStatus.done,
+        )
+        .length;
+    final habitSection = <Widget>[
+      SectionHeading(
+        title: '习惯打卡',
+        scale: '已 $habitDone/$habitCount',
+        action: '全部',
+        onAction: onOpenHabits,
+      ),
+      _HabitLog(controller: controller, date: date),
+    ];
     final commitmentSection = <Widget>[
       SectionHeading(
         title: '今日重点',
-        scale: controller.todayStarted ? '${commitments.length} 项' : '最多 3 项',
+        scale: controller.todayStarted ? '剩 ${commitments.length} 项' : '最多 3 项',
         trailing: controller.todayStarted
             ? Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
@@ -404,20 +458,41 @@ class _TodayContent extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 内容列限宽并居中。
+            //
+            // 实测 1536 视口下主工作区约 847px，而任务卡的可见内容只需
+            // 约 300px —— 不限宽时 65% 的卡面是空白，扫读要横穿整行。
+            // 规范 §8 要求主工作区「单列内容」有宽度上限：长文阅读列取
+            // 620（按中文 25–40 字/行推导），卡片列表取 720
+            // （见 AppSpacing.contentMax）。
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.only(bottom: 72),
-                children: [
-                  nextStep,
-                  ...taskSections,
-                  ...timeline,
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: EdgeInsets.zero,
-                    title: const Text('今日详情'),
-                    children: details,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: AppSpacing.contentMax,
                   ),
-                ],
+                  child: ListView(
+                    padding: const EdgeInsets.only(bottom: 72),
+                    children: [
+                      // 概览卡是方案 C 的视觉锚点：移动端在顶层，桌面同样
+                      // 置顶。少了它，同一天在两个端上是两种观感。
+                      _TodayOverviewCard(
+                        remaining: today.length,
+                        completed: settled.where((task) => task.isDone).length,
+                        focus: controller.todayFocusDuration,
+                      ),
+                      nextStep,
+                      ...taskSections,
+                      ...timeline,
+                      ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: EdgeInsets.zero,
+                        title: const Text('今日详情'),
+                        children: details,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 24),
@@ -439,17 +514,29 @@ class _TodayContent extends StatelessWidget {
       );
     }
 
+    // ── 移动端（方案 C 手机 2 的编排）──
+    // 概览 → 接下来 → 今日 → 今日重点 → 习惯打卡 → 其余。
+    // 与桌面的差别不只是宽度：桌面是两栏分区，移动端是单列连续滚动，
+    // 概览与习惯必须落在顶层，否则整页没有视觉锚点。
     return ListView(
       padding: EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
+        AppSpacing.pageCompact,
+        AppSpacing.xs,
+        AppSpacing.pageCompact,
         AppSpacing.bottomNavClearance + MediaQuery.paddingOf(context).bottom,
       ),
       children: [
+        _TodayOverviewCard(
+          remaining: today.length,
+          completed: settled.where((task) => task.isDone).length,
+          focus: controller.todayFocusDuration,
+        ),
         nextStep,
-        todaySection,
+        // 空白天仍保留「今日」分区（给出「今天还没有待处理任务」的明示），
+        // 只有当内容**整体搬进「今日重点」**时才省略整段。
+        if (todayRest.isNotEmpty || today.isEmpty) todayRestSection,
         ...commitmentSection,
+        ...habitSection,
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
           childrenPadding: EdgeInsets.zero,
@@ -462,7 +549,7 @@ class _TodayContent extends StatelessWidget {
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
               title: const Text('今日详情'),
-              children: details,
+              children: compactDetails,
             ),
           ],
         ),
@@ -487,23 +574,44 @@ class _TodayTaskSection extends StatelessWidget {
     required this.tasks,
     required this.controller,
     required this.emptyMessage,
-    required this.accent,
     this.settled = false,
+    this.overdue = false,
+    this.action,
+    this.onAction,
+    this.countLabel,
   });
 
   final String title;
   final List<WorkspaceRecord> tasks;
   final WorkbenchController controller;
   final String emptyMessage;
-  final Color accent;
   final bool settled;
+
+  /// 逾期分区：卡片上补一枚「已逾期」标签。
+  ///
+  /// 这项语义原先由面板左侧 3px 红条承担；改成「一卡一项」后色条消失，
+  /// 语义必须改由标签承载，否则逾期与普通待办在视觉上无从区分。
+  final bool overdue;
+
+  /// 分区标题右侧的文字链接（方案 C 的「全部 →」）。
+  final String? action;
+  final VoidCallback? onAction;
+
+  /// 计数文案。方案 C 的修辞是「剩 N 项」，不是中性的「N 项」。
+  final String? countLabel;
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeading(title: title, scale: '${tasks.length} 项'),
+        SectionHeading(
+          title: title,
+          scale: countLabel ?? '${tasks.length} 项',
+          action: action,
+          onAction: onAction,
+        ),
         if (tasks.isEmpty)
           Text(
             emptyMessage,
@@ -512,20 +620,21 @@ class _TodayTaskSection extends StatelessWidget {
             ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
           )
         else
-          LogSurface(
-            accent: accent,
-            child: Column(
-              children: [
-                for (var index = 0; index < tasks.length; index++) ...[
-                  _TodayStatusTask(
-                    task: tasks[index],
-                    controller: controller,
-                    settled: settled,
-                  ),
-                  if (index < tasks.length - 1) const Divider(height: 1),
-                ],
+          // 方案 C：一项一张独立卡。原先「一张面板 + 行内分隔线 + 左侧
+          // 3px 状态竖条」的形态在方案 C 里没有任何对应物。
+          Column(
+            children: [
+              for (var index = 0; index < tasks.length; index++) ...[
+                _TodayStatusTask(
+                  task: tasks[index],
+                  controller: controller,
+                  settled: settled,
+                  overdue: overdue,
+                ),
+                if (index < tasks.length - 1)
+                  SizedBox(height: compact ? 7 : AppSpacing.sm),
               ],
-            ),
+            ],
           ),
       ],
     );
@@ -537,11 +646,20 @@ class _TodayStatusTask extends StatelessWidget {
     required this.task,
     required this.controller,
     required this.settled,
+    this.overdue = false,
+    this.extraActions,
   });
 
   final WorkspaceRecord task;
   final WorkbenchController controller;
   final bool settled;
+  final bool overdue;
+
+  /// 承诺卡在展开区追加的专属动作。
+  ///
+  /// 承诺与今日任务共用同一种卡（方案 C 只有一种任务卡），
+  /// 差异仅在展开区动作上，故用注入而不复制卡片。
+  final Widget? extraActions;
 
   @override
   Widget build(BuildContext context) {
@@ -549,6 +667,8 @@ class _TodayStatusTask extends StatelessWidget {
       task: task,
       controller: controller,
       settled: settled,
+      overdue: overdue,
+      extraActions: extraActions,
       onSettle: (value) => _settle(context, value),
       onCorrect: () => _correct(context),
     );
@@ -865,13 +985,19 @@ class _ExpandableTodayTask extends StatefulWidget {
     required this.settled,
     required this.onSettle,
     required this.onCorrect,
+    this.overdue = false,
+    this.extraActions,
   });
 
   final WorkspaceRecord task;
   final WorkbenchController controller;
   final bool settled;
+  final bool overdue;
   final ValueChanged<String> onSettle;
   final VoidCallback onCorrect;
+
+  /// 展开区追加的专属动作（仅承诺卡使用）。
+  final Widget? extraActions;
 
   @override
   State<_ExpandableTodayTask> createState() => _ExpandableTodayTaskState();
@@ -885,72 +1011,121 @@ class _ExpandableTodayTaskState extends State<_ExpandableTodayTask> {
     final task = widget.task;
     final summary = widget.controller.taskContextSummary(task);
     final theme = Theme.of(context);
-    final (statusLabel, statusIcon, statusColor) = switch (task.status) {
-      WorkStatus.done => (
-        '已完成',
-        Icons.check_circle_outline,
-        context.tokens.reward,
-      ),
-      WorkStatus.failed => (
-        '失败',
-        Icons.cancel_outlined,
-        theme.colorScheme.error,
-      ),
-      WorkStatus.skipped => (
-        '已跳过',
-        Icons.skip_next_outlined,
-        theme.colorScheme.outline,
-      ),
-      WorkStatus.rescheduled => (
-        '已改期',
-        Icons.event_repeat_outlined,
-        context.tokens.info,
-      ),
-      WorkStatus.doing => (
-        '进行中',
-        Icons.play_circle_outline,
-        theme.colorScheme.primary,
-      ),
-      _ => ('待处理', Icons.radio_button_unchecked, theme.colorScheme.primary),
+    final tokens = context.tokens;
+    final scheme = theme.colorScheme;
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final (statusLabel, statusIcon) = switch (task.status) {
+      WorkStatus.done => ('已完成', Icons.check_circle_outline),
+      WorkStatus.failed => ('失败', Icons.cancel_outlined),
+      WorkStatus.skipped => ('已跳过', Icons.skip_next_outlined),
+      WorkStatus.rescheduled => ('已改期', Icons.event_repeat_outlined),
+      WorkStatus.doing => ('进行中', Icons.play_circle_outline),
+      _ => ('待处理', Icons.radio_button_unchecked),
     };
-    final metadata = [
-      statusLabel,
-      summary.recurring ? '周期任务' : '一次性任务',
+    // 状态标签取「容器 / 容器上文字」成对令牌——把饱和实色直接铺成底，
+    // 一张卡上多枚标签会互相抢注意力。
+    final (statusContainer, statusOnContainer) = switch (task.status) {
+      WorkStatus.done => (tokens.rewardContainer, tokens.rewardOnContainer),
+      WorkStatus.failed => (tokens.signalContainer, tokens.signalOnContainer),
+      WorkStatus.rescheduled => (tokens.infoContainer, tokens.infoOnContainer),
+      WorkStatus.doing => (scheme.primaryContainer, scheme.onPrimaryContainer),
+      _ => (tokens.subtle, tokens.mutedText),
+    };
+    // 方案 C：元信息改由 pill 标签承载。
+    //
+    // 原先是一行拼接文本（`待处理 · 一次性任务 · 计划 2026-08-07 09:00 · 截止 …`），
+    // 窄卡上会折成两行且没有层级；标签天然分块、可着色、可扫读。
+    // 不含信息量的项（「待处理」「一次性任务」）不占位——满屏标签等于没有标签。
+    final pills = <Widget>[
+      if (widget.overdue)
+        StatusPill(
+          label: '已逾期',
+          color: tokens.signalContainer,
+          foreground: tokens.signalOnContainer,
+          dense: compact,
+        ),
+      if (!widget.settled && statusLabel != '待处理')
+        StatusPill(
+          label: statusLabel,
+          icon: statusIcon,
+          color: statusContainer,
+          foreground: statusOnContainer,
+          dense: compact,
+        ),
+      if (widget.controller.commitmentIds.contains(task.id))
+        StatusPill(
+          label: '今日必达',
+          color: tokens.oliveContainer,
+          foreground: tokens.oliveOnContainer,
+          dense: compact,
+        ),
       if (summary.primaryProjectTitle != null)
-        summary.primaryProjectInTrash
-            ? '${summary.primaryProjectTitle}（回收站）'
-            : summary.primaryProjectTitle!,
-      if (summary.additionalProjectCount > 0)
-        '+${summary.additionalProjectCount} 个项目',
-      if (summary.groupTitle != null)
-        summary.groupMode == 'sequential'
-            ? '${summary.groupTitle} · 链 '
-                  '${summary.chainPosition}/${summary.chainLength}'
-            : '${summary.groupTitle} · 任务群',
-      if (summary.ctdpEnabled) 'CTDP',
-      if (summary.scheduledFor != null)
-        '计划 ${formatDateTime(summary.scheduledFor!)}',
-      if (summary.dueAt != null) '截止 ${formatDateTime(summary.dueAt!)}',
+        StatusPill(
+          label: summary.primaryProjectInTrash
+              ? '${summary.primaryProjectTitle}（回收站）'
+              : summary.primaryProjectTitle!,
+          dense: compact,
+        ),
+      if (summary.recurring)
+        StatusPill(
+          label: '周期',
+          color: tokens.subtle,
+          foreground: tokens.mutedText,
+          dense: compact,
+        ),
+      if (summary.dueAt != null)
+        StatusPill(
+          label: '截止 ${formatDateTime(summary.dueAt!)}',
+          color: tokens.rewardContainer,
+          foreground: tokens.rewardOnContainer,
+          dense: compact,
+        )
+      else if (summary.scheduledFor != null)
+        StatusPill(
+          label: '计划 ${formatDateTime(summary.scheduledFor!)}',
+          color: tokens.subtle,
+          foreground: tokens.mutedText,
+          dense: compact,
+        ),
+      if (widget.settled &&
+          (summary.failureReason?.isNotEmpty == true ||
+              summary.skipReason?.isNotEmpty == true ||
+              summary.rescheduledTo != null))
+        StatusPill(
+          label: summary.rescheduledTo != null
+              ? '改期至 ${formatDateTime(summary.rescheduledTo!)}'
+              : '原因：${summary.failureReason ?? summary.skipReason}',
+          color: tokens.subtle,
+          foreground: tokens.mutedText,
+          dense: compact,
+        ),
     ];
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: widget.settled ? .08 : .025),
-        border: Border(left: BorderSide(color: statusColor, width: 3)),
+    final done = task.isDone;
+    // 方案 C：一项一张独立白卡（圆角 16、1px 中性描边）。
+    // 旧的「一张面板内多行 + 每行左侧 3px 状态色竖条 + 行间 Divider」
+    // 在方案 C 里没有任何对应物。
+    return Material(
+      color: tokens.panel,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: tokens.panelBorder),
       ),
       child: Column(
         children: [
           InkWell(
             onTap: () => setState(() => expanded = !expanded),
+            // 桌面是鼠标 / 键盘优先的场景，悬停与聚焦必须有可见反馈。
+            // 取值与侧栏导航项一致（6% / 10% 主色），全应用同一种悬停语言。
+            hoverColor: scheme.primary.withValues(alpha: 0.06),
+            focusColor: scheme.primary.withValues(alpha: 0.1),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+              padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Icon(statusIcon, color: statusColor, size: 21),
-                  ),
-                  const SizedBox(width: 10),
+                  _TaskCheckbox(done: done),
+                  const SizedBox(width: 11),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -959,53 +1134,36 @@ class _ExpandableTodayTaskState extends State<_ExpandableTodayTask> {
                           task.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          metadata.join(' · '),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            height: 1.45,
+                            color: done ? tokens.inkFaint : null,
+                            decoration: done
+                                ? TextDecoration.lineThrough
+                                : null,
                           ),
                         ),
-                        if (widget.settled &&
-                            (summary.failureReason?.isNotEmpty == true ||
-                                summary.skipReason?.isNotEmpty == true ||
-                                summary.rescheduledTo != null)) ...[
-                          const SizedBox(height: 5),
-                          Text(
-                            summary.rescheduledTo != null
-                                ? '改期至 ${formatDateTime(summary.rescheduledTo!)}'
-                                : '原因：${summary.failureReason ?? summary.skipReason}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: statusColor,
-                            ),
-                          ),
+                        if (pills.isNotEmpty) ...[
+                          const SizedBox(height: 7),
+                          Wrap(spacing: 6, runSpacing: 6, children: pills),
                         ],
                       ],
                     ),
                   ),
-                  if (!widget.settled)
-                    IconButton(
-                      onPressed: () => showRecordEditor(
-                        context,
-                        widget.controller,
-                        kind: RecordKind.task,
-                        record: task,
+                  // 展开指示只在桌面出现。方案 C 的手机卡没有行内指示（整卡可点），
+                  // 但桌面卡宽约为手机的 1.8 倍，去掉后右侧留下大片空白，
+                  // 也失去「这一行可以展开」的可见线索。
+                  if (!compact) ...[
+                    const SizedBox(width: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(
+                        expanded ? Icons.expand_less : Icons.expand_more,
+                        size: 18,
+                        color: tokens.inkFaint,
+                        semanticLabel: expanded ? '收起详情' : '展开详情',
                       ),
-                      tooltip: '编辑任务',
-                      icon: const Icon(Icons.edit_outlined),
                     ),
-                  _taskMenu(),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, right: 4),
-                    child: Icon(
-                      expanded ? Icons.expand_less : Icons.expand_more,
-                      semanticLabel: expanded ? '收起详情' : '展开详情',
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -1016,13 +1174,48 @@ class _ExpandableTodayTaskState extends State<_ExpandableTodayTask> {
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
-            secondChild: _TaskFactDetails(task: task, summary: summary),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _TaskFactDetails(task: task, summary: summary),
+                if (widget.extraActions != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
+                    child: widget.extraActions!,
+                  ),
+                // 折叠时卡片上不再悬挂图标按钮（方案 C 的任务卡是「一眼扫完」）；
+                // 编辑与结算移进展开区，功能一项不减。
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                  child: Row(
+                    children: [
+                      if (!widget.settled)
+                        TextButton.icon(
+                          onPressed: () => showRecordEditor(
+                            context,
+                            widget.controller,
+                            kind: RecordKind.task,
+                            record: task,
+                          ),
+                          icon: const Icon(Icons.edit_outlined, size: 16),
+                          label: const Text('编辑'),
+                        ),
+                      _taskMenu(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  /// 结算 / 更正菜单。
+  ///
+  /// 在展开区里渲染成文字按钮而非默认的 ⋮ 图标：图标脱离列表上下文后，
+  /// 点开前不知道是什么，文字省掉一次试错成本。
   Widget _taskMenu() {
     if (widget.settled) {
       if (!widget.controller.todayClosed) return const SizedBox.shrink();
@@ -1040,6 +1233,7 @@ class _ExpandableTodayTaskState extends State<_ExpandableTodayTask> {
             ),
           ),
         ],
+        child: _taskMenuLabel(context, '留痕更正'),
       );
     }
     return PopupMenuButton<String>(
@@ -1051,8 +1245,25 @@ class _ExpandableTodayTaskState extends State<_ExpandableTodayTask> {
         PopupMenuItem(value: 'skipped', child: Text('跳过')),
         PopupMenuItem(value: 'rescheduled', child: Text('改期')),
       ],
+      child: _taskMenuLabel(context, '结算'),
     );
   }
+
+  Widget _taskMenuLabel(BuildContext context, String text) => Padding(
+    // 视觉高约 36，上下留白把触控区撑到 ≥48dp。
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        // 显式 TextStyle 若不给 fontFamily，就退回引擎默认字体：真机靠系统
+        // 回退兜住 CJK，golden 环境没有系统字体则渲染成豆腐块（见 §20.6）。
+        fontFamily: AppFonts.body,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    ),
+  );
 }
 
 class _TaskFactDetails extends StatelessWidget {
@@ -1066,7 +1277,8 @@ class _TaskFactDetails extends StatelessWidget {
     final definitionId = task.data['definitionId']?.toString();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(43, 2, 16, 14),
+      // 缩进与卡片内边距对齐（14），不再按旧行的「12 + 图标 21 + 10」推算。
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: context.tokens.divider)),
       ),
@@ -1195,11 +1407,13 @@ class _NextStepPanel extends StatelessWidget {
         Icons.event_available_outlined,
       ),
     };
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     return Padding(
-      padding: const EdgeInsets.only(top: 20),
-      child: LogSurface(
-        accent: Theme.of(context).colorScheme.primary,
-        padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: SolidPanel(
+        // 方案 C 的卡片档是 16，不是工作面档 20。
+        radius: AppRadius.card,
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1209,7 +1423,12 @@ class _NextStepPanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 5),
                   Text(
                     message,
@@ -1218,10 +1437,25 @@ class _NextStepPanel extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  FilledButton.icon(
-                    onPressed: () => _act(context, nextTask),
-                    icon: Icon(icon),
-                    label: Text(label),
+                  SizedBox(
+                    // 方案 C 的主操作是 52 高、圆角 16 的通栏按钮。
+                    // 移动端对齐这一档；桌面保持默认高度，避免纵向臃肿。
+                    width: compact ? double.infinity : null,
+                    height: compact ? 52 : null,
+                    child: FilledButton.icon(
+                      onPressed: () => _act(context, nextTask),
+                      style: compact
+                          ? FilledButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.card,
+                                ),
+                              ),
+                            )
+                          : null,
+                      icon: Icon(icon),
+                      label: Text(label),
+                    ),
                   ),
                 ],
               ),
@@ -1307,22 +1541,48 @@ class _TodayTaskPreview extends StatelessWidget {
         ),
       );
     }
-    return LogSurface(
-      child: Column(
-        children: [
-          for (var index = 0; index < tasks.length; index++) ...[
-            ListTile(
-              leading: NumericText('${index + 1}'.padLeft(2, '0')),
-              title: Text(
-                tasks[index].title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+    // 方案 C 只有一种列表语言：一项一张独立白卡。
+    // 旧形态是「一张面板装多行 + 行间 Divider」——方案 C 通篇不使用，
+    // 而它正是「今日重点」在开始今天之前的默认外观，桌面与移动端都会看到。
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final tokens = context.tokens;
+    return Column(
+      children: [
+        for (var index = 0; index < tasks.length; index++) ...[
+          Material(
+            color: tokens.panel,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              side: BorderSide(color: tokens.panelBorder),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              child: Row(
+                children: [
+                  NumericText(
+                    '${index + 1}'.padLeft(2, '0'),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelMedium?.copyWith(color: tokens.mutedText),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      tasks[index].title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (index < tasks.length - 1) const Divider(),
-          ],
+          ),
+          if (index < tasks.length - 1)
+            SizedBox(height: compact ? 7 : AppSpacing.sm),
         ],
-      ),
+      ],
     );
   }
 }
@@ -1335,46 +1595,76 @@ class _CommitmentLog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
-    return LogSurface(
-      child: Column(
-        children: [
-          for (var index = 0; index < commitments.length; index++) ...[
-            TaskRow(
-              task: commitments[index],
-              controller: controller,
-              commitmentIndex: index,
-              completionXp: controller.advancedFeaturesEnabled
-                  ? commitments[index].id == controller.commitmentIds[index]
-                        ? 20
-                        : 10
-                  : null,
-              onStartFocus: () =>
-                  showFocusSession(context, controller, commitments[index]),
-            ),
-            if (!commitments[index].isDone &&
-                !controller.todayClosed &&
-                !controller.canUpdateTodayCommitments)
-              Align(
-                alignment: compact
-                    ? Alignment.centerLeft
-                    : Alignment.centerRight,
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: compact ? 8 : 0,
-                    right: compact ? 0 : 8,
-                    bottom: 6,
-                  ),
-                  child: TextButton(
-                    onPressed: () =>
-                        _showReplacementDialog(context, controller, index),
-                    child: const Text('更换承诺'),
-                  ),
-                ),
-              ),
-            if (index < commitments.length - 1) const Divider(),
-          ],
+    // 方案 C 只有一种任务卡：白底、圆角 16、1px 描边、
+    // 圆角方复选框 + pill 标签。承诺卡不再走 TaskRow——
+    // 左侧索引竖条、内联五行事实、⋯ 菜单是桌面
+    // 「一张面板装多行」的语言，正是方案 C 通篇不使用的形态。
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < commitments.length; index++) ...[
+          _TodayStatusTask(
+            task: commitments[index],
+            controller: controller,
+            settled: false,
+            extraActions: _commitmentActions(context, index),
+          ),
+          if (index < commitments.length - 1)
+            SizedBox(height: compact ? 7 : AppSpacing.sm),
         ],
-      ),
+      ],
+    );
+  }
+
+  /// 承诺卡的展开区动作：完成奖励、开始专注、更换承诺。
+  Widget _commitmentActions(BuildContext context, int index) {
+    final task = commitments[index];
+    final tokens = context.tokens;
+    final xp = controller.advancedFeaturesEnabled && !task.isDone
+        ? (index < controller.commitmentIds.length &&
+                  task.id == controller.commitmentIds[index]
+              ? 20
+              : 10)
+        : null;
+    final canReplace =
+        !task.isDone &&
+        !controller.todayClosed &&
+        !controller.canUpdateTodayCommitments;
+    if (xp == null && !canReplace && task.isDone) {
+      return const SizedBox.shrink();
+    }
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      children: [
+        if (xp != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              '完成 +$xp XP',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                fontFamily: AppFonts.body,
+                color: tokens.reward,
+              ),
+            ),
+          ),
+        if (!task.isDone)
+          TextButton.icon(
+            onPressed: () => showFocusSession(context, controller, task),
+            icon: const Icon(Icons.play_arrow, size: 16),
+            // 刻意不叫「开始专注」：今日页的「下一步行动」必须唯一，
+            // 「开始专注」是 `_NextStepPanel` 的主按钮文案，
+            // 承诺卡再挂一个同文案会让「唯一行动」的守卫失效。
+            label: const Text('专注此项'),
+          ),
+        if (canReplace)
+          TextButton(
+            onPressed: () => _showReplacementDialog(context, controller, index),
+            child: const Text('更换承诺'),
+          ),
+      ],
     );
   }
 }
@@ -1487,47 +1777,125 @@ class _HabitLog extends StatelessWidget {
         ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
       );
     }
-    return LogSurface(
-      child: Column(
-        children: [
-          for (var index = 0; index < controller.habits.length; index++) ...[
-            Builder(
-              builder: (context) {
-                final habit = controller.habits[index];
-                final log = controller.habitLogForDay(habit.id, date);
-                final planned = controller.plannedHabitIds.contains(habit.id);
-                return ListTile(
-                  leading: Checkbox(
-                    value: log?.status == WorkStatus.done,
-                    onChanged: (_) => controller.logHabit(
-                      habit,
-                      date,
-                      log?.status == WorkStatus.done
-                          ? WorkStatus.todo
-                          : WorkStatus.done,
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    return Column(
+      children: [
+        for (var index = 0; index < controller.habits.length; index++) ...[
+          _HabitRowCard(
+            controller: controller,
+            habit: controller.habits[index],
+            date: date,
+          ),
+          if (index < controller.habits.length - 1)
+            SizedBox(height: compact ? 7 : AppSpacing.sm),
+        ],
+      ],
+    );
+  }
+}
+
+/// 习惯行卡（方案 C 规格）。
+///
+/// 与旧实现的差别：独立白卡（不再是面板里的 ListTile）、左侧 **17×17 方点**
+/// （不是圆形 Checkbox）、右侧「连续 N 天」为主色强调文字。
+///
+/// 打卡点用方形是刻意的：方案 C 里「任务复选框（20×20/圆角 7）」与
+/// 「习惯方点（17×17/圆角 6）」是两种形状，**形状本身就承担区分**，
+/// 不必再靠颜色——与项目既有的「颜色不是唯一线索」纪律一致。
+class _HabitRowCard extends StatelessWidget {
+  const _HabitRowCard({
+    required this.controller,
+    required this.habit,
+    required this.date,
+  });
+
+  final WorkbenchController controller;
+  final WorkspaceRecord habit;
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    final scheme = theme.colorScheme;
+    final log = controller.habitLogForDay(habit.id, date);
+    final done = log?.status == WorkStatus.done;
+    final planned = controller.plannedHabitIds.contains(habit.id);
+    final streak = controller.habitStreak(habit.id);
+    return Material(
+      color: tokens.panel,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: tokens.panelBorder),
+      ),
+      child: InkWell(
+        onTap: () => controller.logHabit(
+          habit,
+          date,
+          done ? WorkStatus.todo : WorkStatus.done,
+        ),
+        hoverColor: scheme.primary.withValues(alpha: 0.06),
+        focusColor: scheme.primary.withValues(alpha: 0.1),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              _HabitDot(done: done),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      habit.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: done ? tokens.mutedText : scheme.onSurface,
+                      ),
+                    ),
+                    // 「计分 / 仅记录」只在开启进阶功能时占位：
+                    // 默认配置下习惯行与方案 C 一样是单行。
+                    if (controller.advancedFeaturesEnabled)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          planned ? '今日计分习惯' : '仅记录完成情况',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 11,
+                            color: tokens.inkFaint,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (planned && controller.advancedFeaturesEnabled)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: NumericText(
+                    '+5 XP',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: tokens.reward,
                     ),
                   ),
-                  title: Text(habit.title),
-                  subtitle: Text(
-                    controller.advancedFeaturesEnabled
-                        ? planned
-                              ? '今日计分习惯'
-                              : '仅记录完成情况'
-                        : '今天完成情况',
+                ),
+              if (streak > 1)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(
+                    '连续 $streak 天',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.primary,
+                    ),
                   ),
-                  trailing: planned && controller.advancedFeaturesEnabled
-                      ? NumericText(
-                          '+5 XP',
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(color: context.tokens.reward),
-                        )
-                      : null,
-                );
-              },
-            ),
-            if (index < controller.habits.length - 1) const Divider(),
-          ],
-        ],
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1541,9 +1909,11 @@ class _ClosePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final closed = controller.todayClosed;
+    // 去掉左侧 3px 状态竖条（方案 C 不使用该形状）。收尾状态已由
+    // 图标（check_circle）+ 文案（今日已收尾）双重表达，色条是第三种冗余；
+    // 而且它会把内容左内边距挤歪 3px，与相邻面板不对齐。
     return LogSurface(
       padding: const EdgeInsets.all(14),
-      accent: closed ? Theme.of(context).colorScheme.primary : null,
       child: Row(
         children: [
           Icon(
@@ -1597,8 +1967,9 @@ class _CompactGrowth extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final snapshot = controller.growthSnapshot;
+    // 同收尾面板：装饰性色条与「实色面板 + 中性边框」冲突，
+    // 而 reward 色已由 LV 数字与进度条承担，不需要第三种表达。
     return LogSurface(
-      accent: context.tokens.reward,
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
@@ -2212,4 +2583,282 @@ class _DismissAfterState extends State<_DismissAfter> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 方案 C「新芽晨光」· 移动端专属组件
+//
+// 这三件在旧实现里完全不存在，也是「看起来不像方案 C」的主因：
+// 今日概览卡（视觉锚点）、分段进度条、环形进度。
+// ═══════════════════════════════════════════════════════════════════════
+
+/// 今日概览卡（方案 C 手机 2 的 Hero）。
+///
+/// 左侧三行文字 + 分段进度条，右侧 64px 环形进度。
+///
+/// 与源稿的一处**有意偏离**：源稿用 `linear-gradient(sprout-050 → sprout-100)`
+/// 打底，项目规范明文禁止装饰渐变（面板一律实色），故改用实色 `tokens.subtle`
+/// + 1px 主色淡边。视觉意图（浅绿托底、与白色任务卡拉开层次）保留。
+class _TodayOverviewCard extends StatelessWidget {
+  const _TodayOverviewCard({
+    required this.remaining,
+    required this.completed,
+    required this.focus,
+  });
+
+  final int remaining;
+  final int completed;
+  final Duration focus;
+
+  static String formatFocus(Duration value) {
+    final hours = value.inHours;
+    final minutes = value.inMinutes.remainder(60);
+    if (hours == 0) return '${minutes}m';
+    return '${hours}h${minutes.toString().padLeft(2, '0')}m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    final scheme = theme.colorScheme;
+    final total = remaining + completed;
+    final ratio = total == 0 ? 0.0 : completed / total;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md + 2,
+        AppSpacing.lg - 2,
+        AppSpacing.md + 2,
+      ),
+      decoration: BoxDecoration(
+        color: tokens.subtle,
+        borderRadius: BorderRadius.circular(AppRadius.panel),
+        border: Border.all(color: scheme.primaryContainer),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        remaining == 0 ? '今日已清空' : '还剩 $remaining 件事',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    // 源稿此处是 U+2726（四角星）。四款内置字体的 cmap
+                    // 都没有这个码位（`tool/verify_glyph_coverage.py` 实测），
+                    // 文字渲染出来是豆腐块——移动端 golden 也一直是坏的，
+                    // 只是没放大看过。改用 Material 图标字体里的同形四角星，
+                    // 已实测 U+E0B7 存在。
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 13,
+                      color: scheme.onPrimaryContainer,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '已完成 $completed 项 · 专注 ${formatFocus(focus)}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 11.5,
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 11),
+                _SegmentedProgress(ratio: ratio),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          _RingProgress(ratio: ratio),
+        ],
+      ),
+    );
+  }
+}
+
+/// 分段进度条：12 段方块，已完成的段用主色。
+///
+/// 用分段而非连续条，是为了让「还剩几件」可以被数出来——进度不是大概，
+/// 是 N 件事。这也是方案 C 在概览卡里最显眼的一处细节。
+class _SegmentedProgress extends StatelessWidget {
+  const _SegmentedProgress({required this.ratio});
+
+  /// 段数固定 12：源稿即 12 段，且它同时是「还剩几件事」的可数刻度。
+  static const segments = 12;
+
+  final double ratio;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final filled = (ratio * segments).round().clamp(0, segments);
+    return Row(
+      children: [
+        for (var index = 0; index < segments; index++) ...[
+          if (index > 0) const SizedBox(width: 5),
+          Expanded(
+            child: Container(
+              height: 5,
+              decoration: BoxDecoration(
+                color: index < filled
+                    ? scheme.primary
+                    : scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// 64px 环形进度 + 中心等宽百分比。
+class _RingProgress extends StatelessWidget {
+  const _RingProgress({required this.ratio});
+
+  /// 直径固定 64（源稿规格），环宽 7。
+  static const size = 64.0;
+
+  final double ratio;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final percent = (ratio * 100).round();
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _RingPainter(
+          ratio: ratio.clamp(0.0, 1.0),
+          track: scheme.primaryContainer,
+          progress: scheme.primary,
+        ),
+        child: Center(
+          child: Text(
+            '$percent%',
+            style: TextStyle(
+              fontFamily: AppFonts.numeric,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: scheme.onPrimaryContainer,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  const _RingPainter({
+    required this.ratio,
+    required this.track,
+    required this.progress,
+  });
+
+  final double ratio;
+  final Color track;
+  final Color progress;
+
+  static const _stroke = 7.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.shortestSide - _stroke) / 2;
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _stroke
+        ..color = track,
+    );
+    if (ratio <= 0) return;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * ratio,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _stroke
+        ..strokeCap = StrokeCap.round
+        ..color = progress,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.ratio != ratio || old.track != track || old.progress != progress;
+}
+
+/// 任务复选框：20×20、圆角 6 的方框（方案 C 规格）。
+///
+/// 旧实现是圆形的状态图标。改成圆角方框后，「完成」这一最常用动作
+/// 与「习惯方点」形成同一套形状语言。
+/// 未完成态的描边用 `borderStrong`，与主题里 Checkbox 的既有边界色一致。
+class _TaskCheckbox extends StatelessWidget {
+  const _TaskCheckbox({required this.done});
+
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    return Container(
+      width: 20,
+      height: 20,
+      margin: const EdgeInsets.only(top: 1),
+      decoration: BoxDecoration(
+        color: done ? scheme.primary : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.dot),
+        border: done
+            ? null
+            : Border.all(color: tokens.borderStrong, width: 1.5),
+      ),
+      child: done ? Icon(Icons.check, size: 14, color: scheme.onPrimary) : null,
+    );
+  }
+}
+
+/// 习惯打卡点：17×17、圆角 6。与任务复选框刻意不同尺寸，避免两处混淆。
+class _HabitDot extends StatelessWidget {
+  const _HabitDot({required this.done});
+
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    return Container(
+      width: 17,
+      height: 17,
+      decoration: BoxDecoration(
+        color: done ? scheme.primary : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.dot),
+        border: done
+            ? null
+            : Border.all(color: tokens.borderStrong, width: 1.5),
+      ),
+    );
+  }
 }

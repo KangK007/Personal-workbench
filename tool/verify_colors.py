@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """复算「柔壤 · 年轮」色板的对比度与分类色色差，供文档引用。
 
+2026-09-19 换代：浅色「晨间陶土」→「新芽晨光」，深色「夜间炭壤」→「夜露」。
+
 输出：
   1. 正文级/图形级配对对比度（WCAG 2.1）
   2. 8 类节点分类色两两最小 ΔE（CIEDE2000）
@@ -105,18 +107,18 @@ def delta_e00(hex_a, hex_b):
 
 
 LIGHT = {
-    "canvas": "#F7F4EC",
-    "surface": "#FFFDF9",
+    "canvas": "#F5FAF0",
+    "surface": "#FFFFFF",
     "raised": "#FFFFFF",
-    "subtle": "#EFEAE0",
-    "ink": "#232A22",
-    "inkMuted": "#636B5E",
-    "inkFaint": "#8A9083",
-    "divider": "#E3DCCF",
-    "borderStrong": "#D2CFC5",
-    "primary": "#4A6E4C",
-    "primaryContainer": "#DCE7D8",
-    "primaryOnContainer": "#1E3320",
+    "subtle": "#EFF8F0",
+    "ink": "#17301B",
+    "inkMuted": "#5D7961",
+    "inkFaint": "#849A88",
+    "divider": "#DFEBE1",
+    "borderStrong": "#C4D8C9",
+    "primary": "#3E7F4B",
+    "primaryContainer": "#E2F3E5",
+    "primaryOnContainer": "#1D4A27",
     "signal": "#9E3A32",
     "signalContainer": "#F7DEDA",
     "signalOnContainer": "#5A1F19",
@@ -128,24 +130,26 @@ LIGHT = {
     "infoOnContainer": "#1C3947",
     "teal": "#0F6668",
     "olive": "#8F931A",
+    "oliveContainer": "#F1F6DA",
+    "oliveOnContainer": "#5F6C15",
     "violet": "#6B4A8C",
     "amber": "#BB811B",
-    "outline": "#918783",
+    "outline": "#7E9284",
 }
 
 DARK = {
-    "canvas": "#171612",
-    "surface": "#1E1D18",
-    "raised": "#26251E",
-    "subtle": "#2C2A22",
-    "ink": "#EFEDE4",
-    "inkMuted": "#A9A797",
-    "inkFaint": "#7C7A6C",
-    "divider": "#3A382E",
-    "borderStrong": "#4F4D45",
-    "primary": "#93C08D",
-    "primaryContainer": "#2C3A2B",
-    "primaryOnContainer": "#CFE8CB",
+    "canvas": "#0F1A13",
+    "surface": "#16231A",
+    "raised": "#1E2C21",
+    "subtle": "#243528",
+    "ink": "#E4EFE6",
+    "inkMuted": "#A2B5A6",
+    "inkFaint": "#73867A",
+    "divider": "#2A3A2F",
+    "borderStrong": "#3D5044",
+    "primary": "#7FCB8E",
+    "primaryContainer": "#1D3A26",
+    "primaryOnContainer": "#C9EBD0",
     "signal": "#E88C7E",
     "signalContainer": "#4C2A26",
     "signalOnContainer": "#F9D9D3",
@@ -157,9 +161,11 @@ DARK = {
     "infoOnContainer": "#C7DCE8",
     "teal": "#5FC0BD",
     "olive": "#D4D864",
+    "oliveContainer": "#2B3312",
+    "oliveOnContainer": "#D4D864",
     "violet": "#C2A6E4",
     "amber": "#DBA657",
-    "outline": "#938B85",
+    "outline": "#8A968C",
 }
 
 # content=(前景, 背景, 要求下限, 说明)
@@ -169,13 +175,14 @@ PAIRS = [
     ("inkMuted", "surface", 4.5, "辅助文字压实面"),
     ("inkMuted", "canvas", 4.5, "辅助文字压画布"),
     ("inkFaint", "surface", 3.0, "装饰级（禁承载信息）"),
-    ("primary", "surface", 4.5, "苔绿实面"),
-    ("primary", "canvas", 4.5, "苔绿压画布"),
-    ("primaryOnContainer", "primaryContainer", 4.5, "苔绿容器槽"),
+    ("primary", "surface", 4.5, "新芽绿实面"),
+    ("primary", "canvas", 4.5, "新芽绿压画布"),
+    ("primaryOnContainer", "primaryContainer", 4.5, "新芽绿容器槽"),
     ("signal", "surface", 4.5, "砖红实面"),
     ("signalOnContainer", "signalContainer", 4.5, "砖红容器槽"),
     ("reward", "surface", 4.5, "陶土实面"),
     ("rewardOnContainer", "rewardContainer", 4.5, "陶土容器槽"),
+    ("oliveOnContainer", "oliveContainer", 4.5, "嫩黄绿容器槽"),
     ("info", "surface", 4.5, "靛蓝实面"),
     ("infoOnContainer", "infoContainer", 4.5, "靛蓝容器槽"),
     ("divider", "surface", 1.0, "分组线（非文本）"),
@@ -230,6 +237,7 @@ def report(title, palette, panel_key):
     return fails
 
 
-total = report("浅色 · 晨间陶土", LIGHT, "surface")
-total += report("深色 · 夜间炭壤", DARK, "surface")
-sys.stdout.write("\n合计未达标配对：%d\n" % total)
+if __name__ == "__main__":
+    total = report("浅色 · 新芽晨光", LIGHT, "surface")
+    total += report("深色 · 夜露", DARK, "surface")
+    sys.stdout.write("\n合计未达标配对：%d\n" % total)

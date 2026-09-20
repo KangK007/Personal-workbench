@@ -438,15 +438,33 @@ class SkeletonListTile extends StatelessWidget {
   }
 }
 
+/// 页面标题区。
+///
+/// 形态由方案 C 收敛：**没有装饰竖条**。
+///
+/// 旧实现用一条 3px 主色竖条 + 12px 间距标记「这是页头」。方案 C 的页头
+/// 通篇不使用这个形状（移动端页头是「日期小字 / 页面标题 / 头像」三件套），
+/// 规范 §9 给 PageHeader 定的规格里也没有它——层级本就由字号与留白承担，
+/// 竖条只是装饰，且会把左内边距挤歪 15px。故删除，并补上 [kicker]。
 class PageHeader extends StatelessWidget {
   const PageHeader({
     super.key,
     required this.title,
+    this.kicker,
     this.subtitle,
     this.actions = const [],
   });
 
   final String title;
+
+  /// 标题上方的引题小字（今日页放日期）。
+  ///
+  /// 方案 C 把这类上下文放在标题**之前**，与移动端 `_pageStack` 的 AppBar
+  /// 同序；桌面由本参数承载，两端页头因此是同一段信息、同一种排布。
+  ///
+  /// 用 `inkFaint`（装饰级 3.02:1）是刻意的，与移动端页头日期一致：
+  /// 它只让眼睛确认「这是哪天」，不参与判断。
+  final String? kicker;
   final String? subtitle;
   final List<Widget> actions;
 
@@ -473,19 +491,21 @@ class PageHeader extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 3,
-              height: wide ? 38 : 30,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (kicker != null)
+                    Text(
+                      kicker!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontSize: 11.5,
+                        color: tokens.inkFaint,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   Text(
                     title,
                     maxLines: compact ? 2 : 1,
@@ -539,11 +559,21 @@ class SectionHeading extends StatelessWidget {
     required this.title,
     this.scale,
     this.trailing,
+    this.action,
+    this.onAction,
   });
 
   final String title;
   final String? scale;
   final Widget? trailing;
+
+  /// 右侧文字链接（方案 C 的「全部 →」）。
+  ///
+  /// 与 [trailing] 分工不同：[trailing] 放控件（状态标签、按钮），本参数只放
+  /// 一句引导文字，形态固定为主色 11.5px/w600。二者同时给出时 [trailing] 优先，
+  /// 避免同一行右端出现两个抢占注意力的元素。
+  final String? action;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -552,8 +582,12 @@ class SectionHeading extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < AppBreakpoints.compact;
     return Padding(
-      // 移除装饰航迹条后，层级由 24px 上留白确立（规范 6.3 / 9）。
-      padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
+      // 移除装饰航迹条后，层级由上留白确立（规范 6.3 / 9）。
+      // 移动端收紧一档：方案 C 的移动稿是连续滚动，不需要桌面级的大分区留白。
+      padding: EdgeInsets.only(
+        top: compact ? AppSpacing.lg : AppSpacing.xl,
+        bottom: compact ? 7 : AppSpacing.sm,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -564,30 +598,33 @@ class SectionHeading extends StatelessWidget {
                     title,
                     maxLines: compact ? 2 : 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleLarge,
+                    style: compact
+                        // 方案 C：分区标题 13.5px / w600 / ink，比桌面矮两档。
+                        ? theme.textTheme.titleSmall?.copyWith(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          )
+                        : theme.textTheme.titleLarge,
                   ),
                 ),
                 if (scale != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tokens.subtle,
-                      borderRadius: BorderRadius.circular(AppRadius.control),
-                      border: Border.all(color: tokens.panelBorder),
-                    ),
-                    child: Text(
-                      scale!,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: tokens.mutedText,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
+                  SizedBox(width: compact ? 7 : 8),
+                  // 方案 C：计数是标题旁的淡色文本，不是圆角 chip。
+                  //
+                  // 桌面先前用 `subtle` 底 + 边框的 chip 承载计数，与移动端
+                  // 已不是同一种形；而同一页里各分区的计数理应同形。统一为
+                  // 文本后，两端只剩字号差（11 / 12）——与「控件按端取档」
+                  // 的既有惯例（行高 48/60、控件 40/52）一致。
+                  // 只做参考信息，不承载判断，故允许用 inkFaint（装饰级）。
+                  Text(
+                    scale!,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: tokens.inkFaint,
+                      fontSize: compact ? 11 : 12,
+                      fontWeight: FontWeight.w500,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                 ],
@@ -595,8 +632,38 @@ class SectionHeading extends StatelessWidget {
             ),
           ),
           ?trailing,
+          if (trailing == null && action != null)
+            _SectionLink(label: action!, onPressed: onAction),
         ],
       ),
+    );
+  }
+}
+
+/// 分区标题右侧的文字链接（方案 C 的「全部 →」）。
+class _SectionLink extends StatelessWidget {
+  const _SectionLink({required this.label, this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: scheme.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        minimumSize: const Size(0, 36),
+        // 保持 MaterialTapTargetSize.padded：视觉高 36，触控区自动补到 48。
+        textStyle: const TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          fontFamily: AppFonts.body,
+        ),
+      ),
+      child: Text('$label →'),
     );
   }
 }
@@ -1016,25 +1083,45 @@ class EmptyState extends StatelessWidget {
 }
 
 class StatusPill extends StatelessWidget {
-  const StatusPill({super.key, required this.label, this.color, this.icon});
+  const StatusPill({
+    super.key,
+    required this.label,
+    this.color,
+    this.icon,
+    this.foreground,
+    this.dense = false,
+  });
 
   final String label;
   final Color? color;
   final IconData? icon;
+
+  /// 指定的字色。用于「成对容器令牌」场景——把 `*OnContainer` 直接喂进来，
+  /// 而不是让 [bestContrastingText] 重新猜一个。
+  final Color? foreground;
+
+  /// 紧凑档（方案 C 规格）：10.5px / w500 / 垂直内边距 2.5。
+  /// 列表项元信息用它——一张卡上会并排 2–4 个标签，常规档会撑高卡片。
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final background = color ?? scheme.primaryContainer;
     // 未指定颜色时使用成对的容器/容器上文字令牌；指定颜色时才做自动取色兜底。
-    final foreground = color == null
-        ? scheme.onPrimaryContainer
-        : bestContrastingText(background);
+    final resolved =
+        foreground ??
+        (color == null
+            ? scheme.onPrimaryContainer
+            : bestContrastingText(background));
     return Semantics(
       label: '标签：$label',
       child: ExcludeSemantics(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: dense ? 2.5 : 4,
+          ),
           decoration: BoxDecoration(
             color: background,
             borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -1043,14 +1130,15 @@ class StatusPill extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 12, color: foreground),
+                Icon(icon, size: dense ? 11 : 12, color: resolved),
                 const SizedBox(width: 4),
               ],
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.w600,
+                  color: resolved,
+                  fontSize: dense ? 10.5 : null,
+                  fontWeight: dense ? FontWeight.w500 : FontWeight.w600,
                 ),
               ),
             ],
@@ -1192,10 +1280,12 @@ List<FontFeature>? _numericFeaturesIfUseful(String value) =>
 
 /// 唯一的对比度取色实现：基于 ink 令牌返回在 [background] 上
 /// 对比度更高的前景色（深 ink 或近白）。
+///
+/// 两端默认值直接引用 [AppColors]，不写字面量——否则配色换代时这里会静默漏改。
 Color bestContrastingText(
   Color background, {
-  Color dark = const Color(0xFF232A22),
-  Color light = const Color(0xFFFFFDF9),
+  Color dark = AppColors.lightInk,
+  Color light = AppColors.lightSurface,
 }) {
   double contrast(Color foreground) {
     final lighter = math.max(

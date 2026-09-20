@@ -13,10 +13,10 @@
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <!-- 品牌深色底 #0E1311，避免深色模式下初始化时白屏闪烁 -->
-        <item name="android:windowBackground">#0F1712</item>
+        <!-- 品牌深色底 AppColors.darkCanvas #0F1A13，避免深色模式下初始化时白屏闪烁 -->
+        <item name="android:windowBackground">#0F1A13</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">#16231B</item>
+        <item name="android:navigationBarColor">#16231A</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

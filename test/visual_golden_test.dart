@@ -663,6 +663,34 @@ void main() {
     );
   });
 
+  // 方案 C 手机 1（快捷捕获）。捕获面板是方案 C 里改动最大的一块，
+  // 没有基线就等于没有守卫——样式回退时不会有人发现。
+  testWidgets('Android capture sheet', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(412, 915);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(
+      _host(
+        WorkbenchShell(
+          controller: fixture.controller,
+          enableSystemHotkey: false,
+        ),
+        dark: false,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.tap(find.byKey(const ValueKey('mobile-quick-capture')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    // 捕获面板是路由级弹层，落在 MaterialApp 的 Overlay 里，
+    // 不属于 shell 的 Scaffold 子树——必须从 MaterialApp 起截。
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/android_capture_sheet.png'),
+    );
+  });
+
   testWidgets('Android growth', (tester) async {
     await _pumpGolden(
       tester,

@@ -85,10 +85,9 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('目标与习惯'), findsOneWidget);
-    expect(find.text('目标'), findsWidgets);
-    expect(find.text('习惯'), findsOneWidget);
-    expect(find.text('执行协议'), findsNothing);
+    expect(find.text('协议'), findsOneWidget);
+    expect(find.text('执行协议'), findsOneWidget);
+    expect(find.text('目标与习惯'), findsNothing);
 
     await controller.setAdvancedFeaturesEnabled(true);
     await tester.pumpWidget(

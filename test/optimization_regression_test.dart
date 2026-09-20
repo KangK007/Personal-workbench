@@ -623,6 +623,27 @@ void main() {
       );
       expect(tester.takeException(), isNull);
 
+      expect(
+        find.bySemanticsLabel(
+          '月度习惯，${entry.$1.month}月${entry.$1.day - 1}日，未记录，仅展示',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(
+          '月度习惯，${entry.$1.month}月${entry.$1.day}日，未记录，可修改',
+        ),
+        findsOneWidget,
+      );
+      if (entry.$1.day < entry.$2) {
+        expect(
+          find.bySemanticsLabel(
+            '月度习惯，${entry.$1.month}月${entry.$1.day + 1}日，未记录，仅展示',
+          ),
+          findsOneWidget,
+        );
+      }
+
       await tester.pumpWidget(
         _host(
           SizedBox(

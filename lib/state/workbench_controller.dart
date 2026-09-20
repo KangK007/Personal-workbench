@@ -580,6 +580,49 @@ class WorkbenchController extends WorkbenchControllerBase
     return null;
   }
 
+  /// 今日已完成的专注时长合计。
+  ///
+  /// 数据源是 `focusSession` 记录的 `data['seconds']`（见 `completeFocusSession`），
+  /// 按 `scheduledFor` 是否落在今天筛选。今日页概览卡用它显示「专注 3h20m」。
+  Duration get todayFocusDuration {
+    final day = currentTime();
+    var seconds = 0;
+    for (final session in recordsOf(RecordKind.focusSession)) {
+      if (!isSameDay(session.scheduledFor, day)) continue;
+      final value = session.data['seconds'];
+      if (value is int) seconds += value;
+    }
+    return Duration(seconds: seconds);
+  }
+
+  /// 习惯连续完成天数。
+  ///
+  /// 今日已完成则从今日起回溯，今日未完成则从昨日起算（当天尚未打卡不算断签）。
+  /// 只统计 `done` 状态的 `habitLog`。今日页习惯行用它显示「连续 12 天」。
+  int habitStreak(String habitId) {
+    final logs = recordsOf(
+      RecordKind.habitLog,
+    ).where((log) => log.parentId == habitId).toList(growable: false);
+    if (logs.isEmpty) return 0;
+
+    bool doneOn(DateTime day) => logs.any(
+      (log) =>
+          isSameDay(log.scheduledFor, day) && log.status == WorkStatus.done,
+    );
+
+    var cursor = startOfDay(currentTime());
+    if (!doneOn(cursor)) {
+      cursor = cursor.subtract(const Duration(days: 1));
+      if (!doneOn(cursor)) return 0;
+    }
+    var count = 0;
+    while (doneOn(cursor)) {
+      count++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+    return count;
+  }
+
   Future<void> initialize() async {
     _loading = true;
     _error = null;
@@ -4163,6 +4206,7 @@ class WorkbenchController extends WorkbenchControllerBase
   }
 
   Future<void> setHabitTodayStatus(WorkspaceRecord habit, String status) async {
+    // 习惯记录沿用工作台的 04:00 逻辑日边界；矩阵也按同一日期展示。
     final logicalToday = growthService.logicalDay(currentTime());
     if (habit.hasRsipProtocol &&
         (!habit.rsipActive ||
@@ -4171,6 +4215,22 @@ class WorkbenchController extends WorkbenchControllerBase
       throw const FormatException('该 RSIP 节点当前不可修改打卡。');
     }
     await logHabit(habit, logicalToday, status);
+  }
+
+  /// 写入习惯矩阵的自然日“今天”，不受逻辑日边界影响。
+  Future<void> setHabitCalendarDayStatus(
+    WorkspaceRecord habit,
+    String status,
+  ) async {
+    final now = currentTime().toLocal();
+    final calendarToday = DateTime(now.year, now.month, now.day);
+    if (habit.hasRsipProtocol &&
+        (!habit.rsipActive ||
+            habitLogForDay(habit.id, calendarToday)?.status ==
+                WorkStatus.failed)) {
+      throw const FormatException('该 RSIP 节点当前不可修改打卡。');
+    }
+    await logHabit(habit, calendarToday, status);
   }
 
   Future<void> _syncCommitmentXp(String taskId, bool completed) async {

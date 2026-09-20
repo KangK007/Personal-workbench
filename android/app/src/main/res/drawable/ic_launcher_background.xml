@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标背景层 · 由 tool/build_app_icon.py 生成，请勿手改 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <path
+      android:fillColor="#3E7F4B"
+      android:pathData="M 0 0 H 108 V 108 H 0 Z" />
+  <path
+      android:fillColor="#9B5227"
+      android:pathData="M -40 96.98 A 172.91 172.91 0 0 1 148 96.98 L 148 148 L -40 148 Z" />
+</vector>

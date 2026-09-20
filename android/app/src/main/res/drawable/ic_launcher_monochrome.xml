@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标主题单色层 · 由 tool/build_app_icon.py 生成，请勿手改 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="#FFFFFFFF"
+      android:strokeWidth="8.55"
+      android:strokeLineCap="round"
+      android:pathData="M 54 47.09 L 54 69.19" />
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M 54 50.63 C 54.35 36.33 49.32 27.8 33.57 31.58 C 43.22 48.27 34.58 43.6 54 50.63 Z" />
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M 54 50.63 C 53.65 36.33 58.68 27.8 74.43 31.58 C 64.78 48.27 73.42 43.6 54 50.63 Z" />
+</vector>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>方案 C「新芽晨光」形态落地对照 · 个人工作台</title>
+<style>
+  :root{
+    --canvas:#F5FAF0; --surface:#FFFFFF; --subtle:#EFF8F0;
+    --ink:#17301B; --muted:#5D7961; --faint:#849A88;
+    --line:#DFEBE1; --line-soft:#EDF5EE;
+    --primary:#3E7F4B; --primary-container:#E2F3E5; --on-container:#1D4A27;
+    --olive-bg:#F1F6DA; --olive-fg:#5F6C15;
+    --clay:#9B5227; --clay-bg:#FBF3E6; --signal:#9E3A32; --signal-bg:#F6E4E1;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:var(--canvas); color:var(--ink); padding:44px 56px 72px;
+    font-family:"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"IBM Plex Mono",Consolas,monospace;font-variant-numeric:tabular-nums;}
+
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:8px;}
+  .tag{display:inline-flex;align-items:center;gap:8px;background:var(--surface);
+    border:1px solid var(--line);border-radius:999px;padding:6px 15px;
+    font-size:12.5px;font-weight:600;color:var(--on-container);letter-spacing:.3px;}
+  .tag i{width:8px;height:8px;border-radius:50%;background:var(--primary);display:block;}
+  h1{font-size:27px;font-weight:600;margin:16px 0 8px;letter-spacing:.2px;}
+  .sub{font-size:13.5px;color:var(--muted);line-height:1.8;max-width:960px;}
+
+  .verdict{margin:22px 0 0;background:var(--surface);border:1px solid var(--line);
+    border-left:3px solid var(--primary);border-radius:0 14px 14px 0;padding:16px 20px;
+    font-size:13.5px;line-height:1.85;max-width:1000px;}
+  .verdict b{font-weight:600;}
+
+  h2{font-size:16px;font-weight:600;margin:42px 0 14px;display:flex;align-items:center;gap:10px;}
+  h2 .bar{width:3px;height:16px;border-radius:2px;background:var(--primary);display:block;}
+  h2 small{font-weight:400;font-size:12.5px;color:var(--faint);}
+  h3{font-size:13.5px;font-weight:600;margin:26px 0 10px;color:var(--on-container);}
+
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;}
+  .cell{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    overflow:hidden;display:flex;flex-direction:column;}
+  .cell .cap{padding:11px 15px;font-size:12.5px;border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;}
+  .cap b{font-weight:600;}
+  .cap span{color:var(--faint);font-size:11.5px;}
+  .cell .body{padding:20px;display:flex;justify-content:center;background:var(--line-soft);}
+  .shot{max-width:100%;border-radius:12px;display:block;}
+  .phone{max-height:640px;width:auto;}
+  .wide{width:100%;border-radius:10px;}
+
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--surface);
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:12.5px;}
+  th{background:var(--subtle);text-align:left;font-weight:600;padding:11px 14px;
+    border-bottom:1px solid var(--line);font-size:12px;color:var(--on-container);}
+  td{padding:10px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top;line-height:1.65;}
+  tr:last-child td{border-bottom:0;}
+  td.n{width:34px;color:var(--faint);}
+  td.el{width:150px;font-weight:600;}
+  .ok{color:var(--primary);font-weight:600;white-space:nowrap;}
+  .keep{color:var(--clay);font-weight:600;white-space:nowrap;}
+  .was{color:var(--muted);}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 0;}
+  .chip{font-size:10.5px;font-weight:500;padding:2.5px 8px;border-radius:999px;}
+  .c-olive{background:var(--olive-bg);color:var(--olive-fg);}
+  .c-green{background:var(--primary-container);color:var(--on-container);}
+  .c-clay{background:var(--clay-bg);color:var(--clay);}
+  .c-gray{background:var(--line-soft);color:var(--muted);}
+
+  .metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+  .metric{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
+  .metric .k{font-size:11.5px;color:var(--faint);margin-bottom:7px;}
+  .metric .v{font-size:21px;font-weight:600;color:var(--primary);}
+  .metric .v small{font-size:12px;font-weight:500;color:var(--muted);}
+
+  .note{background:var(--clay-bg);border:1px solid #EFE0CB;border-radius:12px;
+    padding:14px 18px;font-size:12.5px;line-height:1.8;color:#6B4720;margin-top:14px;}
+  .note b{font-weight:600;}
+
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--faint);line-height:1.9;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="tag"><i></i>方案 C · 新芽晨光 · 形态落地</div>
+  <h1>规格稿 vs 真实渲染 · 逐项对照</h1>
+  <p class="sub">
+    比对基准 <span class="mono">design_preview/green_schemes/scheme_c_sprout.html</span>（方案 C 源稿，作为规格书）；
+    比对对象是应用**真实渲染**（Flutter golden，非效果图）。左侧为源稿，右侧为当前实现。
+  </p>
+  <div class="verdict">
+    <b>上一轮的问题：只换了颜色。</b>26 个色值换掉了，但界面仍是「一张面板装多行 + 每行左侧 3px 状态色竖条 +
+    一行拼接元信息」——这套语言方案 C 通篇没有用过。方案 C 的辨识度主要不在颜色，而在三处更硬的东西：
+    <b>一张当时完全不存在的概览 Hero 卡</b>、<b>与它相反的卡片组织方式</b>、<b>pill 标签而非拼接文本</b>。
+    本轮落的就是这三样，外加底栏指示形态、FAB 尺寸与快捷捕获面板。
+  </div>
+</header>
+
+<h2><span class="bar"></span>对照一 · 手机 2「今日」<small>左：方案 C 源稿　右：当前实现（412×915 真实渲染）</small></h2>
+<div class="pair">
+  <div class="cell">
+    <div class="cap"><b>方案 C 规格稿</b><span>scheme_c_sprout.png · 手机 2</span></div>
+    <div class="body"><img class="shot phone" src="spec_phone2_today.png" alt="方案 C 今日页规格稿"></div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>当前实现</b><span class="mono">android_today.png</span></div>
+    <div class="body"><img class="shot phone" src="real_today.png" alt="当前今日页渲染"></div>
+  </div>
+</div>
+<div class="chips">
+  <span class="chip c-green">页头 = 日期 + 标题 + 头像</span>
+  <span class="chip c-green">概览 Hero + 12 段进度 + 64px 环形</span>
+  <span class="chip c-green">一项一张独立白卡</span>
+  <span class="chip c-olive">今日必达</span>
+  <span class="chip c-green">全部 →</span>
+  <span class="chip c-gray">习惯行卡 · 连续 N 天</span>
+  <span class="chip c-green">底栏 16×2.5 短指示条</span>
+</div>
+
+<h2><span class="bar"></span>对照二 · 手机 1「快捷捕获」<small>左：方案 C 源稿　右：当前实现</small></h2>
+<div class="pair">
+  <div class="cell">
+    <div class="cap"><b>方案 C 规格稿</b><span>scheme_c_sprout.png · 手机 1</span></div>
+    <div class="body"><img class="shot phone" src="spec_phone1_capture.png" alt="方案 C 捕获页规格稿"></div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>当前实现</b><span class="mono">android_capture_sheet.png</span></div>
+    <div class="body"><img class="shot phone" src="real_capture.png" alt="当前捕获面板渲染"></div>
+  </div>
+</div>
+<div class="chips">
+  <span class="chip c-green">大输入卡 · 1.6px 主色描边</span>
+  <span class="chip c-green">底部工具行 + 字数</span>
+  <span class="chip c-gray">「这是」类型 chip</span>
+  <span class="chip c-gray">「放到」选择行卡（32×32 图标块）</span>
+  <span class="chip c-green">通栏 52px 主按钮 + 52×52 方按钮</span>
+</div>
+
+<h2><span class="bar"></span>对照三 · 「只换色」→「换形」<small>左：上一轮结果（颜色已对齐）　右：本轮结果</small></h2>
+<div class="pair">
+  <div class="cell">
+    <div class="cap"><b>上一轮</b><span class="mono">old_android_today.png</span></div>
+    <div class="body"><img class="shot phone" src="old_android_today.png" alt="上一轮今日页"></div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>本轮</b><span class="mono">real_today.png</span></div>
+    <div class="body"><img class="shot phone" src="real_today.png" alt="本轮今日页"></div>
+  </div>
+</div>
+
+<h2><span class="bar"></span>差异清单 · 逐项核对<small>18 项</small></h2>
+<table>
+  <thead>
+    <tr><th class="n">#</th><th>元素</th><th>方案 C 规格</th><th>此前状态</th><th>本轮结果</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="n mono">01</td><td class="el">移动页头</td><td>日期小字 11.5px + 「今日」20px w600 + 36×36 头像</td><td class="was">3px 主色竖条 + 24px 大标题 + ⓘ 图标 + 品牌块</td><td class="ok">已对齐</td></tr>
+    <tr><td class="n mono">02</td><td class="el">概览 Hero 卡</td><td>浅绿实色 + 1px 边框 + 12 段进度 + 64px 环形 + 中心 %</td><td class="was">完全不存在</td><td class="ok">新建</td></tr>
+    <tr><td class="n mono">03</td><td class="el">分段进度条</td><td>12 段 · 高 5 · 间距 5 · 圆角 3</td><td class="was">无</td><td class="ok">新建</td></tr>
+    <tr><td class="n mono">04</td><td class="el">环形进度</td><td>直径 64 · 环宽 7 · 中心等宽百分比</td><td class="was">无</td><td class="ok">新建</td></tr>
+    <tr><td class="n mono">05</td><td class="el">任务卡划分</td><td>一项一张独立白卡（圆角 16 · 1px 描边 · 卡距 7）</td><td class="was">一张面板装多行 + 行间 Divider</td><td class="ok">已对齐</td></tr>
+    <tr><td class="n mono">06</td><td class="el">卡内左侧装饰</td><td>无</td><td class="was">每行 3px 状态色竖条</td><td class="ok">移除</td></tr>
+    <tr><td class="n mono">07</td><td class="el">任务复选框</td><td>20×20 · 圆角 7 方框 · 选中主色实心 + 白勾</td><td class="was">圆形状态图标</td><td class="ok">已对齐</td></tr>
+    <tr><td class="n mono">08</td><td class="el">元信息</td><td>pill 标签行（主色 / 嫩黄绿 / 陶土 三族）</td><td class="was">一行拼接文本</td><td class="ok">已对齐</td></tr>
+    <tr><td class="n mono">09</td><td class="el">卡面行内操作</td><td>无（整卡可点展开）</td><td class="was">✏️ + ⋮ + ⌄ 三枚图标</td><td class="ok">手机端移除</td></tr>
+    <tr><td class="n mono">10</td><td class="el">分区标题</td><td>13.5px w600 + 11px faint 计数 + 「全部 →」</td><td class="was">22px 大标题 + 计数 chip</td><td class="ok">已对齐</td></tr>
+    <tr><td class="n mono">11</td><td class="el">习惯打卡</td><td>顶层分区 · 行卡 · 17×17 方点 · 「连续 N 天」</td><td class="was">折叠在「今日详情」内 · Checkbox</td><td class="ok">已对齐</td></tr>
+    <tr><td class="n mono">12</td><td class="el">承诺卡（今日重点）</td><td>与任务卡同一种卡</td><td class="was">TaskRow：左索引竖条 + 内联五行事实 + ⋮</td><td class="ok">改为同形</td></tr>
+    <tr><td class="n mono">13</td><td class="el">移动底栏</td><td>58 高 · 白底 · 1px 顶线 · 16×2.5 短指示条</td><td class="was">NavigationBar 72 高 · 主色胶囊 indicator</td><td class="ok">自制替换</td></tr>
+    <tr><td class="n mono">14</td><td class="el">同步状态条</td><td>源稿 pfoot 只有底栏一条</td><td class="was">常驻 26px「本地数据已就绪」</td><td class="ok">改为按需出现</td></tr>
+    <tr><td class="n mono">15</td><td class="el">快捷捕获 FAB</td><td>52×52 · 圆角 19</td><td class="was">40×40 · 圆角 16</td><td class="ok">已对齐</td></tr>
+    <tr><td class="n mono">16</td><td class="el">同屏重复</td><td>每个任务只出现一次</td><td class="was">「今日」与「今日重点」重复列同一任务</td><td class="ok">移动端去重</td></tr>
+    <tr><td class="n mono">17</td><td class="el">快捷捕获面板</td><td>输入卡 + 「这是」chip + 「放到」行卡 + 52px 主按钮</td><td class="was">控件纵列 + Dropdown + 右对齐双按钮</td><td class="ok">重做</td></tr>
+    <tr><td class="n mono">18</td><td class="el">按钮字体族</td><td>—</td><td class="was">「全部 →」渲染成豆腐块（基线在拍错误的照片）</td><td class="ok">修掉</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="bar"></span>有意保留的差异<small>6 处 · 逐条有理由，勿「顺手改回」</small></h2>
+<table>
+  <thead><tr><th class="n">#</th><th>元素</th><th>偏离</th><th>理由</th></tr></thead>
+  <tbody>
+    <tr><td class="n mono">A</td><td class="el">概览卡底色</td><td class="keep">渐变 → 实色</td><td>源稿用 <span class="mono">linear-gradient</span>；现行规范明文禁止装饰渐变与玻璃拟态。改用实色 + 1px 边框，保留「浅绿托底、与白卡区分」的意图。</td></tr>
+    <tr><td class="n mono">B</td><td class="el">桌面展开指示</td><td class="keep">保留 ⌄</td><td>方案 C 只描述手机。桌面卡宽约为手机 1.8 倍，去掉后右侧大片空白且丢失「可展开」线索。**仅 <span class="mono">width ≥ 768</span> 出现。**</td></tr>
+    <tr><td class="n mono">C</td><td class="el">页头搜索图标</td><td class="keep">保留</td><td><span class="mono">ui_coverage_regression_test</span> 守卫「移动端今日可达全局搜索」，属功能要求，不能为对齐效果图而删。</td></tr>
+    <tr><td class="n mono">D</td><td class="el">捕获页文案</td><td class="keep">新增 / 收下</td><td>源稿是「随手记 / 保存到收件箱」。保留产品内既有文案体系。</td></tr>
+    <tr><td class="n mono">E</td><td class="el">承诺卡动作名</td><td class="keep">专注此项</td><td>「开始专注」是「下一步行动」面板的主按钮文案。同名会让「今日只暴露一个行动」的守卫失效——测试已实测拦下。</td></tr>
+    <tr><td class="n mono">F</td><td class="el">今日重点右侧</td><td class="keep">状态 + 调整重点</td><td>源稿此处是「全部 →」。实际承载的是当日流程状态与「调整重点」入口（有测试守卫），语义不同故保留。</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="bar"></span>验收</h2>
+<div class="metrics">
+  <div class="metric"><div class="k">flutter analyze</div><div class="v">0 <small>问题</small></div></div>
+  <div class="metric"><div class="k">flutter test</div><div class="v">243 <small>通过 / 0 失败</small></div></div>
+  <div class="metric"><div class="k">配色达标（浅 / 深）</div><div class="v">0 <small>未达标配对</small></div></div>
+  <div class="metric"><div class="k">令牌双写一致</div><div class="v">56 <small>对逐值一致</small></div></div>
+  <div class="metric"><div class="k">字形覆盖</div><div class="v">0 <small>未覆盖码位</small></div></div>
+</div>
+<div class="note">
+  <b>两条易被误判的观察：</b><br>
+  ① golden 里 FAB 外面那圈<b>黑边不是缺陷</b>——<span class="mono">flutter_tester</span> 不支持阴影模糊，把 <span class="mono">drawShadow</span> 画成了实心剪影。改造前的基线同样存在 167 个纯黑像素，真机是柔和投影。不要为「修」它改产品代码。<br>
+  ② 源稿里「今日重点」标着「剩 3 项」而 Hero 说「还剩 5 件事」——说明该分区本就是全量任务的**子集**。据此，「今日」与「今日重点」是**有意保留的双层结构**，两层共用同一种卡；移动端把重复部分从「今日」剔除，全为承诺时整段省略，页面顺序即与源稿一致。
+</div>
+
+<h2><span class="bar"></span>对照四 · 桌面端「今日」<small>左：本轮之前（配色已对齐 · 形态未改）　右：本轮结果（1536×864 真实渲染）</small></h2>
+<div class="pair">
+  <div class="cell">
+    <div class="cap"><b>改前</b><span class="mono">before_desktop_today_light.png</span></div>
+    <div class="body" style="padding:0;"><img class="wide" src="before_desktop_today_light.png" alt="桌面今日页 改前"></div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>改后</b><span class="mono">after_desktop_today_light.png</span></div>
+    <div class="body" style="padding:0;"><img class="wide" src="after_desktop_today_light.png" alt="桌面今日页 改后"></div>
+  </div>
+</div>
+<div class="chips">
+  <span class="chip c-green">页头竖条删除 · 日期上移为引题</span>
+  <span class="chip c-green">概览卡置顶（与移动端同一组件）</span>
+  <span class="chip c-green">内容列限宽 720 并居中</span>
+  <span class="chip c-gray">分区计数 chip → 淡色文本</span>
+  <span class="chip c-gray">pill 密度 dense: compact</span>
+</div>
+<div class="pair" style="margin-top:18px;">
+  <div class="cell">
+    <div class="cap"><b>改前 · 深色</b><span class="mono">before_desktop_today_dark.png</span></div>
+    <div class="body" style="padding:0;"><img class="wide" src="before_desktop_today_dark.png" alt="桌面今日页深色 改前"></div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>改后 · 深色</b><span class="mono">after_desktop_today_dark.png</span></div>
+    <div class="body" style="padding:0;"><img class="wide" src="after_desktop_today_dark.png" alt="桌面今日页深色 改后"></div>
+  </div>
+</div>
+
+<h3>要害一 · 页头：装饰竖条 → 引题小字</h3>
+<div class="pair">
+  <div class="cell">
+    <div class="cap"><b>改前</b><span>3px 主色竖条 + 日期在标题下方</span></div>
+    <div class="body"><img class="wide" src="zoom_head_before.png" alt="页头 改前"></div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>改后</b><span>竖条删除 + 日期上移（与移动端 AppBar 同序）</span></div>
+    <div class="body"><img class="wide" src="zoom_head_after.png" alt="页头 改后"></div>
+  </div>
+</div>
+<p class="sub" style="margin-top:12px;">
+  §9 给 <span class="mono">PageHeader</span> 定的规格里并没有那条竖条——层级本就由字号与留白承担，
+  它只是装饰，还把左内边距挤歪了 15px。删掉后补上 <span class="mono">kicker</span> 参数承载引题，
+  桌面页头于是与移动端是同一段信息、同一种排布。
+</p>
+
+<h3>要害二 · 概览卡：桌面同样置顶</h3>
+<div class="cell">
+  <div class="cap"><b>改后新增</b><span>12 段进度条 + 64px 环形 —— 与移动端是同一个组件</span></div>
+  <div class="body"><img class="wide" src="zoom_overview_after.png" alt="概览卡"></div>
+</div>
+<p class="sub" style="margin-top:12px;">
+  它是方案 C 的视觉锚点。缺了它，同一天在两个端上是两种观感——而它本来就不是「移动端专属组件」。
+  桌面保留两栏架构（右栏 380px：今日重点 + 成长进度）是 §8.1 的明文规定，方案 C 只画了单列手机，
+  并不构成对两栏的否证；<b>把桌面拍扁成单列是过度适配，不是「保持一致」</b>。
+</p>
+
+<h2><span class="bar"></span>对照五 · 桌面列表语言<small>「裸行 + 分隔线」→「一行一卡 + 留白分组」</small></h2>
+<div class="pair">
+  <div class="cell">
+    <div class="cap"><b>改前</b><span class="mono">before_desktop_plan.png</span></div>
+    <div class="body" style="padding:0;"><img class="wide" src="before_desktop_plan.png" alt="桌面计划页 改前"></div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>改后</b><span class="mono">after_desktop_plan.png</span></div>
+    <div class="body" style="padding:0;"><img class="wide" src="after_desktop_plan.png" alt="桌面计划页 改后"></div>
+  </div>
+</div>
+<p class="sub" style="margin-top:12px;">
+  左图取自 HEAD 基线，<b>配色仍是上一代</b>——只看列表结构即可：改前是「一张 Card 装多行 + 行间
+  <span class="mono">Divider</span>」（计划页）或「裸行 + <span class="mono">Divider(height:1)</span>」（项目页），
+  改后统一为一行一卡、卡间 8px 留白。§8.2 与 §1 都要求「分组之间留白，<b>无分隔线</b>」；
+  收件箱页与项目看板本就是这个形态，本轮补齐后全应用<b>只剩一种列表语言</b>。
+  页头下方那些 <span class="mono">if (showHeader) const Divider()</span> 也一并删除（§9：页头无下边框）。
+</p>
+
+<h2><span class="bar"></span>对照六 · 桌面侧栏页眉 / 页脚<small>左列改前　右列改后</small></h2>
+<div class="cell">
+  <div class="cap"><b>品牌块 + 页脚</b><span class="mono">zoom_sidebar_bands.png</span></div>
+  <div class="body"><img class="wide" src="zoom_sidebar_bands.png" alt="侧栏页眉页脚对照"></div>
+</div>
+<p class="sub" style="margin-top:12px;">
+  ① 品牌标题右侧原挂着一个「收起导航」图标按钮，占走 94px，把 <span class="mono">个人工作台</span>
+  挤成 <span class="mono">个人工…</span>；按钮下移到页脚后，标题拿回完整的 192px，
+  且与收起态右下角的「展开导航」形成对称。<br>
+  ② 同步状态行改为<b>仅在云端同步真正配置过时出现</b>——未配置时它恒显「本地数据已就绪」，
+  每屏占一行、零信息量，而 <span class="mono">cloud_off</span> 图标已经表达了「本地模式」。
+  移动端已按此判据收敛（§20.4），桌面此处对齐，两端页脚因此同构。
+</p>
+
+<h2><span class="bar"></span>桌面改动清单<small>14 项 · 逐条对应 ORGANIC_UI_SPEC.md §21.2</small></h2>
+<table>
+  <thead>
+    <tr><th class="n">#</th><th>模块 / 功能点</th><th>改前</th><th>改后</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="n">1</td><td class="el">页头 PageHeader</td><td class="was">3px 主色竖条 + 12px 间距</td><td class="ok">删除竖条，新增 kicker 承载引题</td></tr>
+    <tr><td class="n">2</td><td class="el">今日页头日期位置</td><td class="was">日期在标题<strong>下方</strong>（subtitle）</td><td class="ok">日期上移为引题（kicker）</td></tr>
+    <tr><td class="n">3</td><td class="el">分区标题计数</td><td class="was">subtle 底 + 1px 边框的圆角 chip</td><td class="ok">淡色纯文本（inkFaint，桌面 12 / 移动 11）</td></tr>
+    <tr><td class="n">4</td><td class="el">桌面侧栏品牌块</td><td class="was">标题被「收起导航」按钮挤掉 94px → 个人工…</td><td class="ok">按钮下移页脚，标题拿回 192px</td></tr>
+    <tr><td class="n">5</td><td class="el">桌面侧栏页脚</td><td class="was">同步状态行恒显</td><td class="ok">if (cloudConfigured) 才出现</td></tr>
+    <tr><td class="n">6</td><td class="el">桌面今日页内容列</td><td class="was">内容铺满（1536 视口下 65% 卡面是空白）</td><td class="ok">Center + 限宽 720（contentMax）</td></tr>
+    <tr><td class="n">7</td><td class="el">桌面今日页编排</td><td class="was">概览卡只在移动端</td><td class="ok">桌面左列同样置顶</td></tr>
+    <tr><td class="n">8</td><td class="el">标签 pill 密度</td><td class="was">dense: true 恒真（8 处）</td><td class="ok">dense: compact</td></tr>
+    <tr><td class="n">9</td><td class="el">任务卡 / 习惯卡交互反馈</td><td class="was">无 hover / focus 态</td><td class="ok">hover primary α.06 · focus α.1</td></tr>
+    <tr><td class="n">10</td><td class="el">「今日任务」未开始态</td><td class="was">LogSurface 面板 + ListTile + Divider</td><td class="ok">一项一卡 + NumericText 序号</td></tr>
+    <tr><td class="n">11</td><td class="el">卡片左侧状态色竖条</td><td class="was">LogSurface(accent:) 的左侧 3px 色条</td><td class="ok">移除（§20.4 明文禁）</td></tr>
+    <tr><td class="n">12</td><td class="el">任务列表语言（计划 / 项目）</td><td class="was">裸行 + Divider　或　一卡多行 + Divider</td><td class="ok">一行一卡 + 卡间 8px 留白</td></tr>
+    <tr><td class="n">13</td><td class="el">页头下分隔线（计划/行为/日历/收件箱/项目）</td><td class="was">if (showHeader) const Divider()</td><td class="ok">删除（§9：页头无下边框）</td></tr>
+    <tr><td class="n">14</td><td class="el">概览卡点缀字形</td><td class="was">✦（U+2726）→ 豆腐块</td><td class="ok">Icon(Icons.auto_awesome)</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="bar"></span>桌面有意保留的差异<small>5 项 · 逐条有理由，勿「顺手改回」</small></h2>
+<table>
+  <thead>
+    <tr><th>项</th><th>桌面</th><th>移动端</th><th>理由</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="el">信息架构</td><td class="mono">两栏：内容列 + 右 380px 固定栏</td><td>单列连续滚动</td><td>§8.1 明文规定；方案 C 只是没画桌面</td></tr>
+    <tr><td class="el">内容列宽度</td><td class="mono">限宽 720 并居中</td><td>满宽（页边距 20）</td><td>桌面单行过长会丢失扫读锚点；contentMax 取值推导见 §8</td></tr>
+    <tr><td class="el">任务卡展开指示</td><td class="mono">保留右侧 ⌄</td><td>无</td><td>桌面卡宽约为手机 1.8 倍，去掉后右侧大片留白且丢失「可展开」线索</td></tr>
+    <tr><td class="el">侧栏顶部标记</td><td class="mono">SealLogo 品牌块</td><td>36×36 身份头像 → 设置</td><td>品牌块同时是启动页与「更多」面板的标记，三处同源；桌面再挂头像会出现两个身份入口</td></tr>
+    <tr><td class="el">分区标题字号</td><td class="mono">titleLarge</td><td>13.5px / w600</td><td>桌面一屏信息量更大，需要更强的分区对比度维持层级</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <b>顺带修掉一个真缺陷：<span class="mono">✦</span> 一直在渲染豆腐块。</b>
+  概览卡标题结尾用 <span class="mono">✦</span>（U+2726）作点缀，而该码位<b>不落在任何一份内置字体里</b>
+  （4 份文本字体的 cmap 全部查无）——所以它在真机与 golden 上都渲染成一个豆腐块。
+  这个缺陷在 <span class="mono">android_today</span> 与 <span class="mono">wide_shell_today_*</span>、
+  <span class="mono">wide_today_*</span> 里已经存在两轮，只是没人盯着标题右侧那 13px 的位置看。
+  已改用 <span class="mono">Icon(Icons.auto_awesome)</span>（U+E0B7，已确认在 MaterialIcons 内），
+  并新增常驻守卫 <span class="mono">tool/verify_glyph_coverage.py</span>：扫描所有界面字面量中的
+  高位字符、与 5 份字体 cmap 求交，<b>改字面量后必跑</b>。
+</div>
+
+<footer>
+  产物：<span class="mono">design_preview/green_schemes/before_after/index.html</span><br>
+  规格记录：<span class="mono">ORGANIC_UI_SPEC.md §20（移动端）· §21（桌面端）</span>　·　差异清单：<span class="mono">SPEC_GAP_SCHEME_C.md</span><br>
+  新增守卫：<span class="mono">test/goldens/android_capture_sheet.png</span>　·　生成于 2026-09-19
+</footer>
+
+</body>
+</html>

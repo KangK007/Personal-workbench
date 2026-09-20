@@ -1,73 +1,89 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-// ─── 色彩体系：个人工作台 · 个人航行日志 ───
-// 清新叶绿承载行动，信号红标记风险，黄铜色标记证据；画布和文字保持中性。
+// ─── 色彩体系：个人工作台 · 新芽晨光 / 夜露 ───
+// 2026-09-19 换代（方案 C）：绿色主调。浅色「新芽晨光」= 晨露绿画布 + 纯白工作面；
+// 深色「夜露」= 同源暗绿姊妹版，取代原暖褐「夜间炭壤」。
+// 语义色（砖红 signal / 陶土 clay / 靛蓝 info）与 8 类节点色相**保持不变**，
+// 以便沿用既有的 ΔE00 与对比度结论；仅主色族与中性层换轨。
 
 abstract final class AppColors {
-  // 命名约定：规范用语义名描述色板（苔绿 moss / 陶土 clay / 砖红 signal），
+  // 命名约定：规范用语义名描述色板（新芽绿 sprout / 陶土 clay / 砖红 signal），
   // 实现层沿用既有字段名以免大规模重命名。二者是同一令牌，对照见
-  // ORGANIC_UI_SPEC.md 第 18 节。全部色值经 WCAG 2.1 实算达标。
+  // ORGANIC_UI_SPEC.md 第 4 节。全部色值经 tool/verify_colors.py 实算达标。
 
-  // ═══ 浅色 · 晨间陶土 ═══
-  static const lightCanvas = Color(0xFFF7F4EC); // 燕麦米画布
-  static const lightSurface = Color(0xFFFFFDF9); // 宣纸白工作面
+  // ═══ 浅色 · 新芽晨光 ═══
+  static const lightCanvas = Color(0xFFF5FAF0); // 晨露绿画布
+  static const lightSurface = Color(0xFFFFFFFF); // 纯白工作面
   static const lightRaised = Color(0xFFFFFFFF); // 对话框 / 菜单 / 浮层
-  static const lightSubtle = Color(0xFFEFEAE0); // 输入框 / 次级填充
-  static const lightInk = Color(0xFF232A22); // 正文 14.50:1
-  static const lightInkMuted = Color(0xFF636B5E); // 辅助 5.45:1
-  static const lightInkFaint = Color(0xFF8A9083); // 装饰级 3.23:1，禁止承载信息
-  static const lightDivider = Color(0xFFE3DCCF); // 柔化分组线
-  static const lightBorderStrong = Color(0xFFD2CFC5); // 控件边界
+  static const lightSubtle = Color(0xFFEFF8F0); // 输入框 / 次级填充
+  static const lightInk = Color(0xFF17301B); // 正文 14.24:1
+  static const lightInkMuted = Color(0xFF5D7961); // 辅助 4.80:1
+  static const lightInkFaint = Color(0xFF849A88); // 装饰级 3.02:1，禁止承载信息
+  static const lightDivider = Color(0xFFDFEBE1); // 柔化分组线
+  static const lightBorderStrong = Color(0xFFC4D8C9); // 控件边界
 
-  // 苔绿 · 唯一行动色 5.70:1
-  static const lightPrimary = Color(0xFF4A6E4C);
-  static const lightPrimaryContainer = Color(0xFFDCE7D8);
-  static const lightPrimaryOnContainer = Color(0xFF1E3320); // 10.63:1
+  // 新芽绿 · 唯一行动色 4.84:1
+  //
+  // 取值说明：方案 C 原稿的 sprout-600 `#3F8F4F` 在白底仅 3.99:1、绿底 3.92:1，
+  // 不足以承载按钮标签与链接文本（需 ≥4.5:1）。故沿同一色相主轴压深至
+  // `#3E7F4B`（4.84:1 / 4.56:1）——这是**仍能达标的最亮值**，最大限度保留明快感。
+  static const lightPrimary = Color(0xFF3E7F4B);
+  static const lightPrimaryContainer = Color(0xFFE2F3E5);
+  static const lightPrimaryOnContainer = Color(0xFF1D4A27); // 8.82:1
 
-  // 分类色层：8 类节点专用。允许比语义色更高彩度——3px 细条需要更大色差才可辨。
-  // goal 原 #5F6B1F 在新暖色基座上与苔绿仅 ΔE00 12.9，已调向黄绿以拉开。
+  // 分类色层：8 类节点专用。色相**未随换代调整**——它们在纯白工作面下
+  // 两两最小 ΔE00 仍为 14.7（属「可用」区间），无需重调。
   static const lightTeal = Color(0xFF0F6668); // 习惯
   static const lightOlive = Color(0xFF8F931A); // 目标
+  // 嫩黄绿容器对（方案 C 的「今日必达」pill）。浅色取方案 C 原稿的
+  // #F1F6DA / #5F6C15，实测 5.20:1；容器底与 primaryContainer 的 ΔE00 = 6.4，
+  // 落在「分类偏弱」区间，故 pill 一律带文字标签，不以底色单独承载语义。
+  static const lightOliveContainer = Color(0xFFF1F6DA);
+  static const lightOliveOnContainer = Color(0xFF5F6C15);
   static const lightViolet = Color(0xFF6B4A8C); // 触发器
   // 奖励节点专用琥珀。不复用 lightReward：后者是语义成果色（陶土），
-  // 二者在新基座上互相挤到 ΔE00 12.4，故分家。
+  // 二者在同类色相上互相挤到 ΔE00 12.4，故分家。
   static const lightAmber = Color(0xFFBB811B);
 
-  // 砖红 · 系统唯一红 6.66:1
+  // 砖红 · 系统唯一红 6.76:1
   static const lightSignal = Color(0xFF9E3A32);
   static const lightSignalContainer = Color(0xFFF7DEDA);
   static const lightSignalOnContainer = Color(0xFF5A1F19); // 9.98:1
 
-  // 陶土 · 成果与证据 5.69:1
+  // 陶土 · 成果与证据 5.79:1
   static const lightReward = Color(0xFF9B5227);
   static const lightRewardContainer = Color(0xFFF5E3D6);
   static const lightRewardOnContainer = Color(0xFF4A2410); // 10.86:1
 
-  // 靛蓝 · 中性提示 5.88:1
+  // 靛蓝 · 中性提示 5.98:1
   static const lightInfo = Color(0xFF3E6883);
   static const lightInfoContainer = Color(0xFFDCE8F0);
   static const lightInfoOnContainer = Color(0xFF1C3947); // 9.76:1
 
-  static const lightOutline = Color(0xFF918783); // 提醒节点中性 accent
+  // 提醒节点中性 accent。由原暖灰 `#918783` 换为绿灰，与绿色基座同温；
+  // 压纯白 3.32:1，略高于 8 类节点色地板的 3.30:1（goal），不改变底线。
+  static const lightOutline = Color(0xFF7E9284);
 
-  // ═══ 深色 · 夜间炭壤 ═══
-  static const darkCanvas = Color(0xFF171612);
-  static const darkSurface = Color(0xFF1E1D18);
-  static const darkRaised = Color(0xFF26251E);
-  static const darkSubtle = Color(0xFF2C2A22);
-  static const darkInk = Color(0xFFEFEDE4);
-  static const darkInkMuted = Color(0xFFA9A797);
-  static const darkInkFaint = Color(0xFF7C7A6C);
-  static const darkDivider = Color(0xFF3A382E);
-  static const darkBorderStrong = Color(0xFF4F4D45);
+  // ═══ 深色 · 夜露 ═══
+  static const darkCanvas = Color(0xFF0F1A13);
+  static const darkSurface = Color(0xFF16231A);
+  static const darkRaised = Color(0xFF1E2C21);
+  static const darkSubtle = Color(0xFF243528);
+  static const darkInk = Color(0xFFE4EFE6);
+  static const darkInkMuted = Color(0xFFA2B5A6);
+  static const darkInkFaint = Color(0xFF73867A);
+  static const darkDivider = Color(0xFF2A3A2F);
+  static const darkBorderStrong = Color(0xFF3D5044);
 
-  static const darkPrimary = Color(0xFF93C08D);
-  static const darkPrimaryContainer = Color(0xFF2C3A2B);
-  static const darkPrimaryOnContainer = Color(0xFFCFE8CB);
+  static const darkPrimary = Color(0xFF7FCB8E); // 8.40:1
+  static const darkPrimaryContainer = Color(0xFF1D3A26);
+  static const darkPrimaryOnContainer = Color(0xFFC9EBD0); // 9.66:1
 
   static const darkTeal = Color(0xFF5FC0BD);
   static const darkOlive = Color(0xFFD4D864);
+  static const darkOliveContainer = Color(0xFF2B3312);
+  static const darkOliveOnContainer = Color(0xFFD4D864); // 8.71:1
   static const darkViolet = Color(0xFFC2A6E4);
   static const darkAmber = Color(0xFFDBA657);
 
@@ -83,7 +99,7 @@ abstract final class AppColors {
   static const darkInfoContainer = Color(0xFF27333D);
   static const darkInfoOnContainer = Color(0xFFC7DCE8);
 
-  static const darkOutline = Color(0xFF938B85);
+  static const darkOutline = Color(0xFF8A968C); // 压面板底 5.29:1
 }
 
 // ─── 响应式断点（强制收敛：仅此两档）───
@@ -105,6 +121,18 @@ abstract final class AppRadius {
   static const indicator = 12.0; // NavigationBar indicator / Snackbar
   static const tooltip = 8.0; // Tooltip
   static const pill = 999.0; // 短状态标签
+
+  /// 小方点：任务复选框（20×20）、习惯打卡点（17×17）、分段进度块。
+  ///
+  /// 单列一档而非并入 [xs]（8）——17px 方块上 8px 已接近胶囊，会丢掉
+  /// 「方块」的辨识；方案 C 用 6/17 明确保持方感。
+  static const dot = 6.0;
+
+  /// 主浮动操作按钮 52×52。
+  ///
+  /// 比 [card]（16）更圆是刻意的：方案 C 让 FAB 在整页的 16px 卡海中
+  /// 单独圆一档，作为「唯一主操作」的形态线索。
+  static const fab = 19.0;
 }
 
 /// 图标尺寸标尺：功能图标保持同一视觉重量，触控区域由主题控件保证。
@@ -154,10 +182,22 @@ abstract final class AppSpacing {
   /// 移动端底部导航净空。
   ///
   /// 由 `workbench_shell.dart` 底部导航 Column 的实际构成推导：
-  /// NavigationBar 80 + 同步状态条 26 + 次级页面横幅约 29 ≈ 135，取 132 作余量。
+  /// MobileBottomBar 58 + 同步状态条 26 + 次级页面横幅约 29 ≈ 113，取 116 作余量。
   /// 页面底部内边距使用它，避免内容被底部导航遮挡。
   /// 此前该数值在 15 个文件里硬编码 24 次，任一处漏改都会造成遮挡错位。
-  static const bottomNavClearance = 132.0;
+  ///
+  /// 2026-09-19：底栏由 NavigationBar（80）换为 MobileBottomBar（58），
+  /// 净空随之从 132 收紧到 116。
+  static const bottomNavClearance = 116.0;
+
+  /// 桌面卡片 / 表单列的宽度上限。
+  ///
+  /// 规范 §8 给「阅读列」定的 620 是按中文 25–40 字/行推出来的，约束的是
+  /// **长文**；卡片列表的行长由标题长度决定，620 会过窄。实测 1536 视口下
+  /// 主工作区约 847px，而任务卡的可见内容只需约 300px——不限宽时 65% 的
+  /// 卡面是空白，扫读视线要横穿整行。720 让卡片保持「标题 + 标签行」的
+  /// 自然宽度，同时仍是居中单列，不引入栅格。
+  static const contentMax = 720.0;
 }
 
 // ─── 自定义主题令牌 ───
@@ -184,6 +224,8 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     required this.infoOnContainer,
     required this.teal,
     required this.olive,
+    required this.oliveContainer,
+    required this.oliveOnContainer,
     required this.violet,
     required this.amber,
     required this.route,
@@ -245,6 +287,10 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
   /// 8 类节点独立色相之橄榄（目标 goal）。
   final Color olive;
 
+  /// 嫩黄绿容器对（方案 C 的「今日必达」pill 等强调标签）。
+  final Color oliveContainer;
+  final Color oliveOnContainer;
+
   /// 8 类节点独立色相之紫（触发器 trigger）；同时是 ColorScheme.tertiary 的值。
   final Color violet;
 
@@ -283,6 +329,8 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
     Color? infoOnContainer,
     Color? teal,
     Color? olive,
+    Color? oliveContainer,
+    Color? oliveOnContainer,
     Color? violet,
     Color? amber,
     Color? route,
@@ -311,6 +359,8 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       infoOnContainer: infoOnContainer ?? this.infoOnContainer,
       teal: teal ?? this.teal,
       olive: olive ?? this.olive,
+      oliveContainer: oliveContainer ?? this.oliveContainer,
+      oliveOnContainer: oliveOnContainer ?? this.oliveOnContainer,
       violet: violet ?? this.violet,
       amber: amber ?? this.amber,
       route: route ?? this.route,
@@ -348,6 +398,12 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
       infoOnContainer: Color.lerp(infoOnContainer, other.infoOnContainer, t)!,
       teal: Color.lerp(teal, other.teal, t)!,
       olive: Color.lerp(olive, other.olive, t)!,
+      oliveContainer: Color.lerp(oliveContainer, other.oliveContainer, t)!,
+      oliveOnContainer: Color.lerp(
+        oliveOnContainer,
+        other.oliveOnContainer,
+        t,
+      )!,
       violet: Color.lerp(violet, other.violet, t)!,
       amber: Color.lerp(amber, other.amber, t)!,
       route: Color.lerp(route, other.route, t)!,
@@ -431,8 +487,8 @@ abstract final class AppTheme {
       subtle: AppColors.lightSubtle,
       panelBorder: AppColors.lightDivider,
       borderStrong: AppColors.lightBorderStrong,
-      panelShadow: Color(0x0A2A2418),
-      raisedShadow: Color(0x1F2A2418),
+      panelShadow: Color(0x0A14251A),
+      raisedShadow: Color(0x1F14251A),
       focusRing: AppColors.lightPrimary,
       mutedText: AppColors.lightInkMuted,
       inkFaint: AppColors.lightInkFaint,
@@ -445,6 +501,8 @@ abstract final class AppTheme {
       infoOnContainer: AppColors.lightInfoOnContainer,
       teal: AppColors.lightTeal,
       olive: AppColors.lightOlive,
+      oliveContainer: AppColors.lightOliveContainer,
+      oliveOnContainer: AppColors.lightOliveOnContainer,
       violet: AppColors.lightViolet,
       amber: AppColors.lightAmber,
       route: AppColors.lightPrimary,
@@ -512,6 +570,8 @@ abstract final class AppTheme {
       infoOnContainer: AppColors.darkInfoOnContainer,
       teal: AppColors.darkTeal,
       olive: AppColors.darkOlive,
+      oliveContainer: AppColors.darkOliveContainer,
+      oliveOnContainer: AppColors.darkOliveOnContainer,
       violet: AppColors.darkViolet,
       amber: AppColors.darkAmber,
       route: AppColors.darkPrimary,
@@ -522,11 +582,11 @@ abstract final class AppTheme {
     scheme: const ColorScheme(
       brightness: Brightness.dark,
       primary: AppColors.darkPrimary,
-      onPrimary: Color(0xFF171612),
+      onPrimary: Color(0xFF0F1A13),
       primaryContainer: AppColors.darkPrimaryContainer,
       onPrimaryContainer: AppColors.darkPrimaryOnContainer,
       secondary: AppColors.darkPrimary,
-      onSecondary: Color(0xFF171612),
+      onSecondary: Color(0xFF0F1A13),
       secondaryContainer: AppColors.darkPrimaryContainer,
       onSecondaryContainer: AppColors.darkPrimaryOnContainer,
       tertiary: AppColors.darkViolet,
@@ -846,13 +906,18 @@ abstract final class AppTheme {
             ),
       ),
 
+      // ─── FAB（方案 C 规格）：52×52 + 圆角 19 ───
+      // 尺寸经 sizeConstraints 下发，故调用点用常规 FloatingActionButton
+      // 即可命中 52，不必用 .small（40）再靠外层 SizedBox 纠正。
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
-        elevation: 2,
-        focusElevation: 4,
+        elevation: 3,
+        focusElevation: 5,
+        hoverElevation: 5,
+        sizeConstraints: const BoxConstraints.tightFor(width: 52, height: 52),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
+          borderRadius: BorderRadius.circular(AppRadius.fab),
         ),
       ),
 
@@ -874,16 +939,19 @@ abstract final class AppTheme {
         iconColor: scheme.onSurfaceVariant,
       ),
 
-      // ─── NavigationBar (移动端): 实色 surface + 顶缘分隔 ───
+      // ─── NavigationBar (移动端)：已由 MobileBottomBar 取代 ───
+      // 方案 C 的选中态是「主色文字 + 标签下方 16×2.5 短条」，而
+      // NavigationBar 的选中态只能是图标背后的胶囊 indicator，且指示条
+      // 无法落在文字下方。故底栏改为自制组件（见 ui/widgets/mobile_bottom_bar.dart）。
+      //
+      // 此处保留主题项并把 indicator 置空：万一别处仍构造 NavigationBar，
+      // 也不会把胶囊底带回来（胶囊与方案 C 的选中语言相冲突）。
       navigationBarTheme: NavigationBarThemeData(
-        height: 72,
+        height: 58,
         elevation: 0,
         backgroundColor: tokens.panel,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: scheme.primaryContainer,
-        indicatorShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.indicator),
-        ),
+        indicatorColor: Colors.transparent,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStatePropertyAll(textTheme.labelMedium),
       ),

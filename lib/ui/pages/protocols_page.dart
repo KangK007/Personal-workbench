@@ -8,8 +8,6 @@ import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/record_editor_dialog.dart';
 import 'focus_page.dart';
-import 'goals_page.dart';
-import 'habits_page.dart';
 
 enum ProtocolTab { goals, habits, execution, rules, analytics }
 
@@ -98,20 +96,14 @@ class _ProtocolsPageState extends State<ProtocolsPage>
       children: [
         if (widget.showHeader)
           PageHeader(
-            title: widget.controller.advancedFeaturesEnabled ? '协议' : '目标与习惯',
-            subtitle: widget.controller.advancedFeaturesEnabled
-                ? '结果协议 · 行为协议 · CTDP 执行链 · RSIP 规则树'
-                : '用结果协议明确方向，用习惯协议稳定行动',
+            title: '协议',
+            subtitle: '执行协议 · 行为规则 · 判例 · 分析；目标与日常习惯请在成长中管理',
             actions: [
-              if (tabController.index <= 2)
+              if (_tabs[tabController.index] == ProtocolTab.execution)
                 FilledButton.icon(
                   onPressed: _createForCurrentTab,
                   icon: const Icon(Icons.add),
-                  label: Text(switch (tabs[tabController.index]) {
-                    ProtocolTab.goals => '新建目标',
-                    ProtocolTab.habits => '新建习惯',
-                    _ => '新建执行协议',
-                  }),
+                  label: const Text('新建执行协议'),
                 ),
             ],
           ),
@@ -134,12 +126,17 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   }
 
   List<ProtocolTab> get _tabs => widget.controller.advancedFeaturesEnabled
-      ? ProtocolTab.values
-      : const [ProtocolTab.goals, ProtocolTab.habits];
+      ? const [
+          ProtocolTab.execution,
+          ProtocolTab.habits,
+          ProtocolTab.rules,
+          ProtocolTab.analytics,
+        ]
+      : const [ProtocolTab.execution];
 
   Widget _tabWidget(ProtocolTab tab) => switch (tab) {
     ProtocolTab.goals => const Tab(icon: Icon(Icons.flag_outlined), text: '目标'),
-    ProtocolTab.habits => const Tab(icon: Icon(Icons.repeat), text: '习惯'),
+    ProtocolTab.habits => const Tab(icon: Icon(Icons.repeat), text: '行为协议'),
     ProtocolTab.execution => const Tab(icon: Icon(Icons.link), text: '执行协议'),
     ProtocolTab.rules => const Tab(
       icon: Icon(Icons.gavel_outlined),
@@ -152,22 +149,27 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   };
 
   Widget _tabView(ProtocolTab tab) => switch (tab) {
-    ProtocolTab.goals => GoalsPage(
-      controller: widget.controller,
-      showHeader: false,
-    ),
-    ProtocolTab.habits => HabitsPage(
-      controller: widget.controller,
-      showHeader: false,
-      protocolSection: widget.controller.advancedFeaturesEnabled
-          ? ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: EdgeInsets.zero,
-              title: const Text('RSIP 规则树'),
-              subtitle: const Text('高级行为规则与最小行动结算'),
-              children: _rsipContent(),
-            )
-          : null,
+    // 目标与普通习惯的唯一管理入口是「成长」下的对应页面。
+    // 这里保留枚举分支以兼容旧深链，但不再提供重复的 CRUD 页面。
+    ProtocolTab.goals => const SizedBox.shrink(),
+    ProtocolTab.habits => ListView(
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        18,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
+      children: [
+        const SectionHeading(title: '行为协议', scale: 'RSIP'),
+        Text(
+          '这里配置最小行动、规则树与结算；日常打卡和本月事实矩阵请在成长 → 习惯中完成。',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
+        ),
+        const SizedBox(height: 12),
+        ..._rsipContent(),
+      ],
     ),
     ProtocolTab.execution => _ctdpView(),
     ProtocolTab.rules => _rulesView(),
@@ -302,7 +304,9 @@ class _ProtocolsPageState extends State<ProtocolsPage>
         ),
       ),
       const SizedBox(height: 12),
-      Row(
+      Wrap(
+        spacing: 10,
+        runSpacing: 8,
         children: [
           FilledButton.icon(
             onPressed: () => showRecordEditor(
@@ -313,7 +317,6 @@ class _ProtocolsPageState extends State<ProtocolsPage>
             icon: const Icon(Icons.add),
             label: const Text('新增国策'),
           ),
-          const SizedBox(width: 10),
           OutlinedButton.icon(
             onPressed: _recordVictory,
             icon: const Icon(Icons.emoji_events_outlined),
@@ -420,22 +423,33 @@ class _ProtocolsPageState extends State<ProtocolsPage>
         AppSpacing.bottomNavClearance,
       ),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: SearchBar(
-                hintText: '搜索判例名称或说明',
-                leading: const Icon(Icons.search),
-                onChanged: (value) => setState(() => ruleQuery = value),
-              ),
-            ),
-            const SizedBox(width: 12),
-            FilledButton.icon(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 560;
+            final search = SearchBar(
+              hintText: '搜索判例名称或说明',
+              leading: const Icon(Icons.search),
+              onChanged: (value) => setState(() => ruleQuery = value),
+            );
+            final create = FilledButton.icon(
               onPressed: _createRule,
               icon: const Icon(Icons.add),
               label: const Text('新建判例'),
-            ),
-          ],
+            );
+            if (narrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [search, const SizedBox(height: 8), create],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: search),
+                const SizedBox(width: 12),
+                create,
+              ],
+            );
+          },
         ),
         const SizedBox(height: 16),
         if (rules.isEmpty)
@@ -517,13 +531,14 @@ class _ProtocolsPageState extends State<ProtocolsPage>
         ),
         const SizedBox(height: 18),
         LogSurface(
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('可判定事件成功率', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               LinearProgressIndicator(value: successRate, minHeight: 10),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 '${(successRate * 100).toStringAsFixed(1)}% · $resolved 次有效结算',
               ),
@@ -536,6 +551,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
           const Text('尚无协议事件。')
         else
           LogSurface(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Column(
               children: [
                 for (
@@ -998,31 +1014,45 @@ class _MetricStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        for (final value in values)
-          SizedBox(
-            width: 150,
-            child: LogSurface(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  NumericText(
-                    '${value.$2}',
-                    style: Theme.of(context).textTheme.headlineSmall,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 10.0;
+        final columns = constraints.maxWidth >= 640
+            ? 4
+            : constraints.maxWidth >= 340
+            ? 2
+            : 1;
+        final width =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final value in values)
+              SizedBox(
+                width: width,
+                child: LogSurface(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      NumericText(
+                        '${value.$2}',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      Text(
+                        value.$1,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    ],
                   ),
-                  Text(
-                    value.$1,
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-      ],
+          ],
+        );
+      },
     );
   }
 }

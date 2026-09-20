@@ -126,7 +126,6 @@ class _InboxPageState extends State<InboxPage> {
                   ),
                 ],
               ),
-            if (widget.showHeader) const Divider(),
             if (_selectionMode)
               BatchTaskToolbar(
                 controller: widget.controller,

@@ -494,11 +494,9 @@ void main() {
           ),
     );
 
-    await tester.tap(find.text('习惯'));
+    await tester.tap(find.text('行为协议'));
     await _pumpAnimation(tester);
     expect(find.text('Protocol habit'), findsOneWidget);
-    await tester.tap(find.text('RSIP 规则树'));
-    await _pumpAnimation(tester);
     expect(find.textContaining('规则：读完并写一个关键词'), findsOneWidget);
 
     await tester.tap(find.text('判例'));

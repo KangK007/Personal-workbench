@@ -1,9 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" rx="224" fill="#172423"/>
-  <g fill="#ECF3F0">
-    <rect x="204" y="248" width="92" height="280" rx="46"/>
-    <rect x="354" y="248" width="92" height="280" rx="46"/>
-    <rect x="504" y="248" width="92" height="280" rx="46"/>
+  <clipPath id="tile"><rect width="1024" height="1024" rx="232"/></clipPath>
+  <g clip-path="url(#tile)">
+    <rect width="1024" height="1024" rx="232" fill="#3E7F4B"/>
+    <path d="M 512 452.27 L 512 884" fill="none" stroke="#FFFFFF" stroke-width="122.07" stroke-linecap="round"/>
+    <path d="M 512 502.89 C 516.96 298.67 445.16 176.75 220.21 230.79 C 357.96 469.17 234.63 402.52 512 502.89 Z" fill="#FFFFFF"/>
+    <path d="M 512 502.89 C 507.04 298.67 578.84 176.75 803.79 230.79 C 666.04 469.17 789.37 402.52 512 502.89 Z" fill="#FFFFFF"/>
+    <path d="M 0 850 A 1639.44 1639.44 0 0 1 1024 850 L 1024 1024 L 0 1024 Z" fill="#9B5227"/>
   </g>
-  <path d="M652 650 720 718 844 578" fill="none" stroke="#D8B75E" stroke-linecap="round" stroke-linejoin="round" stroke-width="56"/>
 </svg>

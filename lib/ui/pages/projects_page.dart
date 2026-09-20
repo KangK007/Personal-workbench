@@ -122,7 +122,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
               ),
             ),
           ),
-        if (widget.showHeader) const Divider(),
         Expanded(
           child: projects.isEmpty
               ? EmptyState(
@@ -718,11 +717,14 @@ class _TaskListState extends State<_TaskList> {
       allRecords: controller.allRecords,
       collapsedIds: _collapsedTaskIds,
     );
-    return Card(
-      child: Column(
-        children: [
-          for (var index = 0; index < entries.length; index++) ...[
-            TaskRow(
+    // 一行一卡：与收件箱页、项目看板、今日页同一种列表语言。
+    // 旧形态是「一张 Card 装多行 + 行间 Divider」，§8.2 与 §1 都要求
+    // 用留白分组、不用分隔线。
+    return Column(
+      children: [
+        for (var index = 0; index < entries.length; index++) ...[
+          Card(
+            child: TaskRow(
               task: entries[index].task,
               controller: controller,
               showProject: false,
@@ -736,10 +738,10 @@ class _TaskListState extends State<_TaskList> {
                     : _collapsedTaskIds.remove(entries[index].task.id);
               }),
             ),
-            if (index != entries.length - 1) const Divider(),
-          ],
+          ),
+          if (index != entries.length - 1) const SizedBox(height: 8),
         ],
-      ),
+      ],
     );
   }
 }

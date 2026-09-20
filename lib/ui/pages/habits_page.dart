@@ -117,6 +117,7 @@ class _HabitMatrix extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 矩阵展示用户看到的自然月；每格只能通过自然日入口修改今天。
     final now = controller.currentTime().toLocal();
     final calendarMonthStart = DateTime(now.year, now.month, 1);
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
@@ -125,7 +126,6 @@ class _HabitMatrix extends StatelessWidget {
       (index) => calendarMonthStart.add(Duration(days: index)),
     );
     final calendarToday = DateTime(now.year, now.month, now.day);
-    final logicalToday = controller.growthService.logicalDay(now);
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     final cellSlot = compact ? 20.0 : 18.0;
     return Column(
@@ -152,7 +152,7 @@ class _HabitMatrix extends StatelessWidget {
                         _TodayHabitButton(
                           habit: habit,
                           controller: controller,
-                          today: logicalToday,
+                          today: calendarToday,
                         ),
                       ],
                     ),
@@ -192,47 +192,59 @@ class _HabitMatrix extends StatelessWidget {
                                   .habitLogForDay(habit.id, day)
                                   ?.status,
                               isToday: isSameDay(day, calendarToday),
-                              onTap: () async {
-                                final status =
-                                    await showModalBottomSheet<String>(
-                                      context: context,
-                                      showDragHandle: true,
-                                      builder: (sheetContext) => SafeArea(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            ListTile(
-                                              leading: const Icon(Icons.check),
-                                              title: const Text('标记完成'),
-                                              onTap: () => Navigator.pop(
-                                                sheetContext,
-                                                WorkStatus.done,
+                              onTap: isSameDay(day, calendarToday)
+                                  ? () async {
+                                      final status =
+                                          await showModalBottomSheet<String>(
+                                            context: context,
+                                            showDragHandle: true,
+                                            builder: (sheetContext) => SafeArea(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  ListTile(
+                                                    leading: const Icon(
+                                                      Icons.check,
+                                                    ),
+                                                    title: const Text('标记完成'),
+                                                    onTap: () => Navigator.pop(
+                                                      sheetContext,
+                                                      WorkStatus.done,
+                                                    ),
+                                                  ),
+                                                  ListTile(
+                                                    leading: const Icon(
+                                                      Icons.remove,
+                                                    ),
+                                                    title: const Text('标记跳过'),
+                                                    onTap: () => Navigator.pop(
+                                                      sheetContext,
+                                                      WorkStatus.skipped,
+                                                    ),
+                                                  ),
+                                                  ListTile(
+                                                    leading: const Icon(
+                                                      Icons.clear,
+                                                    ),
+                                                    title: const Text('清除记录'),
+                                                    onTap: () => Navigator.pop(
+                                                      sheetContext,
+                                                      WorkStatus.todo,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                            ListTile(
-                                              leading: const Icon(Icons.remove),
-                                              title: const Text('标记跳过'),
-                                              onTap: () => Navigator.pop(
-                                                sheetContext,
-                                                WorkStatus.skipped,
-                                              ),
-                                            ),
-                                            ListTile(
-                                              leading: const Icon(Icons.clear),
-                                              title: const Text('清除记录'),
-                                              onTap: () => Navigator.pop(
-                                                sheetContext,
-                                                WorkStatus.todo,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                if (status != null) {
-                                  await controller.logHabit(habit, day, status);
-                                }
-                              },
+                                          );
+                                      if (status != null) {
+                                        await controller
+                                            .setHabitCalendarDayStatus(
+                                              habit,
+                                              status,
+                                            );
+                                      }
+                                    }
+                                  : null,
                             ),
                         ],
                       ),
@@ -269,7 +281,7 @@ class _TodayHabitButton extends StatelessWidget {
           ? null
           : () async {
               try {
-                await controller.setHabitTodayStatus(
+                await controller.setHabitCalendarDayStatus(
                   habit,
                   checked ? WorkStatus.todo : WorkStatus.done,
                 );
@@ -430,6 +442,7 @@ class _HabitCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     final cellSize = compact ? 16.0 : 14.0;
+    final editable = isToday && onTap != null;
     // 未记录格用 mutedText@35% 描边，保证与面板底 ≥1.15:1 的可辨识对比度。
     final unrecordedBorder = context.tokens.mutedText.withValues(alpha: 0.35);
     final color = switch (status) {
@@ -438,46 +451,50 @@ class _HabitCell extends StatelessWidget {
       _ => unrecordedBorder,
     };
     return Semantics(
-      button: onTap != null,
+      button: editable,
+      enabled: editable,
       label: switch (status) {
-        WorkStatus.done => '$label，已完成',
-        WorkStatus.skipped => '$label，已跳过',
-        WorkStatus.todo => '$label，待记录',
-        _ => '$label，未记录',
+        WorkStatus.done => editable ? '$label，已完成，可修改' : '$label，已完成，仅展示',
+        WorkStatus.skipped => editable ? '$label，已跳过，可修改' : '$label，已跳过，仅展示',
+        WorkStatus.todo => editable ? '$label，待记录，可修改' : '$label，待记录，仅展示',
+        _ => editable ? '$label，未记录，可修改' : '$label，未记录，仅展示',
       },
-      child: SizedBox(
-        width: 48,
-        height: 48,
-        child: InkWell(
-          onTap: onTap == null ? null : () => onTap!(),
-          borderRadius: BorderRadius.circular(3),
-          child: Center(
-            child: Container(
-              width: cellSize,
-              height: cellSize,
-              decoration: BoxDecoration(
-                color: status == null || status == WorkStatus.todo
-                    ? Colors.transparent
-                    : color,
-                border: Border.all(
-                  color: isToday ? context.tokens.info : color,
-                  width: isToday ? 2 : 1,
+      child: Tooltip(
+        message: editable ? '修改今日打卡' : '历史与未来日期仅展示，不可修改',
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: InkWell(
+            onTap: editable ? () => onTap!() : null,
+            borderRadius: BorderRadius.circular(3),
+            child: Center(
+              child: Container(
+                width: cellSize,
+                height: cellSize,
+                decoration: BoxDecoration(
+                  color: status == null || status == WorkStatus.todo
+                      ? Colors.transparent
+                      : color,
+                  border: Border.all(
+                    color: isToday ? context.tokens.info : color,
+                    width: isToday ? 2 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                borderRadius: BorderRadius.circular(2),
+                child: status == WorkStatus.done
+                    ? Icon(
+                        Icons.check,
+                        size: compact ? 10 : 9,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      )
+                    : status == WorkStatus.skipped
+                    ? Icon(
+                        Icons.remove,
+                        size: compact ? 10 : 9,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      )
+                    : null,
               ),
-              child: status == WorkStatus.done
-                  ? Icon(
-                      Icons.check,
-                      size: compact ? 10 : 9,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    )
-                  : status == WorkStatus.skipped
-                  ? Icon(
-                      Icons.remove,
-                      size: compact ? 10 : 9,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    )
-                  : null,
             ),
           ),
         ),

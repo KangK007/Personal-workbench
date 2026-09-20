@@ -25,6 +25,7 @@ import 'package:personal_workbench/ui/pages/today_page.dart';
 import 'package:personal_workbench/ui/widgets/celebration.dart';
 import 'package:personal_workbench/ui/widgets/attachment_panel.dart';
 import 'package:personal_workbench/ui/widgets/common.dart';
+import 'package:personal_workbench/ui/widgets/mobile_bottom_bar.dart';
 import 'package:personal_workbench/ui/widgets/record_editor_dialog.dart';
 import 'package:personal_workbench/ui/workbench_shell.dart';
 
@@ -777,11 +778,10 @@ void main() {
       ),
       size: const Size(412, 915),
     );
-    final navigation = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    final labels = navigation.destinations
-        .cast<NavigationDestination>()
-        .map((destination) => destination.label)
-        .toList();
+    final navigation = tester.widget<MobileBottomBar>(
+      find.byType(MobileBottomBar),
+    );
+    final labels = navigation.items.map((item) => item.label).toList();
     expect(labels, ['今日', '计划', '记录', '成长', '更多']);
     expect(find.byType(PageHeader), findsNothing);
     expect(find.byType(FloatingActionButton), findsOneWidget);
@@ -791,7 +791,7 @@ void main() {
     // 「更多」入口唯一：底部导航末位。AppBar 曾另放一个同功能按钮，
     // 与底栏同屏重复且同名 tooltip 会干扰无障碍与自动化定位，已移除。
     final moreDestination = find.descendant(
-      of: find.byType(NavigationBar),
+      of: find.byType(MobileBottomBar),
       matching: find.byTooltip('更多'),
     );
     expect(moreDestination, findsOneWidget);
@@ -844,11 +844,13 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    final navigation = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(navigation.destinations, hasLength(5));
+    final navigation = tester.widget<MobileBottomBar>(
+      find.byType(MobileBottomBar),
+    );
+    expect(navigation.items, hasLength(5));
     await tester.tap(
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byType(MobileBottomBar),
         matching: find.byTooltip('更多'),
       ),
     );
@@ -885,7 +887,7 @@ void main() {
       size: const Size(915, 412),
     );
 
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(MobileBottomBar), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
