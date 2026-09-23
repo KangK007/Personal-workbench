@@ -61,6 +61,7 @@ class BatchOperationResult {
 class WorkbenchController extends WorkbenchControllerBase
     with RestrictionControllerMixin, RsipControllerMixin {
   static const _maxImportBytes = 10 * 1024 * 1024;
+  static const _maxImportRecords = 50000;
 
   WorkbenchController({
     required this.database,
@@ -4590,9 +4591,19 @@ class WorkbenchController extends WorkbenchControllerBase
     switch (extension) {
       case 'json':
         final decoded = jsonDecode(content);
-        final values = decoded is List
-            ? decoded
-            : (decoded as Map<String, dynamic>)['records'] as List<dynamic>;
+        final List<dynamic> values;
+        if (decoded is List) {
+          values = decoded;
+        } else if (decoded is Map) {
+          final rawRecords = decoded['records'];
+          if (rawRecords is! List) {
+            throw const FormatException('JSON 记录列表无效。');
+          }
+          values = rawRecords;
+        } else {
+          throw const FormatException('JSON 根节点必须是记录列表或对象。');
+        }
+        _validateImportRecordCount(values.length);
         if (decoded is Map && decoded['localGameState'] is Map) {
           importedGameState = Map<String, dynamic>.from(
             decoded['localGameState'] as Map,
@@ -4636,6 +4647,7 @@ class WorkbenchController extends WorkbenchControllerBase
               data: {'importSource': importSource},
             ),
           );
+          _validateImportRecordCount(imported.length);
         }
       case 'md':
       case 'markdown':
@@ -4681,6 +4693,12 @@ class WorkbenchController extends WorkbenchControllerBase
       await _persistGameState();
     }
     return imported.length;
+  }
+
+  void _validateImportRecordCount(int count) {
+    if (count > _maxImportRecords) {
+      throw const FormatException('导入记录不能超过 50000 条。');
+    }
   }
 
   Future<void> signIn(String email, String password) async {

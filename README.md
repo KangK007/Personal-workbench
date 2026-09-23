@@ -1,5 +1,7 @@
 # 个人工作台
 
+> 当前项目结构、文件职责、冗余文件判定和文档同步口径见 [项目全量审查与文件说明](PROJECT_REVIEW.md)。
+
 个人工作台 0.2 是一款面向科研学习与个人项目的本地优先 Flutter 应用。它把“快速收集、项目规划、安排今天、专注执行、知识沉淀、回顾、目标与行为追踪”放在一条可验证的工作流中，并融合了 SelfControl 的 Windows 自律限制能力。当前界面采用“个人航行日志”设计体系：中性画布与实色工作面用于长期阅读，真实时间、任务顺序、里程碑和执行证据使用日志航迹组织，冲突与危险操作使用独立信号色提示。
 
 ## 详细使用指南
@@ -25,9 +27,8 @@ lib/
   core/utils/        日期、时间和时长格式化
   data/              SQLite 本地数据库与加密备份
   services/          搜索、专注、成长规则、自律策略/安全/导入、提醒、分享捕获、Supabase 同步
-  state/             工作台控制器与业务操作；WorkbenchController（今日/任务/项目/
-                      回顾等核心）+ RestrictionControllerMixin（自律）+
-                      RsipControllerMixin（国策）+ WorkbenchControllerBase（共享契约）
+  state/             WorkbenchControllerBase（共享契约）+ WorkbenchController（核心业务）+
+                      RestrictionControllerMixin（自律）+ RsipControllerMixin（国策）
   ui/pages/          今日、任务、项目、专注、自律、笔记、回顾、国策、设置及 Android 兼容页面
   ui/widgets/        日期刻度带、日志表面、任务行、快速收集、记录编辑、全局搜索等通用界面
 assets/branding/     应用图标源文件和主图标
@@ -170,7 +171,7 @@ python -m unittest discover -v
 
 当前覆盖记录 JSON 往返、SQLite 软删除、AES 备份错误密码与 v1 外层兼容、04:00 边界、周期实例、任务结算、项目/笔记回收站、附件清理、CTDP/RSIP 状态机、RSIP 页面流程、回顾快照、Android 页面 Golden 和指南截图。Golden 使用独立临时数据库；真实数据库必须先手动完成旧版加密备份后再验收。PJA110 真机已验证系统通知权限、通知渠道和即时通知；正式发布前仍需要复验定时通知的休眠/重启/进程恢复、离线同步去重、分享捕获、回收站和多尺寸文字布局。
 
-2026-09-18 本机复核结果：`flutter pub get` 成功，`dart format --output=none --set-exit-if-changed lib test` 无格式变更，`flutter analyze` 无问题，`flutter test --reporter compact` 为 241/241 通过。历史 QA 文档中的测试数量对应各自记录日期，不覆盖本次复核结果。
+测试数量以当前命令输出为准；仓库中的 QA 文档保留各自日期的历史证据，不应把 241/242/243 等历史数字当作当前固定基线。建议每次代码或 Golden 变更后运行 `dart format --output=none --set-exit-if-changed lib test`、`flutter analyze` 和 `flutter test --reporter compact`，并同步 [项目全量审查与文件说明](PROJECT_REVIEW.md) 与 `docs/qa/PROJECT_MAP.md`。
 
 ## 注意事项
 

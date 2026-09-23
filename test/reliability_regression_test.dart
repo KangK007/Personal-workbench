@@ -161,6 +161,18 @@ void main() {
     expect(controller.notes, isEmpty);
   });
 
+  test('imports reject excessive JSON record counts before writes', () async {
+    final directory = await Directory.systemTemp.createTemp('workbench-count-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}${Platform.pathSeparator}records.json');
+    await file.writeAsString(jsonEncode(List<dynamic>.filled(50001, null)));
+    final controller = _controller(_MemoryDatabase());
+    addTearDown(controller.dispose);
+
+    await expectLater(controller.importFile(file.path), throwsFormatException);
+    expect(controller.allRecords, isEmpty);
+  });
+
   test(
     'oversized backups are rejected before file contents are read',
     () async {

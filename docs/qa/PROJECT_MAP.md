@@ -2,7 +2,7 @@
 
 > 审查起点：`1d9c633`（2026-08-31）；本轮发布级复核：2026-09（Asia/Shanghai）
 > 覆盖规则：本文件同时记录真实导航面、条件入口、兼容别名、平台集成和仅由组合页调用的子页面。测试状态以 `docs/qa/TEST_MATRIX.md` 为唯一明细基准。
-> 最终覆盖：37 个当前可构建页面/子页表面、测试 Case 以 TEST_MATRIX 为准、241 项自动测试、518 个全页面布局场景、222 个页面交互-尺寸场景、24 个 Dialog-尺寸场景、1 个专注预设四下拉窄窗场景、33+ 张 Golden、15+ 张真实运行截图。
+> 当前入口和文件职责总表见根目录 `PROJECT_REVIEW.md`。本文件记录 QA 覆盖，不固定历史测试数量；测试 Case 和 Golden 数量以同日期的 `TEST_MATRIX.md` 与命令输出为准。
 > 本轮前置变更（上一轮至本轮之间）：`WorkbenchController` 按领域拆分为控制器 + 自律/国策 mixin（公共 API 不变）；中文字体子集化（-8.9MB）；构建脚本新增 `-AbiMode` 分 ABI 打包；supabase 补丁升级；新增任务完成"航迹节点落定"动效、日结收尾仪式、今日空态升级与 2 项动效测试；修复减少动效下任务行 AnimatedSize 崩溃。
 
 ## 1. 技术栈与运行边界
@@ -12,7 +12,7 @@
 | 跨端 UI | Flutter 3.38.9、Dart 3.10.8、Material 3 | `lib/main.dart`、`lib/app.dart` | Windows 与 Android 自适应、浅/深色、中文字体、系统文本缩放 |
 | 桌面框架 | Flutter Windows runner + C++ MethodChannel | `windows/runner/` | 1280×720 初始窗口、托盘、通知、开机启动、进程快照、强制结束、hosts 管理 |
 | Android | Flutter Android embedding v2 | `android/app/src/main/AndroidManifest.xml` | 分享文本、通知、开机恢复、系统返回、IME、旋转/字号/多窗口 |
-| 状态管理 | 单一 `WorkbenchController extends ChangeNotifier` | `lib/state/workbench_controller.dart` | 初始化、派生状态、事务失败回滚、并发保存、计时和监听器释放 |
+| 状态管理 | `WorkbenchControllerBase` + `WorkbenchController` + `RestrictionControllerMixin` + `RsipControllerMixin` | `lib/state/` | 初始化、派生状态、事务失败回滚、并发保存、计时和监听器释放 |
 | 本地数据 | SQLite / `sqflite_common_ffi` | `lib/data/app_database.dart` | 本地优先、软删除、metadata、附件事务、升级迁移、关闭重开持久化 |
 | 云同步 | 可选 Supabase | `lib/services/supabase_sync_service.dart`、`supabase/migrations/001_workspace_records.sql` | 未配置时离线可用、分页、冲突副本、RLS、错误恢复 |
 | 备份与文件 | PBKDF2-HMAC-SHA256 + AES-256-GCM、FilePicker | `lib/data/backup_service.dart`、`lib/services/attachment_service.dart` | 密码错误、大小限制、哈希、恢复预览、原子替换、路径隐私 |
@@ -65,11 +65,11 @@
 
 | 类型 | 表面 | 可达性事实 | 验证要求 |
 | --- | --- | --- | --- |
-| 兼容别名 | `tasks/projects/review/plan/inbox/calendar/diary/habits/policies` | `_select` 统一映射到当前导航节点 | 验证旧入口不落入空白页且保持预期子页 |
+| 兼容别名 | `tasks/projects/review/plan/inbox/calendar/diary/habits/policies` | `_select` 统一映射到当前导航节点；`diary` 归一到 `ReviewPage` | 验证旧入口不落入空白页且保持预期子页 |
 | 条件/兼容 | `protocols` / `ProtocolsPage` | 壳层仍可构建，但 `_select` 将兼容目标归一到目标页；页面由自动测试直接覆盖 | 作为兼容组件测试，不宣称当前普通用户有独立导航入口 |
 | 组合子页 | `CalendarPage`、`InboxPage` | 由任务周视图/收件箱组合页调用 | 与父页面共同做运行时验证 |
-| 兼容子页 | `DiaryPage` | 当前主导航使用合并后的 `ReviewPage`；旧 Widget 仍有测试 | 验证不崩溃并记录为兼容面 |
-| 移动辅助 | `MorePage` / `_MobileNavigationSheet` | 移动端更多入口 | 验证所有桌面页面在移动导航中可达 |
+| 兼容子页 | `ReviewPage` 的日回顾 Tab | 当前主导航使用合并后的 `ReviewPage`；仓库已无独立 `diary_page.dart` | 验证日回顾入口和旧别名不崩溃 |
+| 移动辅助 | `_MobileNavigationSheet` | 移动端更多入口；仓库已无独立 `more_page.dart` | 验证所有桌面页面在移动导航中可达 |
 
 ## 5. 全局弹层、菜单和编辑器
 

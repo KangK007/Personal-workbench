@@ -1,7 +1,7 @@
 # 个人工作台发布级测试矩阵
 
 > 审查起点：`1d9c633`（2026-08-31）；本轮发布级复核：2026-09（Asia/Shanghai）
-> 当前状态：既有发布级基线 + 本轮 Android/UI 修复已通过完整自动化（241 项测试）、Golden、真实 Windows 运行与双端构建验证。
+> 当前状态：本文件保留发布级历史基线；自动测试数量不固定，当前复核以 `flutter test --reporter compact` 的实际输出为准。项目入口与文件职责见根目录 `PROJECT_REVIEW.md`。
 > 最终状态仅允许 `PASS` / `BLOCKED`；未闭环项必须在任务结束前清零。
 > 本轮新增：`ANIM-001`～`ANIM-003`（任务完成节点脉冲、减少动效、日结收尾仪式）；`BUG-017`/`BUG-018` 已修复并 VERIFIED。
 
@@ -13,7 +13,7 @@
 | BLD-001 | 构建 | 依赖获取 | 网络/缓存可用 | `flutter pub get` | 成功且无依赖错误 | 命令成功；`flutter_markdown 0.7.7+1` 已停用且 38 个包存在不兼容的新版本，均作为依赖风险记录。 | PASS | - | - | PASS |
 | BLD-002 | 构建 | 格式检查 | 依赖已安装 | `dart format --output=none --set-exit-if-changed lib test` | 无格式漂移 | 最终格式检查为 0 个变更。 | PASS | BUG-001 | VERIFIED | PASS |
 | BLD-003 | 构建 | 静态分析 | 依赖已安装 | `flutter analyze` | 0 error，warning/info 分类记录 | `flutter analyze` 返回 `No issues found`。 | PASS | - | - | PASS |
-| BLD-004 | 构建 | 完整自动测试 | 依赖已安装 | `flutter test` | 全部通过，无未处理异常 | `flutter test --reporter compact` 241/241 通过，无未处理异常。 | PASS | - | - | PASS |
+| BLD-004 | 构建 | 完整自动测试 | 依赖已安装 | `flutter test` | 全部通过，无未处理异常 | 历史记录为 241/241；当前数量以同次执行的命令输出为准。 | PASS | - | - | PASS |
 | BLD-005 | 构建 | Golden 回归 | 字体/渲染稳定 | 运行 golden 测试且不更新基线 | 所有像素基线通过 | 最终命令已执行；33 张 Golden 及全页面布局矩阵通过。 | PASS | BUG-002 | VERIFIED | PASS |
 | BLD-006 | 构建 | Windows Debug 构建 | VS/Windows 工具链 | `flutter build windows --debug` | 构建成功 | `tool/build_windows.ps1 -Configuration debug -Clean` 成功，Debug 产物存在。 | PASS | BUG-003, BUG-011 | VERIFIED | PASS |
 | BLD-007 | 构建 | Windows Release 构建 | VS/Windows 工具链 | 项目发布脚本或 `flutter build windows --release` | 构建成功、产物存在 | `tool/build_windows.ps1 -Configuration release` 成功，Release 产物存在。 | PASS | BUG-003, BUG-011 | VERIFIED | PASS |
