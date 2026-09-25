@@ -613,3 +613,65 @@ Android Emulator 37.1.11 在无窗口 SwiftShader 会话中多次发生 ADB 协�
 回归结果：构建脚本在无运行实例时可正常完成 Release 构建。
 
 状态：VERIFIED
+
+## BUG-019
+
+模块：应用壳 / 可访问性
+页面：全部页面
+严重程度：P2
+类型：Accessibility / Dynamic Type
+
+复现步骤：
+
+1. 在 Android 或 Windows 将系统文字缩放设为 200%。
+2. 启动正式 `PersonalWorkbenchApp` 并检查正文、导航和表单文字。
+
+预期：应用尊重至 200% 的系统缩放；个别布局可滚动或换行以适配。
+
+实际：UI 矩阵直接挂载页面时覆盖 200%，但正式入口 `lib/app.dart` 将 `MediaQuery.textScaler` 上限限制在 1.3，用户设置被静默削弱。
+
+根本原因：为了规避固定移动控件布局压缩而在应用全局夹紧文字缩放，和页面的 200% 可访问性承诺不一致。
+
+修改文件：
+
+- `lib/app.dart`
+- `test/widget_test.dart`
+
+修复方式：把全局上限提升到 2.0，并将缩放映射抽为纯函数供入口复用。
+
+验证方式：纯函数测试断言 2.0 倍原样保留、超过 2.0 倍限制为 2.0；完整 UI 矩阵覆盖 37 个页面表面的 200% 场景。
+
+回归结果：缩放专项及 UI 矩阵通过，`flutter analyze` 无问题，全量测试 245/245 通过。
+
+状态：VERIFIED
+
+## BUG-020
+
+模块：Windows/Android 构建脚本
+页面：不适用
+严重程度：P2
+类型：Build / Concurrency
+
+复现步骤：
+
+1. 在同一 checkout 并行启动 `tool/build_windows.ps1 -Configuration debug` 与 `tool/build_android.ps1 -Configuration debug -AbiMode arm64`。
+2. 两者同时准备 `%LOCALAPPDATA%\PersonalWorkbenchBuild\<project-key>\source-copy`。
+
+预期：构建互不破坏，或冲突任务在开始复制前明确失败。
+
+实际：两个脚本无互斥地递归删除并重建同一源码暂存目录；一方可能在另一方构建期间删除 CMake/Gradle 输入，造成非确定性失败。
+
+根本原因：两个平台脚本按项目路径生成相同缓存键，但没有跨进程锁。
+
+修改文件：
+
+- `tool/build_windows.ps1`
+- `tool/build_android.ps1`
+
+修复方式：按 checkout hash 获取同名 Windows 命名互斥锁；未获得锁的任务立即给出“已有构建运行”提示；获得者用 `finally` 释放。
+
+验证方式：并行启动两个平台脚本，确认只允许一个进入源码复制/构建且另一个快速失败；再分别单独构建确认成功。PowerShell AST 解析错误数为 0。
+
+回归结果：并发验证为 Windows Debug 成功、Android 立即提示构建占用；随后 Android arm64 Debug 构建成功。完整测试 245/245、静态分析通过。
+
+状态：VERIFIED

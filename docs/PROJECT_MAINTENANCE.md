@@ -2,7 +2,7 @@
 
 > 当前项目功能、逐文件职责和冗余文件判定见根目录 [`PROJECT_REVIEW.md`](../PROJECT_REVIEW.md)。本文继续作为迁移、构建和发布链维护入口。
 
-> 更新日期：2026-09-20（Asia/Shanghai）
+> 更新日期：2026-09-24（Asia/Shanghai）
 
 本文是当前仓库的维护入口，说明哪些文件需要进入 Git、哪些内容由 Flutter 自动生成，以及把项目迁移到另一台电脑后的最短恢复路径。
 
@@ -18,11 +18,35 @@
 - 本轮界面形态改动已落地：今日页新增概览 Hero 与「下一步行动」层级、列表语言统一为「一行一卡」、语义/分类色按 `rsipNodeTypeColor` 纯函数归位、移动端底栏抽为独立文件 `lib/ui/widgets/mobile_bottom_bar.dart`、`workbench_shell.dart` 导航骨架与 `quick_capture_sheet.dart` 捕获面板重构；`app_theme.dart` 令牌同步扩充。
 - 本轮应用图标重制为「新芽 · 破土」：`tool/build_app_icon.py` 为**单一真源**，一次重出品牌母版、Windows `.ico`（7 档逐档渲染）、Android 传统档 + 自适应三层矢量 + 单色档和 `design_preview/icon/` 预览页；规范见 `APP_ICON_SPEC.md`。Windows 图标由 41 KB 增至约 372 KB，是 `personal_workbench.exe` 体积由 243 KB 增至 575 KB 的主因。
 - 本轮新增两项门禁：`tool/verify_token_parity.py`（`design_preview/assets/tokens.css` 与 `app_theme.dart` 逐值对应，56 对）与 `tool/verify_glyph_coverage.py`（界面字面量高位字符 vs 5 份字体 cmap）。另有 `tool/build_scheme_c_compare.py`（配色方案对照）与 `tool/fix-symlink-privilege.ps1`（管理员授权符号链接权限）。
-- 已在本机完成 `dart format --output=none --set-exit-if-changed lib test`（99 个文件，0 差异）、`flutter analyze`（`No issues found!`）和 `flutter test --reporter compact`（**243/243 通过**）；`tool/verify_colors.py`（未达标配对 0）、`tool/verify_token_parity.py`、`tool/verify_glyph_coverage.py`（无缺字）、`tool/verify_windows_build.py`（探针全部通过）与 `tool/verify_apk.py`（7/7 符合预期）均通过。测试输出中的「磁盘满」仅为错误恢复测试主动注入的预期异常。
+- 2026-09-24 开发环境复验：`flutter analyze --no-pub` 无问题、`flutter test --no-pub --reporter compact` **245/245 通过**，Android x86_64/arm64 Debug 与 Windows Debug 均构建成功。历史 2026-09-20 视觉/资源门禁与旧测试基线仍见下方 QA 记录；本轮格式只读检查发现两个既有 Dart 文件存在格式差异，未写回修改。
 - Windows Release、Android Debug/Profile 的既有验收记录保存在 `docs/qa/`。Android Release 仍需要本地签名文件，不能在仓库中伪造或提交。
 - `flutter_markdown` 已被上游标记为 discontinued；当前版本保持 API 稳定，迁移到 `flutter_markdown_plus` 应单独安排兼容性和视觉回归，不作为整理工作的一部分。
 
 ## 当前进度与待办
+
+### 开发环境（2026-09-24）
+
+- Flutter `3.38.9` / Dart `3.10.8`：`D:\07_SDKs\Flutter\3.38.9`；Microsoft JDK `17.0.20.1`：`D:\02_Compilers\Java\17.0.20.1`。
+- Android SDK：`D:\07_SDKs\Android\Sdk`；已安装 Platform 34/35/36、Build Tools 35/36.0.0、Platform Tools 37.0.1、Emulator 37.1.11、API 35 `google_apis/x86_64` 系统镜像、隔离 AVD `pwb_api35`、NDK `28.2.13676358` 和 CMake 3.22.1。
+- 用户级 `JAVA_HOME`、`ANDROID_HOME`、`ANDROID_SDK_ROOT` 与 Flutter/Android `PATH` 已设置；Flutter JDK 配置指向 Microsoft JDK 17。打开本环境配置前已启动的终端/IDE 需重启以读取更新后的 PATH。
+- 项目脚本环境为独立 Python `3.12.14`，位于 `D:\04_Python_DL\envs\personal-workbench-tools-py312`；Pillow、fonttools、python-docx 版本由 `tool/requirements.txt` 锁定，不与 AI Conda 环境共享。
+- Gradle 8.14 Wrapper 缓存位于 `D:\Dev\cache\gradle`。首次联网构建可运行 `tool/build_android.ps1 ... -Online`；`tool/gradle_plugin_mirror.init.gradle` 仅在构建时加载阿里云/Tencent Gradle Plugin 镜像，以绕开 Plugin Portal 重定向超时。
+- 环境验收：`flutter analyze --no-pub` 无问题，`flutter test --no-pub --reporter compact` 为 245/245；Android x86_64/arm64 Debug 与 Windows Debug 构建通过，API 35 `pwb_api35` AVD 已完成冷启动、权限、通知和开机恢复验证。Android Debug 包使用 debug 签名，不可作为 Release 分发。Flutter Doctor 的在线 Maven 检查仍会因超时报警；Chrome 未安装（项目不构建 Web），不影响 Windows/Android。
+
+### 依赖兼容基线（2026-09-24）
+
+以下版本已在当前 Flutter/Dart、Windows 和 Android Debug 流程中验证，并由 `pubspec.lock` 固定：
+
+| 依赖 | 版本 | 兼容性说明 |
+| --- | --- | --- |
+| `file_picker` | `11.0.3` | 维持现有 MethodChannel 测试契约；13.x 的 federated API 会使当前 mock 流程失效。 |
+| `flutter_local_notifications` | `18.0.1` | 22.x/19.x 的 Windows 原生构建需要当前环境未安装的 ATL 头文件。 |
+| `timezone` | `0.10.1` | 与通知插件 18.x 的约束一致；0.11.x 不兼容。 |
+| `intl` | `0.20.2` | 与 Flutter SDK 的 `flutter_localizations` 固定版本一致；0.20.3 会产生版本冲突。 |
+| `sqflite` | `2.4.2+1` | 当前 Dart 3.10.8 可解析；2.4.4 要求 Dart 3.12+。 |
+| `sqflite_common_ffi` | `2.4.0+3` | 当前 Dart 3.10.8 可解析；2.4.3 要求 Dart 3.12+。 |
+
+其余直接依赖继续以 `pubspec.yaml` 与锁文件为准。升级上述版本前，应同时运行 `flutter analyze --no-pub`、完整测试、Windows 构建和 Android Debug 构建；不能只按 pub.dev 最新版本替换。由于本次按要求跳过 Release 安装，快捷方式当前状态未在本轮重新刷新，稳定安装目录目标仍以最近一次成功安装记录和 `tool/verify_windows_build.py` 的实际探针结果为准。
 
 ### 已完成
 
@@ -37,7 +61,7 @@
 - [x] Windows/Android 构建脚本的产物清理改为状态校验式删除；Windows 构建增加插件符号链接预建。
 - [x] 从当前工作区重建 Windows Release 安装包并刷新桌面/开始菜单三个快捷方式；Windows EXE、安装目录和快捷方式目标已统一到 `0.2.1+6`。
 - [x] 从当前工作区重建 Android arm64 Debug APK；构建副本和 `dist/apk` 分发副本已通过 SHA-256 一致性检查，清单版本元数据为 `0.2.1 / 6`。
-- [x] 用户手册 DOCX 的版本号已同步至 0.2.1+6；结构化 OOXML 校验通过；当前环境缺少 LibreOffice，尚未完成 PNG 视觉渲染复核。
+- [x] 用户手册 DOCX 的版本号已同步至 0.2.1+6；结构化 OOXML 校验通过；Microsoft Word 已将三份项目 DOCX 成功导出为有效 PDF；逐页 PNG 像素复核仍需安装 Poppler/其他 PDF 栅格化工具。
 
 ### 已完成（2026-09-20 二次复核：发布链加固）
 
@@ -54,12 +78,13 @@
 
 ### 待办
 
+- [x] API 35 隔离 Android AVD 已完成冷启动、权限、通知渠道、即时通知和开机闹钟恢复复核；真实 Android 长期通知送达仍需真机/锁屏休眠时序。
 - [ ] 在真实 Windows 会话和 Android 真机上复核本轮视觉 Golden 变化、触控/键盘焦点和底栏安全区；仓库测试不能替代平台验收。
 - [ ] 完成 Android Release 签名构建、Windows 原生托盘/限制能力、通知休眠恢复和文件选择器窗口激活的外部条件验收。
 - [ ] 使用隔离账号复核 Supabase 分页、冲突、失败恢复和 RLS；不要把任何私有密钥写入仓库。
 - [ ] 单独评估 `flutter_markdown` → `flutter_markdown_plus` 的兼容性、视觉回归和迁移窗口。
 - [ ] 在管理员/真实 Windows 会话中复验插件符号链接预建和 Release 安装包清理；当前自动化环境无法替代系统权限与原生副作用验收。本会话实测 `whoami /priv` 中 `SeCreateSymbolicLinkPrivilege` 仍为「已禁用」，`tool/fix-symlink-privilege.ps1` 的授权尚未在当前令牌生效（改完需重启或注销重登）。
-- [ ] 在具备 LibreOffice 的环境中渲染 `docs/manual/个人工作台_用户使用手册.docx`，逐页复核分页、字体、图片和表格布局。
+- [ ] 使用 Word 导出的 PDF 配合 Poppler/其他 PDF 栅格化工具，逐页复核三份 DOCX 的分页、字体、图片和表格布局。
 - [ ] `SealLogo`（`lib/ui/widgets/ink_decoration.dart`）与新应用图标**形态不同源**（只共用色板与 0.22 圆角比）。统一需同时改 `shell`/`app` 并重录 golden。
 - [ ] `tool/generate_user_manual.py` 的配色常量仍是上一代**整片**色板（`2F7D57`/`1F4D3A`/`1B2B20`/`617268`/`E8F2EC`/`B9CEC0`），会原样印进手册 docx；需先换成现行 `app_theme.dart` 令牌再重生成手册。
 
@@ -76,14 +101,35 @@
 | `docs/` | 用户手册、设计交接、QA 证据和本文件 | 是 |
 | `.dart_tool/`、`build/`、`coverage/`、`dist/` | 依赖缓存、构建结果、覆盖率和分发包 | 否，可删除并重新生成 |
 | `android/.gradle/`、`android/local.properties`、`windows/flutter/ephemeral/` | 本机工具链缓存或路径配置 | 否 |
+| `android/local.properties.example` | Android 本机 SDK 路径配置模板；复制为 `local.properties` 后填写 | 是 |
+| `tool/requirements.txt` | `tool/` 下 Python 资源生成/文档脚本的独立依赖清单，不参与 Flutter 应用运行 | 是 |
+| `tool/gradle_plugin_mirror.init.gradle` | Android Gradle 插件初始化时的临时镜像仓库配置，由构建脚本加载，不修改全局 Gradle 配置 | 是 |
 | `*.log`、`.idea/`、`.workbuddy/`、`*.iml` | 本机日志、IDE 配置或工作区状态 | 否 |
 
 原始科研数据不属于本应用仓库。若以后在工作区放置 `raw/`、`data/`、`original/`、`experiment/` 或 `measurements/`，构建脚本会主动排除这些目录，且不得把它们当作应用备份。
 
 ## 迁移到新电脑
 
-1. 安装 Flutter 3.38.9 stable（或在完成兼容性验证后使用更新版本）、Dart 3.10.8、Android SDK/Java 17+；Windows 构建还需要 Visual Studio 2022 C++ 桌面工具。
-2. 克隆仓库并进入项目根目录：
+1. 安装 Flutter 3.38.9 stable（或在完成兼容性验证后使用更新版本）、Dart 3.10.8、Java 17 和 Android Command-line Tools；Android 构建需安装 Platform 36、Build Tools 36.0.0、Platform Tools，以及 Flutter 3.38.9 所需 NDK `28.2.13676358`。某些插件配置还会要求 Platform 34/35、Build Tools 35 和 CMake 3.22.1。Windows 构建还需要 Visual Studio 2022 C++ 桌面工具。当前本机 Flutter SDK 位于 `D:\07_SDKs\Flutter\3.38.9`，新机器应按实际安装路径填写 Android 属性文件。
+2. 配置用户级 `JAVA_HOME`、`ANDROID_HOME`、`ANDROID_SDK_ROOT` 和 `PATH`（Flutter `bin`、Android `platform-tools` 与 `cmdline-tools/latest/bin`）；将 Flutter 的 JDK 设置为 Java 17，并重新打开终端/IDE：
+
+   ```powershell
+   $env:JAVA_HOME = 'D:\02_Compilers\Java\17.0.20.1'
+   $env:ANDROID_HOME = 'D:\07_SDKs\Android\Sdk'
+   $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+   flutter config --android-sdk $env:ANDROID_HOME
+   flutter config --jdk-dir $env:JAVA_HOME
+   ```
+
+   新机器请把示例路径替换为实际安装目录，并通过 Windows“环境变量”界面持久写入用户变量。`android/local.properties` 是忽略的本机文件；可从 `android/local.properties.example` 复制并修改 SDK 路径。
+3. 安装 Android SDK 构建组件（本项目最低构建基线）：
+
+   ```powershell
+   & "$env:ANDROID_HOME\cmdline-tools\latest\bin\android.exe" sdk install platform-tools platforms/android-36 build-tools/36.0.0 ndk/28.2.13676358
+   ```
+
+   第一次 Android 构建期间，Android Gradle Plugin 可能按插件要求提示补装 API 34/35、Build Tools 35 或 CMake；接受提示后由 SDK Manager 安装。
+4. 克隆仓库并进入项目根目录：
 
    ```powershell
    git clone https://github.com/KangK007/Personal-workbench.git
@@ -93,7 +139,7 @@
    flutter test --reporter compact
    ```
 
-3. 运行开发版本：
+5. 运行开发版本：
 
    ```powershell
    flutter devices
@@ -102,9 +148,18 @@
    flutter run -d android
    ```
 
-4. Windows 使用 `tool/build_windows.ps1`；Android 使用 `tool/build_android.ps1`。这些脚本会把源码复制到 ASCII 临时目录，避免中文路径导致 Gradle/MSBuild 问题，并自动生成本机所需的 `local.properties`、Gradle 缓存和构建目录。
-5. 若需要 Android Release，先在本机创建 `android/key.properties` 和独立 keystore。两者已被 `.gitignore` 排除，密码不得写入脚本、README 或 Git 历史。
-6. 若启用云同步，在运行时通过 `--dart-define=SUPABASE_URL=...` 和 `--dart-define=SUPABASE_ANON_KEY=...` 注入公开客户端配置，并在 Supabase SQL Editor 执行 `supabase/migrations/001_workspace_records.sql`。不要使用 service-role key。
+6. Windows 使用 `tool/build_windows.ps1`；Android 使用 `tool/build_android.ps1`。这些脚本会把源码复制到 ASCII 临时目录，避免中文路径导致 Gradle/MSBuild 问题，并自动生成本机所需的 `local.properties` 和构建目录。
+7. 若需要 Android Release，先在本机创建 `android/key.properties` 和独立 keystore。两者已被 `.gitignore` 排除，密码不得写入脚本、README 或 Git 历史。
+8. 若启用云同步，在运行时通过 `--dart-define=SUPABASE_URL=...` 和 `--dart-define=SUPABASE_ANON_KEY=...` 注入公开客户端配置，并在 Supabase SQL Editor 执行 `supabase/migrations/001_workspace_records.sql`。不要使用 service-role key。
+
+`tool/` 下 Python 辅助脚本的依赖不是 Flutter 运行时依赖。建议创建独立 Python 3.12 环境并安装清单：
+
+```powershell
+conda create -p D:\04_Python_DL\envs\personal-workbench-tools-py312 python=3.12 pip
+conda run -p D:\04_Python_DL\envs\personal-workbench-tools-py312 python -m pip install -r tool/requirements.txt
+```
+
+不要把这些包安装进全局 Python 或其他项目的 Conda 环境。
 
 ## 可复现检查
 
@@ -125,13 +180,15 @@ python tool/verify_windows_build.py
 python tool/verify_apk.py
 ```
 
-> `verify_glyph_coverage.py` 依赖 `fontTools`；本机仅系统 Python 3.11 装有该包。
+> `verify_glyph_coverage.py` 依赖 `fontTools`；可使用独立工具环境，按 `tool/requirements.txt` 安装依赖。
 
 平台构建：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tool\build_windows.ps1 -Configuration release
 powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration debug -AbiMode arm64
+# 首次使用或 Gradle 缓存缺失时追加 -Online 下载 Wrapper 和插件依赖
+powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration debug -AbiMode arm64 -Online
 ```
 
 Windows 的「构建 + 打包 + 安装」一步到位用 `tool/package_windows_release.ps1 -Configuration release -Install`；只重新打包不重建用 `-SkipBuild`。

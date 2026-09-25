@@ -1,6 +1,8 @@
 # 个人工作台最终质量审查报告
 
-> 历史 QA 报告：本文保留当次审查的版本、测试数量和环境证据，不代表当前工作区的固定基线。当前代码结构与文件职责见根目录 `PROJECT_REVIEW.md`；当前测试数量以命令输出为准。
+> 历史 QA 报告：本文保留当次审查的版本、测试数量和环境证据，不代表当前工作区的固定基线。2026-09-23 复核和最新修复结果见 [`CODE_REVIEW_2026-09-21.md`](CODE_REVIEW_2026-09-21.md) 第 9 节。当前代码结构与文件职责见根目录 `PROJECT_REVIEW.md`；测试数量以命令输出为准。
+
+> 2026-09-24 收尾复核：最终代码再次通过 `flutter analyze --no-pub` 与全量 245/245 测试；`tool/build_windows.ps1 -Configuration debug -Clean` 已从隔离缓存成功重建 Debug 产物；已安装 Android Emulator/API 35 AVD 并完成 x86_64 APK 冷启动、权限、通知渠道及开机闹钟恢复验证。稳定安装目录探针仍针对 2026-09-20 的已安装 Release 产物，不能替代本轮 Debug 产物的版本证明。
 
 > 审查完成日期：2026-09（Asia/Shanghai）
 > Git 审查起点：`1d9c633`（2026-08-31）+ 本轮工作区全部修改
@@ -11,9 +13,9 @@
 
 **READY WITH KNOWN ISSUES**。
 
-Windows Release 与 Android Debug/Profile 均以最终代码完成干净构建；本轮 241 项 Flutter 测试全部通过；真实 Windows 应用完成启动、窗口渲染、数据库读写、四档窗口尺寸调整、窄窗移动布局、冷启动计时与干净退出验证；54 张 Golden/审计截图健康检查通过；真实用户数据库 324 条记录经字体覆盖检查无缺失字形。
+既有证据包含 Windows Release 与 Android Debug/Profile 构建；本轮最终代码另以 `tool/build_windows.ps1 -Configuration debug -Clean` 完成 Windows Debug 重建。全量 Flutter 测试 245/245 通过；真实 Windows 应用完成启动、窗口渲染、数据库读写、四档窗口尺寸调整、窄窗移动布局、冷启动计时与干净退出验证；54 张 Golden/审计截图健康检查通过；真实用户数据库 324 条记录经字体覆盖检查无缺失字形。
 
-11 个 BLOCKED 项全部为环境或凭据限制（缺少 Android 发布签名密钥、隔离 Supabase 账号、隔离 Windows VM、可调用的 DOCX 渲染器、Stitch MCP），不是产品代码缺陷。Android Release APK 需要用户提供 `android/key.properties` 与私有 keystore 后才能生成。
+10 个 BLOCKED 项全部为环境或凭据限制（缺少 Android 发布签名密钥、隔离 Supabase 账号、隔离 Windows VM、Stitch MCP 等），不是产品代码缺陷。Android Release APK 需要用户提供 `android/key.properties` 与私有 keystore 后才能生成。
 
 ## 2. 项目与测试环境
 
@@ -24,8 +26,8 @@ Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；�
 | 指标 | 结果 |
 | --- | ---: |
 | 测试 Case | 261 |
-| PASS / FAIL / BLOCKED | 250 / 0 / 11 |
-| Flutter 自动测试 | 241 / 241（含本轮 Android/UI 回归） |
+| PASS / FAIL / BLOCKED | 251 / 0 / 10 |
+| Flutter 自动测试 | 245 / 245（含本轮 Android/UI 回归） |
 | 当前可构建页面/子页表面 | 37 |
 | 全页面布局场景 | 518 |
 | 页面交互-尺寸场景 | 222 |
@@ -58,7 +60,7 @@ Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；�
 | `flutter pub get` | PASS；`flutter_markdown 0.7.7+1` 停用（RISK-001）、46 个不兼容新版本作风险记录 |
 | `dart format --output=none --set-exit-if-changed lib test` | PASS |
 | `flutter analyze` | PASS，No issues found |
-| `flutter test --reporter compact` | PASS，241/241 |
+| `flutter test --reporter compact` | PASS，245/245 |
 | Golden + UI 审计 + 交互矩阵 | PASS，47/47（设置页修复后） |
 | Windows Release 干净构建 | PASS，最终代码重建并更新 3 个快捷方式 |
 | Android Debug arm64 干净构建 | PASS，构建/分发 APK 已更新 |
@@ -74,7 +76,7 @@ Flutter 3.38.9、Dart 3.10.8、Material 3；目标平台 Windows 与 Android；�
 - `docs/qa/screenshots/runtime_smoke_main.png`（1280×720 主界面）
 - `docs/qa/screenshots/runtime_narrow_mobile.png`（420×780 移动布局）
 
-Android 真机复核：应用冷启动、主界面/更多抽屉/笔记二级页返回路径正常；系统通知设置显示允许通知，应用设置触发的“通知已启用”即时通知出现在系统通知栏；`dumpsys notification` 可见 `workbench_updates` 渠道和应用 `PendingIntent`。本次未清除应用数据。定时通知经过锁屏、休眠、重启和进程被杀后的送达仍未完成，继续保持 `BLOCKED`。
+Android 平台复核：API 35 隔离 AVD 已完成应用冷启动、首页/设置/成长页面语义树检查；`POST_NOTIFICATIONS` 系统弹窗授权、`workbench_updates` 渠道、即时通知和 `PendingIntent` 已在 `dumpsys notification` 中确认；重启后 `ScheduledNotificationBootReceiver` 重新保留日/周/月 `RTC_WAKEUP` 闹钟。定时通知经过锁屏、休眠、系统杀进程后的实际送达仍未形成可靠证据，继续保持 `BLOCKED`。
 
 ## 9. 文档结果
 
@@ -104,8 +106,7 @@ Android 真机复核：应用冷启动、主界面/更多抽屉/笔记二级页�
 7. `SET-006`：缺少隔离 Supabase 端点、密钥和账号（分页/冲突/并发已由 fake 覆盖）。
 8. `PLT-001`：真实托盘/开机启动/Windows 通知需要隔离用户会话（平台通道已自动覆盖）。
 9. `PLT-003`：Android 定时通知经过锁屏、休眠、重启和进程被杀后的送达仍需专门时序复验；PJA110 真机已确认通知权限、通知渠道和即时通知通过。
-10. `DOC-006`：当前 DOCX 无可调用渲染器，逐页视觉复验需在 Word/LibreOffice 完成。
-11. `U4D-038`：Windows 原生完整四维交互无法激活捕获窗口（隔离启动与语义读取成功）。
+10. `U4D-038`：Windows 原生完整四维交互无法激活捕获窗口（隔离启动与语义读取成功）。
 
 ## 12. 已知风险
 

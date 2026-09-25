@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:personal_workbench/app.dart';
 import 'package:personal_workbench/core/models/workspace_record.dart';
 
 void main() {
@@ -20,5 +22,10 @@ void main() {
     expect(restored.tags, contains('科研'));
     expect(restored.data['estimatedMinutes'], 25);
     expect(restored.isFocus, isTrue);
+  });
+
+  test('application preserves text scaling through 200 percent', () {
+    expect(workbenchTextScaler(TextScaler.linear(2)).scale(16), 32);
+    expect(workbenchTextScaler(TextScaler.linear(3)).scale(16), 32);
   });
 }

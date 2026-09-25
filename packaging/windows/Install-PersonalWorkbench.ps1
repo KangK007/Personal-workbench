@@ -41,12 +41,20 @@ Copy-Item -Path (Join-Path $PSScriptRoot 'emergency_recovery.ps1') -Destination 
 Copy-Item -Path (Join-Path $PSScriptRoot 'emergency_recovery.cmd') -Destination $installDirectory -Force
 
 $shell = New-Object -ComObject WScript.Shell
-$startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+$desktop = [Environment]::GetFolderPath('Desktop')
+$startMenu = [Environment]::GetFolderPath('Programs')
+if ([string]::IsNullOrWhiteSpace($desktop)) {
+    throw 'Unable to resolve the current Windows Desktop folder.'
+}
+if ([string]::IsNullOrWhiteSpace($startMenu)) {
+    throw 'Unable to resolve the Start Menu Programs folder.'
+}
+New-Item -ItemType Directory -Force -Path $startMenu | Out-Null
 $chineseName = -join ([char[]](0x4E2A, 0x4EBA, 0x5DE5, 0x4F5C, 0x53F0))
 $shortcutPaths = @(
     (Join-Path $startMenu 'Personal Workbench.lnk'),
     (Join-Path $startMenu ($chineseName + '.lnk')),
-    (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Personal Workbench.lnk')
+    (Join-Path $desktop 'Personal Workbench.lnk')
 )
 
 # Install-time shortcut write, with the same bounded retry as

@@ -42,8 +42,15 @@ supabase/            云端同步表及 RLS 迁移
 ## 环境依赖
 
 - Flutter 3.38.9 stable（Dart 3.10.8）或兼容的 Flutter 3.38+。
-- Android 构建需要 Android SDK、Android SDK Command-line Tools 和 Java 17+。
-- 依赖由 `pubspec.yaml` 管理，主要包括 `sqflite`、`cryptography`、`file_picker`、`supabase_flutter`、`flutter_local_notifications` 和 `receive_sharing_intent`。
+- Android 构建需要 Java 17、Android Command-line Tools、Platform 36、Build Tools 36.0.0 和 NDK `28.2.13676358`；Android Gradle Plugin/插件还可能要求 Platform 34/35、Build Tools 35 与 CMake 3.22.1。
+- 依赖由 `pubspec.yaml` 管理，主要包括 `sqflite`、`cryptography`、`file_picker`、`supabase_flutter`、`flutter_local_notifications` 和 `flutter_markdown`。Android 文本分享由项目自有的 MethodChannel 实现。
+- `tool/` 下的图标、字体和 Word 手册脚本需要 Python 3.12+；专用工具依赖见 `tool/requirements.txt`，不是应用运行时依赖。
+
+Android 本机 SDK 路径写入未跟踪的 `android/local.properties`。新环境可从
+`android/local.properties.example` 复制后填写；Android 构建脚本会在 `GRADLE_USER_HOME`
+已设置时从该目录查找 Gradle Wrapper 缓存。首次 Android 构建使用 `-Online` 下载 Wrapper
+和 Gradle 插件依赖，之后可用默认离线模式复用缓存。Flutter/Java/Android SDK 的用户级
+环境变量变更后需重新打开终端或 IDE。
 
 ## 安装方法
 
@@ -73,6 +80,9 @@ powershell -ExecutionPolicy Bypass -File .\tool\package_windows_release.ps1 -Con
 # Android 调试 APK（兼容中文工作区路径）
 powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration debug
 
+# 新机器首次构建或缓存缺失时，允许联网下载 Gradle/插件依赖
+powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration debug -Online
+
 # Android Release APK（必须先配置独立发布签名）
 powershell -ExecutionPolicy Bypass -File .\tool\build_android.ps1 -Configuration release
 
@@ -99,7 +109,7 @@ keyPassword=<本地保存的密钥密码>
 `apksigner` 验证签名；只有验证通过才会复制到项目 `build/` 目录。密钥库及密码应另行
 安全备份，不能只保存在项目工作区。
 
-Windows 和 Android 构建脚本会把源码镜像到 `%LOCALAPPDATA%\PersonalWorkbenchBuild\` 下的纯 ASCII 暂存目录，再从该副本构建，规避中文工作区路径导致的 Gradle/MSBuild 编码问题。`build/`、`dist/`、`.git/` 等生成内容不会进入暂存副本；构建结果会复制回项目的标准输出目录。Android 脚本还会为 JDK/Gradle 使用短临时路径，避免 Windows AF_UNIX 回环通道的路径长度限制。Release 仅在签名验证通过后复制 APK。如需强制清理构建缓存，可增加 `-Clean` 参数。Android 脚本使用本机缓存的 Gradle 8.14 离线构建；首次使用前若缓存不存在，需要先在网络可用时运行一次 Gradle 下载。
+Windows 和 Android 构建脚本会把源码镜像到 `%LOCALAPPDATA%\PersonalWorkbenchBuild\` 下的纯 ASCII 暂存目录，再从该副本构建，规避中文工作区路径导致的 Gradle/MSBuild 编码问题。`build/`、`dist/`、`.git/` 等生成内容不会进入暂存副本；构建结果会复制回项目的标准输出目录。Android 脚本还会为 JDK/Gradle 使用短临时路径，避免 Windows AF_UNIX 回环通道的路径长度限制。Release 仅在签名验证通过后复制 APK。如需强制清理构建缓存，可增加 `-Clean` 参数。Android 脚本默认使用本机缓存的 Gradle 8.14 离线构建；新机器首次使用或缓存缺失时追加 `-Online` 下载 Gradle/插件依赖。脚本会加载 `tool/gradle_plugin_mirror.init.gradle`，在 Gradle Plugin Portal 重定向受限时使用镜像。
 
 中文字体（LXGW 文楷、IBM Plex Sans SC）已经过 `tool/subset_fonts.py` 子集化：裁掉韩文等本项目用不到的字形，保留 CJK 基本区与扩展 A 全量，用户输入的生僻中文字仍可正常显示。如需恢复原字体或调整字符集，运行 `python tool\subset_fonts.py --restore` 后修改脚本中的 `UNICODE_RANGES` 再重新执行。
 
@@ -133,7 +143,7 @@ Windows 侧栏按真实页面组织层级：任务和项目展开后显示各自
 - SQLite 数据库：由 `path_provider` 放在应用支持目录，文件名为 `personal_workbench.sqlite`。
 - 加密备份和 JSON 导出：应用文档目录下的 `PersonalWorkbench/` 文件夹。
 - Android APK：`build/app/outputs/flutter-apk/app-debug.apk` 或 `app-release.apk`；发布脚本还会更新 `dist/apk/` 下带版本号的侧载副本。
-- Windows Release：`build/windows/x64/runner/Release/`；`tool/build_windows.ps1` 会更新开发构建快捷方式，`tool/package_windows_release.ps1 -Install` 会生成 `dist/PersonalWorkbench_<版本>_windows.zip`，并将稳定安装目录及桌面/开始菜单快捷方式更新到最新版。
+- Windows Release：`build/windows/x64/runner/Release/`；`tool/build_windows.ps1` 会更新开发构建快捷方式，`tool/package_windows_release.ps1 -Install` 会生成 `dist/PersonalWorkbench_<版本>_windows.zip`，并将稳定安装目录及桌面/开始菜单快捷方式更新到最新版。安装器、快捷方式刷新脚本和验证器统一使用 Windows Known Folder API；桌面英文、开始菜单英文和开始菜单中文三个入口均指向 `%LOCALAPPDATA%\Programs\PersonalWorkbench\personal_workbench.exe`。
 
 ## 论文图像复现方法
 

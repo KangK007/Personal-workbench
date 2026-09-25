@@ -38,5 +38,5 @@
 
 - 功能、数据、错误注入、持久化和 UI 自动回归：PASS。
 - Windows Release、Windows 安装 ZIP、Android Debug 与 Android Profile：PASS。
-- 当前 TEST_MATRIX：250 PASS、11 BLOCKED、0 失败、0 未闭环（共 261 个 Case）。
+- 当前 TEST_MATRIX：251 PASS、10 BLOCKED、0 失败、0 未闭环（共 261 个 Case）。
 - BUG-010 的代码修复已自动验证，但其真实原生对话框序列仍保持 BLOCKED，不提升为完整 VERIFIED。

@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime
 import os
 import re
+import subprocess
 import sys
 
 INSTALL_DIR = os.path.join(
@@ -70,6 +71,26 @@ def check_shortcut(path: str) -> list[str]:
     return lines
 
 
+def known_folder(name: str, fallback: str) -> str:
+    """Resolve the same Windows Known Folder used by PowerShell installers."""
+    try:
+        value = subprocess.check_output(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-Command",
+                f"[Environment]::GetFolderPath('{name}')",
+            ],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        if value:
+            return value
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return fallback
+
+
 def main() -> int:
     out: list[str] = []
     out.append("=" * 68)
@@ -125,9 +146,14 @@ def main() -> int:
     # ---- 3) 快捷方式 ----
     out.append("")
     out.append("[3] 快捷方式指向")
-    desktop = os.path.join(os.environ["USERPROFILE"], "Desktop")
-    programs = os.path.join(
-        os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs"
+    desktop = known_folder(
+        "Desktop", os.path.join(os.environ["USERPROFILE"], "Desktop")
+    )
+    programs = known_folder(
+        "Programs",
+        os.path.join(
+            os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs"
+        ),
     )
     for p in [
         os.path.join(desktop, "Personal Workbench.lnk"),

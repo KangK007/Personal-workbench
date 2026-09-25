@@ -1,0 +1,4 @@
+# Copy this file to local.properties and set paths for the local machine.
+# Keep local.properties untracked; it contains machine-specific SDK paths.
+sdk.dir=D:\\07_SDKs\\Android\\Sdk
+flutter.sdk=D:\\07_SDKs\\Flutter\\3.38.9

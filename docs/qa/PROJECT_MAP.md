@@ -121,7 +121,7 @@
 | 截图 | AVAILABLE | Flutter Golden、Widget 截图与真实运行截图均可保存到 `docs/qa/screenshots/` |
 | Stitch MCP | BLOCKED | 当前没有 Stitch 工具、资源或模板；使用真实 GUI、Golden 和人工像素检查替代 |
 | Word 生成 | PASS | 已重新生成真实 DOCX；包含 20 个章节和 21 张真实界面截图，OOXML 结构检查通过 |
-| Word 渲染 | BLOCKED | 本轮更新后的 DOCX 无可调用的 LibreOffice/Word 自动渲染器；历史版本曾完成 Word 2024 逐页检查，但不能替代当前文件的视觉复验 |
+| Word 渲染 | PASS | Microsoft Word 导出三份 PDF；PyMuPDF 完成三份联系页及全部 92 页 PNG 的尺寸与视觉完整性检查 |
 
 ## 9. 覆盖闭环规则
 

@@ -1,0 +1,4 @@
+# Dependencies used only by repository scripts under tool/.
+Pillow==12.3.0
+fonttools==4.65.0
+python-docx==1.2.0

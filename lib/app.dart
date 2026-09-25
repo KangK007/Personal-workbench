@@ -16,6 +16,9 @@ import 'ui/workbench_shell.dart';
 import 'ui/widgets/common.dart';
 import 'ui/widgets/ink_decoration.dart';
 
+TextScaler workbenchTextScaler(TextScaler scaler) =>
+    scaler.clamp(minScaleFactor: 1.0, maxScaleFactor: 2.0);
+
 class PersonalWorkbenchApp extends StatefulWidget {
   const PersonalWorkbenchApp({
     super.key,
@@ -68,13 +71,10 @@ class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp> {
             final isLight = theme.brightness == Brightness.light;
             final mediaQuery = MediaQuery.of(context);
             return MediaQuery(
-              // Keep accessible enlargement while preventing fixed mobile
-              // controls from collapsing at the largest system font setting.
+              // Preserve the full accessibility range exercised by the UI
+              // matrix while keeping a lower bound for legacy platform data.
               data: mediaQuery.copyWith(
-                textScaler: mediaQuery.textScaler.clamp(
-                  minScaleFactor: 1.0,
-                  maxScaleFactor: 1.3,
-                ),
+                textScaler: workbenchTextScaler(mediaQuery.textScaler),
               ),
               child: AnnotatedRegion<SystemUiOverlayStyle>(
                 value: SystemUiOverlayStyle(

@@ -4,7 +4,8 @@ param(
     [string]$Configuration = 'debug',
     [ValidateSet('universal', 'split', 'arm64', 'arm', 'x64')]
     [string]$AbiMode = 'universal',
-    [switch]$Clean
+    [switch]$Clean,
+    [switch]$Online
 )
 
 Set-StrictMode -Version Latest
@@ -30,6 +31,19 @@ try {
     $sha256.Dispose()
 }
 $projectKey = -join ($digest[0..5] | ForEach-Object { $_.ToString('x2') })
+$buildMutex = [System.Threading.Mutex]::new($false, "Local\PersonalWorkbenchBuild-$projectKey")
+$mutexAcquired = $false
+try {
+    $mutexAcquired = $buildMutex.WaitOne(0)
+} catch [System.Threading.AbandonedMutexException] {
+    # The previous build exited unexpectedly; ownership was released by Windows.
+    $mutexAcquired = $true
+}
+if (-not $mutexAcquired) {
+    $buildMutex.Dispose()
+    throw 'Another Personal Workbench build is already running for this checkout. Wait for it to finish and retry.'
+}
+try {
 $aliasRoot = Join-Path $env:LOCALAPPDATA "PersonalWorkbenchBuild\$projectKey"
 $sourceCopy = Join-Path $aliasRoot 'source-copy'
 New-Item -ItemType Directory -Force -Path $aliasRoot | Out-Null
@@ -88,12 +102,33 @@ $env:JAVA_HOME = (Resolve-Path -LiteralPath $javaHome).Path
 $env:PERSONAL_WORKBENCH_BUILD_ROOT = Join-Path $aliasRoot 'build'
 $env:PERSONAL_WORKBENCH_SOURCE_ROOT = $sourceCopy
 
-$gradleCacheRoot = Join-Path $env:USERPROFILE '.gradle\wrapper\dists\gradle-8.14-bin'
+$gradleUserHome = if ([string]::IsNullOrWhiteSpace($env:GRADLE_USER_HOME)) {
+    Join-Path $env:USERPROFILE '.gradle'
+} else {
+    $env:GRADLE_USER_HOME
+}
+$env:GRADLE_USER_HOME = $gradleUserHome
+$gradleCacheRoot = Join-Path $gradleUserHome 'wrapper\dists\gradle-8.14-bin'
 $gradle = Get-ChildItem -LiteralPath $gradleCacheRoot -Filter 'gradle.bat' -File -Recurse -ErrorAction SilentlyContinue |
     Where-Object { $_.FullName -match '\\gradle-8\.14\\bin\\gradle\.bat$' } |
     Select-Object -First 1
+if (-not $gradle -and $Online.IsPresent) {
+    Push-Location -LiteralPath (Join-Path $sourceCopy 'android')
+    try {
+        $env:GRADLE_USER_HOME = $gradleUserHome
+        & .\gradlew.bat --version
+        if ($LASTEXITCODE -ne 0) {
+            throw "Gradle Wrapper bootstrap failed with exit code $LASTEXITCODE"
+        }
+    } finally {
+        Pop-Location
+    }
+    $gradle = Get-ChildItem -LiteralPath $gradleCacheRoot -Filter 'gradle.bat' -File -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -match '\\gradle-8\.14\\bin\\gradle\.bat$' } |
+        Select-Object -First 1
+}
 if (-not $gradle) {
-    throw "Cached Gradle 8.14 was not found below $gradleCacheRoot. Run the build once with network access to populate the cache."
+    throw "Cached Gradle 8.14 was not found below $gradleCacheRoot. Rerun with -Online to download it."
 }
 
 $gradleTask = switch ($Configuration) {
@@ -183,9 +218,14 @@ try {
             $env:TEMP = $shortTemp
             $env:TMP = $shortTemp
             foreach ($abi in $buildTargets) {
-                $gradleArguments = @(
-                    $gradleTask, '--offline', '--no-daemon', '--stacktrace'
-                )
+                $gradleArguments = @($gradleTask, '--no-daemon', '--stacktrace')
+                if (-not $Online.IsPresent) {
+                    $gradleArguments += '--offline'
+                }
+                $mirrorInitScript = Join-Path $sourceCopy 'tool\gradle_plugin_mirror.init.gradle'
+                if (Test-Path -LiteralPath $mirrorInitScript -PathType Leaf) {
+                    $gradleArguments += @('--init-script', $mirrorInitScript)
+                }
                 if ($abi) {
                     $gradleArguments += "-Ptarget-platform=android-$abi"
                 }
@@ -296,3 +336,7 @@ foreach ($built in $builtApks) {
 # 真实失败一律由 throw 终止、走不到这一行，故此处归零是安全的。
 # 与 build_windows.ps1 末尾同一处理（那里防的是 robocopy 的 0-7 泄漏）。
 $global:LASTEXITCODE = 0
+} finally {
+    $buildMutex.ReleaseMutex()
+    $buildMutex.Dispose()
+}

@@ -860,7 +860,10 @@ void main() {
       180,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.byKey(const ValueKey('navigation-leaf:focus')));
+    final focusLeaf = find.byKey(const ValueKey('navigation-leaf:focus'));
+    await tester.ensureVisible(focusLeaf);
+    await tester.pumpAndSettle();
+    await tester.tap(focusLeaf);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });

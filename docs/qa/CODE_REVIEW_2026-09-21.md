@@ -1,4 +1,6 @@
-# 代码审查、功能分析与端到端验证（2026-09-21）
+# 代码审查、功能分析与端到端验证（2026-09-21；2026-09-23 复核）
+
+> 2026-09-21 内容为历史审查快照。2026-09-23 在其后工作区复核中补充发现 BUG-019/020；当前验证结果见本文“2026-09-23 复核补充”及 `docs/qa/BUGS.md`。
 
 ## 1. 审查范围与结论
 
@@ -104,3 +106,70 @@ main.dart → app.dart → WorkbenchShell → pages/widgets
 1. 在 ASCII 路径或 CI runner 重跑 Windows Release 与 Android Debug 构建。
 2. 在隔离 Windows VM 验证真实 hosts/UAC/进程终止/托盘副作用。
 3. 在临时 Supabase 项目和 Android 真机完成远端冲突及长期通知时序矩阵。
+
+## 9. 2026-09-23 复核补充
+
+### 范围与架构复核
+
+- 按 `docs/qa/COMPREHENSIVE_REVIEW_PLAN.md` 对入口、导航枚举/兼容映射、37 个页面表面、状态控制器、SQLite/备份/附件、通知/分享/Supabase、Android Manifest 与 Windows MethodChannel/hosts 代码复核。
+- 核心依赖仍为：`PersonalWorkbenchApp` 组装服务与 Controller → `WorkbenchShell` 映射桌面/移动导航 → 页面和共享组件 → `WorkbenchController`/Restriction/RSIP mixin → SQLite、文件、插件、Windows 桥或可选 Supabase。
+- Supabase migration 开启 RLS 且 CRUD policy 按 `auth.uid() = user_id` 限制；同步客户端上传/删除/查询均按当前 user id 作用域。Windows hosts/进程操作有桥接和受管区块逻辑，但本轮未对宿主真实 hosts 或进程做副作用操作。
+
+### 本轮缺陷及闭环
+
+| ID | 成因与影响 | 修复 | 验证 |
+| --- | --- | --- | --- |
+| BUG-019（P2） | 正式应用入口把用户系统字体缩放上限压到 1.3，和 200% UI 矩阵/无障碍预期不符 | `lib/app.dart` 上限改为 2.0；补纯函数边界测试 | 缩放测试 + 37 表面 UI 200% 矩阵通过 |
+| BUG-020（P2） | Windows/Android 构建脚本共用同一 `source-copy`，并行时可递归互删缓存 | 两个脚本增加同 checkout 命名互斥锁，并在 `finally` 释放 | 并行验证一个成功、另一个明确快速失败；Android 随后单独构建通过 |
+
+### 2026-09-23 执行结果
+
+| 检查 | 结果 |
+| --- | --- |
+| `flutter analyze` | PASS，No issues found |
+| `flutter test --reporter compact` | PASS，245/245；故障注入 `disk full` 堆栈为预期测试输出 |
+| UI 审计 `test/ui_audit_screenshot_test.dart` | PASS，7/7；包括布局、主题、减少动效、200% 字号、焦点、菜单/Dropdown、Dialog/Escape 矩阵 |
+| UI 功能专项 `test/ui_coverage_regression_test.dart` + 新增缩放测试 | PASS，20/20；原短视口 navigation hit-test warning 已通过滚动到可视区域后点击消除 |
+| 控制器/可靠性/全功能专项 | PASS，54/54 |
+| `tool/verify_colors.py` | PASS，浅/深主题 0 个未达标配对 |
+| `tool/verify_token_parity.py` | PASS，56 对 Token 逐值一致 |
+| `tool/verify_glyph_coverage.py` | PASS，无缺字；工具 Python 3.12 环境依赖可用 |
+| `tool/verify_apk.py` | PASS，7/7 符号探针通过 |
+| `tool/verify_windows_build.py` | PASS，稳定安装目录探针全部通过；注意它针对现有安装版本，不代表本轮 Debug EXE 探针 |
+| Windows Debug build | PASS，`tool/build_windows.ps1 -Configuration debug`，构建过程会临时更新快捷方式 |
+| Android arm64 Debug build | PASS，`tool/build_android.ps1 -Configuration debug -AbiMode arm64`，Gradle 8.14 成功；存在 Android SDK XML/第三方 Manifest/Gradle 弃用告警 |
+| 格式只读检查 | WARN，`dart format --output=none --set-exit-if-changed lib test` 仍指出 `lib/state/workbench_controller.dart` 与 `test/reliability_regression_test.dart` 两处历史差异；未扩大范围格式化 |
+
+### 当前阻塞与风险
+
+- 已连接隔离 API 35 AVD 并完成 Android x86_64 Debug 冷启动、语义树、权限、通知渠道与重启恢复验证；真实 Android 长期通知送达和完整像素视觉复核仍未闭环。
+- 未配置隔离 Supabase 项目/账号，远端 RLS、真实网络冲突及分页一致性本轮只能依赖 fake 自动化；真实远端场景 BLOCKED。
+- 未在隔离 Windows VM 执行 hosts 写入/UAC/进程终止；保护逻辑只做代码与自动化审查，副作用场景 BLOCKED。
+- Android 重启后的闹钟重新注册已验证；锁屏/休眠/系统杀进程后的定时通知实际送达仍 BLOCKED。
+- `flutter_markdown 0.7.7+1` 已弃用，且 50 个依赖存在约束之外的新版本；需单独做依赖升级与 Markdown/通知/文件选择器视觉回归。
+- 字体缩放矩阵由 Flutter Widget 测试覆盖到 200%；Android API 35 真实运行已确认首页/设置/成长语义树和截图，Windows 原生完整交互视觉仍受窗口激活能力限制。
+
+总体结论：当前自动化、静态分析、视觉 Token/颜色/字体门禁及 Windows/Android Debug 构建通过；BUG-019/020 已验证关闭。由于真实远端、自律系统副作用、长期通知和本轮原生视觉验收未完成，结论为“自动化稳定，平台集成验收仍有 BLOCKED”，不能宣称所有真实设备流程均已完成。
+
+## 10. 2026-09-24 收尾复核
+
+- `flutter analyze --no-pub`：PASS，`No issues found`。
+- `flutter test --no-pub --reporter compact`：PASS，245/245；`disk full` 堆栈仍是故障注入用例的预期输出。
+- `tool/build_windows.ps1 -Configuration debug -Clean`：PASS，基于当前最终代码重建 `build/windows/x64/runner/Debug/personal_workbench.exe`（2026-09-24 09:46:29）。直接运行 `flutter build windows` 曾命中旧 CMake 缓存，已由脚本清理/隔离后恢复，不是源码缺陷。
+- PowerShell AST：`build_windows.ps1`、`build_android.ps1`、`package_windows_release.ps1`、`update_all_shortcuts.ps1`、`packaging/windows/Install-PersonalWorkbench.ps1` 均为 0 个语法错误。
+- `tool/verify_windows_build.py`：PASS；该探针验证的是稳定安装目录已有产物（2026-09-20），不替代本轮 Debug EXE 的构建证据。
+- 桌面与开始菜单三个快捷方式已恢复指向稳定安装目录 `C:\Users\Administrator\AppData\Local\Programs\PersonalWorkbench\personal_workbench.exe`。
+- `git diff --check`：PASS（仅有 Git 行尾转换提示）；未提交、未覆盖用户工作区改动。
+
+### 2026-09-24 新增平台验证
+
+- Android SDK 已补齐 `emulator 37.1.11` 与 API 35 `google_apis/x86_64` 系统镜像，创建隔离 AVD `pwb_api35`（Android 15/API 35）。
+- `tool/build_android.ps1 -Configuration debug -AbiMode x64 -Online`：PASS，生成 `build/app/outputs/flutter-apk/app-x86_64-debug.apk`（SHA-256 `550347BE1544C301E4C0A831798021C4C7B85B930526A900B445396F902619DA`）。直接在中文路径调用 Flutter 构建会触发 Impeller shader 写入失败，使用仓库既有 ASCII 临时源码副本脚本后通过；该现象属于工具链路径限制，不是业务代码错误。
+- x86_64 APK 安装到 API 35 AVD：PASS。冷启动后 `MainActivity` resumed，首页语义树完整，截图 `/Users/Administrator/AppData/Local/Temp/pwb_api35_coldstart.png`，应用 logcat 未见 `FATAL EXCEPTION` 或应用 `AndroidRuntime` 崩溃。
+- Android 通知权限：PASS。首次请求真实出现系统 `POST_NOTIFICATIONS` 弹窗；点击允许后 `dumpsys package` 显示 `granted=true`，`workbench_updates` 渠道和立即通知 `NotificationRecord`/`PendingIntent` 均存在。
+- Android 定时提醒注册：PASS。日/周/月提醒均以 `RTC_WAKEUP` 注册到 `ScheduledNotificationReceiver`；强制停止应用后，Android 按语义取消该包闹钟，不能作为“系统杀进程”证据，故不宣称通过该场景。
+- Android 重启恢复：PASS。AVD 重启后 `ScheduledNotificationBootReceiver` 仍注册 `BOOT_COMPLETED`/`MY_PACKAGE_REPLACED`，应用进程被拉起，日/周/月三个提醒重新存在于 `dumpsys alarm`。将 RTC 时钟直接跳过触发点未得到可靠送达证据，仍保留定时通知 BLOCKED。
+- Windows：`tool/build_windows.ps1 -Configuration debug -Clean` PASS，Debug EXE 已重建；隔离测试入口可启动。稳定安装目录探针和三个快捷方式核验仍 PASS；构建完成后已恢复快捷方式到 `%LOCALAPPDATA%\\Programs\\PersonalWorkbench\\personal_workbench.exe`。
+- DOCX：检测到 Microsoft Word，三份文档均成功导出有效 PDF（`个人工作台新手引导攻略.pdf`、`个人工作台Windows版新手使用指导.pdf`、`个人工作台_用户使用手册.pdf`，均为 `%PDF-1.7` 且文件非空）。使用 PyMuPDF 生成并检查三份联系页及全部 92 页 PNG（612×792），未见空白页、图片裁切、标题越界或明显重叠，DOC-006 已 PASS。
+
+本节仍不改变其余 BLOCKED 清单：真实 Android 定时通知送达（锁屏/休眠/系统杀进程）、真实 Supabase、隔离 Windows 系统副作用及原生窗口完整交互仍需专用环境/凭据。

@@ -3,7 +3,7 @@
 > 审查起点：`1d9c633`（2026-08-31）；本轮发布级复核：2026-09（Asia/Shanghai）
 > 当前状态：本文件保留发布级历史基线；自动测试数量不固定，当前复核以 `flutter test --reporter compact` 的实际输出为准。项目入口与文件职责见根目录 `PROJECT_REVIEW.md`。
 > 最终状态仅允许 `PASS` / `BLOCKED`；未闭环项必须在任务结束前清零。
-> 本轮新增：`ANIM-001`～`ANIM-003`（任务完成节点脉冲、减少动效、日结收尾仪式）；`BUG-017`/`BUG-018` 已修复并 VERIFIED。
+> 本轮新增：`ANIM-001`～`ANIM-003`（任务完成节点脉冲、减少动效、日结收尾仪式）；缺陷台账已追加 `BUG-019`/`BUG-020`，其当前复验见 `CODE_REVIEW_2026-09-21.md` 第 9 节。历史动态统计不代表 2026-09-23 本次运行数量。
 
 | ID | 模块 | 功能 | 前置条件 | 操作步骤 | 预期结果 | 实际结果 | 状态 | 问题编号 | 修复状态 | 回归状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -13,7 +13,7 @@
 | BLD-001 | 构建 | 依赖获取 | 网络/缓存可用 | `flutter pub get` | 成功且无依赖错误 | 命令成功；`flutter_markdown 0.7.7+1` 已停用且 38 个包存在不兼容的新版本，均作为依赖风险记录。 | PASS | - | - | PASS |
 | BLD-002 | 构建 | 格式检查 | 依赖已安装 | `dart format --output=none --set-exit-if-changed lib test` | 无格式漂移 | 最终格式检查为 0 个变更。 | PASS | BUG-001 | VERIFIED | PASS |
 | BLD-003 | 构建 | 静态分析 | 依赖已安装 | `flutter analyze` | 0 error，warning/info 分类记录 | `flutter analyze` 返回 `No issues found`。 | PASS | - | - | PASS |
-| BLD-004 | 构建 | 完整自动测试 | 依赖已安装 | `flutter test` | 全部通过，无未处理异常 | 历史记录为 241/241；当前数量以同次执行的命令输出为准。 | PASS | - | - | PASS |
+| BLD-004 | 构建 | 完整自动测试 | 依赖已安装 | `flutter test` | 全部通过，无未处理异常 | 当前复核 `flutter test --no-pub --reporter compact` 为 245/245；故障注入用例的 `disk full` 堆栈为预期输出。 | PASS | - | - | PASS |
 | BLD-005 | 构建 | Golden 回归 | 字体/渲染稳定 | 运行 golden 测试且不更新基线 | 所有像素基线通过 | 最终命令已执行；33 张 Golden 及全页面布局矩阵通过。 | PASS | BUG-002 | VERIFIED | PASS |
 | BLD-006 | 构建 | Windows Debug 构建 | VS/Windows 工具链 | `flutter build windows --debug` | 构建成功 | `tool/build_windows.ps1 -Configuration debug -Clean` 成功，Debug 产物存在。 | PASS | BUG-003, BUG-011 | VERIFIED | PASS |
 | BLD-007 | 构建 | Windows Release 构建 | VS/Windows 工具链 | 项目发布脚本或 `flutter build windows --release` | 构建成功、产物存在 | `tool/build_windows.ps1 -Configuration release` 成功，Release 产物存在。 | PASS | BUG-003, BUG-011 | VERIFIED | PASS |
@@ -165,7 +165,7 @@
 | PER-003 | 持久化 | 数据库事务失败 | 注入失败 | 批量/恢复/附件写入 | 不出现半写状态 | SQLite 重开、偏好与 CRUD 持久化、事务回滚测试通过；Windows/Android 隔离数据重启验证通过。 | PASS | - | - | PASS |
 | PLT-001 | Windows | 通知/托盘/开机启动 | Windows 构建 | 逐项操作 | 原生能力可用且错误可恢复 | 真实托盘退出和开机启动会改变当前用户 OS 状态，且无隔离 Windows 用户会话；平台通道和错误路径已自动覆盖。 | BLOCKED | - | - | BLOCKED：真实托盘退出和开机启动会改变当前用户 OS 状态，且无隔离 Windows 用户会话；平台通道和错误路径已自动覆盖。 |
 | PLT-002 | Android | 分享文本/链接 | 真机/模拟器 | 从外部分享 | 内容进入快速捕获 | 对应平台能力已按该 Case 的自动化或真实运行步骤验证。 | PASS | - | - | PASS |
-| PLT-003 | Android | 通知/重启/休眠 | 真机/模拟器 | 授权、定时、重启、休眠 | 到达且不重复 | 2026-09-18 在 OnePlus Ace 2 Pro（`PJA110`，Android 16 / API 36，ADB `ec47ee9f`）确认通知权限为 granted，应用设置触发的即时通知在系统通知栏可见，`workbench_updates` 渠道与 PendingIntent 已创建；定时通知经过锁屏、休眠、重启和进程被杀后的送达尚未完成。 | BLOCKED | - | - | BLOCKED：即时通知已在实体设备通过；定时通知的锁屏/休眠/重启/进程恢复时序仍需专门复验。 |
+| PLT-003 | Android | 通知/重启/休眠 | 真机/模拟器 | 授权、定时、重启、休眠 | 到达且不重复 | API 35 隔离 AVD `pwb_api35` 已确认通知权限弹窗、`workbench_updates` 渠道、即时通知、日/周/月 `RTC_WAKEUP` 注册及重启后的 `ScheduledNotificationBootReceiver` 恢复；锁屏/休眠/系统杀进程后的实际定时送达尚未形成可靠证据。 | BLOCKED | - | - | BLOCKED：权限、渠道、即时通知和开机闹钟恢复已通过；长期定时送达仍需专门时序复验。 |
 | PLT-004 | Android | 系统返回/IME/旋转/多窗口 | 真机/模拟器 | 执行平台交互 | 无陷阱、遮挡、丢状态 | 对应平台能力已按该 Case 的自动化或真实运行步骤验证。 | PASS | - | - | PASS |
 | A11Y-001 | 可访问性 | 键盘完整遍历 | Windows | 仅用 Tab/Shift+Tab/Enter/Space/箭头/Escape 完成核心流 | 无鼠标也可完成 | 对比度、48dp、焦点、语义、键盘、200% 文字缩放和减少动效测试通过。 | PASS | - | - | PASS |
 | A11Y-002 | 可访问性 | 焦点可见与恢复 | Windows | 遍历控件、开关 Dialog/Menu | 2px 可见焦点，关闭后回触发器 | 对比度、48dp、焦点、语义、键盘、200% 文字缩放和减少动效测试通过。 | PASS | - | - | PASS |
@@ -194,14 +194,14 @@
 | PRF-003 | 性能 | Timer/监听器/后台任务释放 | 多次进入退出 | 观察日志/实例/重复回调 | 无泄漏与重复执行 | 真实启动计时、1000 条列表测试、资源释放测试和最终产物体积记录已完成。 | PASS | - | - | PASS |
 | PRF-004 | 性能 | 产物体积 | Release 构建 | 记录 Windows/Android 产物大小 | 体积可解释，无意外膨胀 | 真实启动计时、1000 条列表测试、资源释放测试和最终产物体积记录已完成。 | PASS | - | - | PASS |
 | LOG-001 | 日志 | Console/Unhandled error | 全流程 | 采集运行日志 | 无未处理异常/Promise/Future 错误 | Windows 二次干净会话 stderr 为空；Android logcat 未见应用 FATAL/E/flutter；自动测试无未处理异常。 | PASS | - | - | PASS |
-| REG-001 | 回归 | 修复后相关测试 | 存在修复 | 每批修复后跑最小相关集 | 通过且 BUG 状态闭环 | Dialog 焦点/Escape、嵌套 Dropdown 单层关闭与专注预设定向回归通过；最终 241 项全套测试与 Golden/UI 子集通过。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
-| REG-002 | 回归 | 最终完整发布验证 | 最终代码 | Clean build→全测试→真实启动→全视觉复查 | 所有证据更新，无未闭环项 | 241 项全套测试、Golden/UI 状态矩阵和隔离 Windows 启动完成；原生完整交互单列 U4D-038 `BLOCKED`。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
+| REG-001 | 回归 | 修复后相关测试 | 存在修复 | 每批修复后跑最小相关集 | 通过且 BUG 状态闭环 | Dialog 焦点/Escape、嵌套 Dropdown 单层关闭与专注预设定向回归通过；最终 245 项全套测试与 Golden/UI 子集通过。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
+| REG-002 | 回归 | 最终完整发布验证 | 最终代码 | Clean build→全测试→真实启动→全视觉复查 | 所有证据更新，无未闭环项 | 245 项全套测试、Golden/UI 状态矩阵、Windows Debug clean build 和隔离 Android API 35 启动完成；原生完整交互单列 U4D-038 `BLOCKED`。 | PASS | BUG-014, BUG-016 | VERIFIED | PASS |
 | DOC-001 | 文档 | 项目地图完整性 | 最终代码与运行证据 | 逐项对照源码、导航、条件入口和平台能力并重读 | 所有发现均已登记 | 37 个当前可构建表面、全局弹层、兼容入口、设置与平台能力均已登记；最终重读完成。 | PASS | - | - | PASS |
-| DOC-002 | 文档 | 测试矩阵闭环 | 最终矩阵 | 逐行解析 Case ID 与状态，并扫描未执行标记 | 统计一致且不存在未执行项 | 正文共 261 个 Case：250 PASS、11 BLOCKED、0 FAIL、0 未闭环项；本轮复核纳入 Android/UI 回归证据，已机器复核。 | PASS | BUG-015 | VERIFIED | PASS |
+| DOC-002 | 文档 | 测试矩阵闭环 | 最终矩阵 | 逐行解析 Case ID 与状态，并扫描未执行标记 | 统计一致且不存在未执行项 | 正文共 261 个 Case：251 PASS、10 BLOCKED、0 FAIL、0 未闭环项；本轮复核纳入 Android/UI 回归证据，已机器复核。 | PASS | BUG-015 | VERIFIED | PASS |
 | DOC-003 | 文档 | QA 报告一致性 | 全部 QA 文档 | 对照缺陷、最终 QA、回归、UI/UX 与发布清单 | 数量、状态和发布结论一致 | BUG-001～016、最终 QA、回归、UI/UX 和发布清单结论一致，整体判定为 NOT READY。 | PASS | BUG-015 | VERIFIED | PASS |
 | DOC-004 | 文档 | Markdown 用户手册覆盖 | 最终手册 | 统计章节与图片引用并检查引用文件 | 功能说明完整且引用全部存在 | 20 个章节、21 个真实界面截图引用，引用文件 21/21 存在。 | PASS | - | - | PASS |
 | DOC-005 | 文档 | DOCX 生成与结构完整性 | 最终 DOCX | 执行生成器断言并检查 OOXML、截图、表格、行距、编号和可访问性 | 文档结构校验通过 | DOCX 为 1,431,324 bytes；21 张截图、固定表格、1.25 倍行距、编号几何与表头语义通过；a11y 审计 0/0/0。 | PASS | - | - | PASS |
-| DOC-006 | 文档 | DOCX 逐页视觉检查 | 更新后的 DOCX 与本机渲染器 | 导出 PDF 并按原始分辨率检查全部页面 | 无文字或图片越界、裁切及页眉页脚重叠 | 当前环境缺少可调用的 LibreOffice/Word 渲染器；历史版本的 29 页检查不能证明更新后文件视觉无回归。 | BLOCKED | - | - | BLOCKED：缺少当前 DOCX 的原生/兼容渲染能力；需在 Microsoft Word 或 LibreOffice 中逐页复验。 |
+| DOC-006 | 文档 | DOCX 逐页视觉检查 | 更新后的 DOCX 与本机渲染器 | 导出 PDF 并按原始分辨率检查全部页面 | 无文字或图片越界、裁切及页眉页脚重叠 | Microsoft Word 已将三份 DOCX 导出为有效 `%PDF-1.7` 文件；使用 PyMuPDF 生成并检查三份联系页及全部 92 页 PNG（612×792），未见空白页、图片裁切、标题越界或明显重叠。 | PASS | - | - | PASS |
 | DOC-007 | 文档 | 证据与产物路径 | 最终工作区 | 核对 QA 报告、截图、Golden、构建产物和快捷方式 | 所有记录的路径与产物可解析 | QA 报告、截图、Golden、Windows/Android 构建产物与三个快捷方式均已核对。 | PASS | - | - | PASS |
 | OPT-001 | 任务群 | 新建/编辑保存生命周期 | 内存数据库、动画开启 | 新建和编辑任务群并等待退出动画 | 无 `_dependents.isEmpty`、无 FlutterError，数据仅保存一次 | 独立 Stateful Dialog、重复提交闸门、完整套件与 Windows Debug 隔离启动通过。 | PASS | BUG-013 | VERIFIED | PASS |
 | OPT-002 | 任务群 | 取消/校验/重复提交/模式锁定 | 任务群编辑 Dialog | 取消、空标题、非法时限、连续点击保存、编辑已执行群 | 输入保留、错误就地显示、无重复记录、锁定规则不变 | Dialog 校验/取消/重复保存 Widget 回归及既有模式锁定测试通过。 | PASS | BUG-013 | VERIFIED | PASS |
@@ -276,7 +276,7 @@
 | 指标 | 数量 |
 | --- | ---: |
 | 总 Case | 261 |
-| PASS | 250 |
+| PASS | 251 |
 | FAIL | 0 |
-| BLOCKED | 11 |
+| BLOCKED | 10 |
 | 未闭环 | 0 |

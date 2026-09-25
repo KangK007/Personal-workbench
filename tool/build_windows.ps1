@@ -19,6 +19,19 @@ try {
     $sha256.Dispose()
 }
 $projectKey = -join ($digest[0..5] | ForEach-Object { $_.ToString('x2') })
+$buildMutex = [System.Threading.Mutex]::new($false, "Local\PersonalWorkbenchBuild-$projectKey")
+$mutexAcquired = $false
+try {
+    $mutexAcquired = $buildMutex.WaitOne(0)
+} catch [System.Threading.AbandonedMutexException] {
+    # The previous build exited unexpectedly; ownership was released by Windows.
+    $mutexAcquired = $true
+}
+if (-not $mutexAcquired) {
+    $buildMutex.Dispose()
+    throw 'Another Personal Workbench build is already running for this checkout. Wait for it to finish and retry.'
+}
+try {
 $buildCacheRoot = Join-Path $env:LOCALAPPDATA "PersonalWorkbenchBuild\$projectKey"
 $sourceCopy = Join-Path $buildCacheRoot 'source-copy'
 $resolvedCacheBase = [System.IO.Path]::GetFullPath(
@@ -183,3 +196,7 @@ if ($shortcutRefreshOk) {
 
 # Robocopy uses 0-7 for successful copies; do not leak those values to callers.
 $global:LASTEXITCODE = 0
+} finally {
+    $buildMutex.ReleaseMutex()
+    $buildMutex.Dispose()
+}

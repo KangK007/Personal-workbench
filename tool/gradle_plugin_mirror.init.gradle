@@ -1,0 +1,9 @@
+// Optional Gradle init script for networks where plugins.gradle.org redirects
+// to an unreachable host. It is passed explicitly during dependency bootstrap;
+// normal project builds keep the standard repository declarations.
+gradle.settingsEvaluated { settings ->
+    settings.pluginManagement.repositories {
+        maven { url = uri('https://maven.aliyun.com/repository/gradle-plugin') }
+        maven { url = uri('https://mirrors.cloud.tencent.com/nexus/repository/gradle-plugins') }
+    }
+}
