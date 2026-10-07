@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'dart:math' as math;
-
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/workbench_controller.dart';
@@ -126,8 +124,8 @@ class _HabitMatrix extends StatelessWidget {
       (index) => calendarMonthStart.add(Duration(days: index)),
     );
     final calendarToday = DateTime(now.year, now.month, now.day);
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
-    final cellSlot = compact ? 20.0 : 18.0;
+    final availableWidth = MediaQuery.sizeOf(context).width - 68;
+    final cellSlot = (availableWidth / days.length).clamp(12.0, 32.0);
     return Column(
       children: [
         for (final habit in habits)
@@ -157,36 +155,32 @@ class _HabitMatrix extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final day in days)
-                            SizedBox(
-                              width: math.max(cellSlot, 48),
-                              child: Center(
-                                child: NumericText(
-                                  '${day.day}',
-                                  key: ValueKey(
-                                    'habit-day:${habit.id}:${day.day}',
-                                  ),
-                                  style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(
-                                        color: context.tokens.mutedText,
-                                      ),
+                    Row(
+                      children: [
+                        for (final day in days)
+                          Expanded(
+                            child: Center(
+                              child: NumericText(
+                                '${day.day}',
+                                key: ValueKey(
+                                  'habit-day:${habit.id}:${day.day}',
                                 ),
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: context.tokens.mutedText,
+                                      fontSize: cellSlot < 16 ? 9 : null,
+                                    ),
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 5),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final day in days)
-                            _HabitCell(
+                    Row(
+                      children: [
+                        for (final day in days)
+                          Expanded(
+                            child: _HabitCell(
                               label: '${habit.title}，${day.month}月${day.day}日',
                               status: controller
                                   .habitLogForDay(habit.id, day)
@@ -246,8 +240,8 @@ class _HabitMatrix extends StatelessWidget {
                                     }
                                   : null,
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
                   ],
                 ),

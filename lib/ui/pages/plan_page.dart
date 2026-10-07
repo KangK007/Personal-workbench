@@ -21,7 +21,7 @@ enum PlanTab { all, inbox, week, groups }
 
 enum _MemberAction { moveUp, moveDown, skipAndContinue, remove }
 
-class PlanPage extends StatelessWidget {
+class PlanPage extends StatefulWidget {
   const PlanPage({
     super.key,
     required this.controller,
@@ -43,9 +43,40 @@ class PlanPage extends StatelessWidget {
   final VoidCallback? onOpenProjects;
 
   @override
+  State<PlanPage> createState() => _PlanPageState();
+}
+
+class _PlanPageState extends State<PlanPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(
+    length: PlanTab.values.length,
+    initialIndex: widget.initialTab.index,
+    vsync: this,
+  );
+
+  @override
+  void didUpdateWidget(covariant PlanPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTab != widget.initialTab &&
+        !_tabController.indexIsChanging) {
+      _tabController.index = widget.initialTab.index;
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final now = controller.currentTime();
+    final now = widget.controller.currentTime();
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final android = defaultTargetPlatform == TargetPlatform.android;
+    final androidCompact = android && compact;
+    final tabsVisible =
+        widget.showTabs && defaultTargetPlatform != TargetPlatform.windows;
     final weekStart = DateTime(
       now.year,
       now.month,
@@ -53,62 +84,67 @@ class PlanPage extends StatelessWidget {
     ).subtract(Duration(days: now.weekday - 1));
     return Column(
       children: [
-        if (showHeader)
+        if (widget.showHeader)
           PageHeader(
             title: '任务',
             subtitle:
                 '全部任务 · ${formatShortDate(weekStart)}—${formatShortDate(weekStart.add(const Duration(days: 6)))}',
           ),
         Expanded(
-          child: DefaultTabController(
-            length: PlanTab.values.length,
-            initialIndex: initialTab.index,
-            child: Column(
-              children: [
-                if (showTabs)
-                  TabBar(
-                    isScrollable: compact,
-                    labelPadding: EdgeInsets.symmetric(
-                      horizontal: compact ? 14 : 16,
+          child: Column(
+            children: [
+              if (tabsVisible)
+                WorkbenchTabBar(
+                  controller: _tabController,
+                  // Android uses four equal-width targets so the selected tab
+                  // stays visible without requiring a horizontal gesture.
+                  isScrollable: android ? false : compact,
+                  autofocus: android,
+                  tabAlignment: android ? TabAlignment.fill : null,
+                  labelPadding: androidCompact
+                      ? EdgeInsets.zero
+                      : EdgeInsets.symmetric(horizontal: compact ? 14 : 16),
+                  indicatorSize: TabBarIndicatorSize.label,
+                  tabs: [
+                    Tab(
+                      text: '全部任务',
+                      icon: compact
+                          ? null
+                          : const Icon(Icons.checklist_outlined),
                     ),
-                    indicatorSize: TabBarIndicatorSize.label,
-                    tabs: [
-                      Tab(
-                        text: '全部',
-                        icon: compact
-                            ? null
-                            : const Icon(Icons.checklist_outlined),
-                      ),
-                      Tab(
-                        text: '收件箱',
-                        icon: compact ? null : const Icon(Icons.inbox_outlined),
-                      ),
-                      Tab(
-                        text: '周视图',
-                        icon: compact
-                            ? null
-                            : const Icon(Icons.calendar_view_week_outlined),
-                      ),
-                      Tab(
-                        text: '任务群',
-                        icon: compact
-                            ? null
-                            : const Icon(Icons.account_tree_outlined),
-                      ),
-                    ],
-                  ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _AllTasksPage(controller: controller),
-                      InboxPage(controller: controller, showHeader: false),
-                      CalendarPage(controller: controller, showHeader: false),
-                      _TaskGroupsPage(controller: controller),
-                    ],
-                  ),
+                    Tab(
+                      text: '收件箱',
+                      icon: compact ? null : const Icon(Icons.inbox_outlined),
+                    ),
+                    Tab(
+                      text: '周视图',
+                      icon: compact
+                          ? null
+                          : const Icon(Icons.calendar_view_week_outlined),
+                    ),
+                    Tab(
+                      text: '任务群',
+                      icon: compact
+                          ? null
+                          : const Icon(Icons.account_tree_outlined),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _AllTasksPage(controller: widget.controller),
+                    InboxPage(controller: widget.controller, showHeader: false),
+                    CalendarPage(
+                      controller: widget.controller,
+                      showHeader: false,
+                    ),
+                    _TaskGroupsPage(controller: widget.controller),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ],

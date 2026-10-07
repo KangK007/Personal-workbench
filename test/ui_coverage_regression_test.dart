@@ -679,7 +679,7 @@ void main() {
     await expectState(closed, '今天已收尾', '查看明日计划');
   });
 
-  testWidgets('shell keeps desktop navigation and five mobile destinations', (
+  testWidgets('shell keeps desktop navigation and four mobile destinations', (
     tester,
   ) async {
     final fixture = _fixture();
@@ -782,41 +782,56 @@ void main() {
       find.byType(MobileBottomBar),
     );
     final labels = navigation.items.map((item) => item.label).toList();
-    expect(labels, ['今日', '计划', '记录', '成长', '更多']);
+    expect(labels, ['今日', '计划', '执行', '成长']);
     expect(find.byType(PageHeader), findsNothing);
     expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.byKey(const ValueKey('mobile-quick-capture')), findsOneWidget);
     expect(find.byTooltip('快速新增'), findsOneWidget);
     expect(find.byTooltip('全局搜索'), findsOneWidget);
-    // 「更多」入口唯一：底部导航末位。AppBar 曾另放一个同功能按钮，
-    // 与底栏同屏重复且同名 tooltip 会干扰无障碍与自动化定位，已移除。
-    final moreDestination = find.descendant(
-      of: find.byType(MobileBottomBar),
-      matching: find.byTooltip('更多'),
-    );
-    expect(moreDestination, findsOneWidget);
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.byTooltip('更多')),
-      findsNothing,
-    );
-
-    await tester.tap(moreDestination);
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('navigation-leaf:projectsOverview')),
+      find.descendant(of: find.byType(AppBar), matching: find.byTooltip('记录')),
       findsOneWidget,
     );
 
     await tester.tap(
-      find.byKey(const ValueKey('navigation-leaf:projectsOverview')),
+      find.descendant(of: find.byType(AppBar), matching: find.byTooltip('记录')),
     );
     await tester.pumpAndSettle();
-    expect(find.byType(BottomSheet), findsNothing);
-    expect(find.text('项目 · 概览'), findsOneWidget);
-    await tester.binding.handlePopRoute();
+    expect(find.text('回顾 · 日回顾'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('返回'));
     await tester.pumpAndSettle();
     expect(
       find.descendant(of: find.byType(AppBar), matching: find.text('今日')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('计划'));
+    await tester.pumpAndSettle();
+    expect(find.text('全部任务'), findsOneWidget);
+    expect(find.text('收件箱'), findsOneWidget);
+    expect(find.text('周视图'), findsOneWidget);
+    expect(find.text('任务群'), findsOneWidget);
+
+    await tester.tap(find.text('成长'));
+    await tester.pumpAndSettle();
+    expect(find.text('目标'), findsWidgets);
+    expect(find.text('习惯'), findsWidgets);
+    expect(find.text('行为'), findsWidgets);
+    expect(find.text('成长'), findsWidgets);
+
+    await tester.tap(find.text('执行'));
+    await tester.pumpAndSettle();
+    expect(find.text('专注'), findsWidgets);
+    expect(find.text('协议'), findsWidgets);
+    await tester.tap(find.text('协议'));
+    await tester.pumpAndSettle();
+    expect(find.text('执行协议'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.text('成长')),
       findsOneWidget,
     );
   });
@@ -847,24 +862,65 @@ void main() {
     final navigation = tester.widget<MobileBottomBar>(
       find.byType(MobileBottomBar),
     );
-    expect(navigation.items, hasLength(5));
-    await tester.tap(
-      find.descendant(
-        of: find.byType(MobileBottomBar),
-        matching: find.byTooltip('更多'),
+    expect(navigation.items, hasLength(4));
+    await tester.tap(find.text('执行'));
+    await tester.pumpAndSettle();
+    expect(find.text('专注'), findsOneWidget);
+    expect(find.text('协议'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile tab bars support keyboard navigation without clipping', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await fixture.controller.setAdvancedFeaturesEnabled(false);
+
+    await _pump(
+      tester,
+      fixture.controller,
+      () => WorkbenchShell(
+        controller: fixture.controller,
+        enableSystemHotkey: false,
       ),
+      size: const Size(320, 700),
     );
+
+    await tester.tap(find.text('计划'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('navigation-leaf:focus')),
-      180,
-      scrollable: find.byType(Scrollable).last,
-    );
-    final focusLeaf = find.byKey(const ValueKey('navigation-leaf:focus'));
-    await tester.ensureVisible(focusLeaf);
+    expect(find.text('全部任务'), findsOneWidget);
+    expect(find.text('任务群'), findsOneWidget);
+    await tester.tap(find.text('收件箱'));
+    Focus.of(tester.element(find.byType(TabBar).first)).requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
-    await tester.tap(focusLeaf);
+    expect(find.text('工作周'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('成长'));
     await tester.pumpAndSettle();
+    expect(find.text('目标'), findsWidgets);
+    expect(find.text('成长'), findsWidgets);
+    await tester.tap(find.text('行为').first);
+    await tester.pumpAndSettle();
+    expect(find.text('习惯追踪'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('执行'));
+    await tester.pumpAndSettle();
+    expect(find.text('专注'), findsWidgets);
+    expect(find.text('协议'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -1202,50 +1258,52 @@ void main() {
     expect(fixture.notifications.showCount, 0);
   });
 
-  testWidgets('settings covers desktop notifications and export failure', (
-    tester,
-  ) async {
-    final fixture = _fixture(
-      systemNotificationSupport: false,
-      withBackup: true,
-      exportFails: true,
-    );
-    addTearDown(() {
-      fixture.dispose();
-      if (fixture.directory.existsSync()) {
-        fixture.directory.deleteSync(recursive: true);
-      }
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+  testWidgets(
+    'settings covers desktop notifications and export failure',
+    (tester) async {
+      final fixture = _fixture(
+        systemNotificationSupport: false,
+        withBackup: true,
+        exportFails: true,
+      );
+      addTearDown(() {
+        fixture.dispose();
+        if (fixture.directory.existsSync()) {
+          fixture.directory.deleteSync(recursive: true);
+        }
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
-    await _pump(tester, fixture.controller, () {
-      return SettingsPage(controller: fixture.controller);
-    });
-    await tester.scrollUntilVisible(
-      find.text('当前平台仅显示应用内提示'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('当前平台仅显示应用内提示'), findsOneWidget);
-    final permissionButton = tester.widget<OutlinedButton>(
-      find.widgetWithText(OutlinedButton, '申请权限'),
-    );
-    expect(permissionButton.onPressed, isNull);
+      await _pump(tester, fixture.controller, () {
+        return SettingsPage(controller: fixture.controller);
+      });
+      await tester.scrollUntilVisible(
+        find.text('当前平台仅显示应用内提示'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('当前平台仅显示应用内提示'), findsOneWidget);
+      final permissionButton = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, '申请权限'),
+      );
+      expect(permissionButton.onPressed, isNull);
 
-    final export = find.text('导出', skipOffstage: false);
-    await tester.scrollUntilVisible(
-      export,
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.ensureVisible(export);
-    await tester.pumpAndSettle();
-    await tester.tap(export);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.textContaining('导出失败'), findsOneWidget);
-  });
+      final export = find.text('导出', skipOffstage: false);
+      await tester.scrollUntilVisible(
+        export,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(export);
+      await tester.pumpAndSettle();
+      await tester.tap(export);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.textContaining('导出失败'), findsOneWidget);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
 
   testWidgets(
     'today covers start, replacement, habit, scheduling and close flows',

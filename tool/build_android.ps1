@@ -62,6 +62,11 @@ if (Test-Path -LiteralPath $sourceCopy) {
     if ($existingSourceCopy.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
         throw "Refusing to replace a linked build source directory: $sourceCopy"
     }
+    # Local signing files are intentionally read-only. Robocopy preserves that
+    # attribute in this disposable staging tree, so clear it before deleting
+    # only the validated build-cache path.
+    Get-ChildItem -LiteralPath $sourceCopy -Force -Recurse -File -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.IsReadOnly = $false }
     [System.IO.Directory]::Delete("\\?\$resolvedSourceCopy", $true)
 }
 New-Item -ItemType Directory -Force -Path $sourceCopy | Out-Null
@@ -327,6 +332,17 @@ foreach ($built in $builtApks) {
     Copy-Item -LiteralPath $built.Path -Destination $distribution -Force
     Write-Output "Android build completed: $destination"
     Write-Output "Android distribution APK: $distribution"
+}
+
+# Keep only artifacts for the canonical current version across ABI/configuration variants.
+$currentVersionPrefix = "PersonalWorkbench_${versionName}_${versionCode}_"
+$staleReleaseArtifacts = @(
+    Get-ChildItem -LiteralPath $distributionDirectory -Filter 'PersonalWorkbench_*.apk' -File |
+        Where-Object { -not $_.Name.StartsWith($currentVersionPrefix, [System.StringComparison]::OrdinalIgnoreCase) }
+)
+foreach ($staleReleaseArtifact in $staleReleaseArtifacts) {
+    Remove-Verified -LiteralPath $staleReleaseArtifact.FullName
+    Write-Output "Removed stale Android artifact: $($staleReleaseArtifact.Name)"
 }
 
 # $LASTEXITCODE 只由**原生命令**设置，并且会**从调用方会话继承**：子脚本自己不

@@ -311,11 +311,9 @@ class _ReviewPageState extends State<ReviewPage> {
           ),
           const SizedBox(height: 18),
         ],
-        Row(
-          children: [
-            Text('回顾正文', style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
-            IconButton(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final relationButton = IconButton(
               focusNode: relationFocusNode,
               onPressed: editable ? _showRelations : null,
               tooltip: '关联任务和项目',
@@ -327,15 +325,17 @@ class _ReviewPageState extends State<ReviewPage> {
                 ),
                 child: const Icon(Icons.account_tree_outlined),
               ),
-            ),
-            if ((existing?.data['versions'] as List<dynamic>? ?? const [])
-                .isNotEmpty)
-              IconButton(
-                onPressed: _showVersions,
-                tooltip: '恢复正文版本',
-                icon: const Icon(Icons.history_outlined),
-              ),
-            SegmentedButton<bool>(
+            );
+            final versionButton =
+                (existing?.data['versions'] as List<dynamic>? ?? const [])
+                    .isNotEmpty
+                ? IconButton(
+                    onPressed: _showVersions,
+                    tooltip: '恢复正文版本',
+                    icon: const Icon(Icons.history_outlined),
+                  )
+                : null;
+            final modeSelector = SegmentedButton<bool>(
               showSelectedIcon: false,
               segments: const [
                 ButtonSegment(
@@ -352,8 +352,36 @@ class _ReviewPageState extends State<ReviewPage> {
               selected: {preview},
               onSelectionChanged: (value) =>
                   setState(() => preview = value.first),
-            ),
-          ],
+            );
+            if (constraints.maxWidth < 420) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '回顾正文',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const Spacer(),
+                      relationButton,
+                      ?versionButton,
+                    ],
+                  ),
+                  Align(alignment: Alignment.centerLeft, child: modeSelector),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Text('回顾正文', style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                relationButton,
+                ?versionButton,
+                modeSelector,
+              ],
+            );
+          },
         ),
         const SizedBox(height: 10),
         if (preview)
@@ -1132,36 +1160,58 @@ class _ReviewFacts extends StatelessWidget {
           scale:
               '${snapshot.taskFacts.length} 项任务 · ${snapshot.groupFacts.length} 个任务群',
         ),
-        LogSurface(
-          child: Wrap(
-            children: [
-              _metric(
-                '完成',
-                snapshot.count(WorkStatus.done),
-                Icons.check_circle_outline,
-              ),
-              _metric(
-                '失败',
-                snapshot.count(WorkStatus.failed),
-                Icons.cancel_outlined,
-              ),
-              _metric(
-                '跳过',
-                snapshot.count(WorkStatus.skipped),
-                Icons.skip_next_outlined,
-              ),
-              _metric(
-                '改期',
-                snapshot.count(WorkStatus.rescheduled),
-                Icons.event_repeat_outlined,
-              ),
-              _metric(
-                '专注',
-                snapshot.focusSeconds ~/ 60,
-                Icons.timer_outlined,
-                suffix: '分',
-              ),
-            ],
+        SizedBox(
+          width: double.infinity,
+          child: LogSurface(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const gap = 8.0;
+                final columns = constraints.maxWidth >= 560
+                    ? 3
+                    : constraints.maxWidth >= 280
+                    ? 2
+                    : 1;
+                final width =
+                    (constraints.maxWidth - gap * (columns - 1)) / columns;
+                final metrics = [
+                  _metric(
+                    '完成',
+                    snapshot.count(WorkStatus.done),
+                    Icons.check_circle_outline,
+                  ),
+                  _metric(
+                    '失败',
+                    snapshot.count(WorkStatus.failed),
+                    Icons.cancel_outlined,
+                  ),
+                  _metric(
+                    '跳过',
+                    snapshot.count(WorkStatus.skipped),
+                    Icons.skip_next_outlined,
+                  ),
+                  _metric(
+                    '改期',
+                    snapshot.count(WorkStatus.rescheduled),
+                    Icons.event_repeat_outlined,
+                  ),
+                  _metric(
+                    '专注',
+                    snapshot.focusSeconds ~/ 60,
+                    Icons.timer_outlined,
+                    suffix: '分',
+                  ),
+                ];
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: 4,
+                  children: [
+                    for (final metric in metrics)
+                      SizedBox(width: width, child: metric),
+                  ],
+                );
+              },
+            ),
           ),
         ),
         const SizedBox(height: 10),
@@ -1200,13 +1250,11 @@ class _ReviewFacts extends StatelessWidget {
     int value,
     IconData icon, {
     String suffix = '',
-  }) => SizedBox(
-    width: 130,
-    child: ListTile(
-      leading: Icon(icon),
-      title: Text('$value$suffix'),
-      subtitle: Text(label),
-    ),
+  }) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+    leading: Icon(icon),
+    title: Text('$value$suffix'),
+    subtitle: Text(label),
   );
 }
 

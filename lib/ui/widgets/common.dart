@@ -64,6 +64,65 @@ class ExternalField extends StatelessWidget {
   }
 }
 
+/// 页签统一键盘交互：点击后仍保留焦点，左右方向键切换相邻页签。
+/// Material TabBar 在嵌套 TabBarView 或窄屏滚动场景下不总能取得稳定焦点，
+/// 因此在公共控件层补一条明确的键盘路径。
+class WorkbenchTabBar extends StatelessWidget {
+  const WorkbenchTabBar({
+    super.key,
+    required this.tabs,
+    this.controller,
+    this.isScrollable = false,
+    this.autofocus = false,
+    this.labelPadding,
+    this.indicatorSize,
+    this.tabAlignment,
+  });
+
+  final List<Widget> tabs;
+  final TabController? controller;
+  final bool isScrollable;
+  final bool autofocus;
+  final EdgeInsetsGeometry? labelPadding;
+  final TabBarIndicatorSize? indicatorSize;
+  final TabAlignment? tabAlignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeController = controller ?? DefaultTabController.of(context);
+    return Focus(
+      key: const ValueKey('workbench-tab-bar-focus'),
+      autofocus: autofocus,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+          return KeyEventResult.ignored;
+        }
+        final delta = switch (event.logicalKey) {
+          LogicalKeyboardKey.arrowLeft => -1,
+          LogicalKeyboardKey.arrowRight => 1,
+          _ => 0,
+        };
+        if (delta == 0) return KeyEventResult.ignored;
+        final next = (activeController.index + delta)
+            .clamp(0, activeController.length - 1)
+            .toInt();
+        if (next != activeController.index) {
+          activeController.animateTo(next);
+        }
+        return KeyEventResult.handled;
+      },
+      child: TabBar(
+        controller: controller,
+        isScrollable: isScrollable,
+        labelPadding: labelPadding,
+        indicatorSize: indicatorSize,
+        tabAlignment: tabAlignment,
+        tabs: tabs,
+      ),
+    );
+  }
+}
+
 /// 统一对话框入口：品牌遮罩色 + 淡入缩放入场，替代散落各处的默认 showDialog。
 Future<T?> showWorkbenchDialog<T extends Object?>({
   required BuildContext context,

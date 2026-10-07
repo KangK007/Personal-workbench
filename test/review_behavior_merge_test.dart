@@ -20,6 +20,7 @@ class _MemoryDatabase extends AppDatabase {
   @override
   Future<List<WorkspaceRecord>> loadRecords({
     bool includeDeleted = true,
+    String? accountId,
   }) async => records.values.toList();
 
   @override

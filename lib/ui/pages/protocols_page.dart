@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
@@ -92,6 +93,8 @@ class _ProtocolsPageState extends State<ProtocolsPage>
       _stopTicker();
     }
     final tabs = _tabs;
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final android = defaultTargetPlatform == TargetPlatform.android;
     return Column(
       children: [
         if (widget.showHeader)
@@ -108,10 +111,12 @@ class _ProtocolsPageState extends State<ProtocolsPage>
             ],
           ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: TabBar(
+          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 20),
+          child: WorkbenchTabBar(
             controller: tabController,
-            isScrollable: true,
+            isScrollable: !(android && compact),
+            tabAlignment: android && compact ? TabAlignment.fill : null,
+            labelPadding: android && compact ? EdgeInsets.zero : null,
             tabs: [for (final tab in tabs) _tabWidget(tab)],
           ),
         ),

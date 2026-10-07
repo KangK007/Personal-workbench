@@ -156,6 +156,11 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final progress = _progress.clamp(0.0, 1.0).toDouble();
+            // Android landscape can report a wide physical surface but only
+            // ~900 logical pixels at high density. Keep every hour addressable
+            // while shortening the visual label so adjacent labels do not run
+            // together; the full time remains available to accessibility.
+            final compactLabels = constraints.maxWidth < 1200;
             return Stack(
               children: [
                 Positioned.fill(
@@ -187,8 +192,11 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
                                   child: FittedBox(
                                     fit: BoxFit.scaleDown,
                                     child: Text(
-                                      labels[index],
+                                      compactLabels
+                                          ? labels[index].substring(0, 2)
+                                          : labels[index],
                                       key: ValueKey('time-ruler-hour-$index'),
+                                      semanticsLabel: labels[index],
                                       style: Theme.of(context)
                                           .textTheme
                                           .labelSmall

@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
@@ -45,6 +46,7 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final windows = controller.windowsActivityService.supported;
     return Column(
       children: [
         if (showHeader) ...[
@@ -97,45 +99,58 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _Section(
-                title: '专注与检测',
-                children: [
-                  SwitchListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    secondary: const _SettingsIcon(Icons.visibility_outlined),
-                    title: const Text('前台应用检测'),
-                    subtitle: const Text('默认关闭；只保存应用标识、开始时间、持续时间和预设'),
-                    value: controller.foregroundDetectionEnabled,
-                    onChanged: controller.setForegroundDetectionEnabled,
-                  ),
-                  SwitchListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    secondary: const _SettingsIcon(Icons.open_in_new_outlined),
-                    title: const Text('定时专注显示工作台'),
-                    subtitle: const Text('到点先提醒并恢复窗口；Windows 拒绝置前时闪烁任务栏'),
-                    value: controller.bringToFrontOnFocusSchedule,
-                    onChanged: controller.setBringToFrontOnFocusSchedule,
-                  ),
-                  ListTile(
-                    leading: const _SettingsIcon(Icons.delete_sweep_outlined),
-                    title: const Text('前台日志'),
-                    subtitle: const Text('本地保留 30 天，不上传云端'),
-                    trailing: TextButton(
-                      onPressed: () => _clearForegroundHistory(context),
-                      child: const Text('立即清除'),
+              if (windows) ...[
+                const SizedBox(height: 16),
+                _Section(
+                  title: '专注与检测',
+                  children: [
+                    SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
+                      secondary: const _SettingsIcon(Icons.visibility_outlined),
+                      title: const Text('前台应用检测'),
+                      subtitle: const Text('默认关闭；只保存应用标识、开始时间、持续时间和预设'),
+                      value: controller.foregroundDetectionEnabled,
+                      onChanged: controller.setForegroundDetectionEnabled,
                     ),
-                  ),
-                ],
-              ),
+                    SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
+                      secondary: const _SettingsIcon(
+                        Icons.open_in_new_outlined,
+                      ),
+                      title: const Text('定时专注显示工作台'),
+                      subtitle: const Text('到点先提醒并恢复窗口；Windows 拒绝置前时闪烁任务栏'),
+                      value: controller.bringToFrontOnFocusSchedule,
+                      onChanged: controller.setBringToFrontOnFocusSchedule,
+                    ),
+                    ListTile(
+                      leading: const _SettingsIcon(Icons.delete_sweep_outlined),
+                      title: const Text('前台日志'),
+                      subtitle: const Text('本地保留 30 天，不上传云端'),
+                      trailing: TextButton(
+                        onPressed: () => _clearForegroundHistory(context),
+                        child: const Text('立即清除'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               _Section(
                 title: '回顾与提醒',
                 children: [
                   for (final type in activeReviewPeriodTypes)
                     SwitchListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
+                      contentPadding: EdgeInsets.only(
+                        left: 16,
+                        right:
+                            MediaQuery.sizeOf(context).width <
+                                AppBreakpoints.compact
+                            ? 80
+                            : 16,
                       ),
                       secondary: _SettingsIcon(_reviewIcon(type)),
                       title: Text(_reviewName(type)),
@@ -161,45 +176,50 @@ class SettingsPage extends StatelessWidget {
               _Section(
                 title: '通知与后台',
                 children: [
-                  SwitchListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    secondary: const _SettingsIcon(Icons.minimize_outlined),
-                    title: const Text('关闭窗口时最小化到托盘'),
-                    subtitle: const Text('启用后请通过托盘菜单退出应用'),
-                    value: controller.closeToTray,
-                    onChanged: controller.windowsActivityService.supported
-                        ? controller.setCloseToTray
-                        : null,
-                  ),
-                  SwitchListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    secondary: const _SettingsIcon(
-                      Icons.power_settings_new_outlined,
+                  if (windows) ...[
+                    SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
+                      secondary: const _SettingsIcon(Icons.minimize_outlined),
+                      title: const Text('关闭窗口时最小化到托盘'),
+                      subtitle: const Text('启用后请通过托盘菜单退出应用'),
+                      value: controller.closeToTray,
+                      onChanged: controller.setCloseToTray,
                     ),
-                    title: const Text('开机启动'),
-                    subtitle: const Text('默认关闭，仅当前 Windows 用户'),
-                    value: controller.startupEnabled,
-                    onChanged: controller.windowsActivityService.supported
-                        ? controller.setStartupEnabled
-                        : null,
-                  ),
-                  ListTile(
-                    leading: const _SettingsIcon(Icons.exit_to_app_outlined),
-                    title: const Text('真正退出'),
-                    subtitle: const Text('停止托盘、计时和后台提醒'),
-                    trailing: OutlinedButton(
-                      onPressed: controller.windowsActivityService.supported
-                          ? controller.windowsActivityService.exitApplication
-                          : null,
-                      child: const Text('退出'),
+                    SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
+                      secondary: const _SettingsIcon(
+                        Icons.power_settings_new_outlined,
+                      ),
+                      title: const Text('开机启动'),
+                      subtitle: const Text('默认关闭，仅当前 Windows 用户'),
+                      value: controller.startupEnabled,
+                      onChanged: controller.setStartupEnabled,
                     ),
-                  ),
+                    ListTile(
+                      leading: const _SettingsIcon(Icons.exit_to_app_outlined),
+                      title: const Text('真正退出'),
+                      subtitle: const Text('停止托盘、计时和后台提醒'),
+                      trailing: OutlinedButton(
+                        onPressed:
+                            controller.windowsActivityService.exitApplication,
+                        child: const Text('退出'),
+                      ),
+                    ),
+                  ],
                   ListTile(
                     leading: const _SettingsIcon(Icons.notifications_outlined),
                     title: const Text('任务和休息提醒'),
                     subtitle: Text(
-                      controller.notificationService.supportsSystemNotifications
-                          ? '由 Android 或 Windows 系统管理通知'
+                      defaultTargetPlatform == TargetPlatform.android
+                          ? '由 Android 系统管理通知'
+                          : controller
+                                .notificationService
+                                .supportsSystemNotifications
+                          ? '由 Windows 系统管理通知'
                           : '当前平台仅显示应用内提示',
                     ),
                     trailing: OutlinedButton(
@@ -214,68 +234,70 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _Section(
-                title: '诊断与恢复',
-                children: [
-                  ListTile(
-                    leading: const _SettingsIcon(
-                      Icons.admin_panel_settings_outlined,
+              if (windows) ...[
+                const SizedBox(height: 16),
+                _Section(
+                  title: '诊断与恢复',
+                  children: [
+                    ListTile(
+                      leading: const _SettingsIcon(
+                        Icons.admin_panel_settings_outlined,
+                      ),
+                      title: const Text('管理员权限'),
+                      subtitle: Text(
+                        controller.restrictionHostsStatus.administrator
+                            ? '已具备 Windows 管理员权限'
+                            : '未具备，写入 hosts 时可能需要 UAC',
+                      ),
                     ),
-                    title: const Text('管理员权限'),
-                    subtitle: Text(
-                      controller.restrictionHostsStatus.supported
-                          ? (controller.restrictionHostsStatus.administrator
-                                ? '已具备 Windows 管理员权限'
-                                : '未具备，写入 hosts 时可能需要 UAC')
-                          : '当前平台不支持 Windows 原生限制',
-                    ),
-                  ),
-                  ListTile(
-                    leading: _SettingsIcon(
-                      controller.restrictionHostsStatus.active
-                          ? Icons.check_circle_outline
-                          : Icons.cloud_off_outlined,
-                    ),
-                    title: const Text('hosts 健康状态'),
-                    subtitle: Text(_hostsSummary(controller)),
-                    trailing: Wrap(
-                      spacing: 4,
-                      children: [
-                        IconButton(
-                          tooltip: '重新检查',
-                          onPressed: controller.refreshRestrictionHostsStatus,
-                          icon: const Icon(Icons.refresh),
-                        ),
-                        if (controller.restrictionProfile?.websiteBlocking ==
-                            true)
+                    ListTile(
+                      leading: _SettingsIcon(
+                        controller.restrictionHostsStatus.active
+                            ? Icons.check_circle_outline
+                            : Icons.cloud_off_outlined,
+                      ),
+                      title: const Text('hosts 健康状态'),
+                      subtitle: Text(_hostsSummary(controller)),
+                      trailing: Wrap(
+                        spacing: 4,
+                        children: [
                           IconButton(
-                            tooltip: '修复 hosts',
-                            onPressed: controller.repairRestrictionHosts,
-                            icon: const Icon(Icons.build_outlined),
+                            tooltip: '重新检查',
+                            onPressed: controller.refreshRestrictionHostsStatus,
+                            icon: const Icon(Icons.refresh),
                           ),
-                        if (controller.restrictionHostsStatus.active)
-                          IconButton(
-                            tooltip: '清理 hosts',
-                            onPressed: controller.clearRestrictionHosts,
-                            icon: const Icon(Icons.cleaning_services_outlined),
-                          ),
-                      ],
+                          if (controller.restrictionProfile?.websiteBlocking ==
+                              true)
+                            IconButton(
+                              tooltip: '修复 hosts',
+                              onPressed: controller.repairRestrictionHosts,
+                              icon: const Icon(Icons.build_outlined),
+                            ),
+                          if (controller.restrictionHostsStatus.active)
+                            IconButton(
+                              tooltip: '清理 hosts',
+                              onPressed: controller.clearRestrictionHosts,
+                              icon: const Icon(
+                                Icons.cleaning_services_outlined,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  ListTile(
-                    leading: const _SettingsIcon(
-                      Icons.power_settings_new_outlined,
+                    ListTile(
+                      leading: const _SettingsIcon(
+                        Icons.power_settings_new_outlined,
+                      ),
+                      title: const Text('异常退出恢复'),
+                      subtitle: Text(
+                        controller.restrictionRecoveredAfterAbnormalExit
+                            ? '检测到上次异常退出，活动限制已恢复'
+                            : '未发现异常退出',
+                      ),
                     ),
-                    title: const Text('异常退出恢复'),
-                    subtitle: Text(
-                      controller.restrictionRecoveredAfterAbnormalExit
-                          ? '检测到上次异常退出，活动限制已恢复'
-                          : '未发现异常退出',
-                    ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               _Section(
                 title: '数据与备份',
@@ -581,6 +603,7 @@ class _AppearanceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final windows = controller.windowsActivityService.supported;
     return _Section(
       title: '外观与导航',
       children: [
@@ -600,14 +623,15 @@ class _AppearanceSection extends StatelessWidget {
             },
           ),
         ),
-        SwitchListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-          secondary: const _SettingsIcon(Icons.vertical_split_outlined),
-          title: const Text('默认折叠 Windows 侧栏'),
-          subtitle: const Text('仅改变八栏导航宽度，不隐藏任何页面'),
-          value: controller.navigationCollapsed,
-          onChanged: controller.setNavigationCollapsed,
-        ),
+        if (windows)
+          SwitchListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            secondary: const _SettingsIcon(Icons.vertical_split_outlined),
+            title: const Text('默认折叠 Windows 侧栏'),
+            subtitle: const Text('仅改变八栏导航宽度，不隐藏任何页面'),
+            value: controller.navigationCollapsed,
+            onChanged: controller.setNavigationCollapsed,
+          ),
         ListTile(
           leading: const _SettingsIcon(Icons.badge_outlined),
           title: const Text('个人别名'),

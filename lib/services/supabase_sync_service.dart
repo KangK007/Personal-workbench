@@ -90,8 +90,9 @@ class SupabaseSyncService {
   Future<SyncResult> sync(AppDatabase database) async {
     try {
       final remote = _remote ?? _remoteForClient();
-      final dirty = await database.loadDirtyRecords();
-      final local = await database.loadRecords();
+      await database.activateAccount(remote.userId);
+      final dirty = await database.loadDirtyRecords(accountId: remote.userId);
+      final local = await database.loadRecords(accountId: remote.userId);
       final localByKey = {
         for (final record in local) _recordKey(record): record,
       };
@@ -123,7 +124,15 @@ class SupabaseSyncService {
           final key = _recordKey(remoteRecord);
           final current = localByKey[key];
           if (current == null) {
-            await database.saveRecord(remoteRecord, markDirty: false);
+            final applied = await database.saveRemoteRecordIfUnchanged(
+              remoteRecord,
+              accountId: remote.userId,
+              expectedLocal: null,
+            );
+            if (!applied) {
+              blockedUploads.add(key);
+              continue;
+            }
             localByKey[key] = remoteRecord;
             downloaded++;
             continue;
@@ -141,20 +150,40 @@ class SupabaseSyncService {
           // A remote tombstone wins over an unsynced local edit. Keeping the
           // deletion explicit makes the conflict deterministic and auditable.
           if (remoteRecord.isDeleted && !current.isDeleted) {
-            await database.saveRecord(remoteRecord, markDirty: false);
+            final applied = await database.saveRemoteRecordIfUnchanged(
+              remoteRecord,
+              accountId: remote.userId,
+              expectedLocal: current,
+            );
+            if (!applied) {
+              blockedUploads.add(key);
+              continue;
+            }
             localByKey[key] = remoteRecord;
+            blockedUploads.add(key);
             downloaded++;
             continue;
           }
 
-          if (current.syncState == SyncState.dirty) {
-            await database.saveRecord(current.asConflictCopy());
+          final conflictCopy = current.syncState == SyncState.dirty
+              ? current.asConflictCopy()
+              : null;
+          final applied = await database.saveRemoteRecordIfUnchanged(
+            remoteRecord,
+            accountId: remote.userId,
+            expectedLocal: current,
+            conflictCopy: conflictCopy,
+          );
+          if (!applied) {
+            blockedUploads.add(key);
+            continue;
+          }
+          localByKey[key] = remoteRecord;
+          downloaded++;
+          if (conflictCopy != null) {
             blockedUploads.add(key);
             conflicts++;
           }
-          await database.saveRecord(remoteRecord, markDirty: false);
-          localByKey[key] = remoteRecord;
-          downloaded++;
         }
         if (rows.length < _pageSize) break;
         offset += rows.length;
@@ -167,7 +196,7 @@ class SupabaseSyncService {
         await remote.upsert(
           uploads.map((record) => _toRemoteRow(record, remote.userId)).toList(),
         );
-        await database.markClean(uploads);
+        await database.markClean(uploads, accountId: remote.userId);
       }
 
       return SyncResult(

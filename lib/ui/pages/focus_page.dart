@@ -153,7 +153,12 @@ class _FocusTab extends StatelessWidget {
                           : Icons.hourglass_bottom_outlined,
                     ),
                     title: Text(preset.title),
-                    subtitle: Text(_presetSummary(preset)),
+                    subtitle: Text(
+                      _presetSummary(
+                        preset,
+                        windows: controller.windowsActivityService.supported,
+                      ),
+                    ),
                     trailing: Wrap(
                       spacing: 4,
                       children: [
@@ -280,19 +285,20 @@ Future<void> showFocusSession(
   );
 }
 
-String _presetSummary(WorkspaceRecord preset) {
+String _presetSummary(WorkspaceRecord preset, {required bool windows}) {
   final mode = preset.data['mode'] == FocusMode.stopwatch.name
       ? '正计时'
       : '倒计时 ${(preset.data['minutes'] as num?)?.toInt() ?? 25} 分钟';
-  final listMode = switch (preset.data['listMode']) {
-    'allow' => '白名单',
-    'block' => '黑名单',
-    _ => '不检测应用',
-  };
   final schedule = switch (preset.data['scheduleMode']) {
     'once' => '单次提醒',
     'weekly' => '每周提醒',
     _ => '手动启动',
+  };
+  if (!windows) return '$mode · $schedule';
+  final listMode = switch (preset.data['listMode']) {
+    'allow' => '白名单',
+    'block' => '黑名单',
+    _ => '不检测应用',
   };
   return '$mode · $listMode · $schedule';
 }
@@ -353,6 +359,7 @@ Future<void> _showPresetEditor(
   var scheduledAt = DateTime.tryParse(
     preset?.data['scheduledAt']?.toString() ?? '',
   )?.toLocal();
+  final windows = controller.windowsActivityService.supported;
   final weekdays = (preset?.data['weekdays'] as List<dynamic>? ?? const [])
       .map((value) => (value as num).toInt())
       .toSet();
@@ -424,40 +431,42 @@ Future<void> _showPresetEditor(
                     onChanged: (value) => setDialogState(() => taskId = value),
                   ),
                 ),
-                const SizedBox(height: 12),
-                ExternalField(
-                  label: '应用检测模式',
-                  child: DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    initialValue: listMode,
-                    decoration: const InputDecoration(),
-                    items: const [
-                      DropdownMenuItem(value: 'none', child: Text('不使用名单')),
-                      DropdownMenuItem(value: 'allow', child: Text('白名单')),
-                      DropdownMenuItem(value: 'block', child: Text('黑名单')),
-                    ],
-                    onChanged: (value) =>
-                        setDialogState(() => listMode = value ?? 'none'),
-                  ),
-                ),
-                if (listMode != 'none') ...[
+                if (windows) ...[
                   const SizedBox(height: 12),
                   ExternalField(
-                    label: '应用进程名',
-                    child: TextField(
-                      controller: applications,
-                      decoration: const InputDecoration(
-                        hintText: 'chrome.exe, matlab.exe',
-                      ),
+                    label: '应用检测模式',
+                    child: DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: listMode,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(value: 'none', child: Text('不使用名单')),
+                        DropdownMenuItem(value: 'allow', child: Text('白名单')),
+                        DropdownMenuItem(value: 'block', child: Text('黑名单')),
+                      ],
+                      onChanged: (value) =>
+                          setDialogState(() => listMode = value ?? 'none'),
                     ),
                   ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: detection,
-                    title: const Text('此预设启用前台检测'),
-                    onChanged: (value) =>
-                        setDialogState(() => detection = value),
-                  ),
+                  if (listMode != 'none') ...[
+                    const SizedBox(height: 12),
+                    ExternalField(
+                      label: '应用进程名',
+                      child: TextField(
+                        controller: applications,
+                        decoration: const InputDecoration(
+                          hintText: 'chrome.exe, matlab.exe',
+                        ),
+                      ),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: detection,
+                      title: const Text('此预设启用前台检测'),
+                      onChanged: (value) =>
+                          setDialogState(() => detection = value),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 12),
                 ExternalField(
@@ -482,15 +491,16 @@ Future<void> _showPresetEditor(
                   ),
                 ),
                 if (scheduleMode != 'none') ...[
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: bringToFront,
-                    secondary: const Icon(Icons.open_in_new_outlined),
-                    title: const Text('到点时显示工作台'),
-                    subtitle: const Text('先发送系统提醒，再恢复窗口；仍需确认后才开始计时'),
-                    onChanged: (value) =>
-                        setDialogState(() => bringToFront = value),
-                  ),
+                  if (windows)
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: bringToFront,
+                      secondary: const Icon(Icons.open_in_new_outlined),
+                      title: const Text('到点时显示工作台'),
+                      subtitle: const Text('先发送系统提醒，再恢复窗口；仍需确认后才开始计时'),
+                      onChanged: (value) =>
+                          setDialogState(() => bringToFront = value),
+                    ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -686,8 +696,10 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
     }
     WidgetsBinding.instance.addObserver(this);
     service.addListener(_handleTargetReached);
-    powerSubscription = widget.controller.windowsActivityService.powerEvents
-        .listen(_handlePowerEvent);
+    if (widget.controller.windowsActivityService.supported) {
+      powerSubscription = widget.controller.windowsActivityService.powerEvents
+          .listen(_handlePowerEvent);
+    }
   }
 
   @override
@@ -1208,7 +1220,8 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
 
   void _startActivityMonitoring() {
     final preset = widget.preset;
-    if (preset?.data['detectionEnabled'] != true ||
+    if (!widget.controller.windowsActivityService.supported ||
+        preset?.data['detectionEnabled'] != true ||
         !widget.controller.foregroundDetectionEnabled) {
       return;
     }
@@ -1221,6 +1234,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
   }
 
   Future<void> _pollForeground() async {
+    if (!widget.controller.windowsActivityService.supported) return;
     final application = await widget.controller.windowsActivityService
         .foregroundProcess();
     if (application == null || application == foregroundApplication) return;

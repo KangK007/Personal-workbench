@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../core/models/restriction_models.dart';
@@ -10,9 +8,7 @@ import '../../services/restriction_monitor.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
 
-/// 自律内容区：无 PageHeader、无外层 Column 的纯内容组件。
-///
-/// 供「专注」页的「自律」Tab 与旧版 RestrictionPage 复用。
+/// Windows 自律内容区：无 PageHeader、无外层 Column 的纯内容组件。
 /// 数据全部走 [controller] 的现有 getter，状态逻辑与旧版一致。
 class RestrictionSection extends StatelessWidget {
   const RestrictionSection({
@@ -26,9 +22,11 @@ class RestrictionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!controller.windowsActivityService.supported) {
+      return const SizedBox.shrink();
+    }
     final profile = controller.restrictionProfile;
     final monitor = controller.restrictionMonitorState;
-    final windows = Platform.isWindows;
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
     return ListView(
       padding: EdgeInsets.fromLTRB(
@@ -40,7 +38,6 @@ class RestrictionSection extends StatelessWidget {
       children: [
         if (controller.restrictionExitRequested)
           _ExitRequestBanner(controller: controller),
-        if (!windows) const _PlatformNotice(),
         _buildOverview(context, profile, monitor),
         const SectionHeading(title: '规则'),
         _buildProfileCard(context, profile),
@@ -112,14 +109,17 @@ class RestrictionSection extends StatelessWidget {
                 value: '${controller.todayRestrictionEventCount} 次',
                 numeric: true,
               ),
-              _Metric(
-                width: metricWidth,
-                label: 'hosts',
-                value: controller.restrictionHostsStatus.active ? '已生效' : '未生效',
-                color: controller.restrictionHostsStatus.error.isEmpty
-                    ? null
-                    : Theme.of(context).colorScheme.error,
-              ),
+              if (controller.windowsActivityService.supported)
+                _Metric(
+                  width: metricWidth,
+                  label: 'hosts',
+                  value: controller.restrictionHostsStatus.active
+                      ? '已生效'
+                      : '未生效',
+                  color: controller.restrictionHostsStatus.error.isEmpty
+                      ? null
+                      : Theme.of(context).colorScheme.error,
+                ),
             ],
           );
         },
@@ -338,6 +338,7 @@ class RestrictionSection extends StatelessWidget {
     BuildContext context,
     RestrictionProfile? profile,
   ) {
+    final windows = controller.windowsActivityService.supported;
     final hosts = controller.restrictionHostsStatus;
     return LogSurface(
       child: Column(
@@ -354,44 +355,44 @@ class RestrictionSection extends StatelessWidget {
             title: const Text('强保护'),
             subtitle: Text(profile?.strongProtection == true ? '已启用' : '未启用'),
           ),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
+          if (windows) ...[
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+              ),
+              leading: const SurfaceIcon(Icons.power_outlined),
+              title: const Text('Windows 后台行为'),
+              subtitle: Text(
+                '开机启动：${controller.startupEnabled ? '已开启' : '未开启'} · '
+                '关闭窗口进托盘：${controller.closeToTray ? '已开启' : '未开启'}',
+              ),
             ),
-            leading: const SurfaceIcon(Icons.power_outlined),
-            title: const Text('Windows 后台行为'),
-            subtitle: Text(
-              '开机启动：${controller.startupEnabled ? '已开启' : '未开启'} · '
-              '关闭窗口进托盘：${controller.closeToTray ? '已开启' : '未开启'}',
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+              ),
+              leading: SurfaceIcon(
+                hosts.active
+                    ? Icons.check_circle_outline
+                    : Icons.cloud_off_outlined,
+                color: hosts.error.isEmpty
+                    ? null
+                    : Theme.of(context).colorScheme.error,
+              ),
+              title: const Text('hosts 与系统诊断'),
+              subtitle: Text(
+                hosts.error.isNotEmpty
+                    ? hosts.error
+                    : hosts.active
+                    ? 'hosts 受管区块完整'
+                    : '当前未启用 hosts 拦截',
+              ),
+              trailing: TextButton(
+                onPressed: () => _showSettingsHint(context),
+                child: const Text('前往设置'),
+              ),
             ),
-          ),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-            ),
-            leading: SurfaceIcon(
-              hosts.active
-                  ? Icons.check_circle_outline
-                  : Icons.cloud_off_outlined,
-              color: hosts.error.isEmpty
-                  ? null
-                  : Theme.of(context).colorScheme.error,
-            ),
-            title: const Text('hosts 与系统诊断'),
-            subtitle: Text(
-              hosts.error.isNotEmpty
-                  ? hosts.error
-                  : hosts.active
-                  ? 'hosts 受管区块完整'
-                  : hosts.supported
-                  ? '当前未启用 hosts 拦截'
-                  : 'Android 不执行 Windows hosts 限制',
-            ),
-            trailing: TextButton(
-              onPressed: () => _showSettingsHint(context),
-              child: const Text('前往设置'),
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -409,7 +410,7 @@ class RestrictionSection extends StatelessWidget {
   }
 }
 
-/// 独立自律页；FocusHub 中的旧自律标签仍复用 [RestrictionSection]。
+/// 独立 Windows 自律页；Android 不创建该页面。
 class RestrictionPage extends StatelessWidget {
   const RestrictionPage({
     super.key,
@@ -424,16 +425,16 @@ class RestrictionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!controller.windowsActivityService.supported) {
+      return const SizedBox.shrink();
+    }
     final profile = controller.restrictionProfile;
-    final windows = Platform.isWindows;
     return Column(
       children: [
         if (showHeader)
           PageHeader(
             title: '自律',
-            subtitle: windows
-                ? 'Windows 正在执行规则，Android 仅管理同步配置'
-                : '规则可编辑并同步；限制仅在 Windows 执行',
+            subtitle: 'Windows 正在执行规则与拦截',
             actions: [
               FilledButton.icon(
                 onPressed: () =>
@@ -1362,25 +1363,6 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
       ),
     );
   }
-}
-
-class _PlatformNotice extends StatelessWidget {
-  const _PlatformNotice();
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: LogSurface(
-      accent: context.tokens.info,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: const Row(
-        children: [
-          Icon(Icons.info_outline),
-          SizedBox(width: 10),
-          Expanded(child: Text('Android 可以查看、编辑和同步规则，实际拦截仅在 Windows 端生效。')),
-        ],
-      ),
-    ),
-  );
 }
 
 class _ExitRequestBanner extends StatelessWidget {

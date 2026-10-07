@@ -98,5 +98,9 @@ foreach ($shortcutPath in $shortcutPaths) {
     Set-PersonalWorkbenchShortcut -Path $shortcutPath
 }
 
+$runKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Software\Microsoft\Windows\CurrentVersion\Run')
+$runKey.SetValue('PersonalWorkbench', "`"$executable`"")
+$runKey.Dispose()
+
 Write-Host "Personal Workbench was installed to: $installDirectory"
 Start-Process -FilePath $executable -WorkingDirectory $installDirectory

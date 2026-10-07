@@ -16,6 +16,7 @@ import 'package:personal_workbench/state/workbench_controller.dart';
 import 'package:personal_workbench/ui/widgets/task_group_editor_dialog.dart';
 import 'package:personal_workbench/ui/widgets/task_hierarchy.dart';
 import 'package:personal_workbench/ui/widgets/relation_picker_dialog.dart';
+import 'package:personal_workbench/ui/widgets/common.dart';
 import 'package:personal_workbench/ui/pages/review_page.dart';
 import 'package:personal_workbench/ui/pages/habits_page.dart';
 import 'package:personal_workbench/ui/pages/growth_page.dart';
@@ -321,6 +322,38 @@ void main() {
     expect(find.text('编辑本期'), findsOneWidget);
   });
 
+  testWidgets('review facts keep symmetric metric insets on compact widths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _controller(_MemoryDatabase(), DateTime(2026, 10, 4));
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(_host(ReviewPage(controller: controller)));
+    await tester.pump();
+
+    final surfaceFinder = find.byType(LogSurface).first;
+    final surface = tester.renderObject<RenderBox>(surfaceFinder);
+    final metrics = find.descendant(
+      of: surfaceFinder,
+      matching: find.byType(ListTile),
+    );
+    expect(metrics, findsNWidgets(5));
+    final first = tester.renderObject<RenderBox>(metrics.at(0));
+    final second = tester.renderObject<RenderBox>(metrics.at(1));
+    final surfaceLeft = surface.localToGlobal(Offset.zero).dx;
+    final surfaceRight = surfaceLeft + surface.size.width;
+    final leftInset = first.localToGlobal(Offset.zero).dx - surfaceLeft;
+    final rightInset =
+        surfaceRight - second.localToGlobal(Offset.zero).dx - second.size.width;
+
+    expect(surface.size.width, closeTo(320, 1));
+    expect(leftInset, closeTo(rightInset, 1));
+  });
+
   testWidgets('failed RSIP check-in is visibly locked', (tester) async {
     final database = _MemoryDatabase();
     final controller = _controller(database, DateTime(2026, 8, 10, 10));
@@ -589,6 +622,32 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.bySemanticsLabel('当前时间 00:00，自然日进度 0%'), findsOneWidget);
     expect(tester.getTopLeft(marker).dx, lessThan(endOfDayX));
+  });
+
+  testWidgets('time ruler uses compact labels on dense landscape widths', (
+    tester,
+  ) async {
+    final controller = _controllerWithClock(
+      _MemoryDatabase(),
+      () => DateTime(2026, 8, 10, 16),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _host(
+        SizedBox(
+          width: 914,
+          height: 400,
+          child: TodayPage(controller: controller),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('00'), findsOneWidget);
+    expect(find.text('23'), findsOneWidget);
+    expect(find.text('00:00'), findsNothing);
+    expect(find.bySemanticsLabel('00:00'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('habit and growth matrices cover every day of the month', (

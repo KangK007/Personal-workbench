@@ -73,6 +73,9 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            // flutter_local_notifications resolves its small icon from a Dart
+            // string, so resource shrinking cannot see the runtime reference.
+            isShrinkResources = false
         }
     }
 }

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_workbench/core/models/workspace_record.dart';
 import 'package:personal_workbench/core/models/workspace_models_v3.dart';
@@ -142,6 +143,27 @@ class _ReviewNotifications extends NotificationService {
   }
 }
 
+class _AccountRemote implements WorkspaceSyncRemote {
+  @override
+  String get userId => 'account-b';
+
+  final List<Map<String, dynamic>> uploaded = [];
+
+  @override
+  Future<void> delete(List<Map<String, dynamic>> keys) async {}
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchPage({
+    required int offset,
+    required int limit,
+  }) async => const [];
+
+  @override
+  Future<void> upsert(List<Map<String, dynamic>> rows) async {
+    uploaded.addAll(rows);
+  }
+}
+
 WorkbenchController _databaseController(AppDatabase database, DateTime now) =>
     WorkbenchController(
       database: database,
@@ -166,7 +188,41 @@ void main() {
 
   setUpAll(sqfliteFfiInit);
 
+  test(
+    'sync activation reloads only the selected account into controller state',
+    () async {
+      final database = AppDatabase(
+        factory: databaseFactoryFfi,
+        overridePath: inMemoryDatabasePath,
+      );
+      final accountARecord = _task('private to account A');
+      await database.activateAccount('account-a');
+      await database.saveRecord(accountARecord);
+      final remoteB = _AccountRemote();
+      final controller = WorkbenchController(
+        database: database,
+        backupService: BackupService(),
+        searchService: SearchService(),
+        focusService: FocusService(),
+        notificationService: NotificationService(),
+        shareCaptureService: ShareCaptureService(),
+        syncService: SupabaseSyncService.withRemote(remoteB),
+        now: () => now,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.syncNow();
+
+      expect(controller.allRecords, isEmpty);
+      expect(remoteB.uploaded, isEmpty);
+      await database.activateAccount('account-a');
+      expect((await database.loadRecords()).single.title, accountARecord.title);
+    },
+  );
+
   test('fresh database seeds disabled restriction defaults', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     final database = AppDatabase(
       factory: databaseFactoryFfi,
       overridePath: inMemoryDatabasePath,
@@ -185,6 +241,22 @@ void main() {
     expect(await database.readMetadata('advanced_features_enabled'), 'false');
     expect(await database.readMetadata('game_features_enabled'), 'true');
     expect(await database.readMetadata('game_features_prompt_seen'), 'true');
+  });
+
+  test('Android fresh database enables advanced workflow by default', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final database = AppDatabase(
+      factory: databaseFactoryFfi,
+      overridePath: inMemoryDatabasePath,
+    );
+    final controller = _databaseController(database, now);
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+
+    expect(controller.advancedFeaturesEnabled, isTrue);
+    expect(await database.readMetadata('advanced_features_enabled'), 'true');
   });
 
   group('RSIP v3 state machine', () {

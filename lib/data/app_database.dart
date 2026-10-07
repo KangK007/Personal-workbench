@@ -9,7 +9,7 @@ import '../core/models/attachment.dart';
 import '../core/models/workspace_record.dart';
 
 class AppDatabase {
-  static const schemaVersion = 3;
+  static const schemaVersion = 4;
 
   AppDatabase({DatabaseFactory? factory, String? overridePath})
     : _factoryOverride = factory,
@@ -18,6 +18,27 @@ class AppDatabase {
   final DatabaseFactory? _factoryOverride;
   final String? _pathOverride;
   Database? _database;
+  String _activeAccountId = '';
+  bool _signedOutView = true;
+
+  String get activeAccountId => _activeAccountId;
+
+  /// Switches the local record partition. Legacy rows remain in the ownerless
+  /// local partition and are never silently assigned to a signed-in account.
+  Future<void> activateAccount(String? accountId) async {
+    if (runtimeType != AppDatabase) {
+      _activeAccountId = accountId ?? '';
+      _signedOutView = accountId == null;
+      return;
+    }
+    final target =
+        accountId ?? await readMetadata('last_active_account_v4') ?? '';
+    _activeAccountId = target;
+    _signedOutView = accountId == null;
+    if (target.isNotEmpty) {
+      await writeMetadata('last_active_account_v4', target);
+    }
+  }
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -43,20 +64,21 @@ class AppDatabase {
         onCreate: (db, version) async {
           await db.execute('''
           CREATE TABLE workspace_records (
+            account_id TEXT NOT NULL DEFAULT '',
             id TEXT NOT NULL,
             kind TEXT NOT NULL,
             payload TEXT NOT NULL,
             updated_at INTEGER NOT NULL,
             deleted_at INTEGER,
             sync_state TEXT NOT NULL,
-            PRIMARY KEY (id, kind)
+            PRIMARY KEY (account_id, id, kind)
           )
         ''');
           await db.execute(
-            'CREATE INDEX record_kind_index ON workspace_records(kind)',
+            'CREATE INDEX record_kind_index ON workspace_records(account_id, kind)',
           );
           await db.execute(
-            'CREATE INDEX record_updated_index ON workspace_records(updated_at)',
+            'CREATE INDEX record_updated_index ON workspace_records(account_id, updated_at)',
           );
           await db.execute('''
           CREATE TABLE app_metadata (
@@ -64,7 +86,20 @@ class AppDatabase {
             value TEXT NOT NULL
           )
         ''');
-          await _createVersionTwoTables(db);
+          await db.execute('''
+            CREATE TABLE attachments (
+              account_id TEXT NOT NULL DEFAULT '', id TEXT NOT NULL,
+              owner_record_id TEXT NOT NULL, owner_kind TEXT NOT NULL,
+              file_name TEXT NOT NULL, relative_path TEXT NOT NULL,
+              mime_type TEXT NOT NULL, size_bytes INTEGER NOT NULL,
+              sha256 TEXT NOT NULL, created_at INTEGER NOT NULL,
+              PRIMARY KEY (account_id, id)
+            )
+          ''');
+          await db.execute(
+            'CREATE INDEX attachment_owner_index '
+            'ON attachments(account_id, owner_record_id, owner_kind)',
+          );
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -82,6 +117,17 @@ class AppDatabase {
             await _createVersionTwoTables(db);
             await db.insert('app_metadata', {
               'key': 'schema_migration_v3',
+              'value': jsonEncode({
+                'from': oldVersion,
+                'to': newVersion,
+                'migratedAt': DateTime.now().toUtc().toIso8601String(),
+              }),
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+          if (oldVersion < 4) {
+            await _upgradeToVersionFour(db);
+            await db.insert('app_metadata', {
+              'key': 'schema_migration_v4',
               'value': jsonEncode({
                 'from': oldVersion,
                 'to': newVersion,
@@ -114,13 +160,13 @@ class AppDatabase {
       return null;
     }
     if (path == inMemoryDatabasePath) return null;
-    return (path, '$path.pre-v3.dpapi');
+    return (path, '$path.pre-v4.dpapi');
   }
 
   static Future<void> _createVersionTwoTables(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS attachments (
-        id TEXT PRIMARY KEY,
+        id TEXT NOT NULL,
         owner_record_id TEXT NOT NULL,
         owner_kind TEXT NOT NULL,
         file_name TEXT NOT NULL,
@@ -128,12 +174,77 @@ class AppDatabase {
         mime_type TEXT NOT NULL,
         size_bytes INTEGER NOT NULL,
         sha256 TEXT NOT NULL,
-        created_at INTEGER NOT NULL
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (id)
       )
     ''');
     await db.execute(
       'CREATE INDEX IF NOT EXISTS attachment_owner_index '
       'ON attachments(owner_record_id, owner_kind)',
+    );
+  }
+
+  static Future<void> _createVersionFourTables(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS workspace_records_v4 (
+        account_id TEXT NOT NULL DEFAULT '',
+        id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        deleted_at INTEGER,
+        sync_state TEXT NOT NULL,
+        PRIMARY KEY (account_id, id, kind)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS attachments_v4 (
+        account_id TEXT NOT NULL DEFAULT '',
+        id TEXT NOT NULL,
+        owner_record_id TEXT NOT NULL,
+        owner_kind TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        relative_path TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        sha256 TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (account_id, id)
+      )
+    ''');
+  }
+
+  static Future<void> _upgradeToVersionFour(DatabaseExecutor db) async {
+    await _createVersionFourTables(db);
+    await db.execute('''
+      INSERT INTO workspace_records_v4
+        (account_id, id, kind, payload, updated_at, deleted_at, sync_state)
+      SELECT '', id, kind, payload, updated_at, deleted_at, sync_state
+      FROM workspace_records
+    ''');
+    await db.execute('''
+      INSERT INTO attachments_v4
+        (account_id, id, owner_record_id, owner_kind, file_name, relative_path,
+         mime_type, size_bytes, sha256, created_at)
+      SELECT '', id, owner_record_id, owner_kind, file_name, relative_path,
+             mime_type, size_bytes, sha256, created_at
+      FROM attachments
+    ''');
+    await db.execute('DROP TABLE workspace_records');
+    await db.execute('DROP TABLE attachments');
+    await db.execute(
+      'ALTER TABLE workspace_records_v4 RENAME TO workspace_records',
+    );
+    await db.execute('ALTER TABLE attachments_v4 RENAME TO attachments');
+    await db.execute(
+      'CREATE INDEX record_kind_index ON workspace_records(account_id, kind)',
+    );
+    await db.execute(
+      'CREATE INDEX record_updated_index ON workspace_records(account_id, updated_at)',
+    );
+    await db.execute(
+      'CREATE INDEX attachment_owner_index '
+      'ON attachments(account_id, owner_record_id, owner_kind)',
     );
   }
 
@@ -145,11 +256,21 @@ class AppDatabase {
 
   Future<List<WorkspaceRecord>> loadRecords({
     bool includeDeleted = true,
+    String? accountId,
   }) async {
     final db = await database;
+    final selectedAccountId = accountId ?? _activeAccountId;
+    final includeOwnerless = accountId == null && _signedOutView;
     final rows = await db.query(
       'workspace_records',
-      where: includeDeleted ? null : 'deleted_at IS NULL',
+      where: includeDeleted
+          ? (includeOwnerless
+                ? "account_id = ? OR account_id = ''"
+                : 'account_id = ?')
+          : (includeOwnerless
+                ? "(account_id = ? OR account_id = '') AND deleted_at IS NULL"
+                : 'account_id = ? AND deleted_at IS NULL'),
+      whereArgs: [selectedAccountId],
       orderBy: 'updated_at DESC',
     );
     return rows
@@ -170,6 +291,7 @@ class AppDatabase {
         ? record.copyWith(syncState: SyncState.dirty, touch: false)
         : record.copyWith(syncState: SyncState.clean, touch: false);
     await db.insert('workspace_records', {
+      'account_id': _activeAccountId,
       'id': stored.id,
       'kind': stored.kind.name,
       'payload': stored.encode(),
@@ -191,6 +313,7 @@ class AppDatabase {
             ? record.copyWith(syncState: SyncState.dirty, touch: false)
             : record.copyWith(syncState: SyncState.clean, touch: false);
         batch.insert('workspace_records', {
+          'account_id': _activeAccountId,
           'id': stored.id,
           'kind': stored.kind.name,
           'payload': stored.encode(),
@@ -203,12 +326,16 @@ class AppDatabase {
     });
   }
 
-  Future<List<WorkspaceRecord>> loadDirtyRecords() async {
+  Future<List<WorkspaceRecord>> loadDirtyRecords({String? accountId}) async {
     final db = await database;
+    final selectedAccountId = accountId ?? _activeAccountId;
+    final includeOwnerless = accountId == null && _signedOutView;
     final rows = await db.query(
       'workspace_records',
-      where: 'sync_state = ?',
-      whereArgs: [SyncState.dirty.name],
+      where: includeOwnerless
+          ? "(account_id = ? OR account_id = '') AND sync_state = ?"
+          : 'account_id = ? AND sync_state = ?',
+      whereArgs: [selectedAccountId, SyncState.dirty.name],
     );
     return rows
         .map(
@@ -219,24 +346,95 @@ class AppDatabase {
         .toList(growable: false);
   }
 
-  Future<void> markClean(Iterable<WorkspaceRecord> records) async {
+  /// Applies a fetched cloud version only while the local snapshot is still
+  /// current. This keeps edits made during network I/O from being overwritten.
+  Future<bool> saveRemoteRecordIfUnchanged(
+    WorkspaceRecord record, {
+    required String accountId,
+    required WorkspaceRecord? expectedLocal,
+    WorkspaceRecord? conflictCopy,
+  }) async {
     final db = await database;
+    return db.transaction((txn) async {
+      final rows = await txn.query(
+        'workspace_records',
+        columns: ['payload'],
+        where: 'account_id = ? AND id = ? AND kind = ?',
+        whereArgs: [accountId, record.id, record.kind.name],
+        limit: 1,
+      );
+      if (expectedLocal == null) {
+        if (rows.isNotEmpty) return false;
+      } else {
+        if (rows.isEmpty) return false;
+        final current = WorkspaceRecord.fromJson(
+          jsonDecode(rows.single['payload'] as String) as Map<String, dynamic>,
+        );
+        if (current.encode() != expectedLocal.encode()) return false;
+      }
+
+      if (conflictCopy != null) {
+        final storedConflict = conflictCopy.copyWith(
+          syncState: SyncState.dirty,
+          touch: false,
+        );
+        await txn.insert('workspace_records', {
+          'account_id': accountId,
+          'id': storedConflict.id,
+          'kind': storedConflict.kind.name,
+          'payload': storedConflict.encode(),
+          'updated_at': storedConflict.updatedAt.millisecondsSinceEpoch,
+          'deleted_at': storedConflict.deletedAt?.millisecondsSinceEpoch,
+          'sync_state': SyncState.dirty.name,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+
+      final stored = record.copyWith(syncState: SyncState.clean, touch: false);
+      await txn.insert('workspace_records', {
+        'account_id': accountId,
+        'id': stored.id,
+        'kind': stored.kind.name,
+        'payload': stored.encode(),
+        'updated_at': stored.updatedAt.millisecondsSinceEpoch,
+        'deleted_at': stored.deletedAt?.millisecondsSinceEpoch,
+        'sync_state': SyncState.clean.name,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return true;
+    });
+  }
+
+  Future<void> markClean(
+    Iterable<WorkspaceRecord> records, {
+    String? accountId,
+  }) async {
+    final db = await database;
+    final selectedAccountId = accountId ?? _activeAccountId;
     await db.transaction((txn) async {
-      final batch = txn.batch();
       for (final record in records) {
-        final clean = record.copyWith(syncState: SyncState.clean, touch: false);
-        batch.update(
+        final rows = await txn.query(
           'workspace_records',
-          {'payload': clean.encode(), 'sync_state': SyncState.clean.name},
-          where: 'id = ? AND kind = ? AND updated_at = ?',
-          whereArgs: [
-            record.id,
-            record.kind.name,
-            record.updatedAt.millisecondsSinceEpoch,
-          ],
+          columns: ['payload'],
+          where: 'account_id = ? AND id = ? AND kind = ?',
+          whereArgs: [selectedAccountId, record.id, record.kind.name],
+          limit: 1,
+        );
+        if (rows.isEmpty) continue;
+        final payload = rows.single['payload'] as String;
+        final current = WorkspaceRecord.fromJson(
+          jsonDecode(payload) as Map<String, dynamic>,
+        );
+        if (current.updatedAt != record.updatedAt) continue;
+        final clean = current.copyWith(
+          syncState: SyncState.clean,
+          touch: false,
+        );
+        await txn.update(
+          'workspace_records',
+          {'sync_state': SyncState.clean.name, 'payload': clean.encode()},
+          where: 'account_id = ? AND id = ? AND kind = ? AND payload = ?',
+          whereArgs: [selectedAccountId, record.id, record.kind.name, payload],
         );
       }
-      await batch.commit(noResult: true);
     });
   }
 
@@ -255,13 +453,13 @@ class AppDatabase {
       for (final key in values) {
         batch.delete(
           'attachments',
-          where: 'owner_record_id = ? AND owner_kind = ?',
-          whereArgs: [key.id, key.kind.name],
+          where: 'account_id = ? AND owner_record_id = ? AND owner_kind = ?',
+          whereArgs: [_activeAccountId, key.id, key.kind.name],
         );
         batch.delete(
           'workspace_records',
-          where: 'id = ? AND kind = ?',
-          whereArgs: [key.id, key.kind.name],
+          where: 'account_id = ? AND id = ? AND kind = ?',
+          whereArgs: [_activeAccountId, key.id, key.kind.name],
         );
       }
       await batch.commit(noResult: true);
@@ -286,14 +484,25 @@ class AppDatabase {
   }) async {
     final db = await database;
     await db.transaction((txn) async {
-      await txn.delete('workspace_records');
-      if (attachments != null) await txn.delete('attachments');
+      await txn.delete(
+        'workspace_records',
+        where: 'account_id = ?',
+        whereArgs: [_activeAccountId],
+      );
+      if (attachments != null) {
+        await txn.delete(
+          'attachments',
+          where: 'account_id = ?',
+          whereArgs: [_activeAccountId],
+        );
+      }
       final batch = txn.batch();
       for (final record in records) {
         final stored = markDirty
             ? record.copyWith(syncState: SyncState.dirty, touch: false)
             : record.copyWith(syncState: SyncState.clean, touch: false);
         batch.insert('workspace_records', {
+          'account_id': _activeAccountId,
           'id': stored.id,
           'kind': stored.kind.name,
           'payload': stored.encode(),
@@ -304,7 +513,10 @@ class AppDatabase {
       }
       if (attachments != null) {
         for (final attachment in attachments) {
-          batch.insert('attachments', attachment.toDatabase());
+          batch.insert('attachments', {
+            ...attachment.toDatabase(),
+            'account_id': _activeAccountId,
+          });
         }
       }
       await batch.commit(noResult: true);
@@ -341,6 +553,7 @@ class AppDatabase {
       final batch = txn.batch();
       for (final record in records) {
         batch.insert('workspace_records', {
+          'account_id': _activeAccountId,
           'id': record.id,
           'kind': record.kind.name,
           'payload': record.encode(),
@@ -359,19 +572,26 @@ class AppDatabase {
 
   Future<void> saveAttachment(Attachment attachment) async {
     final db = await database;
-    await db.insert(
-      'attachments',
-      attachment.toDatabase(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('attachments', {
+      ...attachment.toDatabase(),
+      'account_id': _activeAccountId,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<Attachment>> loadAttachments({String? ownerRecordId}) async {
     final db = await database;
     final rows = await db.query(
       'attachments',
-      where: ownerRecordId == null ? null : 'owner_record_id = ?',
-      whereArgs: ownerRecordId == null ? null : [ownerRecordId],
+      where: ownerRecordId == null
+          ? (_signedOutView
+                ? "account_id = ? OR account_id = ''"
+                : 'account_id = ?')
+          : (_signedOutView
+                ? "(account_id = ? OR account_id = '') AND owner_record_id = ?"
+                : 'account_id = ? AND owner_record_id = ?'),
+      whereArgs: ownerRecordId == null
+          ? [_activeAccountId]
+          : [_activeAccountId, ownerRecordId],
       orderBy: 'created_at DESC',
     );
     return rows.map(Attachment.fromDatabase).toList(growable: false);
@@ -380,23 +600,37 @@ class AppDatabase {
   Future<int> attachmentBytes() async {
     final db = await database;
     final rows = await db.rawQuery(
-      'SELECT COALESCE(SUM(size_bytes), 0) AS total FROM attachments',
+      _signedOutView
+          ? "SELECT COALESCE(SUM(size_bytes), 0) AS total FROM attachments WHERE account_id = ? OR account_id = ''"
+          : 'SELECT COALESCE(SUM(size_bytes), 0) AS total FROM attachments WHERE account_id = ?',
+      [_activeAccountId],
     );
     return (rows.single['total'] as num?)?.toInt() ?? 0;
   }
 
   Future<void> deleteAttachment(String id) async {
     final db = await database;
-    await db.delete('attachments', where: 'id = ?', whereArgs: [id]);
+    await db.delete(
+      'attachments',
+      where: 'account_id = ? AND id = ?',
+      whereArgs: [_activeAccountId, id],
+    );
   }
 
   Future<void> replaceAttachments(Iterable<Attachment> attachments) async {
     final db = await database;
     await db.transaction((txn) async {
-      await txn.delete('attachments');
+      await txn.delete(
+        'attachments',
+        where: 'account_id = ?',
+        whereArgs: [_activeAccountId],
+      );
       final batch = txn.batch();
       for (final attachment in attachments) {
-        batch.insert('attachments', attachment.toDatabase());
+        batch.insert('attachments', {
+          ...attachment.toDatabase(),
+          'account_id': _activeAccountId,
+        });
       }
       await batch.commit(noResult: true);
     });

@@ -50,6 +50,11 @@ if (Test-Path -LiteralPath $sourceCopy) {
     if ($existingSourceCopy.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
         throw "Refusing to replace a linked build source directory: $sourceCopy"
     }
+    # Local signing files are intentionally read-only. Robocopy preserves that
+    # attribute in this disposable staging tree, so clear it before deleting
+    # only the validated build-cache path.
+    Get-ChildItem -LiteralPath $sourceCopy -Force -Recurse -File -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.IsReadOnly = $false }
     [System.IO.Directory]::Delete("\\?\$resolvedSourceCopy", $true)
 }
 New-Item -ItemType Directory -Force -Path $sourceCopy | Out-Null

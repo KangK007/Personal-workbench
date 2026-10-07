@@ -64,10 +64,13 @@ class AttachmentService {
     }
 
     final root = _root ?? await getApplicationSupportDirectory();
-    final directory = Directory(p.join(root.path, 'attachments'));
+    final directory = await _liveDirectory(root);
     await directory.create(recursive: true);
     final id = newRecordId();
-    final relativePath = p.join('attachments', '$id$extension');
+    final relativePath = p.relative(
+      p.join(directory.path, '$id$extension'),
+      from: root.path,
+    );
     final target = File(p.join(root.path, relativePath));
     await source.copy(target.path);
 
@@ -124,14 +127,16 @@ class AttachmentService {
   }) async {
     final root = _root ?? await getApplicationSupportDirectory();
     await root.create(recursive: true);
-    final liveDirectory = Directory(p.join(root.path, 'attachments'));
+    final liveDirectory = await _liveDirectory(root);
+    final parentDirectory = liveDirectory.parent;
     final restoreId = newRecordId();
     final stagingDirectory = Directory(
-      p.join(root.path, '.attachments-restore-$restoreId'),
+      p.join(parentDirectory.path, '.attachments-restore-$restoreId'),
     );
     final rollbackDirectory = Directory(
-      p.join(root.path, '.attachments-rollback-$restoreId'),
+      p.join(parentDirectory.path, '.attachments-rollback-$restoreId'),
     );
+    await parentDirectory.create(recursive: true);
     await stagingDirectory.create(recursive: true);
     final restored = <Attachment>[];
     final attachmentIds = <String>{};
@@ -159,7 +164,10 @@ class AttachmentService {
                 await _sha256(bytes) != source.sha256)) {
           throw FormatException('附件内容校验失败：${source.fileName}');
         }
-        final relativePath = p.join('attachments', '${source.id}$extension');
+        final relativePath = p.relative(
+          p.join(liveDirectory.path, '${source.id}$extension'),
+          from: root.path,
+        );
         final attachment = Attachment(
           id: source.id,
           ownerRecordId: source.ownerRecordId,
@@ -222,6 +230,17 @@ class AttachmentService {
     final root = _root ?? await getApplicationSupportDirectory();
     final file = File(p.join(root.path, attachment.relativePath));
     return await file.exists() ? file : null;
+  }
+
+  Future<Directory> _liveDirectory(Directory root) async {
+    final accountId = database.activeAccountId;
+    if (accountId.isEmpty) return Directory(p.join(root.path, 'attachments'));
+    final digest = await Sha256().hash(accountId.codeUnits);
+    final namespace = digest.bytes
+        .take(16)
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join();
+    return Directory(p.join(root.path, 'attachments', 'accounts', namespace));
   }
 
   Future<void> delete(Attachment attachment) async {

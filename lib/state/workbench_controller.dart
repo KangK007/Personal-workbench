@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:csv/csv.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/models/game_state.dart';
@@ -646,6 +647,7 @@ class WorkbenchController extends WorkbenchControllerBase
         }
       }
       await database.database;
+      await database.activateAccount(syncService.currentUser?.id);
       final domainMigrationComplete =
           await database.readMetadata('domain_migration_v3') != null;
       if (domainMigrationComplete) migrationPhaseComplete = true;
@@ -750,6 +752,7 @@ class WorkbenchController extends WorkbenchControllerBase
           !hadExistingRecords && _records.isEmpty && advanced == null;
       if (advanced == null) {
         _advancedFeaturesEnabled =
+            defaultTargetPlatform == TargetPlatform.android ||
             ctdpTasks.isNotEmpty ||
             habits.any((habit) => habit.hasRsipProtocol) ||
             protocolEvents.isNotEmpty ||
@@ -4703,6 +4706,11 @@ class WorkbenchController extends WorkbenchControllerBase
 
   Future<void> signIn(String email, String password) async {
     await syncService.signIn(email.trim(), password);
+    await database.activateAccount(syncService.currentUser?.id);
+    _records
+      ..clear()
+      ..addAll(await database.loadRecords());
+    _projectIndex = null;
     _syncPhase = SyncPhase.idle;
     _syncMessage = '已登录 ${syncService.currentUser?.email ?? ''}';
     notifyListeners();
@@ -4710,6 +4718,11 @@ class WorkbenchController extends WorkbenchControllerBase
 
   Future<void> signUp(String email, String password) async {
     await syncService.signUp(email.trim(), password);
+    await database.activateAccount(syncService.currentUser?.id);
+    _records
+      ..clear()
+      ..addAll(await database.loadRecords());
+    _projectIndex = null;
     _syncPhase = syncService.currentUser == null
         ? SyncPhase.signedOut
         : SyncPhase.idle;
@@ -4719,6 +4732,11 @@ class WorkbenchController extends WorkbenchControllerBase
 
   Future<void> signOut() async {
     await syncService.signOut();
+    await database.activateAccount(null);
+    _records
+      ..clear()
+      ..addAll(await database.loadRecords());
+    _projectIndex = null;
     _syncPhase = SyncPhase.signedOut;
     _syncMessage = '云端账号已退出，本地数据仍然可用';
     notifyListeners();

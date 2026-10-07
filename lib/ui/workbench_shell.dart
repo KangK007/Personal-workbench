@@ -10,10 +10,8 @@ import '../core/theme/app_theme.dart';
 import '../core/utils/formatters.dart';
 import '../state/workbench_controller.dart';
 import 'pages/behavior_page.dart';
-import 'pages/focus_page.dart';
-import 'pages/growth_page.dart';
-import 'pages/goals_page.dart';
-import 'pages/habits_page.dart';
+import 'pages/execution_page.dart';
+import 'pages/growth_hub_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/plan_page.dart';
 import 'pages/inbox_page.dart';
@@ -109,21 +107,14 @@ class WorkbenchShell extends StatefulWidget {
 }
 
 class _WorkbenchShellState extends State<WorkbenchShell> {
-  /// 移动端底部导航（规范 2.3）。
-  ///
-  /// 每项对应一个**用户心智域**而非一个页面。原方案「今日/任务/回顾/行为/设置」
-  /// 的问题是高频道「成长」缺席、低频的「设置」占了主位。现改为
-  /// 今日 / 计划 / 记录 / 成长 / 更多——末位「更多」打开系统层弹层。
-  /// `WorkbenchSection` 枚举值全部保持不变，仅重新归组。
+  /// 移动端底部导航（规范 2.3）。每项对应一个用户心智域。
+  /// 记录入口移到主界面页头，第三项由原记录页改为执行页。
   static const _mobilePrimarySections = [
     WorkbenchSection.today,
     WorkbenchSection.tasksAll,
-    WorkbenchSection.reviewDaily,
+    WorkbenchSection.protocols,
     WorkbenchSection.growth,
   ];
-
-  /// 末位「更多」在 destinations 中的索引。它不是某个 section，而是打开弹层。
-  static const _mobileMoreIndex = 4;
 
   WorkbenchSection section = WorkbenchSection.today;
   BehaviorMode behaviorMode = BehaviorMode.habits;
@@ -136,7 +127,8 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   WorkbenchSection _lastMobilePrimary = WorkbenchSection.today;
   final Map<WorkbenchSection, WorkbenchSection> _lastMobileChild = {
     WorkbenchSection.tasksAll: WorkbenchSection.tasksAll,
-    WorkbenchSection.reviewDaily: WorkbenchSection.reviewDaily,
+    WorkbenchSection.protocols: WorkbenchSection.protocols,
+    WorkbenchSection.growth: WorkbenchSection.growth,
   };
 
   @override
@@ -301,7 +293,17 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       return WorkbenchSection.projectsOverview;
     }
     if (_reviewSections.contains(value)) {
-      return WorkbenchSection.reviewDaily;
+      return null;
+    }
+    if (value == WorkbenchSection.focus ||
+        value == WorkbenchSection.protocols) {
+      return WorkbenchSection.protocols;
+    }
+    if (value == WorkbenchSection.goals ||
+        value == WorkbenchSection.habits ||
+        value == WorkbenchSection.behavior ||
+        value == WorkbenchSection.growth) {
+      return WorkbenchSection.growth;
     }
     if (_policySections.contains(value)) {
       return WorkbenchSection.behavior;
@@ -315,7 +317,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   Widget _mobileLayout() {
     final primary = _mobilePrimaryFor(section) ?? _lastMobilePrimary;
     final index = _mobilePrimarySections.indexOf(primary);
-    // 项目详情页等可通过「更多」进入，但它们不是底部导航项；
+    // 项目详情页等可通过顶部「导航」进入，但它们不是底部导航项；
     // NavigationBar 需要一个有效索引，故回落到 0 并由横幅说明当前页面。
     final isSecondaryDestination = index < 0;
     // NavigationBar requires a valid index. A compact page banner makes the
@@ -333,7 +335,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       WorkbenchSection.projectsGroups => '项目 · 任务群',
       WorkbenchSection.projectsMilestones => '项目 · 里程碑',
       WorkbenchSection.projectsNotes => '项目 · 笔记与回顾',
-      WorkbenchSection.focus => '专注',
+      WorkbenchSection.focus || WorkbenchSection.protocols => '执行',
       WorkbenchSection.restriction => '自律',
       WorkbenchSection.notes => '笔记',
       WorkbenchSection.diary => '回顾 · 日回顾',
@@ -367,14 +369,19 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           // 方案 C 的移动页头左起就是日期与标题，没有品牌块。
           automaticallyImplyLeading: false,
           leading: _mobileHistory.isEmpty
-              ? (isTodayDestination
-                    ? null
-                    : Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: Center(child: SealLogo(size: 30)),
-                      ))
+              ? IconButton(
+                  onPressed: () => _openMobileNavigation(context),
+                  tooltip: '导航',
+                  icon: const Icon(Icons.menu),
+                )
               : IconButton(
-                  onPressed: _popMobileHistory,
+                  onPressed: () {
+                    setState(() {
+                      _mobileHistory.clear();
+                      section = WorkbenchSection.today;
+                      _visitedSections.add(WorkbenchSection.today);
+                    });
+                  },
                   tooltip: '返回',
                   icon: const Icon(Icons.arrow_back),
                 ),
@@ -410,6 +417,12 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
             ],
           ),
           actions: [
+            if (isTodayDestination)
+              IconButton(
+                onPressed: () => _select(WorkbenchSection.reviewDaily),
+                tooltip: '记录',
+                icon: const Icon(Icons.menu_book_outlined),
+              ),
             IconButton(
               onPressed: () => showGlobalSearch(
                 context,
@@ -430,9 +443,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                   onTap: () => _select(WorkbenchSection.settings),
                 ),
               ),
-            // 「更多」入口唯一：底部导航末位（规范 2.3）。此处曾另放一个同功能
-            // 图标按钮，与底栏同屏重复，且两个同名 tooltip 会让无障碍朗读与
-            // 自动化定位产生歧义，故移除。
           ],
           flexibleSpace: DecoratedBox(
             decoration: BoxDecoration(
@@ -486,10 +496,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
             MobileBottomBar(
               selectedIndex: navigationIndex,
               onSelected: (value) {
-                if (value == _mobileMoreIndex) {
-                  _openMobileNavigation(context);
-                  return;
-                }
                 _select(
                   _lastMobileChild[_mobilePrimarySections[value]] ??
                       _mobilePrimarySections[value],
@@ -507,19 +513,14 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                   label: '计划',
                 ),
                 MobileBottomBarItem(
-                  icon: Icons.menu_book_outlined,
-                  selectedIcon: Icons.menu_book,
-                  label: '记录',
+                  icon: Icons.timer_outlined,
+                  selectedIcon: Icons.timer,
+                  label: '执行',
                 ),
                 MobileBottomBarItem(
                   icon: Icons.trending_up_outlined,
                   selectedIcon: Icons.trending_up,
                   label: '成长',
-                ),
-                MobileBottomBarItem(
-                  icon: Icons.more_horiz,
-                  selectedIcon: Icons.more_horiz,
-                  label: '更多',
                 ),
               ],
             ),
@@ -551,7 +552,25 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     controller: widget.controller,
     initialTab: tab,
     showHeader: _showPageHeader,
-    showTabs: false,
+    showTabs: true,
+  );
+
+  Widget _executionPage(WorkbenchSection value, ExecutionTab tab) =>
+      ExecutionPage(
+        key: ValueKey(value),
+        controller: widget.controller,
+        initialTab: tab,
+        showHeader: _showPageHeader,
+      );
+
+  Widget _growthPage(WorkbenchSection value, GrowthTab tab) => GrowthHubPage(
+    key: ValueKey(value),
+    controller: widget.controller,
+    initialTab: tab,
+    showHeader: _showPageHeader,
+    initialBehaviorMode: behaviorMode,
+    initialPolicyTab: behaviorPolicyTab,
+    onBehaviorModeChanged: (value) => behaviorMode = value,
   );
 
   Widget _projectPage(WorkbenchSection value, ProjectDetailTab tab) =>
@@ -621,15 +640,15 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       value,
       ProjectDetailTab.notes,
     ),
-    WorkbenchSection.focus => FocusHubPage(
-      controller: widget.controller,
-      showHeader: _showPageHeader,
-    ),
-    WorkbenchSection.restriction => RestrictionPage(
-      controller: widget.controller,
-      showHeader: _showPageHeader,
-      onOpenSettings: () => _select(WorkbenchSection.settings),
-    ),
+    WorkbenchSection.focus => _executionPage(value, ExecutionTab.focus),
+    WorkbenchSection.restriction =>
+      widget.controller.windowsActivityService.supported
+          ? RestrictionPage(
+              controller: widget.controller,
+              showHeader: _showPageHeader,
+              onOpenSettings: () => _select(WorkbenchSection.settings),
+            )
+          : const SizedBox.shrink(),
     WorkbenchSection.notes => NotesPage(
       controller: widget.controller,
       showHeader: _showPageHeader,
@@ -645,41 +664,23 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       value,
       PolicyTab.analytics,
     ),
-    WorkbenchSection.goals => GoalsPage(
-      controller: widget.controller,
-      showHeader: _showPageHeader,
-    ),
-    WorkbenchSection.habits => HabitsPage(
-      controller: widget.controller,
-      showHeader: _showPageHeader,
-    ),
-    WorkbenchSection.behavior => BehaviorPage(
-      controller: widget.controller,
-      showHeader: _showPageHeader,
-      initialMode: behaviorMode,
-      initialPolicyTab: behaviorPolicyTab,
-      onModeChanged: (value) => behaviorMode = value,
-    ),
-    WorkbenchSection.growth => GrowthPage(
-      controller: widget.controller,
-      showHeader: _showPageHeader,
-    ),
+    WorkbenchSection.goals => _growthPage(value, GrowthTab.goals),
+    WorkbenchSection.habits => _growthPage(value, GrowthTab.habits),
+    WorkbenchSection.behavior => _growthPage(value, GrowthTab.behavior),
+    WorkbenchSection.growth => _growthPage(value, GrowthTab.growth),
     WorkbenchSection.settings => SettingsPage(
       controller: widget.controller,
       showHeader: _showPageHeader,
     ),
-    WorkbenchSection.protocols => ProtocolsPage(
-      key: ValueKey(
-        '${widget.controller.advancedFeaturesEnabled}:$protocolTab',
-      ),
-      controller: widget.controller,
-      initialTab: protocolTab,
-      showHeader: _showPageHeader,
-    ),
+    WorkbenchSection.protocols => _executionPage(value, ExecutionTab.protocols),
     _ => const SizedBox.shrink(),
   };
 
   void _select(WorkbenchSection value) {
+    if (value == WorkbenchSection.restriction &&
+        !widget.controller.windowsActivityService.supported) {
+      return;
+    }
     final requestedBehaviorMode = switch (value) {
       WorkbenchSection.habits => BehaviorMode.habits,
       WorkbenchSection.policies ||
@@ -708,7 +709,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
         _lastMobileChild[WorkbenchSection.reviewDaily] ??
             WorkbenchSection.reviewDaily,
       WorkbenchSection.diary => WorkbenchSection.reviewDaily,
-      WorkbenchSection.habits ||
       WorkbenchSection.policies ||
       WorkbenchSection.policiesTree ||
       WorkbenchSection.policiesLibrary ||
@@ -735,7 +735,14 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       final primary = _mobilePrimaryFor(value);
       if (primary != null) {
         _lastMobilePrimary = primary;
-        if (_taskSections.contains(value) || _reviewSections.contains(value)) {
+        if (_taskSections.contains(value) ||
+            _reviewSections.contains(value) ||
+            value == WorkbenchSection.focus ||
+            value == WorkbenchSection.protocols ||
+            value == WorkbenchSection.goals ||
+            value == WorkbenchSection.habits ||
+            value == WorkbenchSection.behavior ||
+            value == WorkbenchSection.growth) {
           _lastMobileChild[primary] = value;
         }
       }
@@ -892,6 +899,17 @@ const _navigationTree = [
     Icons.settings_outlined,
   ),
 ];
+
+List<_NavigationNode> _availableNavigationChildren(
+  _NavigationNode node,
+  WorkbenchController controller,
+) {
+  if (controller.windowsActivityService.supported) return node.children;
+  return [
+    for (final child in node.children)
+      if (child.section != WorkbenchSection.restriction) child,
+  ];
+}
 
 String? _navigationParentId(WorkbenchSection value) => switch (value) {
   WorkbenchSection.tasksAll ||
@@ -1187,9 +1205,8 @@ class _DesktopNavigation extends StatelessWidget {
 
   Widget _node(BuildContext context, _NavigationNode node) {
     if (node.isLeaf) return _leaf(context, node);
-    final containsSelected = node.children.any(
-      (child) => child.section == selected,
-    );
+    final children = _availableNavigationChildren(node, controller);
+    final containsSelected = children.any((child) => child.section == selected);
     // 手风琴（规范 2.2 第 1 条）：只默认展开当前域，同时最多展开一个。
     // 非当前域恒为收起——点击其标题会先进入该域（`_select` 会展开它），
     // 所以不需要再为「哪个域展开」维护一份互斥状态。
@@ -1222,7 +1239,7 @@ class _DesktopNavigation extends StatelessWidget {
                 !expanded) {
               // 手风琴下非当前域无法就地展开，→ 直接进入该域首个子页。
               if (!containsSelected) {
-                onSelected(node.children.first.section!);
+                onSelected(children.first.section!);
               } else {
                 controller.setNavigationGroupExpanded(node.id!, true);
               }
@@ -1236,7 +1253,7 @@ class _DesktopNavigation extends StatelessWidget {
                 event.logicalKey == LogicalKeyboardKey.space) {
               if (!containsSelected) {
                 controller.setNavigationGroupExpanded(node.id!, true);
-                onSelected(node.children.first.section!);
+                onSelected(children.first.section!);
               } else {
                 toggle();
               }
@@ -1272,7 +1289,7 @@ class _DesktopNavigation extends StatelessWidget {
               onTap: () {
                 if (!containsSelected) {
                   controller.setNavigationGroupExpanded(node.id!, true);
-                  onSelected(node.children.first.section!);
+                  onSelected(children.first.section!);
                 } else {
                   toggle();
                 }
@@ -1281,8 +1298,7 @@ class _DesktopNavigation extends StatelessWidget {
           ),
         ),
         if (expanded)
-          for (final child in node.children)
-            _leaf(context, child, nested: true),
+          for (final child in children) _leaf(context, child, nested: true),
         const SizedBox(height: 4),
       ],
     );
@@ -1296,7 +1312,7 @@ class _DesktopNavigation extends StatelessWidget {
       context: context,
       position: const RelativeRect.fromLTRB(72, 180, 0, 0),
       items: [
-        for (final child in node.children)
+        for (final child in _availableNavigationChildren(node, controller))
           PopupMenuItem(value: child.section, child: Text(child.label)),
       ],
     );
@@ -1422,31 +1438,53 @@ class _MobileNavigationSheet extends StatelessWidget {
                 onTap: () => onSelected(node.section!),
               )
             else
-              ExpansionTile(
-                key: ValueKey('navigation-group:${node.id}'),
-                initiallyExpanded: controller.navigationGroupExpanded(node.id!),
-                leading: Icon(node.icon),
-                title: Text(node.label),
-                onExpansionChanged: (expanded) {
-                  controller.setNavigationGroupExpanded(node.id!, expanded);
-                },
-                children: [
-                  for (final child in node.children)
-                    ListTile(
-                      key: ValueKey('navigation-leaf:${child.section!.name}'),
-                      contentPadding: const EdgeInsetsDirectional.only(
-                        start: 32,
-                        end: 8,
-                      ),
-                      selected: child.section == selected,
-                      leading: Icon(child.icon, size: AppIconSize.sm),
-                      title: Text(child.label),
-                      onTap: () => onSelected(child.section!),
-                    ),
-                ],
+              _MobileNavigationGroup(
+                node: node,
+                selected: selected,
+                controller: controller,
+                onSelected: onSelected,
               ),
         ],
       ),
+    );
+  }
+}
+
+class _MobileNavigationGroup extends StatelessWidget {
+  const _MobileNavigationGroup({
+    required this.node,
+    required this.selected,
+    required this.controller,
+    required this.onSelected,
+  });
+
+  final _NavigationNode node;
+  final WorkbenchSection selected;
+  final WorkbenchController controller;
+  final ValueChanged<WorkbenchSection> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = _availableNavigationChildren(node, controller);
+    return ExpansionTile(
+      key: ValueKey('navigation-group:${node.id}'),
+      initiallyExpanded: controller.navigationGroupExpanded(node.id!),
+      leading: Icon(node.icon),
+      title: Text(node.label),
+      onExpansionChanged: (expanded) {
+        controller.setNavigationGroupExpanded(node.id!, expanded);
+      },
+      children: [
+        for (final child in children)
+          ListTile(
+            key: ValueKey('navigation-leaf:${child.section!.name}'),
+            contentPadding: const EdgeInsetsDirectional.only(start: 32, end: 8),
+            selected: child.section == selected,
+            leading: Icon(child.icon, size: AppIconSize.sm),
+            title: Text(child.label),
+            onTap: () => onSelected(child.section!),
+          ),
+      ],
     );
   }
 }

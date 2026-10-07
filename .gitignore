@@ -48,3 +48,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local Android and Windows signing credentials. Never commit private keys,
+# passwords, or exported code-signing certificates.
+/android/key.properties
+/android/keystore/
+*.jks
+*.keystore
+*.p12
+*.pfx

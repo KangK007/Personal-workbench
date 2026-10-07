@@ -138,6 +138,16 @@ Windows 侧栏按真实页面组织层级：任务和项目展开后显示各自
 
 当前应用入口是 `lib/main.dart`。业务逻辑集中在 `lib/state/workbench_controller.dart`，本地数据库在 `lib/data/app_database.dart`，加密备份在 `lib/data/backup_service.dart`。没有额外的仿真脚本或论文图生成脚本。
 
+### 版本与入口一致性
+
+`pubspec.yaml` 的 `version` 是唯一版本源。每次发布使用 `tool/package_windows_release.ps1 -Install`；它会构建当前版本、安装到稳定目录、刷新桌面/开始菜单快捷方式和开机启动项，并执行 `tool/verify_release_consistency.ps1`。提交后自动钩子也会刷新现有安装的快捷方式并执行校验；首次启用请运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\install_git_hooks.ps1
+```
+
+版本更新必须同时递增 `version` 的构建号，例如 `0.2.1+6` → `0.2.1+7`。每次同步或打包会自动清理旧版本 Windows/Android 安装包，只保留当前版本；旧快捷方式或旧开机启动路径也会自动收敛到当前安装程序。
+
 ## 输出结果说明
 
 - SQLite 数据库：由 `path_provider` 放在应用支持目录，文件名为 `personal_workbench.sqlite`。

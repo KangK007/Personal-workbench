@@ -42,6 +42,19 @@ if (-not (Test-Path -LiteralPath $sourceExecutable -PathType Leaf)) {
     throw "Windows build executable not found: $sourceExecutable"
 }
 
+if ($Configuration -eq 'release') {
+    $signingScript = Join-Path $projectRoot 'tool\sign_windows_release.ps1'
+    & powershell.exe @(
+        '-NoProfile',
+        '-ExecutionPolicy', 'Bypass',
+        '-File', $signingScript,
+        '-Path', $sourceExecutable
+    )
+    if ($LASTEXITCODE -ne 0) {
+        throw "Windows Release Authenticode signing failed with exit code $LASTEXITCODE"
+    }
+}
+
 $versionLine = Get-Content -LiteralPath (Join-Path $projectRoot 'pubspec.yaml') |
     Where-Object { $_ -match '^version:\s*(\S+)' } |
     Select-Object -First 1
@@ -72,8 +85,63 @@ $packagingSource = Join-Path $projectRoot 'packaging\windows'
 Get-ChildItem -LiteralPath $packagingSource -File |
     Copy-Item -Destination $distributionRoot -Force
 
+if ($Configuration -eq 'release') {
+    $signingScript = Join-Path $projectRoot 'tool\sign_windows_release.ps1'
+    $signedPackageFiles = @(
+        Get-ChildItem -LiteralPath $packageApp -Recurse -File |
+            Where-Object { $_.Extension -in '.exe', '.dll' } |
+            ForEach-Object { $_.FullName }
+        Get-ChildItem -LiteralPath $distributionRoot -Recurse -File -Filter '*.ps1' |
+            ForEach-Object { $_.FullName }
+    )
+    if ($signedPackageFiles.Count -eq 0) {
+        throw 'No Authenticode-signable Windows release files were found.'
+    }
+    # Invoke the script in-process so its string[] parameter receives the
+    # complete file list as one array (child powershell.exe treats repeated
+    # -Path switches as duplicate parameter binding).
+    & $signingScript -Path $signedPackageFiles
+    if ($LASTEXITCODE -ne 0) {
+        throw "Windows distribution Authenticode signing failed with exit code $LASTEXITCODE"
+    }
+
+    $signingStatePath = Join-Path $env:LOCALAPPDATA 'PersonalWorkbenchSigning\signing-state.json'
+    $expectedThumbprint = ([string](Get-Content -Raw -LiteralPath $signingStatePath | ConvertFrom-Json).windowsThumbprint).Replace(' ', '').ToUpperInvariant()
+    foreach ($signedFile in $signedPackageFiles) {
+        $signature = Get-AuthenticodeSignature -LiteralPath $signedFile
+        $actualThumbprint = if ($signature.SignerCertificate) {
+            $signature.SignerCertificate.Thumbprint.Replace(' ', '').ToUpperInvariant()
+        } else {
+            ''
+        }
+        if ($signature.Status -ne 'Valid' -or $actualThumbprint -ne $expectedThumbprint) {
+            throw "Windows distribution signature verification failed: $signedFile (status: $($signature.Status), thumbprint: $actualThumbprint)"
+        }
+    }
+}
+
 Remove-Verified -LiteralPath $archive
 Compress-Archive -Path (Join-Path $distributionRoot '*') -DestinationPath $archive -CompressionLevel Optimal
+
+if ($Configuration -eq 'release') {
+    $signingStatePath = Join-Path $env:LOCALAPPDATA 'PersonalWorkbenchSigning\signing-state.json'
+    $signingState = Get-Content -Raw -LiteralPath $signingStatePath | ConvertFrom-Json
+    $certificate = Get-ChildItem "Cert:\CurrentUser\My\$($signingState.windowsThumbprint)" -ErrorAction SilentlyContinue
+    if (-not $certificate -or -not $certificate.HasPrivateKey) {
+        throw 'Windows release certificate with a private key is required to sign the package archive.'
+    }
+    $archiveSigningScript = Join-Path $projectRoot 'tool\sign_windows_archive.ps1'
+    $pwsh = Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if (-not $pwsh) {
+        throw 'PowerShell 7 (pwsh.exe) is required to create the detached CMS archive signature.'
+    }
+    & $pwsh.Source -NoProfile -ExecutionPolicy Bypass -File $archiveSigningScript `
+        -Archive $archive -Thumbprint $signingState.windowsThumbprint
+    if ($LASTEXITCODE -ne 0) {
+        throw "Windows package CMS signing failed with exit code $LASTEXITCODE"
+    }
+}
 
 # 清理历史版本 zip：新版本名与旧版本名不同，仅按当前版本名删除会漏掉旧包，
 # 导致 dist\ 里同时堆着多个版本的 Windows 安装包。与 build_android.ps1 的
@@ -87,6 +155,10 @@ $staleArchives = @(
 foreach ($staleArchive in $staleArchives) {
     Write-Output "Removing stale archive: $($staleArchive.Name)"
     Remove-Verified -LiteralPath $staleArchive.FullName
+    $staleSignature = "$($staleArchive.FullName).p7s"
+    if (Test-Path -LiteralPath $staleSignature -PathType Leaf) {
+        Remove-Verified -LiteralPath $staleSignature
+    }
 }
 
 if ($Install.IsPresent) {
@@ -99,6 +171,28 @@ if ($Install.IsPresent) {
     if ($LASTEXITCODE -ne 0) {
         throw "Windows installation failed with exit code $LASTEXITCODE"
     }
+} else {
+    $installedExecutable = Join-Path $env:LOCALAPPDATA 'Programs\PersonalWorkbench\personal_workbench.exe'
+    if (Test-Path -LiteralPath $installedExecutable -PathType Leaf) {
+        & (Join-Path $projectRoot 'tool\update_all_shortcuts.ps1') -TargetPath $installedExecutable
+        if ($LASTEXITCODE -ne 0) {
+            throw "Restoring installed Windows shortcuts failed with exit code $LASTEXITCODE"
+        }
+    }
+}
+
+$consistencyArguments = @(
+    '-NoProfile',
+    '-ExecutionPolicy', 'Bypass',
+    '-File', (Join-Path $projectRoot 'tool\verify_release_consistency.ps1'),
+    '-CleanStaleArtifacts'
+)
+if ($Install.IsPresent) {
+    $consistencyArguments += '-RequireInstalled'
+}
+& powershell.exe @consistencyArguments
+if ($LASTEXITCODE -ne 0) {
+    throw 'Release consistency verification failed.'
 }
 
 Write-Output "Windows distribution directory: $distributionRoot"

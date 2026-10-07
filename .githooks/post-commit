@@ -1,0 +1,5 @@
+#!/bin/sh
+# Keep the installed Windows entry points synchronized after every commit.
+if command -v powershell.exe >/dev/null 2>&1; then
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(git rev-parse --show-toplevel)/tool/sync_current_release.ps1"
+fi

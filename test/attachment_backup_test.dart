@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_workbench/core/models/attachment.dart';
 import 'package:personal_workbench/core/models/workspace_record.dart';
@@ -87,6 +88,62 @@ void main() {
     expect(restored.sha256, original.sha256);
     expect(await (await targetService.resolve(restored))!.readAsBytes(), bytes);
   });
+
+  test(
+    'restoring one account attachment does not replace another account file',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'workbench-account-attachment-restore-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final database = AppDatabase(
+        factory: databaseFactoryFfi,
+        overridePath: '${root.path}${Platform.pathSeparator}target.sqlite',
+      );
+      addTearDown(database.close);
+      final service = AttachmentService(database: database, root: root);
+      const attachmentId = 'shared-attachment';
+
+      Future<BackupAttachment> entry(String content) async {
+        final bytes = Uint8List.fromList(content.codeUnits);
+        final digest = await Sha256().hash(bytes);
+        return BackupAttachment(
+          metadata: Attachment(
+            id: attachmentId,
+            ownerRecordId: 'note-$content',
+            ownerKind: RecordKind.note,
+            fileName: 'shared.png',
+            relativePath: 'attachments/$attachmentId.png',
+            mimeType: 'image/png',
+            sizeBytes: bytes.length,
+            sha256: digest.bytes
+                .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+                .join(),
+            createdAt: DateTime.utc(2026),
+          ),
+          bytes: bytes,
+        );
+      }
+
+      await database.activateAccount('account-a');
+      await service.restoreBackupEntries([await entry('account-a')]);
+      final accountAAttachment = (await database.loadAttachments()).single;
+
+      await database.activateAccount('account-b');
+      await service.restoreBackupEntries([await entry('account-b')]);
+      final accountBAttachment = (await database.loadAttachments()).single;
+
+      expect(
+        await (await service.resolve(accountBAttachment))!.readAsString(),
+        'account-b',
+      );
+      await database.activateAccount('account-a');
+      expect(
+        await (await service.resolve(accountAAttachment))!.readAsString(),
+        'account-a',
+      );
+    },
+  );
 
   test('empty attachment restore clears old metadata and files', () async {
     final root = await Directory.systemTemp.createTemp(
