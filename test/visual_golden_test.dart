@@ -513,6 +513,7 @@ Future<void> _pumpGolden(
   addTearDown(tester.view.resetPhysicalSize);
   await tester.pumpWidget(_host(child, dark: dark));
   await tester.pump(const Duration(milliseconds: 600));
+  await _resolveVisibleImages(tester);
   await expectLater(
     captureFinder ?? find.byType(Scaffold),
     matchesGoldenFile('goldens/$fileName.png'),
@@ -536,6 +537,7 @@ Future<void> _pumpDocumentationForm(
   addTearDown(tester.view.resetPhysicalSize);
   await tester.pumpWidget(_host(Center(child: child), dark: false));
   await tester.pump(const Duration(milliseconds: 600));
+  await _resolveVisibleImages(tester);
   await fill();
   FocusManager.instance.primaryFocus?.unfocus();
   await tester.pump(const Duration(milliseconds: 600));
@@ -559,10 +561,23 @@ Future<void> _pumpDocumentationPage(
   await tester.pump(const Duration(milliseconds: 800));
   await beforeCapture?.call();
   await tester.pump(const Duration(milliseconds: 500));
+  await _resolveVisibleImages(tester);
   await expectLater(
     find.byType(Scaffold),
     matchesGoldenFile('../docs/images/$fileName.png'),
   );
+}
+
+Future<void> _resolveVisibleImages(WidgetTester tester) async {
+  final images = tester.widgetList<Image>(find.byType(Image)).toList();
+  if (images.isEmpty) return;
+  final context = tester.element(find.byType(Scaffold).first);
+  await tester.runAsync(() async {
+    for (final image in images) {
+      await precacheImage(image.image, context);
+    }
+  });
+  await tester.pump();
 }
 
 void main() {
@@ -680,6 +695,9 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 600));
+    // The translucent sheet also captures Today's illustration behind it.
+    // Wait for decoding before opening so isolated and full-suite runs match.
+    await _resolveVisibleImages(tester);
     await tester.tap(find.byKey(const ValueKey('mobile-quick-capture')));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
@@ -861,6 +879,13 @@ void main() {
       tester,
       NotesPage(controller: guideFixture.controller),
       fileName: 'guide_notes',
+      beforeCapture: () async {
+        await tester.runAsync(
+          () => guideFixture.controller.attachmentService.totalBytes(),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('附件 · 0 B'), findsOneWidget);
+      },
     );
   });
 

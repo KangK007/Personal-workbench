@@ -6,6 +6,9 @@ import 'package:flutter/services.dart';
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
 import 'solid_panel.dart';
+import 'workbench_layout.dart';
+
+export 'workbench_layout.dart';
 
 void showWorkbenchSnackBar(BuildContext context, SnackBar snackBar) {
   final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
@@ -21,12 +24,15 @@ class SurfaceIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = color ?? Theme.of(context).colorScheme.primary;
+    final scheme = Theme.of(context).colorScheme;
+    final tint = color ?? scheme.onPrimaryContainer;
     return Container(
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.1),
+        color: color == null
+            ? scheme.primaryContainer
+            : color!.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: Icon(icon, size: 18, color: tint),
@@ -225,6 +231,71 @@ Future<T?> showWorkbenchSheet<T extends Object?>({
     routeSettings: routeSettings,
     transitionAnimationController: transitionAnimationController,
     anchorPoint: anchorPoint,
+  );
+}
+
+/// Keep modal drafts until the user explicitly discards them. The callbacks
+/// read current controllers on every close attempt, including native Back.
+class UnsavedChangesGuard extends StatefulWidget {
+  const UnsavedChangesGuard({
+    super.key,
+    required this.hasChanges,
+    required this.isBusy,
+    required this.child,
+  });
+
+  final bool Function() hasChanges;
+  final bool Function() isBusy;
+  final Widget child;
+
+  @override
+  State<UnsavedChangesGuard> createState() => _UnsavedChangesGuardState();
+}
+
+class _UnsavedChangesGuardState extends State<UnsavedChangesGuard> {
+  bool _confirming = false;
+
+  Future<void> _requestClose() async {
+    if (_confirming || widget.isBusy()) return;
+    if (!widget.hasChanges()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    _confirming = true;
+    final discard = await showWorkbenchDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('放弃未保存的修改？'),
+        content: const Text('当前内容尚未保存。继续编辑可以保留这些修改。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('继续编辑'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('放弃修改'),
+          ),
+        ],
+      ),
+    );
+    _confirming = false;
+    if (mounted && discard == true && !widget.isBusy()) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, result) {
+      if (!didPop) _requestClose();
+    },
+    child: widget.child,
   );
 }
 
@@ -512,6 +583,7 @@ class PageHeader extends StatelessWidget {
     this.kicker,
     this.subtitle,
     this.actions = const [],
+    this.maxWidth = AppLayout.workspaceMax,
   });
 
   final String title;
@@ -521,17 +593,17 @@ class PageHeader extends StatelessWidget {
   /// 方案 C 把这类上下文放在标题**之前**，与移动端 `_pageStack` 的 AppBar
   /// 同序；桌面由本参数承载，两端页头因此是同一段信息、同一种排布。
   ///
-  /// 用 `inkFaint`（装饰级 3.02:1）是刻意的，与移动端页头日期一致：
-  /// 它只让眼睛确认「这是哪天」，不参与判断。
+  /// 日期是真实的时间上下文，使用可读的辅助文字色，不使用装饰级 inkFaint。
   final String? kicker;
   final String? subtitle;
   final List<Widget> actions;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = context.tokens;
-    final width = MediaQuery.sizeOf(context).width;
+    final width = WorkbenchViewport.sizeOf(context).width;
     final compact = width < AppBreakpoints.compact;
     final wide = width >= AppBreakpoints.expanded;
     return SolidPanel(
@@ -540,72 +612,74 @@ class PageHeader extends StatelessWidget {
       color: tokens.panel,
       // 移除下边框：页头与内容的分离改由 24px 下留白承担（规范 9）。
       borderColor: Colors.transparent,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          compact ? AppSpacing.pageCompact : AppSpacing.pageWide,
-          wide ? 18 : 14,
-          compact ? 10 : AppSpacing.pageWide,
-          AppSpacing.xl,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (kicker != null)
-                    Text(
-                      kicker!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: 11.5,
-                        color: tokens.inkFaint,
-                        letterSpacing: 0.5,
+      child: WorkbenchContentFrame(
+        maxWidth: maxWidth,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            compact ? AppSpacing.pageCompact : AppSpacing.xl,
+            wide ? 18 : 14,
+            compact ? 10 : AppSpacing.xl,
+            AppSpacing.xl,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (kicker != null)
+                      Text(
+                        kicker!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: tokens.mutedText,
+                          fontFeatures: _numericFeaturesIfUseful(kicker!),
+                        ),
                       ),
-                    ),
-                  Text(
-                    title,
-                    maxLines: compact ? 2 : 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.displayLarge?.copyWith(
-                      fontSize: compact ? 24 : 30,
-                    ),
-                  ),
-                  if (subtitle != null)
                     Text(
-                      subtitle!,
+                      title,
                       maxLines: compact ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: tokens.mutedText,
-                        fontFeatures: _numericFeaturesIfUseful(subtitle!),
-                        fontWeight: FontWeight.normal,
+                      style: theme.textTheme.displayLarge?.copyWith(
+                        fontSize: compact ? 24 : 30,
                       ),
                     ),
-                ],
-              ),
-            ),
-            if (actions.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Flexible(
-                child: Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: Wrap(
-                    alignment: WrapAlignment.end,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      for (final action in actions)
-                        PressScale(key: ValueKey(action), child: action),
-                    ],
-                  ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        maxLines: compact ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: tokens.mutedText,
+                          fontFeatures: _numericFeaturesIfUseful(subtitle!),
+                          fontWeight: FontWeight.normal,
+                        ),
+                      ),
+                  ],
                 ),
               ),
+              if (actions.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final action in actions)
+                          PressScale(key: ValueKey(action), child: action),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -638,15 +712,52 @@ class SectionHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = context.tokens;
-    final width = MediaQuery.sizeOf(context).width;
+    final width = WorkbenchViewport.sizeOf(context).width;
     final compact = width < AppBreakpoints.compact;
+    final largeMobileText =
+        compact && MediaQuery.textScalerOf(context).scale(16) > 23;
+    final headingPadding = EdgeInsets.only(
+      top: compact ? AppSpacing.lg : AppSpacing.xl,
+      bottom: compact ? 7 : AppSpacing.sm,
+    );
+    if (largeMobileText) {
+      return Padding(
+        padding: headingPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            if (scale != null)
+              Text(
+                scale!,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: tokens.mutedText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            if (trailing != null)
+              Align(alignment: Alignment.centerRight, child: trailing!)
+            else if (action != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: _SectionLink(label: action!, onPressed: onAction),
+              ),
+          ],
+        ),
+      );
+    }
     return Padding(
       // 移除装饰航迹条后，层级由上留白确立（规范 6.3 / 9）。
       // 移动端收紧一档：方案 C 的移动稿是连续滚动，不需要桌面级的大分区留白。
-      padding: EdgeInsets.only(
-        top: compact ? AppSpacing.lg : AppSpacing.xl,
-        bottom: compact ? 7 : AppSpacing.sm,
-      ),
+      padding: headingPadding,
       child: Row(
         children: [
           Expanded(
@@ -658,9 +769,8 @@ class SectionHeading extends StatelessWidget {
                     maxLines: compact ? 2 : 1,
                     overflow: TextOverflow.ellipsis,
                     style: compact
-                        // 方案 C：分区标题 13.5px / w600 / ink，比桌面矮两档。
-                        ? theme.textTheme.titleSmall?.copyWith(
-                            fontSize: 13.5,
+                        // 手机正文为 16px，分区标题至少与正文同级。
+                        ? theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: theme.colorScheme.onSurface,
                           )
@@ -675,13 +785,13 @@ class SectionHeading extends StatelessWidget {
                   // 已不是同一种形；而同一页里各分区的计数理应同形。统一为
                   // 文本后，两端只剩字号差（11 / 12）——与「控件按端取档」
                   // 的既有惯例（行高 48/60、控件 40/52）一致。
-                  // 只做参考信息，不承载判断，故允许用 inkFaint（装饰级）。
+                  // 数量与状态仍是需要读取的信息，使用可读的辅助文字色。
                   Text(
                     scale!,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelMedium?.copyWith(
-                      color: tokens.inkFaint,
-                      fontSize: compact ? 11 : 12,
+                      color: tokens.mutedText,
+                      fontSize: compact ? 12 : 13,
                       fontWeight: FontWeight.w500,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
@@ -714,10 +824,10 @@ class _SectionLink extends StatelessWidget {
       style: TextButton.styleFrom(
         foregroundColor: scheme.primary,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        minimumSize: const Size(0, 36),
-        // 保持 MaterialTapTargetSize.padded：视觉高 36，触控区自动补到 48。
+        minimumSize: const Size(0, 40),
+        // 保持 MaterialTapTargetSize.padded：视觉高 40，触控区自动补到 48。
         textStyle: const TextStyle(
-          fontSize: 11.5,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
           fontFamily: AppFonts.body,
         ),
@@ -896,7 +1006,8 @@ class _VineRailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final stateLabel = switch (entry.state) {
       VineRailState.pending => '待进行',
       VineRailState.current => '进行中',
@@ -1026,29 +1137,34 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final badge = Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: scheme.primaryContainer,
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
+    final verticalPadding = compact ? AppSpacing.xxl : AppSpacing.xxxl;
+    final badge = ExcludeSemantics(
+      child: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(context.tokens.panelRadius),
+          color: scheme.primaryContainer,
+        ),
+        child: Icon(icon, size: 28, color: scheme.onPrimaryContainer),
       ),
-      child: Icon(icon, size: 26, color: scheme.onPrimaryContainer),
     );
 
     Widget content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         badge,
-        const SizedBox(height: 14),
+        const SizedBox(height: AppSpacing.lg),
         Text(
           title,
-          style: theme.textTheme.titleMedium?.copyWith(
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.sm),
         Text(
           message,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -1057,84 +1173,86 @@ class EmptyState extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         if (action != null) ...[
-          const SizedBox(height: 18),
+          const SizedBox(height: AppSpacing.xl),
           PressScale(child: action!),
         ],
       ],
     );
 
-    if (MediaQuery.disableAnimationsOf(context)) {
-      return Center(
+    Widget scrollable(Widget child) => LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
-              vertical: 56,
+          constraints: BoxConstraints(
+            minHeight: constraints.hasBoundedHeight ? constraints.maxHeight : 0,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xl,
+                  vertical: verticalPadding,
+                ),
+                child: child,
+              ),
             ),
-            child: content,
           ),
         ),
-      );
+      ),
+    );
+
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return scrollable(content);
     }
 
     // 入场编排：徽章 320ms 缩放淡入；文案延迟 80ms 淡入跟随。
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl,
-            vertical: 56,
-          ),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: AppMotion.emphasized,
-            curve: Curves.easeOutCubic,
-            builder: (context, t, child) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Opacity(
-                    opacity: t.clamp(0.0, 1.0),
-                    child: Transform.scale(
-                      scale: 0.8 + 0.2 * t.clamp(0.0, 1.0),
-                      child: badge,
-                    ),
-                  ),
-                  Opacity(
-                    opacity: ((t - 0.25) / 0.75).clamp(0.0, 1.0),
-                    child: child,
-                  ),
-                ],
-              );
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 14),
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
+    return scrollable(
+      TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: AppMotion.emphasized,
+        curve: Curves.easeOutCubic,
+        builder: (context, t, child) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Opacity(
+                opacity: t.clamp(0.0, 1.0),
+                child: Transform.scale(
+                  scale: 0.8 + 0.2 * t.clamp(0.0, 1.0),
+                  child: badge,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  message,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: context.tokens.mutedText,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                if (action != null) ...[
-                  const SizedBox(height: 18),
-                  PressScale(child: action!),
-                ],
-              ],
+              ),
+              Opacity(
+                opacity: ((t - 0.25) / 0.75).clamp(0.0, 1.0),
+                child: child,
+              ),
+            ],
+          );
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              title,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              message,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: context.tokens.mutedText,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (action != null) ...[
+              const SizedBox(height: AppSpacing.xl),
+              PressScale(child: action!),
+            ],
+          ],
         ),
       ),
     );
@@ -1159,7 +1277,7 @@ class StatusPill extends StatelessWidget {
   /// 而不是让 [bestContrastingText] 重新猜一个。
   final Color? foreground;
 
-  /// 紧凑档（方案 C 规格）：10.5px / w500 / 垂直内边距 2.5。
+  /// 紧凑档：12px / w500 / 垂直内边距 3，保证元信息可读。
   /// 列表项元信息用它——一张卡上会并排 2–4 个标签，常规档会撑高卡片。
   final bool dense;
 
@@ -1177,10 +1295,7 @@ class StatusPill extends StatelessWidget {
       label: '标签：$label',
       child: ExcludeSemantics(
         child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: dense ? 2.5 : 4,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: dense ? 3 : 4),
           decoration: BoxDecoration(
             color: background,
             borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -1189,15 +1304,19 @@ class StatusPill extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: dense ? 11 : 12, color: resolved),
+                Icon(icon, size: dense ? 12 : 14, color: resolved),
                 const SizedBox(width: 4),
               ],
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: resolved,
-                  fontSize: dense ? 10.5 : null,
-                  fontWeight: dense ? FontWeight.w500 : FontWeight.w600,
+              Flexible(
+                fit: FlexFit.loose,
+                child: Text(
+                  label,
+                  softWrap: true,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: resolved,
+                    fontSize: dense ? 12 : null,
+                    fontWeight: dense ? FontWeight.w500 : FontWeight.w600,
+                  ),
                 ),
               ),
             ],

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
@@ -44,6 +46,14 @@ class _TaskGroupEditorDialogState extends State<TaskGroupEditorDialog> {
   late String projectId;
   bool saving = false;
   String? error;
+  late final String _initialSnapshot;
+
+  String _snapshot() => jsonEncode([
+    titleController.text,
+    timeLimitController.text,
+    sequential,
+    projectId,
+  ]);
 
   bool get modeLocked =>
       widget.group != null &&
@@ -59,6 +69,7 @@ class _TaskGroupEditorDialogState extends State<TaskGroupEditorDialog> {
     );
     sequential = group?.data['mode'] == 'sequential';
     projectId = group?.projectId ?? widget.initialProjectId ?? '';
+    _initialSnapshot = _snapshot();
   }
 
   @override
@@ -70,8 +81,9 @@ class _TaskGroupEditorDialogState extends State<TaskGroupEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !saving,
+    return UnsavedChangesGuard(
+      hasChanges: () => _snapshot() != _initialSnapshot,
+      isBusy: () => saving,
       child: AlertDialog(
         title: Text(widget.group == null ? '新建任务群' : '编辑任务群'),
         content: SizedBox(
@@ -154,7 +166,7 @@ class _TaskGroupEditorDialogState extends State<TaskGroupEditorDialog> {
         actionsOverflowButtonSpacing: 8,
         actions: [
           TextButton(
-            onPressed: saving ? null : () => Navigator.pop(context),
+            onPressed: saving ? null : () => Navigator.maybePop(context),
             child: const Text('取消'),
           ),
           FilledButton.icon(

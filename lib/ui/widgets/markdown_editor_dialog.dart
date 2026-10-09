@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
@@ -48,6 +50,14 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
   bool preview = false;
   bool saving = false;
   String? error;
+  late final String _initialSnapshot;
+
+  String _snapshot() => jsonEncode([
+    titleController.text,
+    bodyController.text,
+    taskIds.toList()..sort(),
+    projectIds.toList()..sort(),
+  ]);
 
   @override
   void initState() {
@@ -59,6 +69,7 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
     if (widget.note == null && widget.initialProjectId != null) {
       projectIds.add(widget.initialProjectId!);
     }
+    _initialSnapshot = _snapshot();
   }
 
   @override
@@ -71,112 +82,135 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.note == null ? '新建笔记' : '编辑笔记'),
-      content: SizedBox(
-        width: 760,
-        height: MediaQuery.sizeOf(context).height * 0.72,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ExternalField(
-              label: '标题',
-              child: TextField(
-                controller: titleController,
-                autofocus: true,
-                decoration: const InputDecoration(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(
-                        value: false,
-                        icon: Icon(Icons.edit_outlined),
-                        label: Text('编辑'),
+    return UnsavedChangesGuard(
+      hasChanges: () => _snapshot() != _initialSnapshot,
+      isBusy: () => saving,
+      child: AlertDialog(
+        title: Text(widget.note == null ? '新建笔记' : '编辑笔记'),
+        content: SizedBox(
+          width: 760,
+          height: MediaQuery.sizeOf(context).height * 0.72,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+              final minimumHeight = 400.0 * textScale.clamp(1.0, 1.5);
+              return SingleChildScrollView(
+                child: SizedBox(
+                  height: constraints.maxHeight < minimumHeight
+                      ? minimumHeight
+                      : constraints.maxHeight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ExternalField(
+                        label: '标题',
+                        child: TextField(
+                          controller: titleController,
+                          autofocus: true,
+                          decoration: const InputDecoration(),
+                        ),
                       ),
-                      ButtonSegment(
-                        value: true,
-                        icon: Icon(Icons.visibility_outlined),
-                        label: Text('预览'),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SegmentedButton<bool>(
+                              segments: const [
+                                ButtonSegment(
+                                  value: false,
+                                  icon: Icon(Icons.edit_outlined),
+                                  label: Text('编辑'),
+                                ),
+                                ButtonSegment(
+                                  value: true,
+                                  icon: Icon(Icons.visibility_outlined),
+                                  label: Text('预览'),
+                                ),
+                              ],
+                              selected: {preview},
+                              onSelectionChanged: (value) =>
+                                  setState(() => preview = value.first),
+                            ),
+                          ),
+                          IconButton(
+                            focusNode: relationFocusNode,
+                            onPressed: () => _showRelations(context),
+                            tooltip: '关联任务和项目',
+                            icon: Badge(
+                              isLabelVisible:
+                                  taskIds.isNotEmpty || projectIds.isNotEmpty,
+                              label: Text(
+                                '${taskIds.length + projectIds.length}',
+                              ),
+                              child: const Icon(Icons.account_tree_outlined),
+                            ),
+                          ),
+                          if ((widget.note?.data['versions']
+                                      as List<dynamic>? ??
+                                  const [])
+                              .isNotEmpty)
+                            IconButton(
+                              onPressed: () => _showVersions(context),
+                              tooltip: '恢复正文版本',
+                              icon: const Icon(Icons.history_outlined),
+                            ),
+                        ],
                       ),
+                      const SizedBox(height: 8),
+                      if (!preview) MarkdownToolbar(controller: bodyController),
+                      Expanded(
+                        child: preview
+                            ? Markdown(
+                                data: bodyController.text.isEmpty
+                                    ? '*暂无正文*'
+                                    : bodyController.text,
+                                selectable: true,
+                              )
+                            : TextField(
+                                controller: bodyController,
+                                expands: true,
+                                minLines: null,
+                                maxLines: null,
+                                textAlignVertical: TextAlignVertical.top,
+                                decoration: const InputDecoration(
+                                  hintText: '使用 Markdown 记录正文…',
+                                  alignLabelWithHint: true,
+                                ),
+                              ),
+                      ),
+                      if (error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ],
                     ],
-                    selected: {preview},
-                    onSelectionChanged: (value) =>
-                        setState(() => preview = value.first),
                   ),
                 ),
-                IconButton(
-                  focusNode: relationFocusNode,
-                  onPressed: () => _showRelations(context),
-                  tooltip: '关联任务和项目',
-                  icon: Badge(
-                    isLabelVisible: taskIds.isNotEmpty || projectIds.isNotEmpty,
-                    label: Text('${taskIds.length + projectIds.length}'),
-                    child: const Icon(Icons.account_tree_outlined),
-                  ),
-                ),
-                if ((widget.note?.data['versions'] as List<dynamic>? ??
-                        const [])
-                    .isNotEmpty)
-                  IconButton(
-                    onPressed: () => _showVersions(context),
-                    tooltip: '恢复正文版本',
-                    icon: const Icon(Icons.history_outlined),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (!preview) MarkdownToolbar(controller: bodyController),
-            Expanded(
-              child: preview
-                  ? Markdown(
-                      data: bodyController.text.isEmpty
-                          ? '*暂无正文*'
-                          : bodyController.text,
-                      selectable: true,
-                    )
-                  : TextField(
-                      controller: bodyController,
-                      expands: true,
-                      minLines: null,
-                      maxLines: null,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: const InputDecoration(
-                        hintText: '使用 Markdown 记录正文…',
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-            ),
-            if (error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-          ],
+              );
+            },
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: saving ? null : () => Navigator.maybePop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton.icon(
+            onPressed: saving ? null : _save,
+            icon: saving
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_outlined),
+            label: const Text('保存'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: saving ? null : () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        FilledButton.icon(
-          onPressed: saving ? null : _save,
-          icon: saving
-              ? const SizedBox.square(
-                  dimension: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.save_outlined),
-          label: const Text('保存'),
-        ),
-      ],
     );
   }
 

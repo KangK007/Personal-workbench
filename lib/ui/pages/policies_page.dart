@@ -32,6 +32,16 @@ class PoliciesPage extends StatefulWidget {
 class _PoliciesPageState extends State<PoliciesPage> {
   final Set<String> _collapsed = {};
   final Set<RsipNodeType> _typeFilters = {};
+  final TextEditingController _librarySearchController =
+      TextEditingController();
+  String _libraryQuery = '';
+  String _libraryScope = 'all';
+
+  @override
+  void dispose() {
+    _librarySearchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +195,10 @@ class _PoliciesPageState extends State<PoliciesPage> {
 
   Widget _tree() {
     final nodes = widget.controller.activeRsipHabits;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width <
+        AppLayout.masterDetailMin * textScale.clamp(1, 1.5);
     final nodeIds = nodes.map((node) => node.id).toSet();
     final roots =
         nodes
@@ -199,7 +213,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
         ? 1
         : nodes.map((node) => _nodeDepth(node, nodes)).reduce(math.max);
     final canvasWidth = math.max(960.0, visibleIds.length * 300.0);
-    final canvasHeight = math.max(560.0, (maxDepth + 1) * 190.0);
+    final canvasHeight = math.max(560.0, (maxDepth + 1) * 240.0 * textScale);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -209,6 +223,39 @@ class _PoliciesPageState extends State<PoliciesPage> {
         AppSpacing.bottomNavClearance,
       ),
       children: [
+        if (nodes.isNotEmpty) ...[
+          LogSurface(
+            accent: Theme.of(context).colorScheme.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.account_tree_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '当前在用 · ${nodes.length} 个节点',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      Text(
+                        nodes.first.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         LogSurface(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
@@ -271,40 +318,101 @@ class _PoliciesPageState extends State<PoliciesPage> {
             title: '没有符合筛选的节点',
             message: '调整上方类型筛选后再查看。',
           )
-        else
+        else if (compact) ...[
+          for (final root in roots)
+            if (visibleIds.contains(root.id))
+              _mobileBranch(root, nodes, visibleIds, 0),
+        ] else
           LayoutBuilder(
             builder: (context, constraints) => SizedBox(
-              height: math.min(720, math.max(320, constraints.maxHeight)),
-              child: InteractiveViewer(
-                minScale: 0.45,
-                maxScale: 2.5,
-                constrained: false,
-                boundaryMargin: const EdgeInsets.all(160),
-                child: SizedBox(
-                  width: canvasWidth,
-                  height: canvasHeight,
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        for (final root in roots)
-                          if (visibleIds.contains(root.id))
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              child: _branch(root, nodes, visibleIds),
-                            ),
-                      ],
-                    ),
+              height: (WorkbenchViewport.sizeOf(context).height * 0.65).clamp(
+                280.0,
+                640.0,
+              ),
+              child: WorkbenchDiagramViewport(
+                canvasSize: Size(canvasWidth, canvasHeight),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      for (final root in roots)
+                        if (visibleIds.contains(root.id))
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: _branch(root, nodes, visibleIds),
+                          ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
       ],
+    );
+  }
+
+  Widget _mobileBranch(
+    WorkspaceRecord record,
+    List<WorkspaceRecord> nodes,
+    Set<String> visibleIds,
+    int depth,
+  ) {
+    final children =
+        nodes
+            .where(
+              (node) =>
+                  node.parentId == record.id && visibleIds.contains(node.id),
+            )
+            .toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final expanded = !_collapsed.contains(record.id);
+    final indent = (depth * 12.0).clamp(0.0, 24.0);
+    return Padding(
+      padding: EdgeInsets.only(left: indent, bottom: AppSpacing.md),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: depth == 0
+              ? null
+              : Border(
+                  left: BorderSide(color: context.tokens.orbitTrack, width: 2),
+                ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(left: depth == 0 ? 0 : AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _nodeCard(record, children.length),
+              if (children.isNotEmpty)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() {
+                      if (expanded) {
+                        _collapsed.add(record.id);
+                      } else {
+                        _collapsed.remove(record.id);
+                      }
+                    }),
+                    icon: Icon(
+                      expanded ? Icons.expand_less : Icons.expand_more,
+                    ),
+                    label: Text(
+                      expanded
+                          ? '收起 ${children.length} 个子节点'
+                          : '展开 ${children.length} 个子节点',
+                    ),
+                  ),
+                ),
+              if (expanded)
+                for (final child in children)
+                  _mobileBranch(child, nodes, visibleIds, depth + 1),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -584,14 +692,106 @@ class _PoliciesPageState extends State<PoliciesPage> {
         children: [
           Icon(icon, size: 13),
           const SizedBox(width: 4),
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          Flexible(
+            child: Text(
+              label,
+              softWrap: true,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ),
         ],
       ),
     ),
   );
 
   Widget _library() {
-    final values = widget.controller.rsipLibraryNodes;
+    final nodes = widget.controller.rsipNodes;
+    final active = nodes.where((node) => node.record.rsipActive).toList();
+    final archived = nodes.where((node) => !node.record.rsipActive).toList();
+    final query = _libraryQuery.trim().toLowerCase();
+    bool matches(RsipNode node) =>
+        query.isEmpty ||
+        node.record.title.toLowerCase().contains(query) ||
+        node.rule.toLowerCase().contains(query) ||
+        _typeLabel(node.type).contains(query) ||
+        (node.record.data['rsipArchiveReason']?.toString() ?? '')
+            .toLowerCase()
+            .contains(query);
+    final visibleActive = active.where(matches).toList();
+    final visibleArchived = archived.where(matches).toList();
+    final showActive = _libraryScope != 'archived';
+    final showArchived = _libraryScope != 'active';
+    final narrow = WorkbenchViewport.sizeOf(context).width < 390;
+
+    Widget nodeRow(RsipNode node, {required bool isArchived}) {
+      final group = widget.controller.rsipNodeGroups
+          .where((value) => value.record.id == node.groupId)
+          .firstOrNull;
+      final linkCount = widget.controller.rsipTaskLinks
+          .where((link) => link.nodeId == node.record.id && link.active)
+          .length;
+      final archiveReason = node.record.data['rsipArchiveReason']?.toString();
+      final date = DateTime.tryParse(
+        node.record.data[isArchived ? 'rsipArchivedAt' : 'rsipAddedAt']
+                ?.toString() ??
+            '',
+      )?.toLocal();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+        child: LogSurface(
+          accent: _typeColor(context, node.type),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            leading: SurfaceIcon(_typeIcon(node.type)),
+            title: Text(node.record.title),
+            subtitle: Text(
+              '${_typeLabel(node.type)} · ${node.stage} · '
+              '${node.passive ? '被动' : '每日维护'}'
+              '${group == null ? '' : ' · ${group.record.title}'}\n'
+              '${node.rule}'
+              '${linkCount == 0 ? '' : '\n关联任务 $linkCount 项'}'
+              '${date == null ? '' : '\n${isArchived ? '归档' : '创建'}于 ${formatShortDate(date)}'}'
+              '${!isArchived || archiveReason == null || archiveReason.isEmpty ? '' : ' · $archiveReason'}',
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+            isThreeLine: true,
+            trailing: isArchived
+                ? narrow
+                      ? IconButton(
+                          tooltip: '恢复 ${node.record.title}',
+                          onPressed: () => _restoreNode(node.record),
+                          icon: const Icon(Icons.restore_outlined),
+                        )
+                      : OutlinedButton.icon(
+                          onPressed: () => _restoreNode(node.record),
+                          icon: const Icon(Icons.restore_outlined),
+                          label: const Text('恢复'),
+                        )
+                : Builder(
+                    builder: (tabContext) => narrow
+                        ? IconButton(
+                            tooltip: '在树中查看 ${node.record.title}',
+                            onPressed: () => DefaultTabController.of(
+                              tabContext,
+                            ).animateTo(0),
+                            icon: const Icon(Icons.account_tree_outlined),
+                          )
+                        : TextButton(
+                            onPressed: () => DefaultTabController.of(
+                              tabContext,
+                            ).animateTo(0),
+                            child: const Text('查看树'),
+                          ),
+                  ),
+          ),
+        ),
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         20,
@@ -600,37 +800,76 @@ class _PoliciesPageState extends State<PoliciesPage> {
         AppSpacing.bottomNavClearance,
       ),
       children: [
-        const SectionHeading(title: '已归档国策'),
-        if (values.isEmpty)
-          const EmptyState(
+        const SectionHeading(title: '国策文库', scale: '索引'),
+        Text(
+          '在用 ${active.length} · 已归档 ${archived.length}',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        ExternalField(
+          label: '搜索标题、规则或归档原因',
+          child: TextField(
+            key: const ValueKey('policy-library-search'),
+            controller: _librarySearchController,
+            onChanged: (value) => setState(() => _libraryQuery = value),
+            decoration: const InputDecoration(prefixIcon: Icon(Icons.search)),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.xs,
+          children: [
+            for (final (scope, label, count) in [
+              ('all', '全部', nodes.length),
+              ('active', '在用', active.length),
+              ('archived', '归档', archived.length),
+            ])
+              FilterChip(
+                label: Text('$label $count'),
+                selected: _libraryScope == scope,
+                onSelected: (_) => setState(() => _libraryScope = scope),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (nodes.isEmpty)
+          EmptyState(
             icon: Icons.inventory_2_outlined,
             title: '国策库为空',
-            message: '崩塌或主动结束的节点会保留执行历史，并出现在这里。',
-          ),
-        for (final node in values)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: LogSurface(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: ListTile(
-                leading: CircleAvatar(child: Text(node.emoji)),
-                title: Text(node.record.title),
-                subtitle: Text(
-                  '累计执行 ${node.cumulativeExecutionDays} 天 · '
-                  '最高 ${node.record.data['rsipHighestStage'] ?? node.stage} · '
-                  '最高强化 ${node.maxReinforcement} · '
-                  '使用 ${(node.record.data['rsipLibraryUses'] as num?)?.toInt() ?? 1} 次\n'
-                  '${node.record.data['rsipArchiveReason'] ?? '已归档'}',
-                ),
-                isThreeLine: true,
-                trailing: OutlinedButton.icon(
-                  onPressed: () => _restoreNode(node.record),
-                  icon: const Icon(Icons.restore_outlined),
-                  label: const Text('恢复'),
-                ),
-              ),
+            message: '创建国策后，在用与归档的规则会集中出现在这里。',
+            action: FilledButton.icon(
+              onPressed: () => _showNodeEditor(),
+              icon: const Icon(Icons.add),
+              label: const Text('添加国策'),
             ),
           ),
+        if (nodes.isNotEmpty &&
+            (!showActive || visibleActive.isEmpty) &&
+            (!showArchived || visibleArchived.isEmpty))
+          EmptyState(
+            icon: Icons.manage_search_outlined,
+            title: '没有匹配的国策',
+            message: '试试其他关键词，或切换“全部”查看完整文库。',
+            action: TextButton(
+              onPressed: () => setState(() {
+                _librarySearchController.clear();
+                _libraryQuery = '';
+                _libraryScope = 'all';
+              }),
+              child: const Text('查看全部'),
+            ),
+          ),
+        if (showActive && visibleActive.isNotEmpty) ...[
+          SectionHeading(title: '在用国策', scale: '${visibleActive.length} 条'),
+          for (final node in visibleActive) nodeRow(node, isArchived: false),
+        ],
+        if (showArchived && visibleArchived.isNotEmpty) ...[
+          SectionHeading(title: '已归档国策', scale: '${visibleArchived.length} 条'),
+          for (final node in visibleArchived) nodeRow(node, isArchived: true),
+        ],
       ],
     );
   }
@@ -640,6 +879,103 @@ class _PoliciesPageState extends State<PoliciesPage> {
       ..sort((a, b) => b.runNumber.compareTo(a.runNumber));
     final executions = widget.controller.rsipExecutionRecords.toList()
       ..sort((a, b) => b.record.createdAt.compareTo(a.record.createdAt));
+    final grouped = {
+      for (final run in runs) run.record.id: <RsipExecutionRecord>[],
+    };
+    final unassigned = <RsipExecutionRecord>[];
+    for (final execution in executions) {
+      final at = execution.record.createdAt.toLocal();
+      final day =
+          DateTime.tryParse(execution.logicalDayKey)?.toLocal() ??
+          execution.record.scheduledFor?.toLocal();
+      RsipRunRecord? owner;
+      for (final run in runs) {
+        if (!at.isBefore(run.startedAt) &&
+            (run.endedAt == null || !at.isAfter(run.endedAt!))) {
+          owner = run;
+          break;
+        }
+      }
+      if (owner == null && day != null) {
+        final logicalDay = DateTime(day.year, day.month, day.day);
+        for (final run in runs) {
+          final start = DateTime(
+            run.startedAt.year,
+            run.startedAt.month,
+            run.startedAt.day,
+          );
+          final end = run.endedAt == null
+              ? null
+              : DateTime(
+                  run.endedAt!.year,
+                  run.endedAt!.month,
+                  run.endedAt!.day,
+                );
+          if (!logicalDay.isBefore(start) &&
+              (end == null || !logicalDay.isAfter(end))) {
+            owner = run;
+            break;
+          }
+        }
+      }
+      if (owner == null) {
+        unassigned.add(execution);
+      } else {
+        grouped[owner.record.id]!.add(execution);
+      }
+    }
+
+    Widget executionTile(RsipExecutionRecord execution) {
+      final data = execution.record.data;
+      final repair = data['repairHint']?.toString() ?? '';
+      final correction = data['correctionReason']?.toString() ?? '';
+      final source = execution.sourceEvent;
+      final sourceRecord = [
+        ...widget.controller.tasks,
+        ...widget.controller.taskGroups,
+      ].where((record) => record.id == execution.sourceId).firstOrNull;
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: context.tokens.orbitTrack, width: 2),
+          ),
+        ),
+        child: ExpansionTile(
+          key: PageStorageKey('policy-execution-${execution.record.id}'),
+          leading: Icon(
+            _executionIcon(execution.status),
+            color: execution.status == RsipExecutionStatus.violated
+                ? Theme.of(context).colorScheme.error
+                : Theme.of(context).colorScheme.primary,
+          ),
+          title: Text(execution.record.title),
+          subtitle: Text(
+            '${execution.logicalDayKey} · ${_executionLabel(execution.status)}'
+            '${execution.corrected ? ' · 已留痕更正' : ''}',
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('记录时间：${formatDateTime(execution.record.createdAt)}'),
+                  Text(
+                    '来源：${source.isEmpty ? '手动结算' : _sourceEventLabel(source)}'
+                    '${sourceRecord == null ? '' : ' · ${sourceRecord.title}'}',
+                  ),
+                  if (execution.reason.isNotEmpty)
+                    Text('结算原因：${execution.reason}'),
+                  if (repair.isNotEmpty) Text('修复提示：$repair'),
+                  if (correction.isNotEmpty) Text('更正原因：$correction'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         20,
@@ -648,7 +984,14 @@ class _PoliciesPageState extends State<PoliciesPage> {
         AppSpacing.bottomNavClearance,
       ),
       children: [
-        const SectionHeading(title: '轮次'),
+        const SectionHeading(title: '轮次时间线', scale: '审计'),
+        Text(
+          '展开轮次查看结算，再展开条目核对原因与来源。',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+        ),
+        const SizedBox(height: AppSpacing.md),
         if (runs.isEmpty)
           const EmptyState(
             icon: Icons.history_outlined,
@@ -657,10 +1000,11 @@ class _PoliciesPageState extends State<PoliciesPage> {
           ),
         for (final run in runs)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: LogSurface(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: ListTile(
+              child: ExpansionTile(
+                key: PageStorageKey('policy-run-${run.record.id}'),
+                initiallyExpanded: run.endedAt == null,
                 leading: Icon(
                   run.endedAt == null
                       ? Icons.play_circle_outline
@@ -670,34 +1014,159 @@ class _PoliciesPageState extends State<PoliciesPage> {
                   '第 ${run.runNumber} 轮 · ${run.endedAt == null ? '进行中' : '已结束'}',
                 ),
                 subtitle: Text(
-                  '${formatDateTime(run.startedAt)} 开始 · '
-                  '峰值 ${run.peakNodeCount} 节点'
-                  '${run.endedAt == null ? '' : ' · 持续 ${run.durationDays} 天'}'
-                  '${run.collapseReason.isEmpty ? '' : '\n原因：${run.collapseReason}'}',
+                  '${formatDateTime(run.startedAt)} 开始 · 峰值 ${run.peakNodeCount} 节点'
+                  '${run.endedAt == null ? '' : ' · 持续 ${run.durationDays} 天'}',
                 ),
-                isThreeLine: run.collapseReason.isNotEmpty,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: [
+                          _tag(
+                            '已执行 ${grouped[run.record.id]!.where((value) => value.status == RsipExecutionStatus.executed).length}',
+                            Icons.check_circle_outline,
+                          ),
+                          _tag(
+                            '已违反 ${grouped[run.record.id]!.where((value) => value.status == RsipExecutionStatus.violated).length}',
+                            Icons.gpp_bad_outlined,
+                          ),
+                          if (run.collapseReason.isNotEmpty)
+                            _tag(
+                              '结束原因：${run.collapseReason}',
+                              Icons.info_outline,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (grouped[run.record.id]!.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('本轮暂无节点结算记录。'),
+                      ),
+                    ),
+                  for (final execution in grouped[run.record.id]!)
+                    executionTile(execution),
+                ],
               ),
             ),
           ),
-        const SectionHeading(title: '执行与更正'),
-        if (executions.isEmpty) const Text('尚无节点结算记录。'),
-        for (final execution in executions)
-          ListTile(
-            leading: Icon(_executionIcon(execution.status)),
-            title: Text(execution.record.title),
-            subtitle: Text(
-              '${execution.logicalDayKey} · ${_executionLabel(execution.status)}'
-              '${execution.reason.isEmpty ? '' : ' · ${execution.reason}'}'
-              '${execution.corrected ? ' · 已留痕更正' : ''}',
-            ),
-            trailing: Text(formatDateTime(execution.record.createdAt)),
-          ),
+        if (unassigned.isNotEmpty) ...[
+          const SectionHeading(title: '未归属轮次的记录'),
+          for (final execution in unassigned) executionTile(execution),
+        ],
       ],
     );
   }
 
   Widget _analytics() {
     final insights = widget.controller.rsipInsights;
+    final today = widget.controller.currentTime().toLocal();
+    final firstDay = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).subtract(const Duration(days: 13));
+    final days = [
+      for (var index = 0; index < 14; index++)
+        firstDay.add(Duration(days: index)),
+    ];
+    String dayKey(DateTime value) =>
+        '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+    final records = widget.controller.rsipExecutionRecords;
+    final executedByDay = <String, int>{};
+    final violatedByDay = <String, int>{};
+    for (final record in records) {
+      final key = record.logicalDayKey.isNotEmpty
+          ? record.logicalDayKey
+          : dayKey(record.record.createdAt.toLocal());
+      if (record.status == RsipExecutionStatus.executed) {
+        executedByDay[key] = (executedByDay[key] ?? 0) + 1;
+      } else if (record.status == RsipExecutionStatus.violated) {
+        violatedByDay[key] = (violatedByDay[key] ?? 0) + 1;
+      }
+    }
+    final executed = days.fold<int>(
+      0,
+      (total, day) => total + (executedByDay[dayKey(day)] ?? 0),
+    );
+    final violated = days.fold<int>(
+      0,
+      (total, day) => total + (violatedByDay[dayKey(day)] ?? 0),
+    );
+    final tracked = executed + violated;
+    final maxCount = math.max(
+      1,
+      days.fold<int>(
+        0,
+        (value, day) => math.max(
+          value,
+          math.max(
+            executedByDay[dayKey(day)] ?? 0,
+            violatedByDay[dayKey(day)] ?? 0,
+          ),
+        ),
+      ),
+    );
+    final scheme = Theme.of(context).colorScheme;
+    final barWidth = MediaQuery.textScalerOf(
+      context,
+    ).scale(48).clamp(68.0, 112.0).toDouble();
+
+    Widget dayBar(DateTime day) {
+      final key = dayKey(day);
+      final done = executedByDay[key] ?? 0;
+      final missed = violatedByDay[key] ?? 0;
+      Widget bar(int count, Color color) => Container(
+        width: 16,
+        height: count == 0 ? 2 : math.max(8, count / maxCount * 76),
+        decoration: BoxDecoration(
+          color: count == 0 ? context.tokens.orbitTrack : color,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+        ),
+      );
+      return Semantics(
+        label: '${day.month}月${day.day}日，已执行 $done，已违反 $missed',
+        child: SizedBox(
+          key: ValueKey('policy-day-bar-$key'),
+          width: barWidth,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 82,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    bar(done, scheme.primary),
+                    const SizedBox(width: 4),
+                    bar(missed, scheme.error),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${day.month}/${day.day}',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+              Text(
+                '$done / $missed',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: context.tokens.mutedText,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         20,
@@ -709,7 +1178,60 @@ class _PoliciesPageState extends State<PoliciesPage> {
         const SectionHeading(title: '规则启发式'),
         const Text('以下结果只根据本地记录和公开规则计算，不是预测、诊断或科学证明。'),
         const SizedBox(height: 10),
-        for (final insight in insights)
+        if (tracked == 0)
+          EmptyState(
+            icon: Icons.insights_outlined,
+            title: '暂无可分析的协议记录',
+            message: '近 14 日没有执行或违反结算。完成一次国策结算后会显示每日分布。',
+            action: Builder(
+              builder: (tabContext) => OutlinedButton.icon(
+                onPressed: () =>
+                    DefaultTabController.of(tabContext).animateTo(0),
+                icon: const Icon(Icons.account_tree_outlined),
+                label: const Text('查看国策树'),
+              ),
+            ),
+          )
+        else
+          LogSurface(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '14 日结算分布',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    _tag('已执行 $executed', Icons.check_circle_outline),
+                    _tag('已违反 $violated', Icons.gpp_bad_outlined),
+                    _tag(
+                      '执行率 ${(executed / tracked * 100).toStringAsFixed(0)}%',
+                      Icons.percent_outlined,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [for (final day in days) dayBar(day)]),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  '每日数值依次为执行 / 违反；左右滑动查看完整 14 天。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.tokens.mutedText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: AppSpacing.md),
+        for (final insight in tracked == 0 ? insights.skip(1) : insights)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: LogSurface(
@@ -2238,6 +2760,14 @@ IconData _executionIcon(RsipExecutionStatus status) => switch (status) {
   RsipExecutionStatus.executed => Icons.check_circle_outline,
   RsipExecutionStatus.violated => Icons.gpp_bad_outlined,
   RsipExecutionStatus.skipped => Icons.skip_next_outlined,
+};
+
+String _sourceEventLabel(String value) => switch (value) {
+  'taskCompleted' => '关联任务完成',
+  'taskInterrupted' => '关联任务中断',
+  'groupCycleCompleted' => '任务群一轮完成',
+  'rsipMarkedExecuted' => '国策结算',
+  _ => value,
 };
 
 String _metricLabel(String value) => switch (value) {

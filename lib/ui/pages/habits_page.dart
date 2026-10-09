@@ -78,6 +78,7 @@ class HabitsPage extends StatelessWidget {
                     AppSpacing.bottomNavClearance,
                   ),
                   children: [
+                    _HabitOverview(habits: habits, controller: controller),
                     SectionHeading(
                       title: '近期记录',
                       scale:
@@ -91,6 +92,7 @@ class HabitsPage extends StatelessWidget {
                       children: const [
                         _Legend(state: WorkStatus.done, label: '完成'),
                         _Legend(state: WorkStatus.skipped, label: '跳过'),
+                        _Legend(state: WorkStatus.failed, label: '失败'),
                         _Legend(state: WorkStatus.todo, label: '未记录'),
                       ],
                     ),
@@ -103,6 +105,64 @@ class HabitsPage extends StatelessWidget {
                 ),
         ),
       ],
+    );
+  }
+}
+
+class _HabitOverview extends StatelessWidget {
+  const _HabitOverview({required this.habits, required this.controller});
+
+  final List<WorkspaceRecord> habits;
+  final WorkbenchController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = controller.currentTime().toLocal();
+    final today = DateTime(now.year, now.month, now.day);
+    final completed = habits
+        .where(
+          (habit) =>
+              controller.habitLogForDay(habit.id, today)?.status ==
+              WorkStatus.done,
+        )
+        .length;
+    final tokens = context.tokens;
+    return LogSurface(
+      accent: Theme.of(context).colorScheme.primary,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.today_outlined),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '今日习惯',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              NumericText('$completed / ${habits.length}'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          LinearProgressIndicator(
+            value: habits.isEmpty ? 0 : completed / habits.length,
+            minHeight: 6,
+            backgroundColor: tokens.orbitTrack,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            completed == habits.length
+                ? '今日已全部记录'
+                : '尚有 ${habits.length - completed} 项待记录',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: tokens.mutedText),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -124,8 +184,6 @@ class _HabitMatrix extends StatelessWidget {
       (index) => calendarMonthStart.add(Duration(days: index)),
     );
     final calendarToday = DateTime(now.year, now.month, now.day);
-    final availableWidth = MediaQuery.sizeOf(context).width - 68;
-    final cellSlot = (availableWidth / days.length).clamp(12.0, 32.0);
     return Column(
       children: [
         for (final habit in habits)
@@ -155,93 +213,12 @@ class _HabitMatrix extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        for (final day in days)
-                          Expanded(
-                            child: Center(
-                              child: NumericText(
-                                '${day.day}',
-                                key: ValueKey(
-                                  'habit-day:${habit.id}:${day.day}',
-                                ),
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: context.tokens.mutedText,
-                                      fontSize: cellSlot < 16 ? 9 : null,
-                                    ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        for (final day in days)
-                          Expanded(
-                            child: _HabitCell(
-                              label: '${habit.title}，${day.month}月${day.day}日',
-                              status: controller
-                                  .habitLogForDay(habit.id, day)
-                                  ?.status,
-                              isToday: isSameDay(day, calendarToday),
-                              onTap: isSameDay(day, calendarToday)
-                                  ? () async {
-                                      final status =
-                                          await showModalBottomSheet<String>(
-                                            context: context,
-                                            showDragHandle: true,
-                                            builder: (sheetContext) => SafeArea(
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  ListTile(
-                                                    leading: const Icon(
-                                                      Icons.check,
-                                                    ),
-                                                    title: const Text('标记完成'),
-                                                    onTap: () => Navigator.pop(
-                                                      sheetContext,
-                                                      WorkStatus.done,
-                                                    ),
-                                                  ),
-                                                  ListTile(
-                                                    leading: const Icon(
-                                                      Icons.remove,
-                                                    ),
-                                                    title: const Text('标记跳过'),
-                                                    onTap: () => Navigator.pop(
-                                                      sheetContext,
-                                                      WorkStatus.skipped,
-                                                    ),
-                                                  ),
-                                                  ListTile(
-                                                    leading: const Icon(
-                                                      Icons.clear,
-                                                    ),
-                                                    title: const Text('清除记录'),
-                                                    onTap: () => Navigator.pop(
-                                                      sheetContext,
-                                                      WorkStatus.todo,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                      if (status != null) {
-                                        await controller
-                                            .setHabitCalendarDayStatus(
-                                              habit,
-                                              status,
-                                            );
-                                      }
-                                    }
-                                  : null,
-                            ),
-                          ),
-                      ],
+                    _HabitMonthStrip(
+                      key: ValueKey('habit-month:${habit.id}'),
+                      habit: habit,
+                      days: days,
+                      today: calendarToday,
+                      controller: controller,
                     ),
                   ],
                 ),
@@ -250,6 +227,151 @@ class _HabitMatrix extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+class _HabitMonthStrip extends StatefulWidget {
+  const _HabitMonthStrip({
+    super.key,
+    required this.habit,
+    required this.days,
+    required this.today,
+    required this.controller,
+  });
+
+  final WorkspaceRecord habit;
+  final List<DateTime> days;
+  final DateTime today;
+  final WorkbenchController controller;
+
+  @override
+  State<_HabitMonthStrip> createState() => _HabitMonthStripState();
+}
+
+class _HabitMonthStripState extends State<_HabitMonthStrip> {
+  static const _dayWidth = 48.0;
+  late final ScrollController _scrollController = ScrollController(
+    initialScrollOffset: _todayOffset,
+  );
+
+  double get _todayOffset =>
+      (widget.today.day - 3).clamp(0, widget.days.length - 1).toDouble() *
+      _dayWidth;
+
+  @override
+  void didUpdateWidget(covariant _HabitMonthStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.today == widget.today) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(
+        _todayOffset.clamp(0, _scrollController.position.maxScrollExtent),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '左右滑动查看整月 · 今天可点按修改',
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: context.tokens.mutedText),
+        ),
+        const SizedBox(height: 4),
+        Scrollbar(
+          controller: _scrollController,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      for (final day in widget.days)
+                        SizedBox.square(
+                          dimension: _dayWidth,
+                          child: Center(
+                            child: NumericText(
+                              '${day.day}',
+                              key: ValueKey(
+                                'habit-day:${widget.habit.id}:${day.day}',
+                              ),
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: context.tokens.mutedText),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      for (final day in widget.days)
+                        _HabitCell(
+                          label:
+                              '${widget.habit.title}，${day.month}月${day.day}日',
+                          status: widget.controller
+                              .habitLogForDay(widget.habit.id, day)
+                              ?.status,
+                          isToday: isSameDay(day, widget.today),
+                          onTap: isSameDay(day, widget.today)
+                              ? () => _editToday(context)
+                              : null,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editToday(BuildContext context) async {
+    final status = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.check),
+              title: const Text('标记完成'),
+              onTap: () => Navigator.pop(sheetContext, WorkStatus.done),
+            ),
+            ListTile(
+              leading: const Icon(Icons.remove),
+              title: const Text('标记跳过'),
+              onTap: () => Navigator.pop(sheetContext, WorkStatus.skipped),
+            ),
+            ListTile(
+              leading: const Icon(Icons.clear),
+              title: const Text('清除记录'),
+              onTap: () => Navigator.pop(sheetContext, WorkStatus.todo),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (status != null) {
+      await widget.controller.setHabitCalendarDayStatus(widget.habit, status);
+    }
   }
 }
 
@@ -434,7 +556,8 @@ class _HabitCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final cellSize = compact ? 16.0 : 14.0;
     final editable = isToday && onTap != null;
     // 未记录格用 mutedText@35% 描边，保证与面板底 ≥1.15:1 的可辨识对比度。
@@ -442,6 +565,7 @@ class _HabitCell extends StatelessWidget {
     final color = switch (status) {
       WorkStatus.done => Theme.of(context).colorScheme.primary,
       WorkStatus.skipped => context.tokens.reward,
+      WorkStatus.failed => Theme.of(context).colorScheme.error,
       _ => unrecordedBorder,
     };
     return Semantics(
@@ -450,6 +574,7 @@ class _HabitCell extends StatelessWidget {
       label: switch (status) {
         WorkStatus.done => editable ? '$label，已完成，可修改' : '$label，已完成，仅展示',
         WorkStatus.skipped => editable ? '$label，已跳过，可修改' : '$label，已跳过，仅展示',
+        WorkStatus.failed => editable ? '$label，已失败，可修改' : '$label，已失败，仅展示',
         WorkStatus.todo => editable ? '$label，待记录，可修改' : '$label，待记录，仅展示',
         _ => editable ? '$label，未记录，可修改' : '$label，未记录，仅展示',
       },
@@ -473,7 +598,9 @@ class _HabitCell extends StatelessWidget {
                     color: isToday ? context.tokens.info : color,
                     width: isToday ? 2 : 1,
                   ),
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(
+                    status == WorkStatus.failed ? cellSize / 2 : 2,
+                  ),
                 ),
                 child: status == WorkStatus.done
                     ? Icon(
@@ -486,6 +613,12 @@ class _HabitCell extends StatelessWidget {
                         Icons.remove,
                         size: compact ? 10 : 9,
                         color: Theme.of(context).colorScheme.onSurface,
+                      )
+                    : status == WorkStatus.failed
+                    ? Icon(
+                        Icons.close,
+                        size: compact ? 10 : 9,
+                        color: Theme.of(context).colorScheme.onError,
                       )
                     : null,
               ),
@@ -527,6 +660,7 @@ class _Legend extends StatelessWidget {
     final color = switch (state) {
       WorkStatus.done => Theme.of(context).colorScheme.primary,
       WorkStatus.skipped => context.tokens.reward,
+      WorkStatus.failed => Theme.of(context).colorScheme.error,
       _ => context.tokens.divider,
     };
     return Row(
@@ -538,7 +672,9 @@ class _Legend extends StatelessWidget {
           decoration: BoxDecoration(
             color: state == WorkStatus.todo ? Colors.transparent : color,
             border: Border.all(color: color),
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(
+              state == WorkStatus.failed ? 5 : 2,
+            ),
           ),
         ),
         const SizedBox(width: 5),

@@ -62,10 +62,10 @@ class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp> {
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: controller.themeMode,
-          themeAnimationCurve: Curves.easeInOut,
+          // Avoid animating every surface at once when the user changes theme.
+          themeAnimationDuration: Duration.zero,
           scrollBehavior: const WorkbenchScrollBehavior(),
-          // Android 系统栏适配：状态栏透明融入 AppBar 渐变，
-          // 导航栏与底部 NavigationBar 同色，图标亮度跟随主题。
+          // Android 系统栏与应用导航表面同步，图标亮度跟随主题。
           builder: (context, child) {
             final theme = Theme.of(context);
             final isLight = theme.brightness == Brightness.light;
@@ -85,7 +85,9 @@ class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp> {
                   statusBarBrightness: isLight
                       ? Brightness.light
                       : Brightness.dark,
-                  systemNavigationBarColor: theme.colorScheme.surface,
+                  systemNavigationBarColor: theme
+                      .extension<WorkbenchTokens>()!
+                      .navigation,
                   systemNavigationBarIconBrightness: isLight
                       ? Brightness.dark
                       : Brightness.light,
@@ -227,7 +229,7 @@ class WorkbenchScrollBehavior extends MaterialScrollBehavior {
       case TargetPlatform.macOS:
       case TargetPlatform.windows:
         return Scrollbar(
-          controller: PrimaryScrollController.maybeOf(context),
+          controller: details.controller,
           thumbVisibility: MediaQuery.disableAnimationsOf(context)
               ? false
               : null,

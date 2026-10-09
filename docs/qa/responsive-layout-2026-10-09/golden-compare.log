@@ -1,0 +1,28 @@
+00:00 +0: loading F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart
+00:00 +0: (setUpAll)
+00:01 +0: visual fixture stays isolated and deterministic
+00:02 +1: 节点类型 8 色各自独立
+00:02 +2: Wide today light
+00:03 +3: Wide today dark
+00:03 +4: Wide workweek conflict
+00:03 +5: Android today
+00:04 +6: Android capture sheet
+00:04 +7: Android growth
+00:04 +8: Wide behavior habits
+00:05 +9: Android behavior policies
+00:05 +10: Wide protocols light
+00:05 +11: Wide shell today light
+00:06 +12: Wide shell today dark
+00:06 +13: Wide shell unstarted today light
+00:06 +14: Wide shell empty today light
+00:06 +15: documentation CTDP task editor
+00:07 +16: documentation RSIP habit editor
+00:07 +17: documentation projects page
+00:07 +18: documentation focus page
+00:08 +19: documentation focus restriction tab
+00:08 +20: documentation notes page
+00:08 +21: documentation review page
+00:08 +22: documentation policies tree
+00:09 +23: documentation policies analytics
+00:09 +24: (tearDownAll)
+00:09 +24: All tests passed!

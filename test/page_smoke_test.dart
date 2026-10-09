@@ -142,18 +142,25 @@ Future<WorkbenchController> _createController() async {
   return controller;
 }
 
-Widget _host(Widget child) => MaterialApp(
-  key: UniqueKey(),
-  theme: AppTheme.light(),
-  locale: const Locale('zh', 'CN'),
-  supportedLocales: const [Locale('zh', 'CN')],
-  localizationsDelegates: const [
-    GlobalMaterialLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-  ],
-  home: Scaffold(body: child),
-);
+Widget _host(Widget child, {ThemeData? theme, TextScaler? textScaler}) =>
+    MaterialApp(
+      key: UniqueKey(),
+      theme: theme ?? AppTheme.light(),
+      locale: const Locale('zh', 'CN'),
+      supportedLocales: const [Locale('zh', 'CN')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      builder: textScaler == null
+          ? null
+          : (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+              child: child!,
+            ),
+      home: Scaffold(body: child),
+    );
 
 Future<void> _pumpPage(WidgetTester tester, Widget page) async {
   await tester.pumpWidget(_host(page));
@@ -162,6 +169,87 @@ Future<void> _pumpPage(WidgetTester tester, Widget page) async {
 }
 
 void main() {
+  testWidgets(
+    'record pages keep reading and period controls usable at 320dp and 200% text',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(320, 700);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final controller = await _createController();
+      addTearDown(controller.dispose);
+
+      for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+        await tester.pumpWidget(
+          _host(
+            NotesPage(controller: controller),
+            theme: theme,
+            textScaler: const TextScaler.linear(2),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(tester.takeException(), isNull);
+        await tester.enterText(find.byType(SearchBar), 'Angular');
+        await tester.pump();
+        await tester.ensureVisible(find.text('Angular spectrum notes'));
+        await tester.tap(find.text('Angular spectrum notes'));
+        await tester.pump();
+        expect(find.text('返回笔记索引'), findsOneWidget);
+        await tester.tap(find.text('返回笔记索引'));
+        await tester.pump();
+        expect(find.text('Angular spectrum notes'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        for (final period in [
+          (ReviewTab.diary, '日事实卡'),
+          (ReviewTab.weekly, '七日完成分布'),
+          (ReviewTab.monthly, '月度完成日历'),
+        ]) {
+          await tester.pumpWidget(
+            _host(
+              ReviewPage(controller: controller, initialTab: period.$1),
+              theme: theme,
+              textScaler: const TextScaler.linear(2),
+            ),
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+          expect(find.text(period.$2), findsOneWidget);
+          await tester.scrollUntilVisible(
+            find.text('回顾正文'),
+            260,
+            scrollable: find
+                .descendant(
+                  of: find.byType(ReviewPage),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
+          final issue = tester.takeException();
+          if (issue is FlutterError) {
+            debugPrint('${period.$1}: ${issue.toStringDeep()}');
+          }
+          expect(issue, isNull);
+        }
+
+        await tester.pumpWidget(
+          _host(
+            FocusHubPage(controller: controller),
+            theme: theme,
+            textScaler: const TextScaler.linear(2),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.scrollUntilVisible(
+          find.text('近七日专注节奏'),
+          260,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expect(find.text('近七日专注节奏'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+
   testWidgets('core pages render populated desktop states', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1200, 900);
@@ -207,15 +295,22 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     await _pumpPage(tester, ProjectsPage(controller: controller));
-    await tester.tap(find.text('看板'));
+    await tester.tap(find.text('看板').first);
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.text('清单'));
+    await tester.tap(find.text('清单').first);
     await tester.pump(const Duration(milliseconds: 100));
 
     await _pumpPage(tester, SettingsPage(controller: controller));
-    final settingsList = find.byType(ListView).first;
-    await tester.drag(settingsList, const Offset(0, -1600));
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.scrollUntilVisible(
+      find.text('回收站（1）'),
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(SettingsPage),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     expect(find.text('回收站（1）'), findsOneWidget);
     await tester.ensureVisible(find.byTooltip('永久删除'));
     await tester.pump();
@@ -311,10 +406,7 @@ void main() {
       tester,
       WorkbenchShell(controller: controller, enableSystemHotkey: false),
     );
-    final navigation = find.descendant(
-      of: find.byType(Scrollbar),
-      matching: find.byType(ListView),
-    );
+    final navigation = find.byKey(const ValueKey('desktop-navigation-scroll'));
     expect(navigation, findsOneWidget);
     await tester.drag(navigation, const Offset(0, -1000));
     await tester.pump(const Duration(milliseconds: 200));

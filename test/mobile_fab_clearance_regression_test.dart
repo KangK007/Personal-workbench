@@ -76,6 +76,36 @@ Rect _intersection(Rect a, Rect b) => Rect.fromLTRB(
 );
 
 void main() {
+  testWidgets(
+    'quick capture keeps save above the keyboard without losing input',
+    (tester) async {
+      _useAuditEmulatorViewport(tester);
+      addTearDown(tester.view.resetViewInsets);
+      final controller = _controller();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(_host(controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('mobile-quick-capture')));
+      await tester.pumpAndSettle();
+      final input = find.descendant(
+        of: find.byType(QuickCaptureSheet),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(input, '键盘弹出后仍保留的快速记录');
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
+      final save = find.widgetWithText(FilledButton, '收下');
+      expect(save.hitTestable(), findsOneWidget);
+      expect(tester.getBottomRight(save).dy, lessThanOrEqualTo(544));
+      expect(tester.widget<TextField>(input).controller!.text, '键盘弹出后仍保留的快速记录');
+      expect(tester.takeException(), isNull);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(controller.tasks.single.title, '键盘弹出后仍保留的快速记录');
+      expect(find.byType(QuickCaptureSheet), findsNothing);
+    },
+  );
+
   testWidgets('daily review reminder switch stays clear of quick capture FAB', (
     tester,
   ) async {
@@ -90,7 +120,11 @@ void main() {
 
     final reminder = find.widgetWithText(SwitchListTile, '日回顾');
     final toggle = find.descendant(of: reminder, matching: find.byType(Switch));
-    await Scrollable.ensureVisible(tester.element(reminder), alignment: 1.0);
+    await tester.scrollUntilVisible(
+      reminder,
+      180,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.pumpAndSettle();
     final fabRect = tester.getRect(
       find.byKey(const ValueKey('mobile-quick-capture')),

@@ -20,6 +20,7 @@ import 'package:personal_workbench/ui/pages/calendar_page.dart';
 import 'package:personal_workbench/ui/pages/focus_page.dart';
 import 'package:personal_workbench/ui/pages/inbox_page.dart';
 import 'package:personal_workbench/ui/pages/plan_page.dart';
+import 'package:personal_workbench/ui/pages/review_page.dart';
 import 'package:personal_workbench/ui/pages/settings_page.dart';
 import 'package:personal_workbench/ui/pages/today_page.dart';
 import 'package:personal_workbench/ui/widgets/celebration.dart';
@@ -34,6 +35,7 @@ String _key(WorkspaceRecord record) => '${record.kind.name}:${record.id}';
 class _MemoryDatabase extends AppDatabase {
   final Map<String, WorkspaceRecord> records = {};
   final Map<String, String> metadata = {};
+  bool failNextThemeWrite = false;
 
   @override
   Future<void> saveRecord(
@@ -75,6 +77,10 @@ class _MemoryDatabase extends AppDatabase {
 
   @override
   Future<void> writeMetadata(String key, String value) async {
+    if (key == 'theme_mode' && failNextThemeWrite) {
+      failNextThemeWrite = false;
+      throw StateError('theme preference write failed');
+    }
     metadata[key] = value;
   }
 
@@ -330,74 +336,72 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'desktop task list supports explicit, range and all selection',
-    (tester) async {
-      final fixture = _fixture();
-      addTearDown(() {
-        fixture.dispose();
-        if (fixture.directory.existsSync()) {
-          fixture.directory.deleteSync(recursive: true);
-        }
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-      final project = WorkspaceRecord.create(
-        kind: RecordKind.project,
-        title: '批量测试项目',
-      );
-      await fixture.controller.addRecord(project);
-      for (var index = 0; index < 3; index++) {
-        await fixture.controller.addRecord(
-          WorkspaceRecord.create(
-            kind: RecordKind.task,
-            title: '批量任务 $index',
-            projectId: index == 0 ? project.id : null,
-          ),
-        );
+  testWidgets('desktop task list supports explicit, range and all selection', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
       }
-      await _pump(
-        tester,
-        fixture.controller,
-        () => PlanPage(controller: fixture.controller),
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final project = WorkspaceRecord.create(
+      kind: RecordKind.project,
+      title: '批量测试项目',
+    );
+    await fixture.controller.addRecord(project);
+    for (var index = 0; index < 3; index++) {
+      await fixture.controller.addRecord(
+        WorkspaceRecord.create(
+          kind: RecordKind.task,
+          title: '批量任务 $index',
+          projectId: index == 0 ? project.id : null,
+        ),
       );
+    }
+    await _pump(
+      tester,
+      fixture.controller,
+      () => PlanPage(controller: fixture.controller),
+    );
 
-      await tester.tap(find.widgetWithText(OutlinedButton, '选择任务').first);
-      await tester.pump();
-      expect(find.text('0 项'), findsOneWidget);
-      await tester.tap(find.text('批量任务 0'));
-      await tester.pump();
-      await tester.tap(find.byTooltip('设置主项目'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('清除主项目'));
-      await tester.pumpAndSettle();
-      expect(
-        fixture.controller.tasks
-            .firstWhere((task) => task.title == '批量任务 0')
-            .projectId,
-        isNull,
-      );
+    await tester.tap(find.widgetWithText(OutlinedButton, '选择任务').first);
+    await tester.pump();
+    expect(find.text('0 项'), findsOneWidget);
+    await tester.tap(find.text('批量任务 0'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('设置主项目'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('清除主项目'));
+    await tester.pumpAndSettle();
+    expect(
+      fixture.controller.tasks
+          .firstWhere((task) => task.title == '批量任务 0')
+          .projectId,
+      isNull,
+    );
 
-      await tester.tap(find.widgetWithText(OutlinedButton, '选择任务').first);
-      await tester.pump();
-      await tester.tap(find.text('批量任务 0'));
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.tap(find.text('批量任务 2'));
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.pump();
-      expect(find.text('3 项'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, '选择任务').first);
+    await tester.pump();
+    await tester.tap(find.text('批量任务 0'));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.tap(find.text('批量任务 2'));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    expect(find.text('3 项'), findsOneWidget);
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pump();
-      expect(find.byTooltip('退出多选'), findsNothing);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pump();
-      expect(find.text('3 项'), findsOneWidget);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.windows),
-  );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byTooltip('退出多选'), findsNothing);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(find.text('3 项'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 
   testWidgets('task list scrolls 1000 records without layout failures', (
     tester,
@@ -947,8 +951,87 @@ void main() {
     );
 
     expect(find.byType(MobileBottomBar), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    final toolbarAdd = find.byTooltip('快速新增');
+    expect(toolbarAdd.hitTestable(), findsOneWidget);
+    expect(
+      tester.getRect(toolbarAdd).bottom,
+      lessThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
+    );
+    await tester.tap(toolbarAdd);
+    await tester.pumpAndSettle();
+    expect(find.text('收下'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    tester.view.physicalSize = const Size(390, 700);
+    await tester.pumpAndSettle();
+    expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Windows short windows retain desktop navigation and review drafts on resize',
+    (tester) async {
+      final fixture = _fixture();
+      addTearDown(() {
+        fixture.dispose();
+        if (fixture.directory.existsSync()) {
+          fixture.directory.deleteSync(recursive: true);
+        }
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await _pump(
+        tester,
+        fixture.controller,
+        () => WorkbenchShell(
+          controller: fixture.controller,
+          enableSystemHotkey: false,
+        ),
+        size: const Size(1440, 500),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(MobileBottomBar), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('navigation-group:record')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('navigation-leaf:reviewDaily')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('navigation-leaf:reviewDaily')),
+      );
+      await tester.pumpAndSettle();
+      final title = find.descendant(
+        of: find.widgetWithText(ExternalField, '标题'),
+        matching: find.byType(TextField),
+      );
+      await tester.scrollUntilVisible(
+        find.text('标题'),
+        180,
+        scrollable: find
+            .descendant(
+              of: find.byType(ReviewPage),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.enterText(title, '窗口缩放时保留的回顾草稿');
+      final state = tester.state(find.byType(ReviewPage));
+      for (final size in const [
+        Size(700, 700),
+        Size(1024, 600),
+        Size(1920, 1080),
+      ]) {
+        tester.view.physicalSize = size;
+        await tester.pumpAndSettle();
+        expect(tester.state(find.byType(ReviewPage)), same(state));
+        expect(find.text('窗口缩放时保留的回顾草稿'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
 
   testWidgets('task editor progressively reveals optional fields', (
     tester,
@@ -1046,13 +1129,11 @@ void main() {
       final semantics = tester.ensureSemantics();
 
       await tester.scrollUntilVisible(
-        find.text('跟随系统'),
+        find.text('夜间 · 夜航工作室'),
         300,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('跟随系统'));
-      await tester.pump();
-      await tester.tap(find.text('深色').last);
+      await tester.tap(find.text('夜间 · 夜航工作室'));
       await tester.pump();
       expect(fixture.controller.themeMode, ThemeMode.dark);
 
@@ -1227,6 +1308,134 @@ void main() {
     },
   );
 
+  testWidgets('theme cards fit a narrow screen at 200% text scale', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+    });
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 700);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: SettingsPage(controller: fixture.controller, showHeader: false),
+        ),
+      ),
+    );
+    await tester.scrollUntilVisible(
+      find.text('夜间 · 夜航工作室'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('白天 · 柔壤图鉴'), findsOneWidget);
+    expect(find.text('夜间 · 夜航工作室'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('theme switch keeps the current settings position and draft', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+    });
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpWidget(
+      ListenableBuilder(
+        listenable: fixture.controller,
+        builder: (context, _) => MaterialApp(
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: fixture.controller.themeMode,
+          home: Scaffold(
+            body: SettingsPage(
+              controller: fixture.controller,
+              showHeader: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    final settingsScroll = find
+        .descendant(
+          of: find.byType(SettingsPage),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final aliasEdit = find.widgetWithText(OutlinedButton, '编辑');
+    await tester.scrollUntilVisible(aliasEdit, 150, scrollable: settingsScroll);
+    final beforeOffset = tester
+        .state<ScrollableState>(settingsScroll)
+        .position
+        .pixels;
+    await tester.tap(aliasEdit);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '正在编辑的别名');
+
+    await fixture.controller.setThemeMode(ThemeMode.dark);
+    await tester.pumpAndSettle();
+
+    expect(
+      Theme.of(tester.element(find.byType(SettingsPage))).brightness,
+      Brightness.dark,
+    );
+    expect(find.text('正在编辑的别名'), findsOneWidget);
+    expect(
+      tester.state<ScrollableState>(settingsScroll).position.pixels,
+      closeTo(beforeOffset, 1),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed theme save restores selection and explains retry', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+    });
+    await _pump(tester, fixture.controller, () {
+      return SettingsPage(controller: fixture.controller);
+    });
+    await tester.scrollUntilVisible(
+      find.text('白天 · 柔壤图鉴'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    fixture.database.failNextThemeWrite = true;
+    await tester.tap(find.text('白天 · 柔壤图鉴'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(fixture.controller.themeMode, ThemeMode.system);
+    expect(fixture.database.metadata.containsKey('theme_mode'), isFalse);
+    expect(find.text('主题保存失败，已恢复原设置，请重试'), findsOneWidget);
+  });
+
   testWidgets('settings reports denied notification permission', (
     tester,
   ) async {
@@ -1258,52 +1467,50 @@ void main() {
     expect(fixture.notifications.showCount, 0);
   });
 
-  testWidgets(
-    'settings covers desktop notifications and export failure',
-    (tester) async {
-      final fixture = _fixture(
-        systemNotificationSupport: false,
-        withBackup: true,
-        exportFails: true,
-      );
-      addTearDown(() {
-        fixture.dispose();
-        if (fixture.directory.existsSync()) {
-          fixture.directory.deleteSync(recursive: true);
-        }
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+  testWidgets('settings covers desktop notifications and export failure', (
+    tester,
+  ) async {
+    final fixture = _fixture(
+      systemNotificationSupport: false,
+      withBackup: true,
+      exportFails: true,
+    );
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
-      await _pump(tester, fixture.controller, () {
-        return SettingsPage(controller: fixture.controller);
-      });
-      await tester.scrollUntilVisible(
-        find.text('当前平台仅显示应用内提示'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('当前平台仅显示应用内提示'), findsOneWidget);
-      final permissionButton = tester.widget<OutlinedButton>(
-        find.widgetWithText(OutlinedButton, '申请权限'),
-      );
-      expect(permissionButton.onPressed, isNull);
+    await _pump(tester, fixture.controller, () {
+      return SettingsPage(controller: fixture.controller);
+    });
+    await tester.scrollUntilVisible(
+      find.text('当前平台仅显示应用内提示'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('当前平台仅显示应用内提示'), findsOneWidget);
+    final permissionButton = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, '申请权限'),
+    );
+    expect(permissionButton.onPressed, isNull);
 
-      final export = find.text('导出', skipOffstage: false);
-      await tester.scrollUntilVisible(
-        export,
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.ensureVisible(export);
-      await tester.pumpAndSettle();
-      await tester.tap(export);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.textContaining('导出失败'), findsOneWidget);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.windows),
-  );
+    final export = find.text('导出', skipOffstage: false);
+    await tester.scrollUntilVisible(
+      export,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(export);
+    await tester.pumpAndSettle();
+    await tester.tap(export);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('导出失败'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 
   testWidgets(
     'today covers start, replacement, habit, scheduling and close flows',

@@ -1,5 +1,7 @@
 # 项目全量审查与文件说明
 
+> 2026-10-09 更新索引：当前双主题和全页面窗口适配结果见 [双主题验收](docs/DUAL_THEME_VALIDATION.md) 与 [自适应布局验收](docs/RESPONSIVE_LAYOUT_VALIDATION.md)。下文仓库数量和测试数量保留审查当日口径。
+
 > 审查日期：2026-09-20（Asia/Shanghai）
 > 代码版本：`pubspec.yaml` 中的 `0.2.1+6`
 > 口径：当前 Git 跟踪文件为 376 个；以工作区文件、`git ls-files`、Dart/Flutter 引用和构建配置为准。`build/`、`dist/`、`.dart_tool/` 等生成目录单独说明，不视为源码。

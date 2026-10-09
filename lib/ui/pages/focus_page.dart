@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -12,6 +13,7 @@ import '../platform_feedback.dart';
 import '../widgets/celebration.dart';
 import '../widgets/common.dart';
 import '../widgets/solid_panel.dart';
+import '../widgets/workbench_illustration.dart';
 
 class FocusHubPage extends StatelessWidget {
   const FocusHubPage({
@@ -25,11 +27,13 @@ class FocusHubPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
+    final wide =
+        WorkbenchViewport.sizeOf(context).width >= AppBreakpoints.expanded;
     return Column(
       children: [
         if (showHeader)
           PageHeader(
+            maxWidth: AppLayout.formMax,
             title: '专注',
             subtitle: '预设与任务关联的计时会话 · 自律规则与拦截日志',
             actions: [
@@ -90,182 +94,426 @@ class _FocusTab extends StatelessWidget {
         .recordsOf(RecordKind.focusSession)
         .take(6)
         .toList();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
-        AppSpacing.bottomNavClearance,
-      ),
-      children: [
-        if (controller.pendingFocusPresets.isNotEmpty) ...[
-          const SectionHeading(title: '待确认启动'),
-          LogSurface(
-            accent: Theme.of(context).colorScheme.tertiary,
-            child: Column(
-              children: [
-                for (final preset in controller.pendingFocusPresets)
-                  ListTile(
-                    leading: const Icon(Icons.notification_important_outlined),
-                    title: Text(preset.title),
-                    subtitle: Text(
-                      controller.pendingFocusPresets.length > 1
-                          ? '与其他预设冲突，请选择一个开始'
-                          : '已到计划时间，确认后才会开始计时',
-                    ),
-                    trailing: Wrap(
-                      spacing: 6,
-                      children: [
-                        TextButton(
-                          onPressed: () =>
-                              controller.declineScheduledFocus(preset),
-                          child: const Text('跳过'),
-                        ),
-                        FilledButton.icon(
-                          onPressed: () async {
-                            await controller.confirmScheduledFocus(preset);
-                            if (context.mounted) {
-                              await _startPreset(context, controller, preset);
-                            }
-                          },
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('确认开始'),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+    final sessions = controller.recordsOf(RecordKind.focusSession);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppLayout.formMax),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            AppSpacing.bottomNavClearance,
           ),
-        ],
-        const SectionHeading(title: '专注预设'),
-        if (controller.focusPresets.isEmpty)
-          Text('尚未创建预设。', style: TextStyle(color: context.tokens.mutedText))
-        else
-          LogSurface(
-            child: Column(
-              children: [
-                for (final preset in controller.focusPresets)
-                  ListTile(
-                    leading: Icon(
-                      preset.data['mode'] == FocusMode.stopwatch.name
-                          ? Icons.timer_outlined
-                          : Icons.hourglass_bottom_outlined,
-                    ),
-                    title: Text(preset.title),
-                    subtitle: Text(
-                      _presetSummary(
-                        preset,
-                        windows: controller.windowsActivityService.supported,
+          children: [
+            _FocusNext(task: candidates.firstOrNull, controller: controller),
+            if (controller.pendingFocusPresets.isNotEmpty) ...[
+              const SectionHeading(title: '待确认启动'),
+              LogSurface(
+                accent: Theme.of(context).colorScheme.tertiary,
+                child: Column(
+                  children: [
+                    for (final preset in controller.pendingFocusPresets)
+                      ListTile(
+                        leading: const Icon(
+                          Icons.notification_important_outlined,
+                        ),
+                        title: Text(preset.title),
+                        subtitle: Text(
+                          controller.pendingFocusPresets.length > 1
+                              ? '与其他预设冲突，请选择一个开始'
+                              : '已到计划时间，确认后才会开始计时',
+                        ),
+                        trailing: Wrap(
+                          spacing: 6,
+                          children: [
+                            TextButton(
+                              onPressed: () =>
+                                  controller.declineScheduledFocus(preset),
+                              child: const Text('跳过'),
+                            ),
+                            FilledButton.icon(
+                              onPressed: () async {
+                                await controller.confirmScheduledFocus(preset);
+                                if (context.mounted) {
+                                  await _startPreset(
+                                    context,
+                                    controller,
+                                    preset,
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('确认开始'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    trailing: Wrap(
-                      spacing: 4,
-                      children: [
-                        IconButton(
-                          onPressed: () => _showPresetEditor(
-                            context,
-                            controller,
-                            preset: preset,
-                          ),
-                          tooltip: '编辑预设',
-                          icon: const Icon(Icons.edit_outlined),
-                        ),
-                        FilledButton.icon(
-                          onPressed: () =>
-                              _startPreset(context, controller, preset),
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('开始'),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        const SectionHeading(title: '下一项承诺'),
-        if (candidates.isEmpty)
-          const EmptyState(
-            icon: Icons.timer_outlined,
-            title: '尚无可执行承诺',
-            message: '先在“今日”选择并锁定 1–3 项承诺。',
-          )
-        else
-          LogSurface(
-            accent: Theme.of(context).colorScheme.primary,
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  candidates.first.title,
-                  style: Theme.of(context).textTheme.titleLarge,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  controller.todayStarted
-                      ? controller.advancedFeaturesEnabled
-                            ? '已关联今日承诺，完成的有效时长可计入专注 XP。'
-                            : '已关联今日重点，完成后会保留专注记录。'
-                      : '尚未开始今天，本次专注只记录时间。',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.tokens.mutedText,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.icon(
-                    onPressed: () =>
-                        showFocusSession(context, controller, candidates.first),
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text('开始专注'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        const SectionHeading(title: '最近记录'),
-        if (recent.isEmpty)
-          Text(
-            '尚无专注记录。',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
-          )
-        else
-          LogSurface(
-            child: Column(
-              children: [
-                for (var index = 0; index < recent.length; index++) ...[
-                  ListTile(
-                    leading: NumericText(
-                      '${((recent[index].data['seconds'] as num?)?.toInt() ?? 0) ~/ 60}'
-                          .padLeft(2, '0'),
+              ),
+            ],
+            _FocusRhythm(sessions: sessions, now: controller.currentTime()),
+            const SectionHeading(title: '专注预设'),
+            if (controller.focusPresets.isEmpty)
+              SolidPanel(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '按自己的节奏开始',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    title: Text(
-                      recent[index].title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: const Text('分钟'),
-                    trailing: Text(
-                      recent[index].data['mode']?.toString() ?? '',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '创建常用时长与提醒规则，下次可以直接开始。',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: context.tokens.mutedText,
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.md),
+                    OutlinedButton.icon(
+                      onPressed: () => _showPresetEditor(context, controller),
+                      icon: const Icon(Icons.add),
+                      label: const Text('创建专注预设'),
+                    ),
+                  ],
+                ),
+              )
+            else
+              LogSurface(
+                child: Column(
+                  children: [
+                    for (final preset in controller.focusPresets)
+                      ListTile(
+                        leading: Icon(
+                          preset.data['mode'] == FocusMode.stopwatch.name
+                              ? Icons.timer_outlined
+                              : Icons.hourglass_bottom_outlined,
+                        ),
+                        title: Text(preset.title),
+                        subtitle: Text(
+                          _presetSummary(
+                            preset,
+                            windows:
+                                controller.windowsActivityService.supported,
+                          ),
+                        ),
+                        trailing: Wrap(
+                          spacing: 4,
+                          children: [
+                            IconButton(
+                              onPressed: () => _showPresetEditor(
+                                context,
+                                controller,
+                                preset: preset,
+                              ),
+                              tooltip: '编辑预设',
+                              icon: const Icon(Icons.edit_outlined),
+                            ),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  _startPreset(context, controller, preset),
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('开始'),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            const SectionHeading(title: '最近记录'),
+            if (recent.isEmpty)
+              Text(
+                '尚无专注记录。',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.tokens.mutedText,
+                ),
+              )
+            else
+              LogSurface(
+                child: Column(
+                  children: [
+                    for (var index = 0; index < recent.length; index++) ...[
+                      ListTile(
+                        leading: NumericText(
+                          '${((recent[index].data['seconds'] as num?)?.toInt() ?? 0) ~/ 60}'
+                              .padLeft(2, '0'),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        title: Text(
+                          recent[index].title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: const Text('分钟'),
+                        trailing: Text(
+                          recent[index].data['mode']?.toString() ?? '',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: context.tokens.mutedText),
+                        ),
+                      ),
+                      if (index < recent.length - 1) const Divider(),
+                    ],
+                  ],
+                ),
+              ),
+            if (candidates.length + recent.length < 5)
+              const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FocusNext extends StatelessWidget {
+  const _FocusNext({required this.task, required this.controller});
+
+  final WorkspaceRecord? task;
+  final WorkbenchController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 8),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [tokens.heroStart, tokens.heroEnd],
+          ),
+          border: Border.all(color: tokens.panelBorder),
+          borderRadius: BorderRadius.circular(tokens.panelRadius),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 600;
+            final art = const WorkbenchIllustration(
+              kind: WorkbenchIllustrationKind.focus,
+              width: 150,
+              height: 128,
+            );
+            final content = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '下一项承诺',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(color: tokens.mutedText),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  task?.title ?? '尚无可执行承诺',
+                  style: Theme.of(context).textTheme.titleLarge,
+                  maxLines: compact ? 3 : 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  task == null
+                      ? '先在“今日”选择并锁定承诺，或从下方预设开始临时专注。'
+                      : controller.todayStarted
+                      ? controller.advancedFeaturesEnabled
+                            ? '关联今日承诺，有效时长可计入专注 XP。'
+                            : '关联今日重点，完成后保留专注记录。'
+                      : '尚未开始今天，本次专注只记录时间。',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: tokens.mutedText),
+                ),
+                if (task != null && !compact) ...[
+                  const SizedBox(height: 14),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        showFocusSession(context, controller, task),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('开始专注'),
                   ),
-                  if (index < recent.length - 1) const Divider(),
                 ],
               ],
+            );
+            if (compact) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(child: content),
+                        const SizedBox(width: 4),
+                        const WorkbenchIllustration(
+                          kind: WorkbenchIllustrationKind.focus,
+                          width: 88,
+                          height: 112,
+                        ),
+                      ],
+                    ),
+                    if (task != null) ...[
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () =>
+                            showFocusSession(context, controller, task),
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('开始专注'),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 22, 16),
+              child: Row(
+                children: [
+                  Expanded(child: content),
+                  const SizedBox(width: 20),
+                  art,
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Seven completed days are read from saved sessions, including genuinely empty days.
+/// The visual bars are supplemental; every value is also available as text semantics.
+class _FocusRhythm extends StatelessWidget {
+  const _FocusRhythm({required this.sessions, required this.now});
+
+  final List<WorkspaceRecord> sessions;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime(now.year, now.month, now.day);
+    final days = List.generate(
+      7,
+      (index) => today.subtract(Duration(days: 6 - index)),
+    );
+    final minutes = [
+      for (final day in days)
+        sessions
+            .where((session) {
+              final date = (session.scheduledFor ?? session.createdAt)
+                  .toLocal();
+              return date.year == day.year &&
+                  date.month == day.month &&
+                  date.day == day.day;
+            })
+            .fold<int>(
+              0,
+              (sum, session) =>
+                  sum +
+                  (((session.data['seconds'] as num?)?.toInt() ?? 0) ~/ 60),
             ),
-          ),
-        if (candidates.length + recent.length < 5) const SizedBox(height: 12),
-      ],
+    ];
+    final total = minutes.fold<int>(0, (sum, value) => sum + value);
+    final peak = minutes.fold<int>(
+      1,
+      (largest, value) => value > largest ? value : largest,
+    );
+    const weekday = ['一', '二', '三', '四', '五', '六', '日'];
+    final primary = Theme.of(context).colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: LogSurface(
+        accent: primary,
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const SurfaceIcon(Icons.view_week_outlined),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '近七日专注节奏',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                NumericText(
+                  '$total 分',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 72,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var index = 0; index < days.length; index++)
+                    Expanded(
+                      child: Semantics(
+                        label:
+                            '${days[index].month}月${days[index].day}日，专注 ${minutes[index]} 分钟',
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: FractionallySizedBox(
+                                    heightFactor: minutes[index] == 0
+                                        ? 0.07
+                                        : minutes[index] / peak,
+                                    widthFactor: 0.72,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: minutes[index] == 0
+                                            ? context.tokens.divider
+                                            : primary,
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadius.xs,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              ExcludeSemantics(
+                                child: Text(
+                                  weekday[days[index].weekday - 1],
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (total == 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                '完成一次专注后，这里会显示实际投入的时间。',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.tokens.mutedText,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -363,286 +611,427 @@ Future<void> _showPresetEditor(
   final weekdays = (preset?.data['weekdays'] as List<dynamic>? ?? const [])
       .map((value) => (value as num).toInt())
       .toSet();
+  String? titleError;
+  String? minutesError;
+  String? saveError;
+  var saving = false;
+  String draftSignature() => jsonEncode([
+    title.text,
+    minutes.text,
+    applications.text,
+    mode.name,
+    listMode,
+    detection,
+    taskId,
+    scheduleMode,
+    bringToFront,
+    scheduledAt?.toIso8601String(),
+    weekdays.toList()..sort(),
+  ]);
+  final initialSignature = draftSignature();
+  Future<void> requestClose(BuildContext dialogContext) async {
+    if (saving) return;
+    if (draftSignature() != initialSignature) {
+      final discard = await showWorkbenchDialog<bool>(
+        context: dialogContext,
+        builder: (confirmContext) => AlertDialog(
+          title: const Text('放弃预设修改？'),
+          content: const Text('未保存的预设内容将丢失。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(confirmContext, false),
+              child: const Text('继续编辑'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(confirmContext, true),
+              child: const Text('放弃修改'),
+            ),
+          ],
+        ),
+      );
+      if (discard != true) return;
+    }
+    if (dialogContext.mounted) Navigator.pop(dialogContext);
+  }
+
+  Future<void>? dialogRemoved;
   await showWorkbenchDialog<void>(
     context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setDialogState) => AlertDialog(
-        title: Text(preset == null ? '新建专注预设' : '编辑专注预设'),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+    barrierDismissible: false,
+    builder: (context) {
+      dialogRemoved = ModalRoute.of(context)?.completed.then((_) {});
+      return StatefulBuilder(
+        builder: (context, setDialogState) => PopScope(
+          canPop: !saving && draftSignature() == initialSignature,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && !saving) requestClose(context);
+          },
+          child: AlertDialog(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ExternalField(
-                  label: '预设名称',
-                  child: TextField(
-                    controller: title,
-                    decoration: const InputDecoration(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ExternalField(
-                  label: '计时模式',
-                  child: DropdownButtonFormField<FocusMode>(
-                    isExpanded: true,
-                    initialValue: mode,
-                    decoration: const InputDecoration(),
-                    items: const [
-                      DropdownMenuItem(
-                        value: FocusMode.stopwatch,
-                        child: Text('正计时'),
-                      ),
-                      DropdownMenuItem(
-                        value: FocusMode.custom,
-                        child: Text('自定义倒计时'),
-                      ),
-                    ],
-                    onChanged: (value) =>
-                        setDialogState(() => mode = value ?? mode),
-                  ),
-                ),
-                if (mode != FocusMode.stopwatch) ...[
-                  const SizedBox(height: 12),
-                  ExternalField(
-                    label: '时长（分钟）',
-                    child: TextField(
-                      controller: minutes,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(),
+                Text(preset == null ? '新建专注预设' : '编辑专注预设'),
+                if (saveError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    saveError!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.error,
                     ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                ExternalField(
-                  label: '主任务（可空）',
-                  child: DropdownButtonFormField<String?>(
-                    isExpanded: true,
-                    initialValue: taskId,
-                    decoration: const InputDecoration(),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('临时专注')),
-                      for (final task in controller.tasks)
-                        DropdownMenuItem(
-                          value: task.id,
-                          child: Text(task.title),
-                        ),
-                    ],
-                    onChanged: (value) => setDialogState(() => taskId = value),
-                  ),
-                ),
-                if (windows) ...[
-                  const SizedBox(height: 12),
-                  ExternalField(
-                    label: '应用检测模式',
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: listMode,
-                      decoration: const InputDecoration(),
-                      items: const [
-                        DropdownMenuItem(value: 'none', child: Text('不使用名单')),
-                        DropdownMenuItem(value: 'allow', child: Text('白名单')),
-                        DropdownMenuItem(value: 'block', child: Text('黑名单')),
-                      ],
-                      onChanged: (value) =>
-                          setDialogState(() => listMode = value ?? 'none'),
-                    ),
-                  ),
-                  if (listMode != 'none') ...[
-                    const SizedBox(height: 12),
-                    ExternalField(
-                      label: '应用进程名',
-                      child: TextField(
-                        controller: applications,
-                        decoration: const InputDecoration(
-                          hintText: 'chrome.exe, matlab.exe',
-                        ),
-                      ),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: detection,
-                      title: const Text('此预设启用前台检测'),
-                      onChanged: (value) =>
-                          setDialogState(() => detection = value),
-                    ),
-                  ],
-                ],
-                const SizedBox(height: 12),
-                ExternalField(
-                  label: '定时启动提醒',
-                  child: DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    initialValue: scheduleMode,
-                    decoration: const InputDecoration(),
-                    items: const [
-                      DropdownMenuItem(value: 'none', child: Text('不定时')),
-                      DropdownMenuItem(value: 'once', child: Text('单次')),
-                      DropdownMenuItem(value: 'weekly', child: Text('每周指定日')),
-                    ],
-                    onChanged: (value) => setDialogState(() {
-                      scheduleMode = value ?? 'none';
-                      if (scheduleMode != 'none') {
-                        scheduledAt ??= DateTime.now().add(
-                          const Duration(hours: 1),
-                        );
-                      }
-                    }),
-                  ),
-                ),
-                if (scheduleMode != 'none') ...[
-                  if (windows)
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: bringToFront,
-                      secondary: const Icon(Icons.open_in_new_outlined),
-                      title: const Text('到点时显示工作台'),
-                      subtitle: const Text('先发送系统提醒，再恢复窗口；仍需确认后才开始计时'),
-                      onChanged: (value) =>
-                          setDialogState(() => bringToFront = value),
-                    ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      if (scheduleMode == 'once')
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final current = scheduledAt ?? DateTime.now();
-                              final result = await showDatePicker(
-                                context: context,
-                                initialDate: current,
-                                firstDate: DateTime.now(),
-                                lastDate: DateTime.now().add(
-                                  const Duration(days: 3650),
-                                ),
-                              );
-                              if (result != null) {
-                                setDialogState(() {
-                                  scheduledAt = DateTime(
-                                    result.year,
-                                    result.month,
-                                    result.day,
-                                    current.hour,
-                                    current.minute,
-                                  );
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.calendar_today_outlined),
-                            label: Text(
-                              scheduledAt == null
-                                  ? '选择日期'
-                                  : formatShortDate(scheduledAt!),
-                            ),
-                          ),
-                        ),
-                      if (scheduleMode == 'once') const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final current = scheduledAt ?? DateTime.now();
-                            final result = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.fromDateTime(current),
-                            );
-                            if (result != null) {
-                              setDialogState(() {
-                                scheduledAt = DateTime(
-                                  current.year,
-                                  current.month,
-                                  current.day,
-                                  result.hour,
-                                  result.minute,
-                                );
-                              });
-                            }
-                          },
-                          icon: const Icon(Icons.schedule_outlined),
-                          label: Text(
-                            scheduledAt == null
-                                ? '选择时间'
-                                : TimeOfDay.fromDateTime(
-                                    scheduledAt!,
-                                  ).format(context),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                if (scheduleMode == 'weekly') ...[
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      for (final value in const [
-                        (DateTime.monday, '一'),
-                        (DateTime.tuesday, '二'),
-                        (DateTime.wednesday, '三'),
-                        (DateTime.thursday, '四'),
-                        (DateTime.friday, '五'),
-                        (DateTime.saturday, '六'),
-                        (DateTime.sunday, '日'),
-                      ])
-                        FilterChip(
-                          label: Text(value.$2),
-                          selected: weekdays.contains(value.$1),
-                          onSelected: (selected) => setDialogState(() {
-                            if (selected) {
-                              weekdays.add(value.$1);
-                            } else {
-                              weekdays.remove(value.$1);
-                            }
-                          }),
-                        ),
-                    ],
                   ),
                 ],
               ],
             ),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ExternalField(
+                      label: '预设名称',
+                      child: TextField(
+                        controller: title,
+                        decoration: InputDecoration(errorText: titleError),
+                        onChanged: (_) => setDialogState(() {
+                          titleError = null;
+                          saveError = null;
+                        }),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ExternalField(
+                      label: '计时模式',
+                      child: DropdownButtonFormField<FocusMode>(
+                        isExpanded: true,
+                        initialValue: mode,
+                        decoration: const InputDecoration(),
+                        items: const [
+                          DropdownMenuItem(
+                            value: FocusMode.stopwatch,
+                            child: Text('正计时'),
+                          ),
+                          DropdownMenuItem(
+                            value: FocusMode.custom,
+                            child: Text('自定义倒计时'),
+                          ),
+                        ],
+                        onChanged: (value) => setDialogState(() {
+                          mode = value ?? mode;
+                          minutesError = null;
+                          saveError = null;
+                        }),
+                      ),
+                    ),
+                    if (mode != FocusMode.stopwatch) ...[
+                      const SizedBox(height: 12),
+                      ExternalField(
+                        label: '时长（分钟）',
+                        child: TextField(
+                          controller: minutes,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(errorText: minutesError),
+                          onChanged: (_) => setDialogState(() {
+                            minutesError = null;
+                            saveError = null;
+                          }),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    ExternalField(
+                      label: '主任务（可空）',
+                      child: DropdownButtonFormField<String?>(
+                        isExpanded: true,
+                        initialValue: taskId,
+                        decoration: const InputDecoration(),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('临时专注'),
+                          ),
+                          for (final task in controller.tasks)
+                            DropdownMenuItem(
+                              value: task.id,
+                              child: Text(task.title),
+                            ),
+                        ],
+                        onChanged: (value) =>
+                            setDialogState(() => taskId = value),
+                      ),
+                    ),
+                    if (windows) ...[
+                      const SizedBox(height: 12),
+                      ExternalField(
+                        label: '应用检测模式',
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: listMode,
+                          decoration: const InputDecoration(),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'none',
+                              child: Text('不使用名单'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'allow',
+                              child: Text('白名单'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'block',
+                              child: Text('黑名单'),
+                            ),
+                          ],
+                          onChanged: (value) =>
+                              setDialogState(() => listMode = value ?? 'none'),
+                        ),
+                      ),
+                      if (listMode != 'none') ...[
+                        const SizedBox(height: 12),
+                        ExternalField(
+                          label: '应用进程名',
+                          child: TextField(
+                            controller: applications,
+                            decoration: const InputDecoration(
+                              hintText: 'chrome.exe, matlab.exe',
+                            ),
+                            onChanged: (_) => setDialogState(() {}),
+                          ),
+                        ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: detection,
+                          title: const Text('此预设启用前台检测'),
+                          onChanged: (value) =>
+                              setDialogState(() => detection = value),
+                        ),
+                      ],
+                    ],
+                    const SizedBox(height: 12),
+                    ExternalField(
+                      label: '定时启动提醒',
+                      child: DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: scheduleMode,
+                        decoration: const InputDecoration(),
+                        items: const [
+                          DropdownMenuItem(value: 'none', child: Text('不定时')),
+                          DropdownMenuItem(value: 'once', child: Text('单次')),
+                          DropdownMenuItem(
+                            value: 'weekly',
+                            child: Text('每周指定日'),
+                          ),
+                        ],
+                        onChanged: (value) => setDialogState(() {
+                          scheduleMode = value ?? 'none';
+                          if (scheduleMode != 'none') {
+                            scheduledAt ??= DateTime.now().add(
+                              const Duration(hours: 1),
+                            );
+                          }
+                        }),
+                      ),
+                    ),
+                    if (scheduleMode != 'none') ...[
+                      if (windows)
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: bringToFront,
+                          secondary: const Icon(Icons.open_in_new_outlined),
+                          title: const Text('到点时显示工作台'),
+                          subtitle: const Text('先发送系统提醒，再恢复窗口；仍需确认后才开始计时'),
+                          onChanged: (value) =>
+                              setDialogState(() => bringToFront = value),
+                        ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          if (scheduleMode == 'once')
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final current = scheduledAt ?? DateTime.now();
+                                  final result = await showDatePicker(
+                                    context: context,
+                                    initialDate: current,
+                                    firstDate: DateTime.now(),
+                                    lastDate: DateTime.now().add(
+                                      const Duration(days: 3650),
+                                    ),
+                                  );
+                                  if (result != null) {
+                                    setDialogState(() {
+                                      scheduledAt = DateTime(
+                                        result.year,
+                                        result.month,
+                                        result.day,
+                                        current.hour,
+                                        current.minute,
+                                      );
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.calendar_today_outlined),
+                                label: Text(
+                                  scheduledAt == null
+                                      ? '选择日期'
+                                      : formatShortDate(scheduledAt!),
+                                ),
+                              ),
+                            ),
+                          if (scheduleMode == 'once') const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final current = scheduledAt ?? DateTime.now();
+                                final result = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.fromDateTime(current),
+                                );
+                                if (result != null) {
+                                  setDialogState(() {
+                                    scheduledAt = DateTime(
+                                      current.year,
+                                      current.month,
+                                      current.day,
+                                      result.hour,
+                                      result.minute,
+                                    );
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.schedule_outlined),
+                              label: Text(
+                                scheduledAt == null
+                                    ? '选择时间'
+                                    : TimeOfDay.fromDateTime(
+                                        scheduledAt!,
+                                      ).format(context),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (scheduleMode == 'weekly') ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        children: [
+                          for (final value in const [
+                            (DateTime.monday, '一'),
+                            (DateTime.tuesday, '二'),
+                            (DateTime.wednesday, '三'),
+                            (DateTime.thursday, '四'),
+                            (DateTime.friday, '五'),
+                            (DateTime.saturday, '六'),
+                            (DateTime.sunday, '日'),
+                          ])
+                            FilterChip(
+                              label: Text(value.$2),
+                              selected: weekdays.contains(value.$1),
+                              onSelected: (selected) => setDialogState(() {
+                                if (selected) {
+                                  weekdays.add(value.$1);
+                                } else {
+                                  weekdays.remove(value.$1);
+                                }
+                              }),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => requestClose(context),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final parsedMinutes = int.tryParse(minutes.text.trim());
+                        final nextTitleError = title.text.trim().isEmpty
+                            ? '请填写专注预设名称。'
+                            : null;
+                        final nextMinutesError =
+                            mode != FocusMode.stopwatch &&
+                                (parsedMinutes == null ||
+                                    parsedMinutes < 1 ||
+                                    parsedMinutes > 720)
+                            ? '请输入 1–720 的整数分钟。'
+                            : null;
+                        if (nextTitleError != null ||
+                            nextMinutesError != null) {
+                          setDialogState(() {
+                            titleError = nextTitleError;
+                            minutesError = nextMinutesError;
+                            saveError = null;
+                          });
+                          return;
+                        }
+                        setDialogState(() {
+                          saving = true;
+                          saveError = null;
+                        });
+                        try {
+                          await controller.saveFocusPreset(
+                            preset: preset,
+                            title: title.text,
+                            mode: mode,
+                            minutes: mode == FocusMode.stopwatch
+                                ? 25
+                                : parsedMinutes!,
+                            taskId: taskId,
+                            listMode: listMode,
+                            applications: applications.text.split(','),
+                            detectionEnabled: detection,
+                            scheduleMode: scheduleMode,
+                            scheduledAt: scheduleMode == 'none'
+                                ? null
+                                : scheduledAt,
+                            weekdays: scheduleMode == 'weekly'
+                                ? (weekdays.toList()..sort())
+                                : const [],
+                            bringToFrontOnSchedule: bringToFront,
+                          );
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (error) {
+                          if (context.mounted) {
+                            setDialogState(() {
+                              saving = false;
+                              saveError = error is FormatException
+                                  ? error.message
+                                  : '保存失败：$error';
+                            });
+                          }
+                        }
+                      },
+                child: saving
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text('保存中'),
+                        ],
+                      )
+                    : const Text('保存'),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              try {
-                await controller.saveFocusPreset(
-                  preset: preset,
-                  title: title.text,
-                  mode: mode,
-                  minutes: int.tryParse(minutes.text) ?? 25,
-                  taskId: taskId,
-                  listMode: listMode,
-                  applications: applications.text.split(','),
-                  detectionEnabled: detection,
-                  scheduleMode: scheduleMode,
-                  scheduledAt: scheduleMode == 'none' ? null : scheduledAt,
-                  weekdays: scheduleMode == 'weekly'
-                      ? (weekdays.toList()..sort())
-                      : const [],
-                  bringToFrontOnSchedule: bringToFront,
-                );
-                if (context.mounted) Navigator.pop(context);
-              } on FormatException catch (error) {
-                if (context.mounted) {
-                  showWorkbenchSnackBar(
-                    context,
-                    SnackBar(content: Text(error.message)),
-                  );
-                }
-              }
-            },
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    ),
+      );
+    },
   );
+  if (dialogRemoved != null) await dialogRemoved;
   title.dispose();
   minutes.dispose();
   applications.dispose();
@@ -774,40 +1163,50 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                                   maxLines: 3,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 14),
+                                Wrap(
+                                  alignment: WrapAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    StatusPill(
+                                      icon: service.running
+                                          ? Icons.bolt_outlined
+                                          : service.elapsed > Duration.zero
+                                          ? Icons.pause_circle_outline
+                                          : Icons.radio_button_unchecked,
+                                      label: service.running
+                                          ? '专注进行中'
+                                          : service.elapsed > Duration.zero
+                                          ? '已暂停，可继续'
+                                          : '准备开始',
+                                    ),
+                                    if (widget.task?.hasCtdpProtocol == true)
+                                      const StatusPill(
+                                        icon: Icons.link,
+                                        label: '关联执行协议',
+                                      ),
+                                    if (service.mode != FocusMode.stopwatch &&
+                                        service.elapsed > Duration.zero)
+                                      StatusPill(
+                                        icon: Icons.flag_outlined,
+                                        label:
+                                            '目标 ${service.target.inMinutes} 分',
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
                                 SolidPanel(
                                   padding: const EdgeInsets.all(4),
                                   radius: AppRadius.card,
-                                  child: SegmentedButton<FocusMode>(
-                                    segments: const [
-                                      ButtonSegment(
-                                        value: FocusMode.stopwatch,
-                                        label: Text('正计时'),
-                                        icon: Icon(Icons.timer_outlined),
-                                      ),
-                                      ButtonSegment(
-                                        value: FocusMode.pomodoro25,
-                                        label: Text('25 / 5'),
-                                      ),
-                                      ButtonSegment(
-                                        value: FocusMode.pomodoro50,
-                                        label: Text('50 / 10'),
-                                      ),
-                                      ButtonSegment(
-                                        value: FocusMode.custom,
-                                        label: Text('协议时长'),
-                                        icon: Icon(Icons.link),
-                                      ),
-                                    ],
-                                    selected: {
-                                      service.running
-                                          ? service.mode
-                                          : selectedMode,
-                                    },
-                                    onSelectionChanged: service.running
+                                  child: _FocusModeControl(
+                                    value: service.running
+                                        ? service.mode
+                                        : selectedMode,
+                                    onChanged: service.running
                                         ? null
                                         : (value) => setState(
-                                            () => selectedMode = value.first,
+                                            () => selectedMode = value,
                                           ),
                                   ),
                                 ),
@@ -834,15 +1233,20 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                                                 width: 5,
                                                 height: 5,
                                                 decoration: BoxDecoration(
-                                                  color: context.tokens.reward,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary,
                                                   shape: BoxShape.circle,
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
                                                 service.running
-                                                    ? '灵息流转'
-                                                    : '待入静',
+                                                    ? '正在计时'
+                                                    : service.elapsed >
+                                                          Duration.zero
+                                                    ? '已暂停'
+                                                    : '尚未开始',
                                                 style: Theme.of(context)
                                                     .textTheme
                                                     .labelMedium
@@ -1477,4 +1881,62 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
       ),
     );
   }
+}
+
+class _FocusModeControl extends StatelessWidget {
+  const _FocusModeControl({required this.value, required this.onChanged});
+
+  final FocusMode value;
+  final ValueChanged<FocusMode>? onChanged;
+
+  static const _segments = [
+    ButtonSegment(
+      value: FocusMode.stopwatch,
+      label: Text('正计时'),
+      icon: Icon(Icons.timer_outlined),
+    ),
+    ButtonSegment(value: FocusMode.pomodoro25, label: Text('25 / 5')),
+    ButtonSegment(value: FocusMode.pomodoro50, label: Text('50 / 10')),
+    ButtonSegment(
+      value: FocusMode.custom,
+      label: Text('协议时长'),
+      icon: Icon(Icons.link),
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+      if (constraints.maxWidth < 500 * textScale.clamp(1, 2)) {
+        return Padding(
+          padding: const EdgeInsets.all(8),
+          child: ExternalField(
+            label: '计时模式',
+            child: DropdownButtonFormField<FocusMode>(
+              key: ValueKey(value),
+              initialValue: value,
+              isExpanded: true,
+              items: [
+                for (final segment in _segments)
+                  DropdownMenuItem(value: segment.value, child: segment.label!),
+              ],
+              onChanged: onChanged == null
+                  ? null
+                  : (mode) {
+                      if (mode != null) onChanged!(mode);
+                    },
+            ),
+          ),
+        );
+      }
+      return SegmentedButton<FocusMode>(
+        segments: _segments,
+        selected: {value},
+        onSelectionChanged: onChanged == null
+            ? null
+            : (modes) => onChanged!(modes.first),
+      );
+    },
+  );
 }

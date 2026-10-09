@@ -22,6 +22,8 @@ Future<void> showQuickCapture(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      enableDrag: false,
+      showDragHandle: false,
       builder: (context) => QuickCaptureSheet(
         controller: controller,
         initialKind: initialKind,
@@ -136,12 +138,12 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
     final theme = Theme.of(context);
     final tokens = context.tokens;
     final scheme = theme.colorScheme;
-    return SingleChildScrollView(
+    final content = SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.pageCompact,
         AppSpacing.lg,
         AppSpacing.pageCompact,
-        AppSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
+        0,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -159,7 +161,7 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
                 ),
               ),
               IconButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: saving ? null : () => Navigator.maybePop(context),
                 tooltip: '关闭',
                 icon: const Icon(Icons.close),
               ),
@@ -245,45 +247,70 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
             actionLabel: _projectTitle == null ? '选择' : '更换',
             onAction: _pickProject,
           ),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // ─── 主操作：通栏 52px + 方形图标按钮 ───
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: saving ? null : _save,
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.card),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: AppFonts.body,
+        ],
+      ),
+    );
+    return UnsavedChangesGuard(
+      hasChanges: () =>
+          textController.text.isNotEmpty ||
+          kind != widget.initialKind ||
+          scheduledFor != widget.initialScheduledFor ||
+          projectId != widget.initialProjectId,
+      isBusy: () => saving,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: content),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pageCompact,
+                AppSpacing.xl,
+                AppSpacing.pageCompact,
+                AppSpacing.xl,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 52,
+                      child: FilledButton(
+                        onPressed: saving ? null : _save,
+                        style: FilledButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.card),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: AppFonts.body,
+                          ),
+                        ),
+                        child: saving
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('收下'),
                       ),
                     ),
-                    child: saving
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('收下'),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  _CaptureSquareIconButton(
+                    icon: Icons.tune,
+                    tooltip: '完善信息',
+                    onPressed: saving ? null : _openDetails,
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              _CaptureSquareIconButton(
-                icon: Icons.tune,
-                tooltip: '完善信息',
-                onPressed: saving ? null : _openDetails,
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -539,8 +566,8 @@ class _CaptureInlineAction extends StatelessWidget {
           onTap: onPressed,
           borderRadius: BorderRadius.circular(AppRadius.control),
           child: SizedBox(
-            width: 30,
-            height: 30,
+            width: 48,
+            height: 48,
             child: Icon(icon, size: 15, color: scheme.primary),
           ),
         ),

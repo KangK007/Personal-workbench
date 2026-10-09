@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
@@ -10,6 +12,7 @@ import '../../state/workbench_controller.dart';
 import '../widgets/attachment_panel.dart';
 import '../widgets/common.dart';
 import '../widgets/relation_picker_dialog.dart';
+import '../widgets/workbench_illustration.dart';
 
 enum ReviewTab { diary, weekly, monthly }
 
@@ -20,12 +23,18 @@ class ReviewPage extends StatefulWidget {
     this.initialTab = ReviewTab.diary,
     this.showHeader = true,
     this.showPeriodSwitcher = true,
+    this.initialPreview,
+    this.openRequestSerial = 0,
+    this.onBackToProject,
   });
 
   final WorkbenchController controller;
   final ReviewTab initialTab;
   final bool showHeader;
   final bool showPeriodSwitcher;
+  final WorkspaceRecord? initialPreview;
+  final int openRequestSerial;
+  final VoidCallback? onBackToProject;
 
   @override
   State<ReviewPage> createState() => _ReviewPageState();
@@ -54,6 +63,7 @@ class _ReviewPageState extends State<ReviewPage> {
   bool libraryVisible = false;
   WorkspaceRecord? libraryPreview;
   String libraryFilter = 'all';
+  late String _savedDraftSignature;
 
   WorkbenchController get controller => widget.controller;
   ReviewPeriod get period => _periodFor(type, anchor);
@@ -74,6 +84,45 @@ class _ReviewPageState extends State<ReviewPage> {
     tomorrowController = TextEditingController();
     searchController = TextEditingController()..addListener(_refreshLibrary);
     _loadPeriod();
+    if (widget.initialPreview != null) {
+      libraryVisible = true;
+      libraryPreview = widget.initialPreview;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ReviewPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialPreview != null &&
+        widget.onBackToProject == null &&
+        libraryPreview?.id == oldWidget.initialPreview?.id) {
+      libraryPreview = null;
+      libraryVisible = false;
+    }
+    if (widget.openRequestSerial > oldWidget.openRequestSerial) {
+      final requestSerial = widget.openRequestSerial;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted || widget.openRequestSerial != requestSerial) return;
+        final requestedPreview = widget.initialPreview;
+        if (requestedPreview != null) {
+          setState(() {
+            libraryVisible = true;
+            libraryPreview = requestedPreview;
+          });
+          return;
+        }
+        if (!await _confirmLeaveDraft() || !mounted) return;
+        setState(() {
+          type = ReviewPeriodType.daily;
+          anchor = controller.growthService.logicalDay(
+            controller.currentTime(),
+          );
+          libraryVisible = false;
+          libraryPreview = null;
+          _loadPeriod();
+        });
+      });
+    }
   }
 
   @override
@@ -94,7 +143,13 @@ class _ReviewPageState extends State<ReviewPage> {
     if (mounted && libraryVisible) setState(() {});
   }
 
-  void _toggleLibrary() {
+  Future<void> _toggleLibrary() async {
+    if (!libraryVisible &&
+        libraryPreview == null &&
+        !await _confirmLeaveDraft()) {
+      return;
+    }
+    if (!mounted) return;
     setState(() {
       if (libraryPreview != null) {
         libraryPreview = null;
@@ -128,14 +183,75 @@ class _ReviewPageState extends State<ReviewPage> {
       ..clear()
       ..addAll(_ids(existing?.data['relatedProjectIds']));
     preview = false;
+    _savedDraftSignature = _draftSignature;
+  }
+
+  String get _draftSignature => jsonEncode([
+    titleController.text,
+    bodyController.text,
+    completedController.text,
+    blockersController.text,
+    tomorrowController.text,
+    mood,
+    [...relatedTaskIds]..sort(),
+    [...relatedProjectIds]..sort(),
+  ]);
+
+  Future<bool> _confirmLeaveDraft({bool includeHiddenDraft = false}) async {
+    if ((!includeHiddenDraft && (libraryVisible || libraryPreview != null)) ||
+        !_isCurrentPeriod ||
+        _draftSignature == _savedDraftSignature) {
+      return true;
+    }
+    final choice = await showWorkbenchDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('保存当前回顾？'),
+        content: const Text('当前周期有未保存的修改。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'stay'),
+            child: const Text('继续编辑'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'discard'),
+            child: const Text('放弃修改'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, 'save'),
+            child: const Text('保存并继续'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return false;
+    if (choice == 'save') return _save();
+    return choice == 'discard';
+  }
+
+  Future<void> _backToProject() async {
+    if (await _confirmLeaveDraft() && mounted) widget.onBackToProject?.call();
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        if (widget.onBackToProject != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: _backToProject,
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('返回项目'),
+              ),
+            ),
+          ),
         if (widget.showHeader)
           PageHeader(
+            maxWidth: AppLayout.formMax,
             title: '回顾',
             subtitle: '先核对期间事实，再记录判断与下一步',
             actions: [
@@ -203,254 +319,303 @@ class _ReviewPageState extends State<ReviewPage> {
     final snapshot = _snapshotForDisplay(currentPeriod);
     final statisticsChanged =
         existing != null && controller.reviewStatisticsChanged(existing!);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        8,
-        20,
-        AppSpacing.bottomNavClearance,
-      ),
-      children: [
-        if (widget.showPeriodSwitcher)
-          _PeriodToolbar(
-            type: type,
-            period: currentPeriod,
-            onTypeChanged: _selectType,
-            onPrevious: () => _movePeriod(-1),
-            onNext: () => _movePeriod(1),
-            onToday: _goCurrent,
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _periodLabel(currentPeriod),
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-            ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppLayout.formMax),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            8,
+            20,
+            AppSpacing.bottomNavClearance,
           ),
-        const SizedBox(height: 12),
-        _ReviewFacts(snapshot: snapshot),
-        if (statisticsChanged) ...[
-          const SizedBox(height: 12),
-          MaterialBanner(
-            content: const Text('统计已变化。手写正文不会自动改写，可按需刷新事实快照。'),
-            leading: const Icon(Icons.change_circle_outlined),
-            actions: [
-              TextButton(
-                onPressed: _refreshStatistics,
-                child: const Text('刷新统计'),
-              ),
-            ],
-          ),
-        ],
-        const SizedBox(height: 18),
-        if (type == ReviewPeriodType.daily) ...[
-          if (legacyDiary != null && existing == null && legacyNoticeVisible)
-            MaterialBanner(
-              content: const Text('这是旧日记生成的迁移草稿，保存后会成为规范日回顾。'),
-              leading: const Icon(Icons.history_outlined),
-              actions: [
-                TextButton(
-                  onPressed: () => setState(() => legacyNoticeVisible = false),
-                  child: const Text('知道了'),
-                ),
-              ],
-            ),
-          ExternalField(
-            label: '标题',
-            child: TextField(
-              controller: titleController,
-              readOnly: !editable,
-              decoration: const InputDecoration(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          ExternalField(
-            label: '今日心情',
-            child: SegmentedButton<int>(
-              emptySelectionAllowed: true,
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: 1, label: Text('1')),
-                ButtonSegment(value: 2, label: Text('2')),
-                ButtonSegment(value: 3, label: Text('3')),
-                ButtonSegment(value: 4, label: Text('4')),
-                ButtonSegment(value: 5, label: Text('5')),
-              ],
-              selected: mood == null ? const {} : {mood!},
-              onSelectionChanged: editable
-                  ? (value) => setState(
-                      () => mood = value.isEmpty ? null : value.first,
-                    )
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _DailyReviewField(
-            controller: completedController,
-            label: '今天完成了什么',
-            icon: Icons.check_circle_outline,
-            readOnly: !editable,
-          ),
-          const SizedBox(height: 12),
-          _DailyReviewField(
-            controller: blockersController,
-            label: '遇到的问题',
-            icon: Icons.block_outlined,
-            readOnly: !editable,
-          ),
-          const SizedBox(height: 12),
-          _DailyReviewField(
-            controller: tomorrowController,
-            label: '明日计划',
-            icon: Icons.next_plan_outlined,
-            readOnly: !editable,
-          ),
-          const SizedBox(height: 18),
-        ],
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final relationButton = IconButton(
-              focusNode: relationFocusNode,
-              onPressed: editable ? _showRelations : null,
-              tooltip: '关联任务和项目',
-              icon: Badge(
-                isLabelVisible:
-                    relatedTaskIds.isNotEmpty || relatedProjectIds.isNotEmpty,
-                label: Text(
-                  '${relatedTaskIds.length + relatedProjectIds.length}',
-                ),
-                child: const Icon(Icons.account_tree_outlined),
-              ),
-            );
-            final versionButton =
-                (existing?.data['versions'] as List<dynamic>? ?? const [])
-                    .isNotEmpty
-                ? IconButton(
-                    onPressed: _showVersions,
-                    tooltip: '恢复正文版本',
-                    icon: const Icon(Icons.history_outlined),
-                  )
-                : null;
-            final modeSelector = SegmentedButton<bool>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(
-                  value: false,
-                  label: Text('编辑'),
-                  icon: Icon(Icons.edit_outlined),
-                ),
-                ButtonSegment(
-                  value: true,
-                  label: Text('预览'),
-                  icon: Icon(Icons.visibility_outlined),
-                ),
-              ],
-              selected: {preview},
-              onSelectionChanged: (value) =>
-                  setState(() => preview = value.first),
-            );
-            if (constraints.maxWidth < 420) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        '回顾正文',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const Spacer(),
-                      relationButton,
-                      ?versionButton,
-                    ],
-                  ),
-                  Align(alignment: Alignment.centerLeft, child: modeSelector),
-                ],
-              );
-            }
-            return Row(
-              children: [
-                Text('回顾正文', style: Theme.of(context).textTheme.titleMedium),
-                const Spacer(),
-                relationButton,
-                ?versionButton,
-                modeSelector,
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 10),
-        if (preview)
-          LogSurface(
-            child: MarkdownBody(
-              data: bodyController.text.isEmpty
-                  ? '*暂无正文*'
-                  : bodyController.text,
-              selectable: true,
-            ),
-          )
-        else ...[
-          _MarkdownToolbar(
-            controller: bodyController,
-            onChanged: () => setState(() {}),
-            enabled: editable,
-          ),
-          TextField(
-            controller: bodyController,
-            readOnly: !editable,
-            minLines: 10,
-            maxLines: 24,
-            decoration: const InputDecoration(
-              hintText: '## 完成\n\n## 阻塞\n\n## 下一步',
-              alignLabelWithHint: true,
-            ),
-          ),
-        ],
-        const SizedBox(height: 16),
-        if (existing != null && editable)
-          AttachmentPanel(owner: existing!, controller: controller)
-        else if (existing != null)
-          _ReadOnlyAttachments(owner: existing!, controller: controller)
-        else
-          Text(
-            '第一次保存后可以添加本地图片附件。',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            if (editable && existing?.data['draft'] == true) ...[
-              TextButton.icon(
-                onPressed: saving ? null : _skip,
-                icon: const Icon(Icons.skip_next_outlined),
-                label: const Text('跳过本期'),
-              ),
-              const SizedBox(width: 8),
-            ],
-            if (editable)
-              FilledButton.icon(
-                onPressed: saving ? null : _save,
-                icon: saving
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save_outlined),
-                label: Text('保存${_reviewLabel(type)}'),
+            if (widget.showPeriodSwitcher)
+              _PeriodToolbar(
+                type: type,
+                period: currentPeriod,
+                onTypeChanged: _selectType,
+                onPrevious: () => _movePeriod(-1),
+                onNext: () => _movePeriod(1),
+                onToday: _goCurrent,
               )
             else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _periodLabel(currentPeriod),
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            _PeriodEvidence(period: currentPeriod, snapshot: snapshot),
+            const SizedBox(height: 12),
+            _ReviewFacts(snapshot: snapshot),
+            if (statisticsChanged) ...[
+              const SizedBox(height: 12),
+              MaterialBanner(
+                content: const Text('统计已变化。手写正文不会自动改写，可按需刷新事实快照。'),
+                leading: const Icon(Icons.change_circle_outlined),
+                actions: [
+                  TextButton(
+                    onPressed: _refreshStatistics,
+                    child: const Text('刷新统计'),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 18),
+            if (type == ReviewPeriodType.daily) ...[
+              if (legacyDiary != null &&
+                  existing == null &&
+                  legacyNoticeVisible)
+                MaterialBanner(
+                  content: const Text('这是旧日记生成的迁移草稿，保存后会成为规范日回顾。'),
+                  leading: const Icon(Icons.history_outlined),
+                  actions: [
+                    TextButton(
+                      onPressed: () =>
+                          setState(() => legacyNoticeVisible = false),
+                      child: const Text('知道了'),
+                    ),
+                  ],
+                ),
+              ExternalField(
+                label: '标题',
+                child: TextField(
+                  controller: titleController,
+                  readOnly: !editable,
+                  decoration: const InputDecoration(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ExternalField(
+                label: '今日心情',
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final wrapChoices =
+                        constraints.maxWidth < 340 ||
+                        MediaQuery.textScalerOf(context).scale(14) > 20;
+                    if (wrapChoices) {
+                      return Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (var value = 1; value <= 5; value++)
+                            ChoiceChip(
+                              label: Text('$value'),
+                              selected: mood == value,
+                              onSelected: editable
+                                  ? (selected) => setState(
+                                      () => mood = selected ? value : null,
+                                    )
+                                  : null,
+                            ),
+                        ],
+                      );
+                    }
+                    return SegmentedButton<int>(
+                      emptySelectionAllowed: true,
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(value: 1, label: Text('1')),
+                        ButtonSegment(value: 2, label: Text('2')),
+                        ButtonSegment(value: 3, label: Text('3')),
+                        ButtonSegment(value: 4, label: Text('4')),
+                        ButtonSegment(value: 5, label: Text('5')),
+                      ],
+                      selected: mood == null ? const {} : {mood!},
+                      onSelectionChanged: editable
+                          ? (value) => setState(
+                              () => mood = value.isEmpty ? null : value.first,
+                            )
+                          : null,
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              _DailyReviewField(
+                controller: completedController,
+                label: '今天完成了什么',
+                icon: Icons.check_circle_outline,
+                readOnly: !editable,
+              ),
+              const SizedBox(height: 12),
+              _DailyReviewField(
+                controller: blockersController,
+                label: '遇到的问题',
+                icon: Icons.block_outlined,
+                readOnly: !editable,
+              ),
+              const SizedBox(height: 12),
+              _DailyReviewField(
+                controller: tomorrowController,
+                label: '明日计划',
+                icon: Icons.next_plan_outlined,
+                readOnly: !editable,
+              ),
+              const SizedBox(height: 18),
+            ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compactMode =
+                    constraints.maxWidth < 340 ||
+                    MediaQuery.textScalerOf(context).scale(14) > 20;
+                final relationButton = IconButton(
+                  focusNode: relationFocusNode,
+                  onPressed: editable ? _showRelations : null,
+                  tooltip: '关联任务和项目',
+                  icon: Badge(
+                    isLabelVisible:
+                        relatedTaskIds.isNotEmpty ||
+                        relatedProjectIds.isNotEmpty,
+                    label: Text(
+                      '${relatedTaskIds.length + relatedProjectIds.length}',
+                    ),
+                    child: const Icon(Icons.account_tree_outlined),
+                  ),
+                );
+                final versionButton =
+                    (existing?.data['versions'] as List<dynamic>? ?? const [])
+                        .isNotEmpty
+                    ? IconButton(
+                        onPressed: _showVersions,
+                        tooltip: '恢复正文版本',
+                        icon: const Icon(Icons.history_outlined),
+                      )
+                    : null;
+                final modeSelector = SegmentedButton<bool>(
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment(
+                      value: false,
+                      label: const Text('编辑'),
+                      icon: compactMode
+                          ? null
+                          : const Icon(Icons.edit_outlined),
+                    ),
+                    ButtonSegment(
+                      value: true,
+                      label: const Text('预览'),
+                      icon: compactMode
+                          ? null
+                          : const Icon(Icons.visibility_outlined),
+                    ),
+                  ],
+                  selected: {preview},
+                  onSelectionChanged: (value) =>
+                      setState(() => preview = value.first),
+                );
+                if (constraints.maxWidth < 420) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '回顾正文',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const Spacer(),
+                          relationButton,
+                          ?versionButton,
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: modeSelector,
+                      ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Text(
+                      '回顾正文',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const Spacer(),
+                    relationButton,
+                    ?versionButton,
+                    modeSelector,
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            if (preview)
+              LogSurface(
+                child: MarkdownBody(
+                  data: bodyController.text.isEmpty
+                      ? '*暂无正文*'
+                      : bodyController.text,
+                  selectable: true,
+                ),
+              )
+            else ...[
+              _MarkdownToolbar(
+                controller: bodyController,
+                onChanged: () => setState(() {}),
+                enabled: editable,
+              ),
+              TextField(
+                controller: bodyController,
+                readOnly: !editable,
+                minLines: 10,
+                maxLines: 24,
+                decoration: const InputDecoration(
+                  hintText: '## 完成\n\n## 阻塞\n\n## 下一步',
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            if (existing != null && editable)
+              AttachmentPanel(owner: existing!, controller: controller)
+            else if (existing != null)
+              _ReadOnlyAttachments(owner: existing!, controller: controller)
+            else
               Text(
-                '历史回顾仅供查看，当前周期可编辑。',
+                '第一次保存后可以添加本地图片附件。',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (editable && existing?.data['draft'] == true) ...[
+                  TextButton.icon(
+                    onPressed: saving ? null : _skip,
+                    icon: const Icon(Icons.skip_next_outlined),
+                    label: const Text('跳过本期'),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (editable)
+                  FilledButton.icon(
+                    onPressed: saving ? null : () => _save(),
+                    icon: saving
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: Text('保存${_reviewLabel(type)}'),
+                  )
+                else
+                  Text(
+                    '历史回顾仅供查看，当前周期可编辑。',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
+            ),
           ],
         ),
-      ],
+      ),
     );
   }
 
@@ -509,21 +674,18 @@ class _ReviewPageState extends State<ReviewPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: ExternalField(
-                  label: '搜索标题或正文',
-                  child: TextField(
-                    controller: searchController,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search),
-                    ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final search = ExternalField(
+                label: '搜索标题或正文',
+                child: TextField(
+                  controller: searchController,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              DropdownButton<String>(
+              );
+              final filter = DropdownButton<String>(
                 value: libraryFilter,
                 items: const [
                   DropdownMenuItem(value: 'all', child: Text('全部回顾')),
@@ -534,8 +696,21 @@ class _ReviewPageState extends State<ReviewPage> {
                 ],
                 onChanged: (value) =>
                     setState(() => libraryFilter = value ?? 'all'),
-              ),
-            ],
+              );
+              if (constraints.maxWidth < 520) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [search, const SizedBox(height: 8), filter],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: search),
+                  const SizedBox(width: 12),
+                  filter,
+                ],
+              );
+            },
           ),
         ),
         Expanded(
@@ -546,6 +721,7 @@ class _ReviewPageState extends State<ReviewPage> {
                   message: '调整期间筛选或搜索内容。',
                 )
               : ListView.separated(
+                  key: const PageStorageKey('review-library'),
                   padding: const EdgeInsets.fromLTRB(
                     20,
                     4,
@@ -761,7 +937,8 @@ class _ReviewPageState extends State<ReviewPage> {
     return '完成 $completed · 失败 $failed · 跳过 $skipped · 专注 ${((focus as num) / 60).round()} 分';
   }
 
-  void _editLibraryReview(WorkspaceRecord review) {
+  Future<void> _editLibraryReview(WorkspaceRecord review) async {
+    if (!await _confirmLeaveDraft(includeHiddenDraft: true) || !mounted) return;
     final value = ReviewPeriodType.values.firstWhere(
       (candidate) => candidate.name == review.data['periodType'],
       orElse: () => ReviewPeriodType.daily,
@@ -781,11 +958,12 @@ class _ReviewPageState extends State<ReviewPage> {
     });
   }
 
-  Future<void> _save() async {
+  Future<bool> _save() async {
     if (!_isCurrentPeriod) {
       _message('只能编辑当前逻辑周期的回顾。');
-      return;
+      return false;
     }
+    if (saving) return false;
     setState(() => saving = true);
     try {
       final current = period;
@@ -809,13 +987,19 @@ class _ReviewPageState extends State<ReviewPage> {
         legacyDiaryId: type == ReviewPeriodType.daily ? legacyDiary?.id : null,
       );
       legacyDiary = null;
-      if (!mounted) return;
+      _savedDraftSignature = _draftSignature;
+      if (!mounted) return true;
       final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
       messenger.showSnackBar(
         SnackBar(content: Text('${_reviewLabel(type)}已保存')),
       );
+      return true;
     } on FormatException catch (error) {
       if (mounted) _message(error.message);
+      return false;
+    } catch (_) {
+      if (mounted) _message('保存回顾失败，请重试。');
+      return false;
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -968,22 +1152,28 @@ class _ReviewPageState extends State<ReviewPage> {
       ),
     );
     if (accepted != true || !mounted) return;
+    final targetPeriod = _periodFor(selectedType, selectedDate);
+    final samePeriod = type == selectedType && period.key == targetPeriod.key;
+    if (!samePeriod && !await _confirmLeaveDraft()) return;
+    if (!mounted) return;
     setState(() {
       type = selectedType;
       anchor = selectedDate;
       libraryVisible = false;
-      _loadPeriod();
+      libraryPreview = null;
+      if (!samePeriod) _loadPeriod();
     });
   }
 
-  void _selectType(ReviewPeriodType value) {
+  Future<void> _selectType(ReviewPeriodType value) async {
+    if (value == type || !await _confirmLeaveDraft() || !mounted) return;
     setState(() {
       type = value;
       _loadPeriod();
     });
   }
 
-  void _movePeriod(int direction) {
+  Future<void> _movePeriod(int direction) async {
     final nextAnchor = switch (type) {
       ReviewPeriodType.daily => anchor.add(Duration(days: direction)),
       ReviewPeriodType.weekly => anchor.add(Duration(days: 7 * direction)),
@@ -1003,15 +1193,21 @@ class _ReviewPageState extends State<ReviewPage> {
       _message('不能导航到未来周期。');
       return;
     }
+    if (!await _confirmLeaveDraft() || !mounted) return;
     setState(() {
       anchor = nextAnchor;
       _loadPeriod();
     });
   }
 
-  void _goCurrent() {
+  Future<void> _goCurrent() async {
+    final current = controller.growthService.logicalDay(
+      controller.currentTime(),
+    );
+    if (reviewPeriodFor(type, current).key == period.key) return;
+    if (!await _confirmLeaveDraft() || !mounted) return;
     setState(() {
-      anchor = controller.growthService.logicalDay(controller.currentTime());
+      anchor = current;
       _loadPeriod();
     });
   }
@@ -1077,6 +1273,292 @@ class _ReviewPageState extends State<ReviewPage> {
   }
 }
 
+/// The summary shape changes with the period. Only actual completion timestamps
+/// are plotted; unscheduled or unresolved tasks remain in the facts below.
+class _PeriodEvidence extends StatelessWidget {
+  const _PeriodEvidence({required this.period, required this.snapshot});
+
+  final ReviewPeriod period;
+  final ReviewSnapshot snapshot;
+
+  int _completedOn(DateTime day) => snapshot.taskFacts.where((fact) {
+    final at = fact.completedAt?.toLocal();
+    return fact.status == WorkStatus.done &&
+        at != null &&
+        at.year == day.year &&
+        at.month == day.month &&
+        at.day == day.day;
+  }).length;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final title = switch (period.type) {
+      ReviewPeriodType.daily => '日事实卡',
+      ReviewPeriodType.weekly => '七日完成分布',
+      ReviewPeriodType.monthly => '月度完成日历',
+      ReviewPeriodType.yearly => '期间记录',
+    };
+    final completed = snapshot.count(WorkStatus.done);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [tokens.heroStart, tokens.heroEnd],
+        ),
+        borderRadius: BorderRadius.circular(tokens.panelRadius),
+        border: Border.all(color: tokens.panelBorder),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$completed 项完成 · ${snapshot.taskFacts.length} 项期间任务',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: tokens.mutedText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(
+                  width: 96,
+                  height: 72,
+                  child: ClipRect(
+                    child: WorkbenchIllustration(
+                      kind: WorkbenchIllustrationKind.review,
+                      width: 96,
+                      height: 72,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            switch (period.type) {
+              ReviewPeriodType.daily => _buildDaily(context, completed),
+              ReviewPeriodType.weekly => _buildWeekly(context),
+              ReviewPeriodType.monthly => _buildMonthly(context),
+              ReviewPeriodType.yearly => Text(
+                '历史期间只读',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            },
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDaily(BuildContext context, int completed) {
+    final total = snapshot.taskFacts.length;
+    return Row(
+      children: [
+        SizedBox.square(
+          dimension: 68,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox.square(
+                dimension: 68,
+                child: CircularProgressIndicator(
+                  value: total == 0 ? 0 : completed / total,
+                  strokeWidth: 5,
+                  backgroundColor: context.tokens.orbitTrack,
+                ),
+              ),
+              NumericText(
+                '${period.start.day}',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            total == 0
+                ? '今天尚无可结算任务，可直接记录收获与下一步。'
+                : '已完成 $completed / $total 项期间任务；其余状态见下方事实快照。',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWeekly(BuildContext context) {
+    final days = List.generate(
+      7,
+      (index) => DateTime(
+        period.start.year,
+        period.start.month,
+        period.start.day + index,
+      ),
+    );
+    final values = [for (final day in days) _completedOn(day)];
+    final largest = values.fold<int>(
+      1,
+      (max, value) => value > max ? value : max,
+    );
+    const weekday = ['一', '二', '三', '四', '五', '六', '日'];
+    return SizedBox(
+      height: 86,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var index = 0; index < days.length; index++)
+            Expanded(
+              child: Semantics(
+                label:
+                    '${days[index].month}月${days[index].day}日完成 ${values[index]} 项',
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: FractionallySizedBox(
+                            widthFactor: 0.72,
+                            heightFactor: values[index] == 0
+                                ? 0.07
+                                : values[index] / largest,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: values[index] == 0
+                                    ? context.tokens.orbitTrack
+                                    : Theme.of(context).colorScheme.primary,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.xs,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      ExcludeSemantics(
+                        child: Text(
+                          weekday[days[index].weekday - 1],
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthly(BuildContext context) {
+    final first = DateTime(period.start.year, period.start.month);
+    final daysInMonth = DateTime(first.year, first.month + 1, 0).day;
+    final leading = first.weekday - 1;
+    const weekday = ['一', '二', '三', '四', '五', '六', '日'];
+    return Column(
+      children: [
+        Row(
+          children: [
+            for (final name in weekday)
+              Expanded(
+                child: Center(
+                  child: Text(
+                    name,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth / 7;
+            return Wrap(
+              children: [
+                for (var slot = 0; slot < leading + daysInMonth; slot++)
+                  SizedBox(
+                    width: width,
+                    height: 42,
+                    child: slot < leading
+                        ? const SizedBox.shrink()
+                        : _monthDay(
+                            context,
+                            DateTime(
+                              first.year,
+                              first.month,
+                              slot - leading + 1,
+                            ),
+                          ),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            '实心标记代表当天有完成记录。',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _monthDay(BuildContext context, DateTime day) {
+    final count = _completedOn(day);
+    return Semantics(
+      label: '${day.month}月${day.day}日完成 $count 项',
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: count == 0
+                ? Colors.transparent
+                : Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(AppRadius.xs),
+          ),
+          child: Center(
+            child: ExcludeSemantics(
+              child: Text(
+                '${day.day}',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: count == 0
+                      ? context.tokens.mutedText
+                      : Theme.of(context).colorScheme.onPrimaryContainer,
+                  fontWeight: count == 0 ? FontWeight.w400 : FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PeriodToolbar extends StatelessWidget {
   const _PeriodToolbar({
     required this.type,
@@ -1108,6 +1590,40 @@ class _PeriodToolbar extends StatelessWidget {
           selected: {type},
           onSelectionChanged: (value) => onTypeChanged(value.first),
         );
+        if (constraints.maxWidth < 420) {
+          return Column(
+            children: [
+              controls,
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: onPrevious,
+                    tooltip: '上一期间',
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Expanded(
+                    child: Text(
+                      _periodLabel(period),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onNext,
+                    tooltip: '下一期间',
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                  IconButton.filledTonal(
+                    onPressed: onToday,
+                    tooltip: '回到本期',
+                    icon: const Icon(Icons.today_outlined),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
         final navigation = Row(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -1,0 +1,70 @@
+
+═══ 浅色 · 柔壤图鉴 ═══
+  正文压画布                  ink on canvas           11.50:1  下限 4.5  OK
+  导航正文                   ink on navigation       12.08:1  下限 4.5  OK
+  正文压工作面                 ink on surface          12.36:1  下限 4.5  OK
+  辅助文字压实面                inkMuted on surface      6.00:1  下限 4.5  OK
+  辅助文字压画布                inkMuted on canvas       5.58:1  下限 4.5  OK
+  辅助小字压工作面               inkFaint on surface      5.44:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         inkMuted on subtle       5.39:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         inkMuted on emphasisSurface   5.05:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         inkFaint on subtle       4.89:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         inkFaint on emphasisSurface   4.57:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         primary on subtle        5.13:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         primary on emphasisSurface   4.81:1  下限 4.5  OK
+  主操作色压工作面               primary on surface       5.72:1  下限 4.5  OK
+  主操作色压画布                primary on canvas        5.32:1  下限 4.5  OK
+  主按钮文字                  onPrimary on primary     5.72:1  下限 4.5  OK
+  主操作容器槽                 primaryOnContainer on primaryContainer   8.82:1  下限 4.5  OK
+  砖红实面                   signal on surface        6.76:1  下限 4.5  OK
+  砖红容器槽                  signalOnContainer on signalContainer   9.98:1  下限 4.5  OK
+  陶土实面                   reward on surface        4.87:1  下限 4.5  OK
+  陶土容器槽                  rewardOnContainer on rewardContainer  11.23:1  下限 4.5  OK
+  嫩黄绿容器槽                 oliveOnContainer on oliveContainer   5.20:1  下限 4.5  OK
+  靛蓝实面                   info on surface          5.98:1  下限 4.5  OK
+  靛蓝容器槽                  infoOnContainer on infoContainer   9.76:1  下限 4.5  OK
+  引导面正文起点                ink on heroStart        10.76:1  下限 4.5  OK
+  引导面正文终点                ink on heroEnd          11.31:1  下限 4.5  OK
+  分组线（非文本）               divider on surface       1.23:1  下限 1.0  OK
+  控件边界（非文本）              borderStrong on surface   3.08:1  下限 3.0  OK
+  焦点环压画布（图形级）            primary on canvas        5.32:1  下限 3.0  OK
+  未达标：0
+  8 色最小 ΔE00 = 14.7（habit #0F6668 vs ritual #3E6883）
+  分类色贴面板底最低对比度：
+    3.30:1（goal #8F931A）
+
+═══ 深色 · 夜航工作室 ═══
+  正文压画布                  ink on canvas           15.56:1  下限 4.5  OK
+  导航正文                   ink on navigation       16.21:1  下限 4.5  OK
+  正文压工作面                 ink on surface          13.45:1  下限 4.5  OK
+  辅助文字压实面                inkMuted on surface      7.77:1  下限 4.5  OK
+  辅助文字压画布                inkMuted on canvas       8.99:1  下限 4.5  OK
+  辅助小字压工作面               inkFaint on surface      6.62:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         inkMuted on subtle       6.53:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         inkMuted on emphasisSurface   5.42:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         inkFaint on subtle       5.56:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         inkFaint on emphasisSurface   4.62:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         primary on subtle        7.23:1  下限 4.5  OK
+  辅助文字与操作压分组/选中面         primary on emphasisSurface   6.01:1  下限 4.5  OK
+  主操作色压工作面               primary on surface       8.61:1  下限 4.5  OK
+  主操作色压画布                primary on canvas        9.96:1  下限 4.5  OK
+  主按钮文字                  onPrimary on primary     9.09:1  下限 4.5  OK
+  主操作容器槽                 primaryOnContainer on primaryContainer   9.22:1  下限 4.5  OK
+  砖红实面                   signal on surface        6.13:1  下限 4.5  OK
+  砖红容器槽                  signalOnContainer on signalContainer   9.54:1  下限 4.5  OK
+  陶土实面                   reward on surface        9.16:1  下限 4.5  OK
+  陶土容器槽                  rewardOnContainer on rewardContainer   8.75:1  下限 4.5  OK
+  嫩黄绿容器槽                 oliveOnContainer on oliveContainer   8.71:1  下限 4.5  OK
+  靛蓝实面                   info on surface          7.16:1  下限 4.5  OK
+  靛蓝容器槽                  infoOnContainer on infoContainer   8.06:1  下限 4.5  OK
+  引导面正文起点                ink on heroStart        11.27:1  下限 4.5  OK
+  引导面正文终点                ink on heroEnd          13.96:1  下限 4.5  OK
+  分组线（非文本）               divider on surface       1.33:1  下限 1.0  OK
+  控件边界（非文本）              borderStrong on surface   3.02:1  下限 3.0  OK
+  焦点环压画布（图形级）            primary on canvas        9.96:1  下限 3.0  OK
+  未达标：0
+  8 色最小 ΔE00 = 14.3（ritual #93B7CF vs reminder #A9A9A7）
+  分类色贴面板底最低对比度：
+    6.13:1（penalty #E88C7E）
+
+合计未达标配对：0

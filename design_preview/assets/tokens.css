@@ -1,7 +1,7 @@
 /* ============================================================
    个人工作台 — 预览稿共享令牌
    CSS 变量 ↔ Flutter WorkbenchTokens 一一对应
-   视觉规范主源：ORGANIC_UI_SPEC.md（「柔壤 · 年轮」）
+   视觉规范主源：docs/DUAL_THEME_EXECUTION_PLAN.md
    对照注释便于后续翻译为 Dart（app_theme.dart）
    ============================================================ */
 
@@ -11,21 +11,23 @@
   font-weight: 500;
   font-display: swap;
 }
+/* 浏览器预览使用项目内 IBM Plex Sans SC 的精简 WOFF 子集；
+   完整字库及 OFL 许可保留在 ../../assets/fonts/。 */
 @font-face {
   font-family: "IBM Plex Sans SC";
-  src: url("../../assets/fonts/IBMPlexSansSC-Regular.otf") format("opentype");
+  src: url("IBMPlexSansSC-Regular.woff") format("woff");
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: "IBM Plex Sans SC";
-  src: url("../../assets/fonts/IBMPlexSansSC-Medium.otf") format("opentype");
+  src: url("IBMPlexSansSC-Medium.woff") format("woff");
   font-weight: 500;
   font-display: swap;
 }
 @font-face {
   font-family: "IBM Plex Sans SC";
-  src: url("../../assets/fonts/IBMPlexSansSC-SemiBold.otf") format("opentype");
+  src: url("IBMPlexSansSC-SemiBold.woff") format("woff");
   font-weight: 600;
   font-display: swap;
 }
@@ -41,22 +43,27 @@
    正文级 ≥ 4.5:1，图形与焦点环 ≥ 3:1。
    ────────────────────────────────────── */
 :root {
-  /* ═══ 浅色 · 新芽晨光 ═══ */
-  --canvas: #F5FAF0;              /* 晨露绿画布 */
+  /* ═══ 浅色 · 柔壤图鉴 ═══ */
+  --canvas: #F4F8F0;              /* 纸感画布 */
+  --navigation: #FBFDF9;
   --surface: #FFFFFF;             /* 纯白工作面 */
   --raised: #FFFFFF;              /* 对话框 / 菜单 / 浮层 */
-  --subtle: #EFF8F0;              /* 输入框 / 次级填充 */
-  --ink: #17301B;                 /* 正文 14.24:1 */
-  --ink-muted: #5D7961;           /* 辅助 4.80:1 */
-  --ink-faint: #849A88;           /* 装饰级 3.02:1，禁止承载信息 */
-  --divider: #DFEBE1;             /* 柔化分组线 */
-  --border-strong: #C4D8C9;       /* 控件边界 */
+  --subtle: #EDF5EA;              /* 输入框 / 次级填充 */
+  --emphasis-surface: #E2EFDF;
+  --hero-start: #E8F2E7;
+  --hero-end: #F7F5EB;
+  --orbit-track: #CBE5D1;
+  --ink: #203A29;
+  --ink-muted: #4F6959;
+  --ink-faint: #586F60;
+  --divider: #E1EAE0;
+  --border-strong: #789B83;
 
-  /* 新芽绿 · 唯一行动色 4.84:1。原稿 sprout-600 #3F8F4F 在白底仅 3.99:1，
-     不足以承载按钮标签与链接文本；此值是同色相主轴上的「最亮达标值」。 */
-  --primary: #3E7F4B;
+  /* 新芽绿 · 唯一行动色，在纸感画布与白色工作面均达标。 */
+  --primary: #347340;
+  --on-primary: #FFFFFF;
   --route: var(--primary);        /* 相容别名（历史命名） */
-  --primary-container: #E2F3E5;
+  --primary-container: #E6F2E4;
   --primary-on-container: #1D4A27; /* 8.82:1 */
 
   /* 砖红 · 系统唯一红 6.76:1。原 --danger 与 --signal 语义重复，已合并至此 */
@@ -64,10 +71,10 @@
   --signal-container: #F7DEDA;
   --signal-on-container: #5A1F19; /* 9.98:1 */
 
-  /* 陶土 · 成果与证据 5.79:1。原 --marker 的语义由 --reward 承接 */
-  --reward: #9B5227;
-  --reward-container: #F5E3D6;
-  --reward-on-container: #4A2410; /* 10.86:1 */
+  /* 陶土 · 成果与证据，在白色工作面上为 4.87:1。 */
+  --reward: #A95D37;
+  --reward-container: #F8E7D8;
+  --reward-on-container: #4A2410; /* 11.23:1 */
 
   /* 靛蓝 · 中性提示 5.98:1 */
   --info: #3E6883;
@@ -86,7 +93,7 @@
   --outline: #7E9284;             /* 提醒节点中性 accent（绿灰，压白 3.32:1） */
 
   /* 面板：普通工作面用边框，浮层用阴影 */
-  --panel-border: var(--divider);
+  --panel-border: #CADCCB;       /* 工作面边界，比装饰分组线更清楚 */
   --panel-shadow: 0 2px 8px rgba(20, 37, 26, 0.05);
   --raised-shadow: 0 10px 24px rgba(20, 37, 26, 0.12);
   /* 实色焦点环。原半透明 rgba(47,125,87,.32) 实测仅 1.58:1，
@@ -118,44 +125,52 @@
   --row-h: 48px;
 }
 
-/* ---------- 暗色令牌 · 夜露 ---------- */
+/* ---------- 暗色令牌 · 夜航工作室 ---------- */
 html[data-theme="dark"] {
-  --canvas: #0F1A13;
-  --surface: #16231A;
-  --raised: #1E2C21;
-  --subtle: #243528;
-  --ink: #E4EFE6;
-  --ink-muted: #A2B5A6;
-  --ink-faint: #73867A;
-  --divider: #2A3A2F;
-  --border-strong: #3D5044;
+  --canvas: #10192B;
+  --navigation: #0B1525;
+  --surface: #19263C;
+  --raised: #23334B;
+  --subtle: #23334B;
+  --emphasis-surface: #2C4058;
+  --hero-start: #1A3450;
+  --hero-end: #14233B;
+  --orbit-track: #355465;
+  --ink: #EAF3F3;
+  --ink-muted: #AABCC9;
+  --ink-faint: #99AEBF;
+  --divider: #2A3B52;
+  --border-strong: #55728D;
 
-  --primary: #7FCB8E;
+  --primary: #83D0D1;
+  --on-primary: #102333;
   --route: var(--primary);
-  --primary-container: #1D3A26;
-  --primary-on-container: #C9EBD0;
+  --primary-container: #20444C;
+  --primary-on-container: #D7F6F4;
 
   --signal: #E88C7E;
   --signal-container: #4C2A26;
   --signal-on-container: #F9D9D3;
 
-  --reward: #E2A176;
-  --reward-container: #4A3629;
-  --reward-on-container: #F7DCC6;
+  --reward: #F1C17F;
+  --reward-container: #493D39;
+  --reward-on-container: #FAE9CC;
 
   --info: #93B7CF;
-  --info-container: #27333D;
+  --info-container: #273B54;
   --info-on-container: #C7DCE8;
 
-  --teal: #5FC0BD;
+  --teal: #68C8A1;
   --olive: #D4D864;
   --olive-container: #2B3312;
   --olive-on-container: #D4D864;
   --violet: #C2A6E4;
   --amber: #DBA657;
-  --outline: #8A968C;
+  --outline: #A9A9A7;
 
-  --panel-border: var(--divider);
+  --panel-border: #334762;
+  --r-card: 14px;
+  --r-panel: 18px;
   --panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
   --raised-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
   --focus-ring: var(--primary);
@@ -212,8 +227,7 @@ svg.ic { display: block; width: 18px; height: 18px; flex: none; vertical-align: 
   transition: background-color .12s ease, color .12s ease;
 }
 .preview-bar nav a:hover { background: var(--subtle); color: var(--ink); text-decoration: none; }
-.preview-bar nav a.active { background: var(--primary); color: #FFFFFF; }
-html[data-theme="dark"] .preview-bar nav a.active { color: #12210F; }
+.preview-bar nav a.active { background: var(--primary); color: var(--on-primary); }
 
 .theme-toggle {
   display: flex; align-items: center; gap: 6px;
@@ -250,9 +264,8 @@ html[data-theme="dark"] .preview-bar nav a.active { color: #12210F; }
   transition: background-color .12s ease, border-color .12s ease, color .12s ease, filter .12s ease, box-shadow .12s ease, transform .12s ease; /* micro 120ms */
 }
 .btn:active { transform: scale(0.98); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .12); }
-.btn.primary { background: var(--primary); color: #FFFFFF; }
+.btn.primary { background: var(--primary); color: var(--on-primary); }
 .btn.primary:hover { filter: brightness(1.08); }
-html[data-theme="dark"] .btn.primary { color: #12210F; }
 .btn.outline { background: transparent; border-color: var(--panel-border); color: var(--ink); }
 .btn.outline:hover { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, transparent); }
 .btn.ghost { background: transparent; color: var(--ink-muted); }
@@ -289,6 +302,7 @@ html[data-theme="dark"] .btn.primary { color: #12210F; }
 }
 .page-header .accent-bar { width: 3px; height: 34px; background: var(--primary); border-radius: 2px; flex: none; }
 .page-header h1 { font-family: "LXGW WenKai GB", serif; font-size: 30px; font-weight: 500; letter-spacing: 0; line-height: 1.32; }
+html[data-theme="dark"] .page-header h1 { font-family: "IBM Plex Sans SC", sans-serif; font-weight: 600; }
 .page-header .sub { font-size: 13px; font-weight: 400; color: var(--ink-muted); margin-top: 2px; }
 .page-header .spacer { flex: 1; }
 
@@ -296,7 +310,7 @@ html[data-theme="dark"] .btn.primary { color: #12210F; }
 .section-head { display: flex; align-items: center; gap: 10px; margin: var(--sp-5) 0 12px; }
 .section-head .bar { display: none; }
 .section-head h2 { font-family: "IBM Plex Sans SC", sans-serif; font-size: 18px; font-weight: 600; letter-spacing: 0; line-height: 1.5; }
-.section-head .count { margin-left: 2px; }
+.section-head .count { margin-left: 2px; color: var(--ink-muted); font-size: 13px; }
 .section-head .spacer { flex: 1; }
 
 /* ---------- 空态：单色容器徽章（替代双渐变环） ---------- */
@@ -305,7 +319,7 @@ html[data-theme="dark"] .btn.primary { color: #12210F; }
   padding: var(--sp-7) 24px; max-width: 420px; margin: 0 auto; text-align: center;
 }
 .empty-state .badge {
-  width: 56px; height: 56px; border-radius: 50%;
+  width: 64px; height: 64px; border-radius: var(--r-panel);
   border: 0;
   background: var(--primary-container);
   display: flex; align-items: center; justify-content: center;
@@ -313,8 +327,8 @@ html[data-theme="dark"] .btn.primary { color: #12210F; }
   animation: emptyIn .22s cubic-bezier(0.2, 0, 0, 1) both;
 }
 .empty-state .badge svg.ic { width: 26px; height: 26px; }
-.empty-state h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; animation: emptyIn .18s ease .06s both; }
-.empty-state p { font-size: 13px; color: var(--ink-muted); margin-bottom: 16px; animation: emptyIn .18s ease .1s both; }
+.empty-state h3 { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 8px; animation: emptyIn .18s ease .06s both; }
+.empty-state p { font-size: 15px; line-height: 1.6; color: var(--ink-muted); margin-bottom: 24px; animation: emptyIn .18s ease .1s both; }
 @keyframes emptyIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ---------- 骨架屏 ---------- */
@@ -339,7 +353,7 @@ html[data-theme="dark"] .btn.primary { color: #12210F; }
 .shell { display: flex; height: calc(100vh - 41px); overflow: hidden; }
 .sidebar {
   width: 220px; flex: none; display: flex; flex-direction: column;
-  background: var(--surface);
+  background: var(--navigation);
   border-right: 1px solid var(--divider);
 }
 .sidebar .logo-row {
@@ -350,10 +364,11 @@ html[data-theme="dark"] .btn.primary { color: #12210F; }
   width: 32px; height: 32px; border-radius: var(--r-xs); flex: none;
   background: var(--primary) url("../../assets/branding/app_icon.png") center/cover no-repeat;
   display: flex; align-items: center; justify-content: center;
-  color: #FFFFFF;
+  color: var(--on-primary);
 }
 html[data-theme="dark"] .sidebar .logo { color: transparent; }
 .sidebar .logo-row .name { font-family: "LXGW WenKai GB", serif; font-size: 15px; font-weight: 500; letter-spacing: 0; }
+html[data-theme="dark"] .sidebar .logo-row .name { font-family: "IBM Plex Sans SC", sans-serif; font-weight: 600; }
 .sidebar .nav { flex: 1; overflow-y: auto; padding: 10px 8px; }
 /* 域标题：手风琴（规范 2.2）——6 域，同时至多展开一个 */
 .sidebar .nav-group { font-size: 12px; font-weight: 600; color: var(--ink-muted); letter-spacing: .8px; padding: 14px 8px 6px; }
@@ -407,8 +422,7 @@ html[data-theme="dark"] .sidebar .logo { color: transparent; }
   transition: background-color .12s ease, border-color .12s ease, color .12s ease; color: transparent;
 }
 .checkbox:hover { border-color: var(--primary); }
-.checkbox.on { background: var(--primary); border-color: var(--primary); color: #FFFFFF; }
-html[data-theme="dark"] .checkbox.on { color: #12210F; }
+.checkbox.on { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .checkbox svg.ic { width: 13px; height: 13px; stroke-width: 3; }
 
 /* ---------- Snackbar ---------- */
@@ -518,6 +532,7 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
 .read-column { max-width: 720px; line-height: 1.65; }
 .read-column h2 { font-family: "LXGW WenKai GB", serif; font-weight: 500; font-size: 22px; line-height: 1.4; margin-bottom: 8px; }
 .read-column h3 { font-family: "LXGW WenKai GB", serif; font-weight: 500; font-size: 18px; line-height: 1.5; margin: 24px 0 8px; }
+html[data-theme="dark"] .read-column h2, html[data-theme="dark"] .read-column h3 { font-family: "IBM Plex Sans SC", sans-serif; font-weight: 600; }
 .read-column p, .read-column li { font-size: 16px; }
 .read-column ul { padding-left: 20px; }
 .read-column p, .read-column li { margin-bottom: 7px; }
@@ -570,6 +585,9 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
   .page-header .sub { display: none; }
   .page-header h1 { font-size: 24px; }
   .page-header .accent-bar { height: 26px; }
+  .section-head h2 { font-size: 16px; }
+  .section-head .count { font-size: 12px; }
+  .empty-state { padding: var(--sp-6) var(--sp-5); }
   .family-grid { display: block; }
   .work-column, .evidence-rail { padding: var(--sp-4) var(--page-x) 24px; }
   .evidence-rail { border-left: 0; border-top: 1px solid var(--divider); }
@@ -581,7 +599,7 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
   .note-layout { grid-template-columns: 1fr; }
   .note-index { border-right: 0; border-bottom: 1px solid var(--divider); padding: 0 0 12px; }
   .matrix { grid-template-columns: repeat(7, minmax(20px, 1fr)); }
-  .mobile-bottom { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; min-height: 64px; padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--divider); z-index: 50; }
+  .mobile-bottom { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; min-height: 64px; padding-bottom: env(safe-area-inset-bottom); background: var(--navigation); border-top: 1px solid var(--divider); z-index: 50; }
   .mobile-bottom a { display: grid; place-items: center; align-content: center; gap: 2px; min-height: 64px; color: var(--ink-muted); font-size: 11px; }
   .mobile-bottom a .ic { width: 19px; height: 19px; }
   .mobile-bottom a.active { color: var(--primary); font-weight: 600; }

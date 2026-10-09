@@ -1,0 +1,34 @@
+.preview-dialog{width:min(430px,calc(100vw - 32px));max-height:calc(100vh - 36px);padding:22px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);box-shadow:0 24px 80px rgba(0,0,0,.25);font-family:PlexSC,'Microsoft YaHei',sans-serif}
+.preview-dialog::backdrop{background:rgba(13,24,35,.47);backdrop-filter:blur(5px)}
+.dialog-head{display:flex;justify-content:space-between;gap:14px;margin-bottom:20px}
+.dialog-eyebrow{font:600 10px PlexMono,monospace;letter-spacing:1.2px;color:var(--primary)}
+.dialog-head h2{font:500 25px var(--font-display);margin-top:8px}
+.dialog-head p{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.6}
+.dialog-close{width:30px;height:30px;border:1px solid var(--line);border-radius:9px;background:var(--surface-alt);color:var(--ink);font-size:21px;line-height:1;flex:none}
+.capture-form label{display:block;color:var(--ink);font-size:11px;font-weight:600;margin-bottom:6px}
+.capture-form input,.capture-form select,.search-field input{width:100%;height:43px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:0 12px;font:13px PlexSC,'Microsoft YaHei',sans-serif}
+.capture-form input::placeholder,.search-field input::placeholder{color:var(--faint)}
+.capture-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.dialog-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:22px}
+.dialog-actions>span{color:var(--faint);font-size:10px}
+.dialog-actions .primary-button{min-height:40px;box-shadow:none}
+.search-field{display:flex;align-items:center;gap:8px;color:var(--primary)}
+.search-field .icon{width:18px;height:18px}
+.search-field input{flex:1}
+.search-results{margin-top:12px;max-height:240px;overflow-y:auto;display:grid;gap:5px}
+.search-results button{min-height:39px;border:1px solid var(--line-soft);border-radius:9px;background:var(--surface-alt);color:var(--ink);display:flex;align-items:center;gap:9px;padding:0 10px;text-align:left;font-size:12px}
+.search-results button:hover{border-color:var(--primary)}
+.search-results button span{flex:1}
+.search-results button .icon{width:15px;height:15px;color:var(--primary)}
+.search-results button[hidden]{display:none}
+.dialog-menu{display:grid;gap:8px}
+.dialog-menu a{min-height:48px;display:flex;align-items:center;gap:9px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-alt);font-size:13px}
+.dialog-menu a .icon{width:17px;height:17px;color:var(--primary)}
+.dialog-menu a .icon:last-child{margin-left:auto}
+.focus-dial{width:190px;height:190px;margin:8px auto 12px;border-radius:50%;border:10px solid var(--ring-track);box-shadow:inset 0 0 0 2px var(--primary);display:flex;align-items:center;justify-content:center;flex-direction:column;background:var(--hero)}
+.focus-dial span{font:500 37px PlexMono,monospace;color:var(--primary)}
+.focus-dial small{font-size:10px;color:var(--muted);margin-top:5px}
+.preview-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:99;background:var(--ink);color:var(--surface);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:10px 18px;font-size:12px;white-space:nowrap}
+.task-check{cursor:pointer}
+.preview-highlight{box-shadow:0 0 0 3px var(--accent)!important}
+@media (prefers-reduced-motion:reduce){.preview-dialog::backdrop{backdrop-filter:none}}

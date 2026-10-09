@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -23,7 +25,7 @@ class MobileBottomBarItem {
 /// * **选中态 = 主色图标与文字 + 标签下方 16×2.5 短指示条**，不使用胶囊底座。
 ///   `NavigationBar` 的 `indicator` 只能画在图标背后，且无法落到文字下方，
 ///   所以这里自建——不是重复造轮子，是默认控件给不出这个形态。
-/// * 容器 58 高、实色底、顶缘 1px 分隔线。
+/// * 容器至少 58 高；系统文字放大时增高，保持标签完整可读。
 ///
 /// 触摸目标：每项在 58 高的栏内等宽铺开，手机上宽度必然 ≥ 48dp。
 class MobileBottomBar extends StatelessWidget {
@@ -42,10 +44,15 @@ class MobileBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
+    final scaledLabelHeight = MediaQuery.textScalerOf(context).scale(13) * 1.15;
+    final barHeight = math.max(
+      58.0,
+      AppIconSize.sm + 3 + scaledLabelHeight + 3 + 2.5 + 8,
+    );
     return Container(
-      height: 58,
+      height: barHeight,
       decoration: BoxDecoration(
-        color: tokens.panel,
+        color: tokens.navigation,
         border: Border(top: BorderSide(color: tokens.panelBorder)),
       ),
       child: Row(
@@ -108,7 +115,7 @@ class _MobileBottomBarTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 13,
                     height: 1.15,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                     color: color,

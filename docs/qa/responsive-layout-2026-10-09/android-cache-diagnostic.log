@@ -1,0 +1,4 @@
+total 98472
+-rw------- 1 u0_a216 u0_a216 11647016 2026-10-09 04:35 isolate_snapshot_data
+-rw------- 1 u0_a216 u0_a216 89170672 2026-10-09 04:35 kernel_blob.bin
+-rw------- 1 u0_a216 u0_a216        0 2026-10-09 04:35 vm_snapshot_data

@@ -10,22 +10,31 @@ app_theme.dart 的 AppColors 逐值对应，「改一处改两处」。此前只
 import io
 import re
 import sys
+from pathlib import Path
 
-THEME = r"D:/Project/个人工作台/lib/core/theme/app_theme.dart"
-CSS = r"D:/Project/个人工作台/design_preview/assets/tokens.css"
+ROOT = Path(__file__).resolve().parents[1]
+THEME = ROOT / "lib/core/theme/app_theme.dart"
+CSS = ROOT / "design_preview/assets/tokens.css"
 
 # AppColors 字段名（小写）→ tokens.css 变量名
 KEY = {
     "canvas": "canvas",
+    "navigation": "navigation",
     "surface": "surface",
     "raised": "raised",
     "subtle": "subtle",
+    "emphasissurface": "emphasis-surface",
+    "herostart": "hero-start",
+    "heroend": "hero-end",
+    "orbittrack": "orbit-track",
     "ink": "ink",
     "inkmuted": "ink-muted",
     "inkfaint": "ink-faint",
     "divider": "divider",
+    "panelborder": "panel-border",
     "borderstrong": "border-strong",
     "primary": "primary",
+    "onprimary": "on-primary",
     "primarycontainer": "primary-container",
     "primaryoncontainer": "primary-on-container",
     "signal": "signal",

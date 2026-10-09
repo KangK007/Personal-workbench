@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
+import '../widgets/solid_panel.dart';
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({
@@ -122,10 +123,20 @@ class _CalendarPageState extends State<CalendarPage> {
               ],
             ),
           ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+          child: _WeekLoadMap(
+            days: days,
+            controller: widget.controller,
+            onSelected: (day) => setState(() => selectedDay = day),
+            selectedDay: selectedDay,
+          ),
+        ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              return constraints.maxWidth >= 820
+              final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+              return constraints.maxWidth >= 820 * textScale.clamp(1, 1.6)
                   ? _DesktopWeek(
                       controller: widget.controller,
                       days: days,
@@ -207,6 +218,139 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 }
 
+/// A five-day workload silhouette from the same time blocks as the grid.
+/// Each day remains a text-labeled button when the chart is not perceptible.
+class _WeekLoadMap extends StatelessWidget {
+  const _WeekLoadMap({
+    required this.days,
+    required this.controller,
+    required this.selectedDay,
+    required this.onSelected,
+  });
+
+  final List<DateTime> days;
+  final WorkbenchController controller;
+  final DateTime selectedDay;
+  final ValueChanged<DateTime> onSelected;
+
+  static const _weekdayLabels = ['一', '二', '三', '四', '五'];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    final minutes = [
+      for (final day in days)
+        controller
+            .timeBlocksForDay(day)
+            .fold<int>(
+              0,
+              (sum, block) =>
+                  sum +
+                  ((block.data['durationMinutes'] as num?)?.toInt() ?? 25),
+            ),
+    ];
+    final total = minutes.fold<int>(0, (sum, value) => sum + value);
+    final maxMinutes = minutes.fold<int>(
+      0,
+      (max, value) => value > max ? value : max,
+    );
+    return SolidPanel(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              Icon(
+                Icons.view_week_outlined,
+                size: AppIconSize.sm,
+                color: theme.colorScheme.primary,
+              ),
+              Text('本周时间配比', style: theme.textTheme.titleSmall),
+              Text(
+                total == 0
+                    ? '尚未安排'
+                    : '已安排 ${total ~/ 60}h${(total % 60).toString().padLeft(2, '0')}m',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: tokens.mutedText,
+                  fontFamily: AppFonts.numeric,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              for (var index = 0; index < days.length; index++) ...[
+                if (index > 0) const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    label: '周${_weekdayLabels[index]}，已安排 ${minutes[index]} 分钟',
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                      onTap: () => onSelected(days[index]),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        decoration: BoxDecoration(
+                          color:
+                              startOfDay(days[index]) == startOfDay(selectedDay)
+                              ? theme.colorScheme.primaryContainer
+                              : null,
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.control,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              height: 24,
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: Container(
+                                  width: 20,
+                                  height: maxMinutes == 0
+                                      ? 3
+                                      : (4 + 20 * minutes[index] / maxMinutes),
+                                  decoration: BoxDecoration(
+                                    color: minutes[index] == 0
+                                        ? tokens.divider
+                                        : theme.colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.xs,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _weekdayLabels[index],
+                              style: theme.textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DesktopWeek extends StatelessWidget {
   const _DesktopWeek({
     required this.controller,
@@ -255,7 +399,8 @@ class _DesktopWeek extends StatelessWidget {
               for (final day in days)
                 Expanded(
                   child: Container(
-                    height: 48,
+                    constraints: const BoxConstraints(minHeight: 48),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: isSameDay(day, now)
@@ -273,6 +418,7 @@ class _DesktopWeek extends StatelessWidget {
                       ),
                     ),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(

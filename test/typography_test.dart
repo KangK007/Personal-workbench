@@ -31,6 +31,16 @@ void main() {
     }
   });
 
+  test('theme display treatment changes without changing reading font', () {
+    final day = AppTheme.light().textTheme;
+    final night = AppTheme.dark().textTheme;
+    expect(day.displayLarge!.fontFamily, AppFonts.display);
+    expect(night.displayLarge!.fontFamily, AppFonts.body);
+    expect(night.displayLarge!.fontWeight, FontWeight.w600);
+    expect(day.bodyLarge!.fontFamily, AppFonts.body);
+    expect(night.bodyLarge!.fontFamily, AppFonts.body);
+  });
+
   test('all three font roles load from bundled offline assets', () async {
     final assets = [
       'assets/fonts/LXGWWenKaiGB-Medium.ttf',

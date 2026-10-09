@@ -12,6 +12,8 @@ import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/task_row.dart';
 import '../widgets/task_hierarchy.dart';
+import '../widgets/solid_panel.dart';
+import '../widgets/workbench_illustration.dart';
 
 class InboxPage extends StatefulWidget {
   const InboxPage({
@@ -115,6 +117,7 @@ class _InboxPageState extends State<InboxPage> {
           children: [
             if (widget.showHeader)
               PageHeader(
+                maxWidth: AppLayout.formMax,
                 title: '收集箱',
                 subtitle: '先记录，再决定它属于哪一天或哪个项目',
                 actions: [
@@ -151,64 +154,80 @@ class _InboxPageState extends State<InboxPage> {
                   ),
                 ),
               ),
+            WorkbenchContentFrame(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: _InboxIntakePanel(
+                  records: records,
+                  onCapture: () => showQuickCapture(context, widget.controller),
+                  showCaptureAction: !widget.showHeader,
+                ),
+              ),
+            ),
             Expanded(
               child: displayRecords.isEmpty
                   ? EmptyState(
                       icon: Icons.inbox_outlined,
                       title: '收集箱已经清空',
                       message: '新的任务、笔记和链接会先到这里，安排完成后自动离开。',
-                      action: widget.showHeader
-                          ? FilledButton.icon(
-                              onPressed: () =>
-                                  showQuickCapture(context, widget.controller),
-                              icon: const Icon(Icons.add),
-                              label: const Text('记录一项'),
-                            )
-                          : null,
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(
-                        20,
-                        18,
-                        20,
-                        AppSpacing.bottomNavClearance,
+                      action: TextButton.icon(
+                        onPressed: () =>
+                            showQuickCapture(context, widget.controller),
+                        icon: const Icon(Icons.add),
+                        label: const Text('记录一项'),
                       ),
-                      itemCount: displayRecords.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final record = displayRecords[index];
-                        if (record.kind == RecordKind.task) {
-                          final entry = entries.firstWhere(
-                            (candidate) => candidate.task.id == record.id,
-                          );
-                          return Card(
-                            child: TaskRow(
-                              task: record,
+                    )
+                  : Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: AppLayout.formMax,
+                        ),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(
+                            20,
+                            18,
+                            20,
+                            AppSpacing.bottomNavClearance,
+                          ),
+                          itemCount: displayRecords.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final record = displayRecords[index];
+                            if (record.kind == RecordKind.task) {
+                              final entry = entries.firstWhere(
+                                (candidate) => candidate.task.id == record.id,
+                              );
+                              return Card(
+                                child: TaskRow(
+                                  task: record,
+                                  controller: widget.controller,
+                                  hierarchyDepth: entry.depth,
+                                  hasChildren: entry.hasChildren,
+                                  expanded: entry.expanded,
+                                  relationInfo: entry.relation,
+                                  onToggleExpanded: () => setState(() {
+                                    entry.expanded
+                                        ? _collapsedTaskIds.add(record.id)
+                                        : _collapsedTaskIds.remove(record.id);
+                                  }),
+                                  selectionMode: _selectionMode,
+                                  selected: _selectedIds.contains(record.id),
+                                  onSelectionChanged: (value) =>
+                                      _toggleSelection(
+                                        record.id,
+                                        value,
+                                        visibleTasks,
+                                      ),
+                                ),
+                              );
+                            }
+                            return _CaptureRow(
+                              record: record,
                               controller: widget.controller,
-                              hierarchyDepth: entry.depth,
-                              hasChildren: entry.hasChildren,
-                              expanded: entry.expanded,
-                              relationInfo: entry.relation,
-                              onToggleExpanded: () => setState(() {
-                                entry.expanded
-                                    ? _collapsedTaskIds.add(record.id)
-                                    : _collapsedTaskIds.remove(record.id);
-                              }),
-                              selectionMode: _selectionMode,
-                              selected: _selectedIds.contains(record.id),
-                              onSelectionChanged: (value) => _toggleSelection(
-                                record.id,
-                                value,
-                                visibleTasks,
-                              ),
-                            ),
-                          );
-                        }
-                        return _CaptureRow(
-                          record: record,
-                          controller: widget.controller,
-                        );
-                      },
+                            );
+                          },
+                        ),
+                      ),
                     ),
             ),
           ],
@@ -253,6 +272,138 @@ class _InboxPageState extends State<InboxPage> {
     _selectionAnchorId = null;
     _selectedIds.clear();
   });
+}
+
+class _InboxIntakePanel extends StatelessWidget {
+  const _InboxIntakePanel({
+    required this.records,
+    required this.onCapture,
+    required this.showCaptureAction,
+  });
+
+  final List<WorkspaceRecord> records;
+  final VoidCallback onCapture;
+  final bool showCaptureAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    final tasks = records
+        .where((record) => record.kind == RecordKind.task)
+        .length;
+    final notes = records
+        .where((record) => record.kind == RecordKind.note)
+        .length;
+    final links = records
+        .where((record) => record.kind == RecordKind.link)
+        .length;
+    final other = records.length - tasks - notes - links;
+    return SolidPanel(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Row(
+        children: [
+          WorkbenchIllustration(
+            kind: WorkbenchIllustrationKind.capture,
+            width: WorkbenchViewport.sizeOf(context).width < 600 ? 64 : 88,
+            height: WorkbenchViewport.sizeOf(context).width < 600 ? 64 : 88,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  records.isEmpty ? '思路有了就记下来' : '待归位 ${records.length} 项',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '先收集，再安排到任务、项目或资料。',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: tokens.mutedText,
+                  ),
+                ),
+                if (records.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Wrap(
+                    spacing: AppSpacing.md,
+                    runSpacing: AppSpacing.xs,
+                    children: [
+                      _InboxKindCount(
+                        icon: Icons.check_box_outlined,
+                        label: '任务',
+                        count: tasks,
+                      ),
+                      _InboxKindCount(
+                        icon: Icons.note_alt_outlined,
+                        label: '笔记',
+                        count: notes,
+                      ),
+                      _InboxKindCount(
+                        icon: Icons.link_outlined,
+                        label: '链接',
+                        count: links,
+                      ),
+                      if (other > 0)
+                        _InboxKindCount(
+                          icon: Icons.layers_outlined,
+                          label: '其他',
+                          count: other,
+                        ),
+                    ],
+                  ),
+                ],
+                if (showCaptureAction &&
+                    WorkbenchViewport.sizeOf(context).width < 520)
+                  TextButton.icon(
+                    onPressed: onCapture,
+                    icon: const Icon(Icons.add, size: AppIconSize.xs),
+                    label: const Text('快速记录'),
+                  ),
+              ],
+            ),
+          ),
+          if (showCaptureAction &&
+              WorkbenchViewport.sizeOf(context).width >= 520)
+            TextButton.icon(
+              onPressed: onCapture,
+              icon: const Icon(Icons.add),
+              label: const Text('快速记录'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InboxKindCount extends StatelessWidget {
+  const _InboxKindCount({
+    required this.icon,
+    required this.label,
+    required this.count,
+  });
+
+  final IconData icon;
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: AppIconSize.xs, color: context.tokens.mutedText),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          '$label $count',
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: context.tokens.mutedText),
+        ),
+      ],
+    );
+  }
 }
 
 class _CaptureRow extends StatelessWidget {

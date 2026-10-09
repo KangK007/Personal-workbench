@@ -1,6 +1,8 @@
 import 'dart:ui' as ui;
+import 'dart:io' as io;
 
 import 'package:flutter/material.dart';
+import 'package:personal_workbench/ui/widgets/workbench_layout.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -258,6 +260,7 @@ Widget _host(
   Brightness brightness = Brightness.light,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
+  bool windowChrome = false,
 }) {
   final theme = brightness == Brightness.dark
       ? AppTheme.dark()
@@ -286,7 +289,31 @@ Widget _host(
         child: child!,
       );
     },
-    home: Scaffold(body: page),
+    home: Scaffold(
+      body: RepaintBoundary(
+        key: const ValueKey('audit-window-capture'),
+        child: Builder(
+          builder: (context) {
+            if (!windowChrome) return WorkbenchViewport(child: page);
+            final size = MediaQuery.sizeOf(context);
+            if (size.width < AppBreakpoints.compact) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 64, bottom: 84),
+                child: WorkbenchViewport(child: page),
+              );
+            }
+            return Row(
+              children: [
+                SizedBox(
+                  width: size.width < AppBreakpoints.expanded ? 81 : 237,
+                ),
+                Expanded(child: WorkbenchViewport(child: page)),
+              ],
+            );
+          },
+        ),
+      ),
+    ),
   );
 }
 
@@ -391,18 +418,44 @@ Future<void> _verifyOpenMenus(
   Size size,
 ) async {
   await _verifySurface(tester, surface, size, scenario: 'open-menus');
-  final baselineBarrierCount = find.byType(ModalBarrier).evaluate().length;
   final menuCount = _openableMenuControls().evaluate().length;
   for (var index = 0; index < menuCount; index++) {
     await _verifySurface(tester, surface, size, scenario: 'open-menu-$index');
-    final trigger = _openableMenuControls().at(index);
-    await tester.ensureVisible(trigger);
-    await tester.tap(trigger);
+    // Freeze the exact element before scrolling. A finder based on
+    // `.hitTestable().at(index)` is recomputed after ensureVisible; moving a
+    // lazy task list can change which menu occupies that index.
+    final menus = _openableMenuControls().evaluate().toList(growable: false);
+    expect(
+      menus.length,
+      greaterThan(index),
+      reason: '${surface.name} menu $index disappeared at $size',
+    );
+    final menuElement = menus[index];
+    final menuType = menuElement.widget.runtimeType;
+    final menuKey = menuElement.widget.key;
+    final trigger = menuKey == null
+        ? find.byElementPredicate((element) => identical(element, menuElement))
+        : find.byKey(menuKey);
+    if (trigger.hitTestable().evaluate().isEmpty) {
+      await tester.ensureVisible(trigger);
+      await tester.pumpAndSettle();
+    }
+    expect(
+      trigger.hitTestable(),
+      findsOneWidget,
+      reason:
+          '${surface.name} menu $index ($menuType) '
+          'is obscured at $size',
+    );
+    final baselineBarrierCount = find.byType(ModalBarrier).evaluate().length;
+    await tester.tap(trigger.hitTestable());
     await tester.pumpAndSettle();
     expect(
       find.byType(ModalBarrier).evaluate().length,
       greaterThan(baselineBarrierCount),
-      reason: '${surface.name} menu $index did not open at $size',
+      reason:
+          '${surface.name} menu $index ($menuType) '
+          'did not open at $size',
     );
     expect(
       tester.takeException(),
@@ -499,14 +552,25 @@ Future<void> _capture(
   String name,
   Widget child, {
   Size size = const Size(1200, 900),
+  Brightness brightness = Brightness.light,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   // 每张页面截图使用全新的 Navigator，避免前一张图的弹窗路由残留。
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
-  await tester.pumpWidget(_host(child));
+  await tester.pumpWidget(_host(child, brightness: brightness));
   await tester.pump(const Duration(milliseconds: 600));
+  final images = tester.widgetList<Image>(find.byType(Image)).toList();
+  if (images.isNotEmpty) {
+    final context = tester.element(find.byType(Scaffold).first);
+    await tester.runAsync(() async {
+      for (final image in images) {
+        await precacheImage(image.image, context);
+      }
+    });
+    await tester.pump();
+  }
   expect(tester.takeException(), isNull);
   await expectLater(
     find.byType(MaterialApp),
@@ -687,6 +751,7 @@ Future<void> _verifySurface(
   Brightness brightness = Brightness.light,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
+  bool windowChrome = false,
   required String scenario,
 }) async {
   tester.view.physicalSize = size;
@@ -706,6 +771,7 @@ Future<void> _verifySurface(
       brightness: brightness,
       textScaler: textScaler,
       disableAnimations: disableAnimations,
+      windowChrome: windowChrome,
     ),
   );
   await tester.pump(const Duration(milliseconds: 100));
@@ -723,6 +789,250 @@ Future<void> _verifySurface(
 
 void main() {
   setUpAll(_loadAuditFonts);
+
+  testWidgets('focus modes stay readable and retain selection across resize', (
+    tester,
+  ) async {
+    final controller = await _createController();
+    addTearDown(controller.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 700);
+    await tester.pumpWidget(
+      _host(FocusPage(controller: controller, task: null)),
+    );
+    await tester.pumpAndSettle();
+    final dropdown = find.byType(DropdownButtonFormField<FocusMode>);
+    expect(dropdown, findsOneWidget);
+    expect(find.byType(SegmentedButton<FocusMode>), findsNothing);
+    await tester.tap(dropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('50 / 10').last);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<DropdownButtonFormField<FocusMode>>(dropdown).initialValue,
+      FocusMode.pomodoro50,
+    );
+    tester.view.physicalSize = const Size(1440, 900);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<SegmentedButton<FocusMode>>(
+            find.byType(SegmentedButton<FocusMode>),
+          )
+          .selected,
+      {FocusMode.pomodoro50},
+    );
+    await tester.pumpWidget(
+      _host(
+        FocusPage(controller: controller, task: null),
+        textScaler: TextScaler.linear(2),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(dropdown, findsOneWidget);
+    expect(
+      tester.widget<DropdownButtonFormField<FocusMode>>(dropdown).initialValue,
+      FocusMode.pomodoro50,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'markdown drafts remain editable and saveable in short windows with large text',
+    (tester) async {
+      final controller = await _createController();
+      addTearDown(controller.dispose);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.physicalSize = const Size(800, 450);
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(
+        _host(
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showMarkdownNoteEditor(context, controller),
+              child: const Text('打开笔记编辑器'),
+            ),
+          ),
+          textScaler: TextScaler.linear(2),
+        ),
+      );
+      await tester.tap(find.text('打开笔记编辑器'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, '缩放窗口中的笔记草稿');
+      await tester.enterText(
+        find.byType(TextField).last,
+        '# 完整正文\n调整窗口大小后仍可保存。',
+      );
+      for (final size in const [
+        Size(320, 568),
+        Size(1440, 500),
+        Size(800, 450),
+      ]) {
+        tester.view.physicalSize = size;
+        await tester.pumpAndSettle();
+        final save = find.widgetWithText(FilledButton, '保存');
+        expect(save.hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+      await tester.tap(find.widgetWithText(FilledButton, '保存'));
+      await tester.pumpAndSettle();
+      final saved = controller
+          .recordsOf(RecordKind.note)
+          .singleWhere((note) => note.title == '缩放窗口中的笔记草稿');
+      expect(saved.body, '# 完整正文\n调整窗口大小后仍可保存。');
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('all surfaces fit the actual window content after navigation', (
+    tester,
+  ) async {
+    final controller = await _createController();
+    addTearDown(controller.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    for (final surface in _auditSurfaces(controller)) {
+      for (final brightness in Brightness.values) {
+        for (final size in const [
+          Size(320, 568),
+          Size(700, 420),
+          Size(800, 450),
+          Size(1024, 600),
+          Size(1200, 700),
+          Size(1440, 500),
+          Size(1876, 979),
+          Size(1920, 1080),
+          Size(2560, 1440),
+        ]) {
+          await _verifySurface(
+            tester,
+            surface,
+            size,
+            brightness: brightness,
+            windowChrome: true,
+            scenario: 'actual-window-content',
+          );
+          final captureDirectory =
+              io.Platform.environment['WORKBENCH_RESPONSIVE_CAPTURE_DIR'];
+          if (captureDirectory != null &&
+              [320, 800, 1876].contains(size.width)) {
+            await tester.pump(const Duration(milliseconds: 600));
+            final images = tester
+                .widgetList<Image>(find.byType(Image))
+                .toList();
+            final context = tester.element(find.byType(Scaffold).first);
+            await tester.runAsync(() async {
+              for (final image in images) {
+                await precacheImage(image.image, context);
+              }
+            });
+            await tester.pump();
+            debugPrint(
+              'Capture ${surface.name} ${brightness.name} ${size.width}',
+            );
+            await expectLater(
+              find.byType(MaterialApp),
+              matchesGoldenFile(
+                io.File(
+                  '$captureDirectory/${surface.name}-${brightness.name}-${size.width.toInt()}.png',
+                ).uri,
+              ),
+            );
+          }
+        }
+        for (final size in const [Size(1024, 600), Size(1876, 979)]) {
+          await _verifySurface(
+            tester,
+            surface,
+            size,
+            brightness: brightness,
+            textScaler: TextScaler.linear(2),
+            windowChrome: true,
+            scenario: 'actual-window-content-large-text',
+          );
+        }
+      }
+    }
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
+  testWidgets('empty pages scroll in short windows and at large font sizes', (
+    tester,
+  ) async {
+    final controller = await _createEmptyController();
+    addTearDown(controller.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    for (final surface in _auditSurfaces(controller)) {
+      for (final brightness in Brightness.values) {
+        for (final size in const [
+          Size(320, 568),
+          Size(800, 450),
+          Size(1440, 500),
+        ]) {
+          await _verifySurface(
+            tester,
+            surface,
+            size,
+            brightness: brightness,
+            textScaler: TextScaler.linear(2),
+            windowChrome: true,
+            scenario: 'empty-short-window-large-text',
+          );
+        }
+      }
+    }
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
+  testWidgets('today columns expand together with a stable gap on resize', (
+    tester,
+  ) async {
+    final controller = await _createController();
+    addTearDown(controller.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.devicePixelRatio = 1;
+    double? previousWidth;
+    for (final width in [1200.0, 1440.0, 1876.0, 2560.0]) {
+      tester.view.physicalSize = Size(width, 900);
+      await tester.pumpWidget(
+        _host(TodayPage(controller: controller), windowChrome: true),
+      );
+      await tester.pumpAndSettle();
+      final main = tester.getRect(
+        find.byKey(const PageStorageKey('today-main-column')),
+      );
+      final side = tester.getRect(
+        find.byKey(const PageStorageKey('today-side-column')),
+      );
+      expect(side.left - main.right, closeTo(AppLayout.columnGap, 0.1));
+      expect(side.width, inInclusiveRange(280, 360));
+      expect(main.width, greaterThanOrEqualTo(560));
+      if (previousWidth != null) {
+        expect(main.width, greaterThanOrEqualTo(previousWidth));
+      }
+      previousWidth = main.width;
+      expect(tester.takeException(), isNull);
+    }
+    // A large font needs a single readable column at this available width.
+    tester.view.physicalSize = const Size(1200, 900);
+    await tester.pumpWidget(
+      _host(
+        TodayPage(controller: controller),
+        textScaler: TextScaler.linear(2),
+        windowChrome: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const PageStorageKey('today-single-column')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('captures the remaining UI audit surfaces', (tester) async {
     final controller = await _createController();
@@ -822,6 +1132,38 @@ void main() {
       TodayPage(controller: controller),
       size: const Size(412, 915),
     );
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      final themeName = brightness == Brightness.light ? 'day' : 'night';
+      const mobileSize = Size(390, 844);
+      await _capture(
+        tester,
+        'projects_mobile_$themeName',
+        ProjectsPage(controller: controller, showHeader: false),
+        size: mobileSize,
+        brightness: brightness,
+      );
+      await _capture(
+        tester,
+        'focus_mobile_$themeName',
+        FocusHubPage(controller: controller, showHeader: false),
+        size: mobileSize,
+        brightness: brightness,
+      );
+      await _capture(
+        tester,
+        'notes_mobile_$themeName',
+        NotesPage(controller: controller, showHeader: false),
+        size: mobileSize,
+        brightness: brightness,
+      );
+      await _capture(
+        tester,
+        'review_mobile_$themeName',
+        ReviewPage(controller: controller, showHeader: false),
+        size: mobileSize,
+        brightness: brightness,
+      );
+    }
   });
 
   testWidgets('reduced-motion skeletons can unmount repeatedly', (
@@ -855,7 +1197,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     const viewports = [
+      Size(320, 700),
       Size(375, 812),
+      Size(390, 844),
       Size(412, 915),
       Size(768, 864),
       Size(1024, 864),
@@ -864,37 +1208,52 @@ void main() {
       Size(1536, 864),
     ];
     for (final surface in _auditSurfaces(populated)) {
-      for (final size in viewports) {
-        await _verifySurface(tester, surface, size, scenario: 'light');
-      }
-      for (final size in const [Size(412, 915), Size(1200, 864)]) {
+      for (final brightness in Brightness.values) {
+        for (final size in viewports) {
+          await _verifySurface(
+            tester,
+            surface,
+            size,
+            brightness: brightness,
+            scenario: brightness.name,
+          );
+        }
+        for (final size in const [Size(390, 844), Size(1200, 864)]) {
+          await _verifySurface(
+            tester,
+            surface,
+            size,
+            brightness: brightness,
+            disableAnimations: true,
+            scenario: 'reduced-motion-${brightness.name}',
+          );
+        }
         await _verifySurface(
           tester,
           surface,
-          size,
-          brightness: Brightness.dark,
-          scenario: 'dark',
-        );
-        await _verifySurface(
-          tester,
-          surface,
-          size,
-          disableAnimations: true,
-          scenario: 'reduced-motion',
+          const Size(320, 700),
+          brightness: brightness,
+          textScaler: const TextScaler.linear(2),
+          scenario: 'text-200-percent-${brightness.name}',
         );
       }
-      await _verifySurface(
-        tester,
-        surface,
-        const Size(375, 812),
-        textScaler: const TextScaler.linear(2),
-        scenario: 'text-200-percent',
-      );
     }
 
     for (final surface in _auditSurfaces(empty)) {
-      for (final size in const [Size(412, 915), Size(1200, 864)]) {
-        await _verifySurface(tester, surface, size, scenario: 'empty');
+      for (final brightness in Brightness.values) {
+        for (final size in const [
+          Size(320, 700),
+          Size(390, 844),
+          Size(1200, 864),
+        ]) {
+          await _verifySurface(
+            tester,
+            surface,
+            size,
+            brightness: brightness,
+            scenario: 'empty-${brightness.name}',
+          );
+        }
       }
     }
   });
@@ -970,6 +1329,9 @@ void main() {
         (Size(375, 812), TextScaler.linear(2)),
         (Size(1200, 864), TextScaler.noScaling),
         (Size(1536, 864), TextScaler.noScaling),
+        (Size(320, 568), TextScaler.linear(2)),
+        (Size(800, 450), TextScaler.linear(2)),
+        (Size(1440, 500), TextScaler.linear(2)),
       ];
       for (final audit in audits) {
         for (final scenario in scenarios) {

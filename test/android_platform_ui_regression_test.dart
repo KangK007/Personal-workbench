@@ -20,6 +20,7 @@ import 'package:personal_workbench/ui/pages/plan_page.dart';
 import 'package:personal_workbench/ui/pages/protocols_page.dart';
 import 'package:personal_workbench/ui/pages/restriction_page.dart';
 import 'package:personal_workbench/ui/pages/settings_page.dart';
+import 'package:personal_workbench/ui/widgets/mobile_bottom_bar.dart';
 import 'package:personal_workbench/ui/workbench_shell.dart';
 
 class _MemoryDatabase extends AppDatabase {
@@ -63,50 +64,59 @@ Widget _host(Widget child) => MaterialApp(
 );
 
 void main() {
-  testWidgets(
-    'Android settings omit Windows-only controls',
-    (tester) async {
-      final controller = _controller();
-      addTearDown(controller.dispose);
-
-      await tester.pumpWidget(_host(SettingsPage(controller: controller)));
-      await tester.pump();
-      await tester.drag(find.byType(ListView).first, const Offset(0, -1600));
-      await tester.pump();
-
-      expect(find.text('前台应用检测'), findsNothing);
-      expect(find.text('定时专注显示工作台'), findsNothing);
-      expect(find.text('前台日志'), findsNothing);
-      expect(find.text('关闭窗口时最小化到托盘'), findsNothing);
-      expect(find.text('开机启动'), findsNothing);
-      expect(find.text('真正退出'), findsNothing);
-      expect(find.text('管理员权限'), findsNothing);
-      expect(find.text('hosts 健康状态'), findsNothing);
-      expect(find.text('异常退出恢复'), findsNothing);
-      expect(find.text('默认折叠 Windows 侧栏'), findsNothing);
-      expect(find.textContaining('Windows 系统管理通知'), findsNothing);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.android),
-  );
-
-  testWidgets('Android self-discipline page is removed entirely', (
-    tester,
-  ) async {
+  testWidgets('Android settings omit Windows-only controls', (tester) async {
     final controller = _controller();
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(_host(RestrictionPage(controller: controller)));
+    await tester.pumpWidget(_host(SettingsPage(controller: controller)));
+    await tester.pump();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -1600));
     await tester.pump();
 
-    expect(find.text('规则'), findsNothing);
-    expect(find.text('保护设置'), findsNothing);
-    expect(find.text('Windows 后台行为'), findsNothing);
-    expect(find.text('hosts 与系统诊断'), findsNothing);
-  });
+    expect(find.text('前台应用检测'), findsNothing);
+    expect(find.text('定时专注显示工作台'), findsNothing);
+    expect(find.text('前台日志'), findsNothing);
+    expect(find.text('关闭窗口时最小化到托盘'), findsNothing);
+    expect(find.text('开机启动'), findsNothing);
+    expect(find.text('真正退出'), findsNothing);
+    expect(find.text('管理员权限'), findsNothing);
+    expect(find.text('hosts 健康状态'), findsNothing);
+    expect(find.text('异常退出恢复'), findsNothing);
+    expect(find.text('默认折叠 Windows 侧栏'), findsNothing);
+    expect(find.textContaining('Windows 系统管理通知'), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
-  testWidgets('Android navigation does not expose self-discipline', (
-    tester,
-  ) async {
+  testWidgets(
+    'Android self-discipline edits synced rules without Windows actions',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final controller = _controller();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        _host(RestrictionPage(controller: controller, showHeader: false)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('规则'), findsOneWidget);
+      expect(find.text('规则可在此查看与编辑'), findsOneWidget);
+      expect(find.text('保护设置'), findsNothing);
+      expect(find.text('Windows 后台行为'), findsNothing);
+      expect(find.text('hosts 与系统诊断'), findsNothing);
+      await tester.tap(find.byTooltip('编辑自律规则'));
+      await tester.pumpAndSettle();
+      expect(find.text('跨端规则配置'), findsOneWidget);
+      expect(find.text('在 Windows 启用此规则'), findsOneWidget);
+      expect(find.text('强制结束进程'), findsNothing);
+      expect(find.text('网站拦截（Windows hosts）'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Android navigation opens self-discipline rules', (tester) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -123,9 +133,11 @@ void main() {
     await tester.pump();
     expect(
       find.byKey(const ValueKey('navigation-leaf:restriction')),
-      findsNothing,
+      findsOneWidget,
     );
-    expect(find.text('自律'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('navigation-leaf:restriction')));
+    await tester.pumpAndSettle();
+    expect(find.text('跨端说明'), findsOneWidget);
   });
 
   testWidgets('Android focus preset editor omits Windows-only options', (
@@ -205,60 +217,58 @@ void main() {
     variant: TargetPlatformVariant.only(TargetPlatform.android),
   );
 
-  testWidgets(
-    'Android execution and growth tabs fill compact width',
-    (tester) async {
-      tester.view.physicalSize = const Size(320, 700);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final controller = _controller();
-      addTearDown(controller.dispose);
+  testWidgets('Android execution and growth tabs fill compact width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _controller();
+    addTearDown(controller.dispose);
 
-      Future<void> expectDistributed(int count) async {
-        final tabBar = tester.getRect(find.byType(TabBar));
-        final labels = [
-          for (final element in find.byType(Tab).evaluate())
-            () {
-              final box = element.renderObject! as RenderBox;
-              final topLeft = box.localToGlobal(Offset.zero);
-              return Rect.fromLTWH(
-                topLeft.dx,
-                topLeft.dy,
-                box.size.width,
-                box.size.height,
-              );
-            }(),
-        ];
-        expect(labels, hasLength(count));
+    Future<void> expectDistributed(int count) async {
+      final tabBar = tester.getRect(find.byType(TabBar));
+      final labels = [
+        for (final element in find.byType(Tab).evaluate())
+          () {
+            final box = element.renderObject! as RenderBox;
+            final topLeft = box.localToGlobal(Offset.zero);
+            return Rect.fromLTWH(
+              topLeft.dx,
+              topLeft.dy,
+              box.size.width,
+              box.size.height,
+            );
+          }(),
+      ];
+      expect(labels, hasLength(count));
+      expect(
+        labels.map((rect) => rect.center.dx).toList().last,
+        lessThanOrEqualTo(tabBar.right),
+      );
+      for (var index = 1; index < labels.length; index++) {
         expect(
-          labels.map((rect) => rect.center.dx).toList().last,
-          lessThanOrEqualTo(tabBar.right),
+          labels[index].center.dx - labels[index - 1].center.dx,
+          greaterThan(30),
         );
-        for (var index = 1; index < labels.length; index++) {
-          expect(
-            labels[index].center.dx - labels[index - 1].center.dx,
-            greaterThan(30),
-          );
-        }
       }
+    }
 
-      await tester.pumpWidget(
-        _host(ExecutionPage(controller: controller, showHeader: false)),
-      );
-      await tester.pumpAndSettle();
-      await expectDistributed(2);
-      expect(tester.takeException(), isNull);
+    await tester.pumpWidget(
+      _host(ExecutionPage(controller: controller, showHeader: false)),
+    );
+    await tester.pumpAndSettle();
+    await expectDistributed(2);
+    expect(tester.takeException(), isNull);
 
-      await tester.pumpWidget(
-        _host(GrowthHubPage(controller: controller, showHeader: false)),
-      );
-      await tester.pumpAndSettle();
-      await expectDistributed(4);
-      expect(tester.takeException(), isNull);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.android),
-  );
+    await tester.pumpWidget(
+      _host(GrowthHubPage(controller: controller, showHeader: false)),
+    );
+    await tester.pumpAndSettle();
+    await expectDistributed(4);
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
   testWidgets(
     'Android protocol tabs show all advanced views without crowding',
@@ -306,62 +316,180 @@ void main() {
     variant: TargetPlatformVariant.only(TargetPlatform.android),
   );
 
-  testWidgets(
-    'Android top-left back always returns to Today',
-    (tester) async {
-      tester.view.physicalSize = const Size(412, 915);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final controller = _controller();
-      addTearDown(controller.dispose);
+  testWidgets('Android top-left back always returns to Today', (tester) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _controller();
+    addTearDown(controller.dispose);
 
-      await tester.pumpWidget(
-        _host(
-          WorkbenchShell(controller: controller, enableSystemHotkey: false),
+    await tester.pumpWidget(
+      _host(WorkbenchShell(controller: controller, enableSystemHotkey: false)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('个人设置'));
+    await tester.pumpAndSettle();
+    expect(find.text('设置'), findsWidgets);
+    await tester.tap(find.byTooltip('返回'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.text('今日')),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('导航'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets('Android notes have no selected bottom destination', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _controller();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _host(WorkbenchShell(controller: controller, enableSystemHotkey: false)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('导航'));
+    await tester.pumpAndSettle();
+    final notesEntry = find.byKey(const ValueKey('navigation-leaf:notes'));
+    if (notesEntry.evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey('navigation-group:record')));
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(notesEntry);
+    await tester.tap(notesEntry);
+    await tester.pumpAndSettle();
+    expect(find.text('当前页面：笔记'), findsOneWidget);
+    expect(
+      tester
+          .widget<MobileBottomBar>(find.byType(MobileBottomBar))
+          .selectedIndex,
+      -1,
+    );
+
+    await tester.tap(find.byTooltip('返回'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('当前页面：'), findsNothing);
+    expect(
+      tester
+          .widget<MobileBottomBar>(find.byType(MobileBottomBar))
+          .selectedIndex,
+      0,
+    );
+
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets('Android bottom navigation back to Today restores the menu', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _controller();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _host(WorkbenchShell(controller: controller, enableSystemHotkey: false)),
+    );
+    await tester.pumpAndSettle();
+    final bottomBar = find.byType(MobileBottomBar);
+    await tester.tap(find.descendant(of: bottomBar, matching: find.text('计划')));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('返回'), findsOneWidget);
+
+    await tester.tap(find.descendant(of: bottomBar, matching: find.text('今日')));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('导航'), findsOneWidget);
+    expect(find.byTooltip('返回'), findsNothing);
+    expect(tester.widget<MobileBottomBar>(bottomBar).selectedIndex, 0);
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets('Android bottom labels remain visible at 200% text scale', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _host(
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: MobileBottomBar(
+            selectedIndex: 0,
+            onSelected: (_) {},
+            items: const [
+              MobileBottomBarItem(
+                icon: Icons.today_outlined,
+                selectedIcon: Icons.today,
+                label: '今日',
+              ),
+              MobileBottomBarItem(
+                icon: Icons.event_note_outlined,
+                selectedIcon: Icons.event_note,
+                label: '计划',
+              ),
+              MobileBottomBarItem(
+                icon: Icons.timer_outlined,
+                selectedIcon: Icons.timer,
+                label: '执行',
+              ),
+              MobileBottomBarItem(
+                icon: Icons.trending_up_outlined,
+                selectedIcon: Icons.trending_up,
+                label: '成长',
+              ),
+            ],
+          ),
         ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('个人设置'));
-      await tester.pumpAndSettle();
-      expect(find.text('设置'), findsWidgets);
-      await tester.tap(find.byTooltip('返回'));
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(of: find.byType(AppBar), matching: find.text('今日')),
-        findsOneWidget,
-      );
-      expect(find.byTooltip('导航'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.android),
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
 
-  testWidgets(
-    'Windows plan, execution, and growth pages omit page tabs',
-    (tester) async {
-      final controller = _controller();
-      addTearDown(controller.dispose);
+    final bar = tester.getRect(find.byType(MobileBottomBar));
+    expect(bar.height, greaterThan(58));
+    for (final label in ['今日', '计划', '执行', '成长']) {
+      final text = tester.getRect(find.text(label));
+      expect(text.top, greaterThanOrEqualTo(bar.top));
+      expect(text.bottom, lessThanOrEqualTo(bar.bottom));
+    }
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
-      await tester.pumpWidget(
-        _host(PlanPage(controller: controller, showHeader: false)),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(TabBar), findsNothing);
+  testWidgets('Windows plan, execution, and growth pages omit page tabs', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
 
-      await tester.pumpWidget(
-        _host(ExecutionPage(controller: controller, showHeader: false)),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(TabBar), findsNothing);
+    await tester.pumpWidget(
+      _host(PlanPage(controller: controller, showHeader: false)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(TabBar), findsNothing);
 
-      await tester.pumpWidget(
-        _host(GrowthHubPage(controller: controller, showHeader: false)),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(TabBar), findsNothing);
-      expect(tester.takeException(), isNull);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.windows),
-  );
+    await tester.pumpWidget(
+      _host(ExecutionPage(controller: controller, showHeader: false)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(TabBar), findsNothing);
+
+    await tester.pumpWidget(
+      _host(GrowthHubPage(controller: controller, showHeader: false)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(TabBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 }

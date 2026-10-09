@@ -1,0 +1,428 @@
+00:00 +0: loading F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart
+00:00 +0: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android settings omit Windows-only controls (variant: TargetPlatform.android)
+00:01 +1: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android self-discipline edits synced rules without Windows actions
+00:02 +2: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android navigation opens self-discipline rules
+00:03 +3: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android focus preset editor omits Windows-only options
+00:03 +4: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android plan tabs stay distributed, selected, and keyboard usable (variant: TargetPlatform.android)
+00:03 +5: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android execution and growth tabs fill compact width (variant: TargetPlatform.android)
+00:04 +6: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android protocol tabs show all advanced views without crowding (variant: TargetPlatform.android)
+00:04 +7: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android top-left back always returns to Today (variant: TargetPlatform.android)
+00:05 +8: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android notes have no selected bottom destination (variant: TargetPlatform.android)
+00:05 +9: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android bottom navigation back to Today restores the menu (variant: TargetPlatform.android)
+00:06 +10: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Android bottom labels remain visible at 200% text scale (variant: TargetPlatform.android)
+00:06 +11: F:/Project/Personal work/Personal-workbench/test/android_platform_ui_regression_test.dart: Windows plan, execution, and growth pages omit page tabs (variant: TargetPlatform.windows)
+00:06 +12: loading F:/Project/Personal work/Personal-workbench/test/app_database_test.dart
+00:07 +12: F:/Project/Personal work/Personal-workbench/test/app_database_test.dart: schema upgrade keeps legacy rows ownerless and isolates account partitions
+00:08 +13: F:/Project/Personal work/Personal-workbench/test/app_database_test.dart: factory override does not initialize the process default
+00:08 +14: F:/Project/Personal work/Personal-workbench/test/app_database_test.dart: local database persists and restores soft-deleted records
+00:08 +15: F:/Project/Personal work/Personal-workbench/test/app_database_test.dart: markClean updates the sync state returned by loadRecords
+00:08 +16: F:/Project/Personal work/Personal-workbench/test/app_database_test.dart: markClean does not overwrite an edit within the same millisecond
+00:08 +17: F:/Project/Personal work/Personal-workbench/test/app_database_test.dart: replaceAll can restore records without scheduling cloud upload
+00:08 +18: F:/Project/Personal work/Personal-workbench/test/app_database_test.dart: records and attachments are replaced in one transaction
+00:08 +19: F:/Project/Personal work/Personal-workbench/test/app_database_test.dart: failed attachment replacement rolls back restored records
+00:08 +20: F:/Project/Personal work/Personal-workbench/test/app_database_test.dart: local game state is stored outside workspace records
+00:08 +21: loading F:/Project/Personal work/Personal-workbench/test/attachment_backup_test.dart
+00:09 +21: F:/Project/Personal work/Personal-workbench/test/attachment_backup_test.dart: (setUpAll)
+00:09 +21: F:/Project/Personal work/Personal-workbench/test/attachment_backup_test.dart: encrypted backup includes attachment metadata and bytes
+00:10 +22: F:/Project/Personal work/Personal-workbench/test/attachment_backup_test.dart: attachment restore verifies bytes and rebuilds metadata
+00:11 +23: F:/Project/Personal work/Personal-workbench/test/attachment_backup_test.dart: restoring one account attachment does not replace another account file
+00:11 +24: F:/Project/Personal work/Personal-workbench/test/attachment_backup_test.dart: empty attachment restore clears old metadata and files
+00:11 +25: F:/Project/Personal work/Personal-workbench/test/attachment_backup_test.dart: attachment files roll back when database replacement fails
+00:11 +26: F:/Project/Personal work/Personal-workbench/test/attachment_backup_test.dart: (tearDownAll)
+00:11 +26: loading F:/Project/Personal work/Personal-workbench/test/attachment_panel_error_test.dart
+00:12 +26: F:/Project/Personal work/Personal-workbench/test/attachment_panel_error_test.dart: attachment list and capacity errors have independent retries
+00:13 +27: F:/Project/Personal work/Personal-workbench/test/attachment_panel_error_test.dart: a failed image lookup can be retried without hiding the row
+00:13 +28: F:/Project/Personal work/Personal-workbench/test/attachment_panel_error_test.dart: physical attachment deletion requires explicit confirmation
+00:13 +29: loading F:/Project/Personal work/Personal-workbench/test/attachment_service_test.dart
+00:14 +29: F:/Project/Personal work/Personal-workbench/test/attachment_service_test.dart: (setUpAll)
+00:14 +29: F:/Project/Personal work/Personal-workbench/test/attachment_service_test.dart: image attachments are copied, hashed, resolved, and deleted
+00:14 +30: F:/Project/Personal work/Personal-workbench/test/attachment_service_test.dart: image attachments above 20 MB are rejected before copying
+00:14 +31: F:/Project/Personal work/Personal-workbench/test/attachment_service_test.dart: record cleanup removes all attachment files and metadata
+00:14 +32: F:/Project/Personal work/Personal-workbench/test/attachment_service_test.dart: (tearDownAll)
+00:15 +32: loading F:/Project/Personal work/Personal-workbench/test/backup_service_test.dart
+00:15 +32: F:/Project/Personal work/Personal-workbench/test/backup_service_test.dart: encrypted backup restores with the correct password
+00:17 +33: F:/Project/Personal work/Personal-workbench/test/backup_service_test.dart: encrypted backup rejects a wrong password
+00:19 +34: F:/Project/Personal work/Personal-workbench/test/backup_service_test.dart: legacy version one envelope remains readable
+00:20 +35: F:/Project/Personal work/Personal-workbench/test/backup_service_test.dart: encrypted backup includes local game state
+00:21 +36: F:/Project/Personal work/Personal-workbench/test/backup_service_test.dart: oversized encrypted backups are rejected before parsing
+00:21 +37: F:/Project/Personal work/Personal-workbench/test/backup_service_test.dart: backup record count is limited after decryption
+00:23 +38: F:/Project/Personal work/Personal-workbench/test/backup_service_test.dart: backup attachment total is limited after decryption
+00:24 +39: F:/Project/Personal work/Personal-workbench/test/backup_service_test.dart: backup JSON depth is limited after decryption
+00:26 +40: loading F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart
+00:27 +40: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: batch status preserves completion and reopen semantics
+00:27 +41: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: batch date, project, and trash operations affect selected instances
+00:27 +42: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: creating a task does not resurrect trashed recurring instances
+00:27 +43: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: batch completion advances only the selected recurring instance
+00:27 +44: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: batch transaction failure leaves controller state unchanged
+00:27 +45: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: task group edits and removal preserve member tasks
+00:27 +46: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: deleting and restoring a task group cascades only membership
+00:27 +47: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: task group restore skips members now assigned elsewhere
+00:27 +48: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: batch task group assignment reports and replaces conflicts
+00:27 +49: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: batch task group replacement compacts source positions
+00:27 +50: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: permanent deletion preserves local data when cloud deletion fails
+00:27 +51: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: permanent deletion preserves memory when local deletion fails
+00:27 +52: F:/Project/Personal work/Personal-workbench/test/batch_operations_test.dart: attachment quarantine rolls back files when database deletion fails
+00:27 +53: loading F:/Project/Personal work/Personal-workbench/test/common_visual_system_test.dart
+00:29 +53: F:/Project/Personal work/Personal-workbench/test/common_visual_system_test.dart: light page context and section count use readable text
+00:30 +54: F:/Project/Personal work/Personal-workbench/test/common_visual_system_test.dart: dark page context and section count use readable text
+00:30 +55: F:/Project/Personal work/Personal-workbench/test/common_visual_system_test.dart: empty state and status label retain readable hierarchy on phone
+00:30 +56: loading F:/Project/Personal work/Personal-workbench/test/desktop_scroll_behavior_test.dart
+00:31 +56: F:/Project/Personal work/Personal-workbench/test/desktop_scroll_behavior_test.dart: independent desktop lists scroll without orphaned scrollbars
+00:33 +57: loading F:/Project/Personal work/Personal-workbench/test/focus_preset_editor_validation_test.dart
+00:35 +57: F:/Project/Personal work/Personal-workbench/test/focus_preset_editor_validation_test.dart: invalid preset minutes stay in the field and never save
+00:37 +58: F:/Project/Personal work/Personal-workbench/test/focus_preset_editor_validation_test.dart: preset save disables duplicate submit and shows write errors
+00:38 +59: F:/Project/Personal work/Personal-workbench/test/focus_preset_editor_validation_test.dart: cancel and Escape protect an unsaved preset draft
+00:38 +60: loading F:/Project/Personal work/Personal-workbench/test/focus_service_test.dart
+00:39 +60: F:/Project/Personal work/Personal-workbench/test/focus_service_test.dart: focus target completes once after lifecycle refresh
+00:40 +61: F:/Project/Personal work/Personal-workbench/test/focus_service_test.dart: changing mode after a pause starts a fresh session
+00:40 +62: loading F:/Project/Personal work/Personal-workbench/test/full_function_regression_test.dart
+00:41 +62: F:/Project/Personal work/Personal-workbench/test/full_function_regression_test.dart: quick capture validates input and creates every supported kind
+00:41 +63: F:/Project/Personal work/Personal-workbench/test/full_function_regression_test.dart: record lifecycle, relations, and permanent deletion stay consistent
+00:41 +64: F:/Project/Personal work/Personal-workbench/test/full_function_regression_test.dart: time blocks, focus, diary, and habit logs cover boundary updates
+00:41 +65: F:/Project/Personal work/Personal-workbench/test/full_function_regression_test.dart: appearance and profile settings are trimmed and persisted
+00:41 +66: F:/Project/Personal work/Personal-workbench/test/full_function_regression_test.dart: JSON, CSV, Markdown, and text imports handle normal and duplicate data
+00:41 +67: F:/Project/Personal work/Personal-workbench/test/full_function_regression_test.dart: imports reject missing, unsupported, and malformed files without changes
+00:41 +68: loading F:/Project/Personal work/Personal-workbench/test/game_service_test.dart
+00:42 +68: F:/Project/Personal work/Personal-workbench/test/game_service_test.dart: checkin pays once per logical day and tracks streak
+00:42 +69: F:/Project/Personal work/Personal-workbench/test/game_service_test.dart: betting protects balance, settles once and refunds pending bets
+00:42 +70: F:/Project/Personal work/Personal-workbench/test/game_service_test.dart: daily bet limit uses the supplied logical day
+00:42 +71: loading F:/Project/Personal work/Personal-workbench/test/game_ui_test.dart
+00:43 +71: F:/Project/Personal work/Personal-workbench/test/game_ui_test.dart: empty today has no fabricated completion percentage
+00:45 +72: F:/Project/Personal work/Personal-workbench/test/game_ui_test.dart: protocol page exposes simple and advanced tab sets
+00:46 +73: F:/Project/Personal work/Personal-workbench/test/game_ui_test.dart: growth page checkin pays once without pet controls
+00:46 +74: F:/Project/Personal work/Personal-workbench/test/game_ui_test.dart: growth without local incentives keeps facts: desktop day
+00:46 +75: F:/Project/Personal work/Personal-workbench/test/game_ui_test.dart: growth without local incentives keeps facts: mobile night
+00:47 +76: F:/Project/Personal work/Personal-workbench/test/game_ui_test.dart: empty growth ledger opens a dated task from its main action
+00:47 +77: F:/Project/Personal work/Personal-workbench/test/game_ui_test.dart: mobile today has no pet panel or duplicate page header
+00:47 +78: loading F:/Project/Personal work/Personal-workbench/test/growth_service_test.dart
+00:48 +78: F:/Project/Personal work/Personal-workbench/test/growth_service_test.dart: logical day changes at 04:00
+00:48 +79: F:/Project/Personal work/Personal-workbench/test/growth_service_test.dart: xp thresholds and append-only reversals produce stable levels
+00:48 +80: F:/Project/Personal work/Personal-workbench/test/growth_service_test.dart: very large xp totals use bounded level calculation
+00:48 +81: F:/Project/Personal work/Personal-workbench/test/growth_service_test.dart: fourteen closed days unlock one recovery and expose the nearest gap
+00:48 +82: loading F:/Project/Personal work/Personal-workbench/test/habit_month_strip_test.dart
+00:49 +82: F:/Project/Personal work/Personal-workbench/test/habit_month_strip_test.dart: habit month stays readable and scrollable at 320dp
+00:51 +83: F:/Project/Personal work/Personal-workbench/test/habit_month_strip_test.dart: habit month stays readable and scrollable at 390dp
+00:51 +84: loading F:/Project/Personal work/Personal-workbench/test/illustration_asset_test.dart
+00:52 +84: F:/Project/Personal work/Personal-workbench/test/illustration_asset_test.dart: all day and night illustrations decode at production resolution
+00:52 +85: loading F:/Project/Personal work/Personal-workbench/test/mobile_fab_clearance_regression_test.dart
+00:53 +85: F:/Project/Personal work/Personal-workbench/test/mobile_fab_clearance_regression_test.dart: quick capture keeps save above the keyboard without losing input
+00:56 +86: F:/Project/Personal work/Personal-workbench/test/mobile_fab_clearance_regression_test.dart: daily review reminder switch stays clear of quick capture FAB
+00:57 +87: F:/Project/Personal work/Personal-workbench/test/mobile_fab_clearance_regression_test.dart: daily review editor and preview controls stay clear of quick capture FAB
+00:58 +88: loading F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart
+00:59 +88: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: (setUpAll)
+00:59 +88: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: task hierarchy supports nesting, filtering, missing parents and cycles
+00:59 +89: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: task group dialog owns controllers and rejects empty title
+01:00 +90: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: task group dialog prevents duplicate save while database is pending
+01:01 +91: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: period review rejects a future period and habit uses logical day
+01:01 +92: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: habit check-in switches logical day exactly at 04:00
+01:01 +93: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: relation picker applies only on complete and restores focus
+01:01 +94: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: review library opens a preview before current-period editing
+01:02 +95: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: review facts keep symmetric metric insets on compact widths
+01:02 +96: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: failed RSIP check-in is visibly locked
+01:02 +97: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: task row keeps all metadata visible in a narrow column
+01:02 +98: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: task row keeps schedule metadata on one line at desktop width
+01:03 +99: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: collapsed parent hides children and aligns branch marker
+01:03 +100: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: task group primary project persists without changing members
+01:03 +101: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: project overview shows legacy group inference and single-open panels
+01:03 +102: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: project review row opens its own period and record
+01:04 +103: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: review guards unsaved text before moving to another period
+01:04 +104: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: time ruler follows the natural day and injected clock
+01:05 +105: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: time ruler resets at local midnight
+01:05 +106: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: time ruler uses compact labels on dense landscape widths
+01:05 +107: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: habit and growth matrices cover every day of the month
+01:06 +108: F:/Project/Personal work/Personal-workbench/test/optimization_regression_test.dart: (tearDownAll)
+01:06 +108: loading F:/Project/Personal work/Personal-workbench/test/page_smoke_test.dart
+01:07 +108: F:/Project/Personal work/Personal-workbench/test/page_smoke_test.dart: record pages keep reading and period controls usable at 320dp and 200% text
+01:11 +109: F:/Project/Personal work/Personal-workbench/test/page_smoke_test.dart: core pages render populated desktop states
+01:14 +110: F:/Project/Personal work/Personal-workbench/test/page_smoke_test.dart: search and quick capture cover empty, error, and success states
+01:14 +111: F:/Project/Personal work/Personal-workbench/test/page_smoke_test.dart: compact pages and capture sheet avoid layout exceptions
+01:15 +112: F:/Project/Personal work/Personal-workbench/test/page_smoke_test.dart: desktop navigation stays reachable at minimum desktop height
+01:15 +113: F:/Project/Personal work/Personal-workbench/test/page_smoke_test.dart: Ctrl+K opens global search from the workbench shell
+01:15 +114: loading F:/Project/Personal work/Personal-workbench/test/plan_filter_test.dart
+01:16 +114: F:/Project/Personal work/Personal-workbench/test/plan_filter_test.dart: desktop filters status and dates, resets empty result, sorts
+01:20 +115: F:/Project/Personal work/Personal-workbench/test/plan_filter_test.dart: mobile filter panel collapses and selection remains available
+01:21 +116: F:/Project/Personal work/Personal-workbench/test/plan_filter_test.dart: expanded filters remain scrollable at 320 with 200% text
+01:21 +117: loading F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart
+01:22 +117: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: (setUpAll)
+01:22 +117: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: RSIP page creates a complete typed node
+01:25 +118: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: violation previews group collapse and archives to library
+01:26 +119: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: narrow RSIP page keeps actions and tabs usable
+01:26 +120: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: policy group chip keeps marker and label on one baseline
+01:26 +121: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: library groups in-use and archived rules and filters them
+01:26 +122: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: run timeline expands to settlement evidence
+01:27 +123: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: analysis plots real settlements and explains no sample
+01:27 +124: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: library stays usable at 320dp and 200 percent text
+01:27 +125: F:/Project/Personal work/Personal-workbench/test/policies_page_test.dart: (tearDownAll)
+01:27 +125: loading F:/Project/Personal work/Personal-workbench/test/protocol_test.dart
+01:28 +125: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: (setUpAll)
+01:28 +125: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: CTDP completion creates a node and failure resets the main chain
+01:28 +126: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: quick capture creates a standard inbox task
+01:28 +127: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: CTDP reservation, precedent, explicit failure, and timeout form a loop
+01:28 +128: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: recurring CTDP tasks carry the completed chain into the next node
+01:29 +129: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: RSIP skip is auditable and does not collapse the subtree
+01:29 +130: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: RSIP daily admission and idempotent settlements preserve history
+01:29 +131: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: automatic settlement resets expired CTDP reservations
+01:29 +132: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: structured precedents enforce scope and keep usage records
+01:29 +133: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: CTDP group completes only after every child finishes in its window
+01:29 +134: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: RSIP timer, watertight freeze, and daily victory settle end to end
+01:29 +135: F:/Project/Personal work/Personal-workbench/test/protocol_test.dart: (tearDownAll)
+01:29 +135: loading F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart
+01:30 +135: F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart: new task editor starts with an empty estimate
+01:31 +136: F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart: editor keeps input and recovers after a save failure
+Failed to save task: Exception: disk full
+#0      _MemoryAppDatabase.saveRecord (file:///F:/Project/Personal%20work/Personal-workbench/test/protocol_ui_flow_test.dart:30:20)
+#1      WorkbenchController.addRecord (package:personal_workbench/state/workbench_controller.dart:1404:22)
+#2      _RecordEditorDialogState._save (package:personal_workbench/ui/widgets/record_editor_dialog.dart:1283:33)
+#3      _InkResponseState.handleTap (package:flutter/src/material/ink_well.dart:1224:21)
+#4      GestureRecognizer.invokeCallback (package:flutter/src/gestures/recognizer.dart:362:24)
+#5      TapGestureRecognizer.handleTapUp (package:flutter/src/gestures/tap.dart:758:11)
+#6      BaseTapGestureRecognizer._checkUp (package:flutter/src/gestures/tap.dart:383:5)
+#7      BaseTapGestureRecognizer.handlePrimaryPointer (package:flutter/src/gestures/tap.dart:314:7)
+#8      PrimaryPointerGestureRecognizer.handleEvent (package:flutter/src/gestures/recognizer.dart:738:9)
+#9      PointerRouter._dispatch (package:flutter/src/gestures/pointer_router.dart:97:12)
+#10     PointerRouter._dispatchEventToRoutes.<anonymous closure> (package:flutter/src/gestures/pointer_router.dart:140:9)
+#11     _LinkedHashMapMixin.forEach (dart:_compact_hash:721:13)
+#12     PointerRouter._dispatchEventToRoutes (package:flutter/src/gestures/pointer_router.dart:138:18)
+#13     PointerRouter.route (package:flutter/src/gestures/pointer_router.dart:128:7)
+#14     GestureBinding.handleEvent (package:flutter/src/gestures/binding.dart:538:19)
+#15     GestureBinding.dispatchEvent (package:flutter/src/gestures/binding.dart:508:22)
+#16     RendererBinding.dispatchEvent (package:flutter/src/rendering/binding.dart:473:11)
+#17     GestureBinding._handlePointerEventImmediately (package:flutter/src/gestures/binding.dart:447:7)
+#18     GestureBinding.handlePointerEvent (package:flutter/src/gestures/binding.dart:404:5)
+#19     TestWidgetsFlutterBinding.handlePointerEventForSource.<anonymous closure> (package:flutter_test/src/binding.dart:1571:42)
+#20     TestWidgetsFlutterBinding.withPointerEventSource (package:flutter_test/src/binding.dart:1581:11)
+#21     TestWidgetsFlutterBinding.handlePointerEventForSource (package:flutter_test/src/binding.dart:1571:5)
+#22     WidgetTester.sendEventToBinding.<anonymous closure> (package:flutter_test/src/widget_tester.dart:869:15)
+#23     _rootRun (dart:async/zone_root.dart:35:13)
+#24     _CustomZone.run (dart:async/zone.dart:810:35)
+#25     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#26     WidgetTester.sendEventToBinding (package:flutter_test/src/widget_tester.dart:868:27)
+#27     TestGesture.up.<anonymous closure> (package:flutter_test/src/test_pointer.dart:587:26)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:810:35)
+#30     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#31     TestGesture.up (package:flutter_test/src/test_pointer.dart:580:27)
+#32     WidgetController.tapAt.<anonymous closure> (package:flutter_test/src/controller.dart:1155:21)
+<asynchronous suspension>
+#33     TestAsyncUtils.guard.<anonymous closure> (package:flutter_test/src/test_async_utils.dart:130:27)
+<asynchronous suspension>
+#34     main.<anonymous closure> (file:///F:/Project/Personal%20work/Personal-workbench/test/protocol_ui_flow_test.dart:168:5)
+<asynchronous suspension>
+#35     testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#36     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+#37     StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+
+01:31 +137: F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart: task editor creates a CTDP task with protocol fields
+01:32 +138: F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart: mobile task editor is fullscreen and validates inline
+01:32 +139: F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart: habit editor creates a RSIP tree and enforces the daily node limit
+01:34 +140: F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart: CTDP task menu completes the reservation and failure loop
+01:35 +141: F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart: RSIP habit menu extinguishes and reactivates a branch
+01:36 +142: F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart: protocol workbench exposes CTDP, RSIP, rules, and analytics
+01:36 +143: F:/Project/Personal work/Personal-workbench/test/protocol_ui_flow_test.dart: protocol workbench keeps the mobile first viewport usable
+01:37 +144: loading F:/Project/Personal work/Personal-workbench/test/recurrence_test.dart
+01:37 +144: F:/Project/Personal work/Personal-workbench/test/recurrence_test.dart: monthly recurrence clamps to the last valid day
+01:37 +145: F:/Project/Personal work/Personal-workbench/test/recurrence_test.dart: weekday recurrence skips a weekend
+01:38 +146: loading F:/Project/Personal work/Personal-workbench/test/release_android_configuration_test.dart
+01:38 +146: F:/Project/Personal work/Personal-workbench/test/release_android_configuration_test.dart: Android release keeps notification Gson metadata and icon resource
+01:38 +147: loading F:/Project/Personal work/Personal-workbench/test/reliability_regression_test.dart
+01:39 +147: F:/Project/Personal work/Personal-workbench/test/reliability_regression_test.dart: initialization failures leave a retryable error state
+01:39 +148: F:/Project/Personal work/Personal-workbench/test/reliability_regression_test.dart: stable notification IDs keep a known value and valid range
+01:39 +149: F:/Project/Personal work/Personal-workbench/test/reliability_regression_test.dart: text import stores only the source file name
+01:39 +150: F:/Project/Personal work/Personal-workbench/test/reliability_regression_test.dart: oversized imports are rejected before parsing
+01:39 +151: F:/Project/Personal work/Personal-workbench/test/reliability_regression_test.dart: imports reject excessive JSON record counts before writes
+01:39 +152: F:/Project/Personal work/Personal-workbench/test/reliability_regression_test.dart: oversized backups are rejected before file contents are read
+01:39 +153: F:/Project/Personal work/Personal-workbench/test/reliability_regression_test.dart: backup restore keeps restored records clean in memory and storage
+01:39 +154: F:/Project/Personal work/Personal-workbench/test/reliability_regression_test.dart: desktop notification and haptic APIs fail closed without platform plugins
+01:39 +155: loading F:/Project/Personal work/Personal-workbench/test/restriction_defaults_test.dart
+01:40 +155: F:/Project/Personal work/Personal-workbench/test/restriction_defaults_test.dart: defaults mirror the sanitized SelfControl rule baseline
+01:40 +156: F:/Project/Personal work/Personal-workbench/test/restriction_defaults_test.dart: mergeMissing preserves user settings and is idempotent
+01:40 +157: loading F:/Project/Personal work/Personal-workbench/test/restriction_monitor_test.dart
+01:41 +157: F:/Project/Personal work/Personal-workbench/test/restriction_monitor_test.dart: strong protection keeps the active snapshot across remote weakening
+01:41 +158: F:/Project/Personal work/Personal-workbench/test/restriction_monitor_test.dart: website changes refresh hosts while a normal profile is active
+01:41 +159: loading F:/Project/Personal work/Personal-workbench/test/restriction_page_test.dart
+01:42 +159: F:/Project/Personal work/Personal-workbench/test/restriction_page_test.dart: restriction section renders compact guidance
+01:43 +160: F:/Project/Personal work/Personal-workbench/test/restriction_page_test.dart: focus hub is a dedicated focus page
+01:44 +161: F:/Project/Personal work/Personal-workbench/test/restriction_page_test.dart: compact focus hub only exposes focus actions
+01:44 +162: F:/Project/Personal work/Personal-workbench/test/restriction_page_test.dart: restriction page is reachable as a standalone page
+01:44 +163: F:/Project/Personal work/Personal-workbench/test/restriction_page_test.dart: populated restriction page remains readable on compact width
+01:44 +164: F:/Project/Personal work/Personal-workbench/test/restriction_page_test.dart: restriction editor reflows dense controls on compact width
+01:45 +165: loading F:/Project/Personal work/Personal-workbench/test/restriction_policy_test.dart
+01:46 +165: F:/Project/Personal work/Personal-workbench/test/restriction_policy_test.dart: cross-midnight rule remains active on the following day
+01:46 +166: F:/Project/Personal work/Personal-workbench/test/restriction_policy_test.dart: next transition reports active rule end and future start
+01:46 +167: F:/Project/Personal work/Personal-workbench/test/restriction_policy_test.dart: blacklist and whitelist evaluations preserve action semantics
+01:46 +168: F:/Project/Personal work/Personal-workbench/test/restriction_policy_test.dart: title keyword detection only warns and system processes are exempt
+01:46 +169: F:/Project/Personal work/Personal-workbench/test/restriction_policy_test.dart: weakening a protected profile is detected
+01:46 +170: F:/Project/Personal work/Personal-workbench/test/restriction_policy_test.dart: title and per-app action overrides are preserved
+01:46 +171: loading F:/Project/Personal work/Personal-workbench/test/restriction_security_test.dart
+01:46 +171: F:/Project/Personal work/Personal-workbench/test/restriction_security_test.dart: password hashing verifies without storing clear text
+01:52 +172: F:/Project/Personal work/Personal-workbench/test/restriction_security_test.dart: emergency code is one-time and expires
+01:52 +173: F:/Project/Personal work/Personal-workbench/test/restriction_security_test.dart: short protection password is rejected
+01:52 +174: loading F:/Project/Personal work/Personal-workbench/test/review_behavior_merge_test.dart
+01:53 +174: F:/Project/Personal work/Personal-workbench/test/review_behavior_merge_test.dart: (setUpAll)
+01:53 +174: F:/Project/Personal work/Personal-workbench/test/review_behavior_merge_test.dart: behavior center separates ordinary habits from RSIP habits
+01:55 +175: F:/Project/Personal work/Personal-workbench/test/review_behavior_merge_test.dart: (tearDownAll)
+01:55 +175: loading F:/Project/Personal work/Personal-workbench/test/search_service_test.dart
+01:57 +175: F:/Project/Personal work/Personal-workbench/test/search_service_test.dart: global search covers title, body and tags
+01:57 +176: F:/Project/Personal work/Personal-workbench/test/search_service_test.dart: search index refreshes when a record changes
+01:57 +177: F:/Project/Personal work/Personal-workbench/test/search_service_test.dart: multi-term ranking considers every term in the title
+01:57 +178: loading F:/Project/Personal work/Personal-workbench/test/self_control_importer_test.dart
+01:58 +178: F:/Project/Personal work/Personal-workbench/test/self_control_importer_test.dart: preview maps rules, events, habits, focus and archive
+01:58 +179: F:/Project/Personal work/Personal-workbench/test/self_control_importer_test.dart: repeated previews generate stable record identifiers
+01:58 +180: loading F:/Project/Personal work/Personal-workbench/test/solid_panel_test.dart
+02:03 +180: F:/Project/Personal work/Personal-workbench/test/solid_panel_test.dart: solid panel never applies backdrop blur
+02:05 +181: F:/Project/Personal work/Personal-workbench/test/solid_panel_test.dart: log surface stays solid and never applies backdrop blur
+02:05 +182: F:/Project/Personal work/Personal-workbench/test/solid_panel_test.dart: solid panel paints list ink above its opaque background
+02:05 +183: F:/Project/Personal work/Personal-workbench/test/solid_panel_test.dart: elevated panel uses raised shadow depth
+02:05 +184: F:/Project/Personal work/Personal-workbench/test/solid_panel_test.dart: selected panel draws 3px primary accent bar
+02:06 +185: F:/Project/Personal work/Personal-workbench/test/solid_panel_test.dart: workbench dialog uses solid raised surface
+02:06 +186: F:/Project/Personal work/Personal-workbench/test/solid_panel_test.dart: log rail exposes structural status beyond color
+02:06 +187: loading F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart
+02:09 +187: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: sync downloads every remote page
+02:09 +188: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: newer remote edit preserves a conflict copy for every record kind
+02:09 +189: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: newer remote tombstone is not overwritten by a stale dirty snapshot
+02:09 +190: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: network failures become retryable sync errors without cleaning data
+02:09 +191: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: successful upload marks only the uploaded version clean
+02:09 +192: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: syncing as another account never uploads or exposes prior account rows
+02:09 +193: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: remote fetch never overwrites an edit made while sync is in flight
+02:09 +194: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: account switch during fetch cannot write one account response to another partition
+02:09 +195: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: deleteRecords removes the matching remote keys
+02:09 +196: F:/Project/Personal work/Personal-workbench/test/supabase_sync_service_test.dart: deleteRecords reports remote failures
+02:09 +197: loading F:/Project/Personal work/Personal-workbench/test/task_completion_pulse_test.dart
+02:10 +197: F:/Project/Personal work/Personal-workbench/test/task_completion_pulse_test.dart: completion plays a one-shot log node pulse
+02:11 +198: F:/Project/Personal work/Personal-workbench/test/task_completion_pulse_test.dart: reduced motion skips the pulse entirely
+02:12 +199: loading F:/Project/Personal work/Personal-workbench/test/theme_accessibility_test.dart
+02:12 +199: F:/Project/Personal work/Personal-workbench/test/theme_accessibility_test.dart: light and dark theme text pairs meet WCAG AA contrast
+02:12 +200: F:/Project/Personal work/Personal-workbench/test/theme_accessibility_test.dart: day and night identities expose distinct semantic surfaces
+02:12 +201: F:/Project/Personal work/Personal-workbench/test/theme_accessibility_test.dart: theme extension interpolates newly added visual roles
+02:12 +202: F:/Project/Personal work/Personal-workbench/test/theme_accessibility_test.dart: Android button themes provide 48dp touch targets
+02:12 +203: F:/Project/Personal work/Personal-workbench/test/theme_accessibility_test.dart: button themes expose hover focus pressed and disabled states
+02:12 +204: F:/Project/Personal work/Personal-workbench/test/theme_accessibility_test.dart: panel edges are clearer than decorative dividers
+02:12 +205: F:/Project/Personal work/Personal-workbench/test/theme_accessibility_test.dart: forms and actions expose semantic error and keyboard focus borders
+02:12 +206: loading F:/Project/Personal work/Personal-workbench/test/typography_test.dart
+02:13 +206: F:/Project/Personal work/Personal-workbench/test/typography_test.dart: Android uses bundled logbook fonts with stable metrics
+02:13 +207: F:/Project/Personal work/Personal-workbench/test/typography_test.dart: theme display treatment changes without changing reading font
+02:13 +208: F:/Project/Personal work/Personal-workbench/test/typography_test.dart: all three font roles load from bundled offline assets
+02:14 +209: F:/Project/Personal work/Personal-workbench/test/typography_test.dart: numeric text uses the bundled monospaced role
+02:15 +210: loading F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart
+02:16 +210: F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart: (setUpAll)
+02:16 +210: F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart: captures the remaining UI audit surfaces
+02:25 +211: F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart: reduced-motion skeletons can unmount repeatedly
+02:25 +212: F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart: all mapped surfaces survive the complete layout matrix
+03:12 +213: F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart: all mapped surfaces expose hover press and keyboard focus at minimum normal and large sizes
+03:19 +214: F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart: all mapped surfaces open every popup and dropdown at minimum normal and large sizes
+03:30 +215: F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart: shared dialogs survive open focus and escape across the window matrix
+03:33 +216: F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart: focus preset dialog supports keyboard focus and dropdowns at minimum width
+03:33 +217: F:/Project/Personal work/Personal-workbench/test/ui_audit_screenshot_test.dart: (tearDownAll)
+03:33 +217: loading F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart
+03:35 +217: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: attachment picker cancellation restores keyboard focus
+03:36 +218: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: desktop task list supports explicit, range and all selection (variant: TargetPlatform.windows)
+03:38 +219: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: task list scrolls 1000 records without layout failures
+1000-record task list render+scroll: 0:00:02.516066
+03:44 +220: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: Android inbox exits selection on back and can undo batch trash (variant: TargetPlatform.android)
+03:44 +221: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: trash supports mixed selection and two-step clear
+03:45 +222: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: today exposes one next action for all seven states
+03:46 +223: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: shell keeps desktop navigation and four mobile destinations
+03:48 +224: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: compact shell fits a short Android viewport
+03:48 +225: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: mobile tab bars support keyboard navigation without clipping
+03:49 +226: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: phone landscape keeps the mobile navigation
+03:49 +227: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: task editor progressively reveals optional fields
+03:49 +228: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: settings covers theme, alias, permission, backup and trash flows
+03:51 +229: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: theme cards fit a narrow screen at 200% text scale
+03:51 +230: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: theme switch keeps the current settings position and draft
+03:51 +231: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: failed theme save restores selection and explains retry
+03:52 +232: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: settings reports denied notification permission
+03:52 +233: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: settings covers desktop notifications and export failure (variant: TargetPlatform.windows)
+03:52 +234: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: today covers start, replacement, habit, scheduling and close flows
+03:53 +235: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: calendar covers week navigation, desktop create/edit/delete and mobile state
+03:53 +236: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: focus completion accepts empty optional evidence without lifecycle errors
+03:54 +237: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: CTDP focus completion requires evidence before settlement
+03:54 +238: F:/Project/Personal work/Personal-workbench/test/ui_coverage_regression_test.dart: focus covers completion evidence and CTDP interruption choices
+03:55 +239: loading F:/Project/Personal work/Personal-workbench/test/unsaved_editor_test.dart
+03:56 +239: F:/Project/Personal work/Personal-workbench/test/unsaved_editor_test.dart: capture protects input on cancel and Escape
+03:58 +240: F:/Project/Personal work/Personal-workbench/test/unsaved_editor_test.dart: record protects input on cancel and Escape
+03:58 +241: F:/Project/Personal work/Personal-workbench/test/unsaved_editor_test.dart: markdown protects input on cancel and Escape
+03:59 +242: F:/Project/Personal work/Personal-workbench/test/unsaved_editor_test.dart: task-group protects input on cancel and Escape
+03:59 +243: loading F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart
+04:00 +243: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: (setUpAll)
+04:02 +243: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: visual fixture stays isolated and deterministic
+04:02 +244: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: 节点类型 8 色各自独立
+04:02 +245: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Wide today light
+04:04 +246: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Wide today dark
+04:04 +247: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Wide workweek conflict
+04:05 +248: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Android today
+04:05 +249: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Android capture sheet
+04:06 +250: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Android growth
+04:06 +251: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Wide behavior habits
+04:07 +252: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Android behavior policies
+04:07 +253: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Wide protocols light
+04:07 +254: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Wide shell today light
+04:08 +255: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Wide shell today dark
+04:08 +256: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Wide shell unstarted today light
+04:08 +257: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: Wide shell empty today light
+04:08 +258: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: documentation CTDP task editor
+04:09 +259: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: documentation RSIP habit editor
+04:09 +260: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: documentation projects page
+04:10 +261: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: documentation focus page
+04:10 +262: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: documentation focus restriction tab
+04:10 +263: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: documentation notes page
+04:11 +264: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: documentation review page
+04:11 +265: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: documentation policies tree
+04:11 +266: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: documentation policies analytics
+04:11 +267: F:/Project/Personal work/Personal-workbench/test/visual_golden_test.dart: (tearDownAll)
+04:11 +267: loading F:/Project/Personal work/Personal-workbench/test/widget_test.dart
+04:12 +267: F:/Project/Personal work/Personal-workbench/test/widget_test.dart: workspace records round-trip through JSON
+04:12 +268: F:/Project/Personal work/Personal-workbench/test/widget_test.dart: application preserves text scaling through 200 percent
+04:12 +269: loading F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart
+04:13 +269: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: (setUpAll)
+04:13 +269: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: sync activation reloads only the selected account into controller state
+04:14 +270: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: fresh database seeds disabled restriction defaults
+04:14 +271: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: Android fresh database enables advanced workflow by default
+04:14 +272: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine legacy Android RSIP records are normalized on write
+04:14 +273: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine strict split batch counts as one daily addition
+04:14 +274: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine group tolerance archives subtree then collapses whole group
+04:14 +275: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine 21 consecutive executions reach E2 and reinforcement absorbs violation
+04:14 +276: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine daily settlement is idempotent and correction keeps an audit event
+04:14 +277: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine RSIP settlement changes logical day at the 4 AM boundary
+04:14 +278: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine task completion automatically settles linked RSIP once per day
+04:14 +279: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine library restore starts a new run and resets group tolerance
+04:14 +280: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine RSIP to task confirmation action is persisted and deduplicated
+04:14 +281: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: RSIP v3 state machine strict mode switch requires daily settlement and records history
+04:14 +282: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: failed migration surfaces a clear error
+04:14 +283: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: failed task settlement requires a reason
+04:14 +284: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: rescheduling preserves the old instance and creates a linked one
+04:14 +285: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: existing installation does not enable game features implicitly
+04:14 +286: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: existing installation game prompt is only offered once
+04:14 +287: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: legacy protocol data enables advanced mode without data loss
+04:14 +288: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: startToday enforces 1-3 unique unfinished commitments
+04:14 +289: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: startToday accepts one commitment
+04:14 +290: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: startToday can be undone before progress and restores focus
+04:14 +291: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: startToday cannot be undone after a commitment is completed
+04:14 +292: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: completed commitments cannot be replaced
+04:14 +293: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: closeToday requires and applies incomplete task dispositions
+04:14 +294: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: closed task correction keeps frozen snapshot and records audit
+04:14 +295: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: suggestedTodayTasks picks the highest priority unfinished three
+04:14 +296: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: today commitments can be adjusted before focus evidence
+04:14 +297: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: quickCapture accepts scheduling and project context
+04:14 +298: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: quickCapture appends to the existing diary for the logical day
+04:14 +299: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: logical day boundary switches at the configured hour
+04:14 +300: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: one-time task defaults to logical-day end while explicit due wins
+04:14 +301: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: recurrence generation clamps month end and is idempotent
+04:14 +302: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: sequential group locks successors until skip and continue
+04:14 +303: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: sequential group reorder is versioned and cannot cross started task
+04:14 +304: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: task keeps one primary project and related projects
+04:14 +305: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: period review updates one primary record and keeps versions
+04:14 +306: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: daily review reads newest diary draft and preserves legacy record
+04:14 +307: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: period review snapshot changes only after explicit refresh
+04:14 +308: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: review snapshot includes focus and overdue draft can be skipped
+04:14 +309: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: recurring task scope updates future but preserves settled history
+04:14 +310: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: scheduled focus requires confirmation and resolves conflicts
+04:14 +311: F:/Project/Personal work/Personal-workbench/test/workbench_controller_test.dart: (tearDownAll)
+04:14 +311: loading F:/Project/Personal work/Personal-workbench/test/workspace_migration_test.dart
+04:15 +311: F:/Project/Personal work/Personal-workbench/test/workspace_migration_test.dart: (setUpAll)
+04:15 +311: F:/Project/Personal work/Personal-workbench/test/workspace_migration_test.dart: v2 domain migration preserves sources and reconnects projects
+04:15 +312: F:/Project/Personal work/Personal-workbench/test/workspace_migration_test.dart: v3 migration normalizes RSIP, focus, and legacy reviews once
+04:15 +313: F:/Project/Personal work/Personal-workbench/test/workspace_migration_test.dart: (tearDownAll)
+04:15 +313: All tests passed!

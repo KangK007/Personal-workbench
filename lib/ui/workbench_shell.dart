@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 
@@ -121,10 +122,13 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   PolicyTab behaviorPolicyTab = PolicyTab.tree;
   ProtocolTab protocolTab = ProtocolTab.execution;
   String? selectedProjectId;
+  WorkbenchSection? _projectReviewDestination;
+  WorkspaceRecord? _projectReviewPreview;
+  int _projectReviewRequestSerial = 0;
   HotKey? captureHotKey;
   final Set<WorkbenchSection> _visitedSections = {WorkbenchSection.today};
+  final _pageStackKey = GlobalKey(debugLabel: 'workbench-pages');
   final List<WorkbenchSection> _mobileHistory = [];
-  WorkbenchSection _lastMobilePrimary = WorkbenchSection.today;
   final Map<WorkbenchSection, WorkbenchSection> _lastMobileChild = {
     WorkbenchSection.tasksAll: WorkbenchSection.tasksAll,
     WorkbenchSection.protocols: WorkbenchSection.protocols,
@@ -232,12 +236,17 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
 
   bool _isCompactLayout(Size size) =>
       size.width < AppBreakpoints.compact ||
-      size.height < AppBreakpoints.compactHeight;
+      (defaultTargetPlatform == TargetPlatform.android &&
+          size.height < AppBreakpoints.compactHeight);
 
   bool _popMobileHistory() {
     if (_mobileHistory.isEmpty) return false;
     final previous = _mobileHistory.removeLast();
     setState(() {
+      if (_projectReviewDestination != previous) {
+        _projectReviewDestination = null;
+        _projectReviewPreview = null;
+      }
       section = previous;
       _visitedSections.add(previous);
     });
@@ -258,26 +267,38 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                     ? Duration.zero
                     : const Duration(milliseconds: 300),
                 curve: Curves.easeOut,
-                child: _DesktopNavigation(
-                  selected: section,
-                  collapsed: collapsed,
-                  controller: widget.controller,
-                  onSelected: _select,
-                  onCapture: _shouldShowPersistentAdd ? _openCapture : null,
-                  onSearch: () => showGlobalSearch(
-                    context,
-                    widget.controller,
-                    initialKind: section == WorkbenchSection.notes
-                        ? RecordKind.note
-                        : null,
+                // Keep expanded labels at their final width while the outer
+                // rail animates; laying them out in the intermediate 80px
+                // width would overflow ListTile during window expansion.
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: AlignmentDirectional.centerStart,
+                    minWidth: collapsed ? 80 : 236,
+                    maxWidth: collapsed ? 80 : 236,
+                    child: _DesktopNavigation(
+                      selected: section,
+                      collapsed: collapsed,
+                      controller: widget.controller,
+                      onSelected: _select,
+                      onCapture: _shouldShowPersistentAdd ? _openCapture : null,
+                      onSearch: () => showGlobalSearch(
+                        context,
+                        widget.controller,
+                        initialKind: section == WorkbenchSection.notes
+                            ? RecordKind.note
+                            : null,
+                      ),
+                      allowCollapseToggle: !compactNavigation,
+                      onToggleCollapsed: () =>
+                          widget.controller.setNavigationCollapsed(!collapsed),
+                    ),
                   ),
-                  allowCollapseToggle: !compactNavigation,
-                  onToggleCollapsed: () =>
-                      widget.controller.setNavigationCollapsed(!collapsed),
                 ),
               ),
               const VerticalDivider(),
-              Expanded(child: SafeArea(child: _pageStack())),
+              Expanded(
+                child: SafeArea(child: WorkbenchViewport(child: _pageStack())),
+              ),
             ],
           ),
         ],
@@ -315,14 +336,18 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   Widget _mobileLayout() {
-    final primary = _mobilePrimaryFor(section) ?? _lastMobilePrimary;
-    final index = _mobilePrimarySections.indexOf(primary);
-    // 项目详情页等可通过顶部「导航」进入，但它们不是底部导航项；
-    // NavigationBar 需要一个有效索引，故回落到 0 并由横幅说明当前页面。
-    final isSecondaryDestination = index < 0;
-    // NavigationBar requires a valid index. A compact page banner makes the
-    // fallback explicit so a secondary page is never mistaken for 今日.
-    final navigationIndex = isSecondaryDestination ? 0 : index;
+    final windowSize = MediaQuery.sizeOf(context);
+    final useToolbarAdd =
+        _shouldShowPersistentAdd &&
+        windowSize.height < AppBreakpoints.compactHeight &&
+        windowSize.width > windowSize.height;
+    final primary = _mobilePrimaryFor(section);
+    final navigationIndex = primary == null
+        ? -1
+        : _mobilePrimarySections.indexOf(primary);
+    // Secondary destinations do not belong to the four-item bottom bar. Keep
+    // every item unselected and name the current page above the bar.
+    final isSecondaryDestination = navigationIndex < 0;
     final isTodayDestination = section == WorkbenchSection.today;
     final title = switch (section) {
       WorkbenchSection.today => '今日',
@@ -411,12 +436,20 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                       ? FontWeight.w600
                       : FontWeight.w500,
                   fontSize: isTodayDestination ? 20 : null,
-                  fontFamily: AppFonts.display,
+                  fontFamily: theme.brightness == Brightness.dark
+                      ? AppFonts.body
+                      : AppFonts.display,
                 ),
               ),
             ],
           ),
           actions: [
+            if (useToolbarAdd)
+              IconButton.filledTonal(
+                onPressed: _openCapture,
+                tooltip: '快速新增',
+                icon: const Icon(Icons.add),
+              ),
             if (isTodayDestination)
               IconButton(
                 onPressed: () => _select(WorkbenchSection.reviewDaily),
@@ -446,14 +479,17 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           ],
           flexibleSpace: DecoratedBox(
             decoration: BoxDecoration(
-              color: tokens.panel,
+              color: tokens.navigation,
               border: Border(bottom: BorderSide(color: tokens.panelBorder)),
             ),
             child: const SizedBox.expand(),
           ),
         ),
-        body: SafeArea(top: false, child: _pageStack(slidable: true)),
-        floatingActionButton: _shouldShowPersistentAdd
+        body: SafeArea(
+          top: false,
+          child: WorkbenchViewport(child: _pageStack(slidable: true)),
+        ),
+        floatingActionButton: _shouldShowPersistentAdd && !useToolbarAdd
             // 方案 C：52×52、圆角 19。尺寸与圆角都由
             // floatingActionButtonTheme 下发，故此处用常规构造即可。
             ? FloatingActionButton(
@@ -534,6 +570,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     sectionIndex: WorkbenchSection.values.indexOf(section),
     slidable: slidable,
     child: IndexedStack(
+      key: _pageStackKey,
       index: WorkbenchSection.values.indexOf(section),
       children: [
         for (final value in WorkbenchSection.values)
@@ -544,8 +581,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     ),
   );
 
-  bool get _showPageHeader =>
-      MediaQuery.sizeOf(context).width >= AppBreakpoints.compact;
+  bool get _showPageHeader => !_isCompactLayout(MediaQuery.sizeOf(context));
 
   Widget _planPage(WorkbenchSection value, PlanTab tab) => PlanPage(
     key: ValueKey(value),
@@ -585,16 +621,40 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           if (selectedProjectId != id) setState(() => selectedProjectId = id);
         },
         onOpenGoals: () => _select(WorkbenchSection.goals),
-        onOpenReview: () => _select(WorkbenchSection.reviewDaily),
+        onOpenReview: _openProjectReview,
       );
 
-  Widget _reviewPage(WorkbenchSection value, ReviewTab tab) => ReviewPage(
-    key: ValueKey(value),
-    controller: widget.controller,
-    initialTab: tab,
-    showHeader: _showPageHeader,
-    showPeriodSwitcher: true,
-  );
+  void _openProjectReview(WorkspaceRecord? review) {
+    final destination = switch (review?.data['periodType']) {
+      'weekly' => WorkbenchSection.reviewWeekly,
+      'monthly' => WorkbenchSection.reviewMonthly,
+      _ => WorkbenchSection.reviewDaily,
+    };
+    _projectReviewDestination = destination;
+    _projectReviewPreview = review;
+    _projectReviewRequestSerial++;
+    _select(destination);
+  }
+
+  void _returnFromProjectReview() {
+    _projectReviewDestination = null;
+    _projectReviewPreview = null;
+    _select(WorkbenchSection.projectsOverview);
+  }
+
+  Widget _reviewPage(WorkbenchSection value, ReviewTab tab) {
+    final fromProject = _projectReviewDestination == value;
+    return ReviewPage(
+      key: ValueKey(value),
+      controller: widget.controller,
+      initialTab: tab,
+      showHeader: _showPageHeader,
+      showPeriodSwitcher: true,
+      initialPreview: fromProject ? _projectReviewPreview : null,
+      openRequestSerial: fromProject ? _projectReviewRequestSerial : 0,
+      onBackToProject: fromProject ? _returnFromProjectReview : null,
+    );
+  }
 
   Widget _policyPage(WorkbenchSection value, PolicyTab tab) => PoliciesPage(
     key: ValueKey(value),
@@ -641,14 +701,11 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       ProjectDetailTab.notes,
     ),
     WorkbenchSection.focus => _executionPage(value, ExecutionTab.focus),
-    WorkbenchSection.restriction =>
-      widget.controller.windowsActivityService.supported
-          ? RestrictionPage(
-              controller: widget.controller,
-              showHeader: _showPageHeader,
-              onOpenSettings: () => _select(WorkbenchSection.settings),
-            )
-          : const SizedBox.shrink(),
+    WorkbenchSection.restriction => RestrictionPage(
+      controller: widget.controller,
+      showHeader: _showPageHeader,
+      onOpenSettings: () => _select(WorkbenchSection.settings),
+    ),
     WorkbenchSection.notes => NotesPage(
       controller: widget.controller,
       showHeader: _showPageHeader,
@@ -677,10 +734,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   };
 
   void _select(WorkbenchSection value) {
-    if (value == WorkbenchSection.restriction &&
-        !widget.controller.windowsActivityService.supported) {
-      return;
-    }
     final requestedBehaviorMode = switch (value) {
       WorkbenchSection.habits => BehaviorMode.habits,
       WorkbenchSection.policies ||
@@ -722,19 +775,25 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     }
     final compact = _isCompactLayout(MediaQuery.sizeOf(context));
     setState(() {
+      if (_projectReviewDestination != value) {
+        _projectReviewDestination = null;
+        _projectReviewPreview = null;
+      }
       if (requestedBehaviorMode != null) {
         behaviorMode = requestedBehaviorMode;
         widget.controller.setBehaviorMode(requestedBehaviorMode.name);
       }
       if (requestedPolicyTab != null) behaviorPolicyTab = requestedPolicyTab;
-      if (compact && value != section) {
+      if (compact && value == WorkbenchSection.today) {
+        // Returning through the bottom bar restores Today's navigation menu.
+        _mobileHistory.clear();
+      } else if (compact && value != section) {
         if (_mobileHistory.isEmpty || _mobileHistory.last != section) {
           _mobileHistory.add(section);
         }
       }
       final primary = _mobilePrimaryFor(value);
       if (primary != null) {
-        _lastMobilePrimary = primary;
         if (_taskSections.contains(value) ||
             _reviewSections.contains(value) ||
             value == WorkbenchSection.focus ||
@@ -900,16 +959,8 @@ const _navigationTree = [
   ),
 ];
 
-List<_NavigationNode> _availableNavigationChildren(
-  _NavigationNode node,
-  WorkbenchController controller,
-) {
-  if (controller.windowsActivityService.supported) return node.children;
-  return [
-    for (final child in node.children)
-      if (child.section != WorkbenchSection.restriction) child,
-  ];
-}
+List<_NavigationNode> _availableNavigationChildren(_NavigationNode node) =>
+    node.children;
 
 String? _navigationParentId(WorkbenchSection value) => switch (value) {
   WorkbenchSection.tasksAll ||
@@ -955,15 +1006,15 @@ class _DesktopNavigation extends StatelessWidget {
     final expanded =
         MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
     // 侧栏是日志索引，使用稳定实色工作面保持长时间阅读清晰。
-    return ColoredBox(
-      color: context.tokens.panel,
+    return Material(
+      color: context.tokens.navigation,
       child: SafeArea(
         child: Column(
           children: [
             DecoratedBox(
               key: const ValueKey('desktop-navigation-brand'),
               decoration: BoxDecoration(
-                color: context.tokens.raised,
+                color: context.tokens.navigation,
                 border: Border(
                   bottom: BorderSide(color: context.tokens.panelBorder),
                 ),
@@ -999,7 +1050,11 @@ class _DesktopNavigation extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
                                     fontSize: expanded ? 20 : null,
-                                    fontFamily: AppFonts.display,
+                                    fontFamily:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppFonts.body
+                                        : AppFonts.display,
                                     fontWeight: FontWeight.w500,
                                   ),
                             ),
@@ -1083,32 +1138,30 @@ class _DesktopNavigation extends StatelessWidget {
             const SizedBox(height: 10),
             const Divider(),
             Expanded(
-              child: Scrollbar(
-                child: ListView(
-                  cacheExtent: 10000,
-                  padding: EdgeInsets.fromLTRB(
-                    collapsed
-                        ? 7
-                        : expanded
-                        ? 20
-                        : 10,
-                    10,
-                    collapsed
-                        ? 7
-                        : expanded
-                        ? 20
-                        : 10,
-                    12,
-                  ),
-                  children: [
-                    Column(
-                      children: [
-                        for (final node in _navigationTree)
-                          _node(context, node),
-                      ],
-                    ),
-                  ],
+              child: ListView(
+                key: const ValueKey('desktop-navigation-scroll'),
+                scrollCacheExtent: const ScrollCacheExtent.pixels(10000),
+                padding: EdgeInsets.fromLTRB(
+                  collapsed
+                      ? 7
+                      : expanded
+                      ? 20
+                      : 10,
+                  10,
+                  collapsed
+                      ? 7
+                      : expanded
+                      ? 20
+                      : 10,
+                  12,
                 ),
+                children: [
+                  Column(
+                    children: [
+                      for (final node in _navigationTree) _node(context, node),
+                    ],
+                  ),
+                ],
               ),
             ),
             const Divider(),
@@ -1205,7 +1258,7 @@ class _DesktopNavigation extends StatelessWidget {
 
   Widget _node(BuildContext context, _NavigationNode node) {
     if (node.isLeaf) return _leaf(context, node);
-    final children = _availableNavigationChildren(node, controller);
+    final children = _availableNavigationChildren(node);
     final containsSelected = children.any((child) => child.section == selected);
     // 手风琴（规范 2.2 第 1 条）：只默认展开当前域，同时最多展开一个。
     // 非当前域恒为收起——点击其标题会先进入该域（`_select` 会展开它），
@@ -1312,7 +1365,7 @@ class _DesktopNavigation extends StatelessWidget {
       context: context,
       position: const RelativeRect.fromLTRB(72, 180, 0, 0),
       items: [
-        for (final child in _availableNavigationChildren(node, controller))
+        for (final child in _availableNavigationChildren(node))
           PopupMenuItem(value: child.section, child: Text(child.label)),
       ],
     );
@@ -1357,50 +1410,57 @@ class _DesktopNavigation extends StatelessWidget {
             : Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.control),
       ),
-      child: Stack(
-        children: [
-          ListTile(
-            key: ValueKey('navigation-leaf:${value.name}'),
-            dense: true,
-            minVerticalPadding: 4,
-            visualDensity: const VisualDensity(vertical: -1),
-            contentPadding: EdgeInsets.symmetric(horizontal: nested ? 14 : 12),
-            hoverColor: theme.colorScheme.primary.withValues(alpha: 0.06),
-            focusColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-            selected: isSelected,
-            selectedColor: theme.colorScheme.onPrimaryContainer,
-            iconColor: isSelected
-                ? theme.colorScheme.onPrimaryContainer
-                : theme.colorScheme.onSurfaceVariant,
-            leading: Padding(
-              padding: EdgeInsets.only(left: nested ? 16 : 0),
-              child: Icon(node.icon, size: AppIconSize.sm),
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            ListTile(
+              key: ValueKey('navigation-leaf:${value.name}'),
+              dense: true,
+              minVerticalPadding: 4,
+              visualDensity: const VisualDensity(vertical: -1),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: nested ? 14 : 12,
+              ),
+              hoverColor: theme.colorScheme.primary.withValues(alpha: 0.06),
+              focusColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+              selected: isSelected,
+              selectedColor: theme.colorScheme.onPrimaryContainer,
+              iconColor: isSelected
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurfaceVariant,
+              leading: Padding(
+                padding: EdgeInsets.only(left: nested ? 16 : 0),
+                child: Icon(node.icon, size: AppIconSize.sm),
+              ),
+              title: Text(
+                node.label,
+                style: isSelected
+                    ? TextStyle(
+                        color: theme.colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      )
+                    : null,
+              ),
+              onTap: () => onSelected(value),
             ),
-            title: Text(
-              node.label,
-              style: isSelected
-                  ? TextStyle(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
-                    )
-                  : null,
-            ),
-            onTap: () => onSelected(value),
-          ),
-          if (isSelected)
-            PositionedDirectional(
-              start: 0,
-              top: 8,
-              bottom: 8,
-              child: Container(
-                width: 3,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  color: theme.colorScheme.primary,
+            if (isSelected)
+              PositionedDirectional(
+                start: 0,
+                top: 8,
+                bottom: 8,
+                child: Container(
+                  width: 3,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
     return Padding(
@@ -1465,7 +1525,7 @@ class _MobileNavigationGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final children = _availableNavigationChildren(node, controller);
+    final children = _availableNavigationChildren(node);
     return ExpansionTile(
       key: ValueKey('navigation-group:${node.id}'),
       initiallyExpanded: controller.navigationGroupExpanded(node.id!),

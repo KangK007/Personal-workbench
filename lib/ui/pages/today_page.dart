@@ -16,6 +16,7 @@ import '../widgets/common.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/solid_panel.dart';
+import '../widgets/workbench_illustration.dart';
 import 'focus_page.dart';
 
 class TodayPage extends StatelessWidget {
@@ -45,6 +46,7 @@ class TodayPage extends StatelessWidget {
       children: [
         if (showHeader)
           PageHeader(
+            maxWidth: AppLayout.todayMax,
             title: '今日',
             // 方案 C 的页头把日期放在标题**之上**，移动端 AppBar 即此排布
             // （规格 §20.4）。桌面原先把同一段日期放在标题**下方**，
@@ -68,7 +70,7 @@ class TodayPage extends StatelessWidget {
             ],
           ),
         if (showHeader &&
-            MediaQuery.sizeOf(context).width >= AppBreakpoints.compact)
+            WorkbenchViewport.sizeOf(context).width >= AppBreakpoints.compact)
           _TimeRuler(controller: controller),
         Expanded(
           child: _TodayContent(
@@ -320,7 +322,9 @@ class _TodayContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final commitments = controller.commitmentTasks;
-    final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
+    final pageWidth = WorkbenchViewport.sizeOf(context).width;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final wide = pageWidth >= AppLayout.todaySplitMin * textScale.clamp(1, 1.6);
     final overdue = controller.overdueTasks;
     final today = controller.todayTasks
         .where((task) => !WorkStatus.terminal.contains(task.status))
@@ -461,63 +465,61 @@ class _TodayContent extends StatelessWidget {
     ];
 
     if (wide) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 内容列限宽并居中。
-            //
-            // 实测 1536 视口下主工作区约 847px，而任务卡的可见内容只需
-            // 约 300px —— 不限宽时 65% 的卡面是空白，扫读要横穿整行。
-            // 规范 §8 要求主工作区「单列内容」有宽度上限：长文阅读列取
-            // 620（按中文 25–40 字/行推导），卡片列表取 720
-            // （见 AppSpacing.contentMax）。
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: AppSpacing.contentMax,
-                  ),
-                  child: ListView(
-                    padding: const EdgeInsets.only(bottom: 72),
-                    children: [
-                      // 概览卡是方案 C 的视觉锚点：移动端在顶层，桌面同样
-                      // 置顶。少了它，同一天在两个端上是两种观感。
-                      _TodayOverviewCard(
-                        remaining: today.length,
-                        completed: settled.where((task) => task.isDone).length,
-                        focus: controller.todayFocusDuration,
-                      ),
-                      nextStep,
-                      ...taskSections,
-                      ...timeline,
-                      ExpansionTile(
-                        tilePadding: EdgeInsets.zero,
-                        childrenPadding: EdgeInsets.zero,
-                        title: const Text('今日详情'),
-                        children: details,
-                      ),
-                    ],
-                  ),
+      final sideWidth = (pageWidth * 0.26).clamp(280.0, 360.0);
+      return WorkbenchContentFrame(
+        key: const ValueKey('today-workspace'),
+        maxWidth: AppLayout.todayMax,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The whole workspace is bounded; the main column takes the
+              // remaining width without creating a second, internal gutter.
+              Expanded(
+                child: ListView(
+                  key: const PageStorageKey('today-main-column'),
+                  padding: const EdgeInsets.only(bottom: 72),
+                  children: [
+                    _TodayScene(controller: controller, date: date),
+                    const SizedBox(height: AppSpacing.md),
+                    // 概览卡是方案 C 的视觉锚点：移动端在顶层，桌面同样
+                    // 置顶。少了它，同一天在两个端上是两种观感。
+                    _TodayOverviewCard(
+                      remaining: today.length,
+                      completed: settled.where((task) => task.isDone).length,
+                      focus: controller.todayFocusDuration,
+                    ),
+                    nextStep,
+                    ...taskSections,
+                    ...timeline,
+                    ExpansionTile(
+                      key: const PageStorageKey('today-desktop-details'),
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: EdgeInsets.zero,
+                      title: const Text('今日详情'),
+                      children: details,
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 24),
-            SizedBox(
-              width: 380,
-              child: ListView(
-                padding: const EdgeInsets.only(bottom: 80),
-                children: [
-                  ...commitmentSection,
-                  if (controller.advancedFeaturesEnabled) ...[
-                    const SectionHeading(title: '成长进度'),
-                    _CompactGrowth(controller: controller),
+              const SizedBox(width: AppLayout.columnGap),
+              SizedBox(
+                width: sideWidth,
+                child: ListView(
+                  key: const PageStorageKey('today-side-column'),
+                  padding: const EdgeInsets.only(bottom: 80),
+                  children: [
+                    ...commitmentSection,
+                    if (controller.advancedFeaturesEnabled) ...[
+                      const SectionHeading(title: '成长进度'),
+                      _CompactGrowth(controller: controller),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
@@ -527,6 +529,7 @@ class _TodayContent extends StatelessWidget {
     // 与桌面的差别不只是宽度：桌面是两栏分区，移动端是单列连续滚动，
     // 概览与习惯必须落在顶层，否则整页没有视觉锚点。
     return ListView(
+      key: const PageStorageKey('today-single-column'),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.pageCompact,
         AppSpacing.xs,
@@ -534,6 +537,8 @@ class _TodayContent extends StatelessWidget {
         AppSpacing.bottomNavClearance + MediaQuery.paddingOf(context).bottom,
       ),
       children: [
+        _TodayScene(controller: controller, date: date),
+        const SizedBox(height: AppSpacing.md),
         _TodayOverviewCard(
           remaining: today.length,
           completed: settled.where((task) => task.isDone).length,
@@ -546,6 +551,7 @@ class _TodayContent extends StatelessWidget {
         ...commitmentSection,
         ...habitSection,
         ExpansionTile(
+          key: const PageStorageKey('today-mobile-more'),
           tilePadding: EdgeInsets.zero,
           childrenPadding: EdgeInsets.zero,
           title: const Text('更多今日记录'),
@@ -554,6 +560,7 @@ class _TodayContent extends StatelessWidget {
             settledSection,
             ...timeline,
             ExpansionTile(
+              key: const PageStorageKey('today-mobile-details'),
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
               title: const Text('今日详情'),
@@ -610,7 +617,8 @@ class _TodayTaskSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1021,7 +1029,8 @@ class _ExpandableTodayTaskState extends State<_ExpandableTodayTask> {
     final theme = Theme.of(context);
     final tokens = context.tokens;
     final scheme = theme.colorScheme;
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final (statusLabel, statusIcon) = switch (task.status) {
       WorkStatus.done => ('已完成', Icons.check_circle_outline),
       WorkStatus.failed => ('失败', Icons.cancel_outlined),
@@ -1415,7 +1424,8 @@ class _NextStepPanel extends StatelessWidget {
         Icons.event_available_outlined,
       ),
     };
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.lg),
       child: SolidPanel(
@@ -1552,7 +1562,8 @@ class _TodayTaskPreview extends StatelessWidget {
     // 方案 C 只有一种列表语言：一项一张独立白卡。
     // 旧形态是「一张面板装多行 + 行间 Divider」——方案 C 通篇不使用，
     // 而它正是「今日重点」在开始今天之前的默认外观，桌面与移动端都会看到。
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final tokens = context.tokens;
     return Column(
       children: [
@@ -1602,7 +1613,8 @@ class _CommitmentLog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     // 方案 C 只有一种任务卡：白底、圆角 16、1px 描边、
     // 圆角方复选框 + pill 标签。承诺卡不再走 TaskRow——
     // 左侧索引竖条、内联五行事实、⋯ 菜单是桌面
@@ -1785,7 +1797,8 @@ class _HabitLog extends StatelessWidget {
         ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
       );
     }
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     return Column(
       children: [
         for (var index = 0; index < controller.habits.length; index++) ...[
@@ -2600,6 +2613,116 @@ class _DismissAfterState extends State<_DismissAfter> {
 // 今日概览卡（视觉锚点）、分段进度条、环形进度。
 // ═══════════════════════════════════════════════════════════════════════
 
+/// The illustrated entry is a quiet scene; all daily facts stay live Flutter
+/// text and controls, so the same composition works in both color themes.
+class _TodayScene extends StatelessWidget {
+  const _TodayScene({required this.controller, required this.date});
+
+  final WorkbenchController controller;
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 440;
+        final showArt = textScale < 1.6;
+        final artWidth = compact ? 98.0 : 178.0;
+        final state = controller.todayClosed
+            ? '今日已收尾，留下完成的证据'
+            : controller.todayStarted
+            ? '沿着重点任务，稳步推进'
+            : '先选出真正重要的下一步';
+        return Container(
+          constraints: BoxConstraints(minHeight: compact ? 112 : 154),
+          padding: EdgeInsets.fromLTRB(
+            compact ? AppSpacing.lg : AppSpacing.xl,
+            AppSpacing.lg,
+            compact ? AppSpacing.md : AppSpacing.xl,
+            AppSpacing.lg,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [tokens.heroStart, tokens.heroEnd],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(tokens.panelRadius),
+            border: Border.all(color: tokens.panelBorder),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          theme.brightness == Brightness.dark
+                              ? Icons.nights_stay_outlined
+                              : Icons.wb_sunny_outlined,
+                          size: AppIconSize.xs,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Flexible(
+                          child: Text(
+                            '今日节奏 · ${formatShortDate(date)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontFamily: AppFonts.numeric,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      state,
+                      maxLines: showArt ? (compact ? 2 : 3) : null,
+                      overflow: showArt ? TextOverflow.ellipsis : null,
+                      style:
+                          (compact
+                                  ? theme.textTheme.titleMedium
+                                  : theme.textTheme.headlineSmall)
+                              ?.copyWith(color: theme.colorScheme.onSurface),
+                    ),
+                    if (controller.todayStarted) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        '今日重点 ${controller.commitmentTasks.length} 项',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: tokens.mutedText,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (showArt) ...[
+                const SizedBox(width: AppSpacing.sm),
+                WorkbenchIllustration(
+                  kind: WorkbenchIllustrationKind.today,
+                  width: artWidth,
+                  height: compact ? 88 : 122,
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// 今日概览卡（方案 C 手机 2 的 Hero）。
 ///
 /// 左侧三行文字 + 分段进度条，右侧 64px 环形进度。
@@ -2654,7 +2777,11 @@ class _TodayOverviewCard extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        remaining == 0 ? '今日已清空' : '还剩 $remaining 件事',
+                        total == 0
+                            ? '今日尚未安排'
+                            : remaining == 0
+                            ? '今日已清空'
+                            : '还剩 $remaining 件事',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium?.copyWith(
@@ -2670,7 +2797,9 @@ class _TodayOverviewCard extends StatelessWidget {
                     // 只是没放大看过。改用 Material 图标字体里的同形四角星，
                     // 已实测 U+E0B7 存在。
                     Icon(
-                      Icons.auto_awesome,
+                      total == 0
+                          ? Icons.event_note_outlined
+                          : Icons.auto_awesome,
                       size: 13,
                       color: scheme.onPrimaryContainer,
                     ),
@@ -2690,7 +2819,7 @@ class _TodayOverviewCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          _RingProgress(ratio: ratio),
+          _RingProgress(ratio: total == 0 ? null : ratio),
         ],
       ),
     );
@@ -2741,30 +2870,36 @@ class _RingProgress extends StatelessWidget {
   /// 直径固定 64（源稿规格），环宽 7。
   static const size = 64.0;
 
-  final double ratio;
+  final double? ratio;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final percent = (ratio * 100).round();
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _RingPainter(
-          ratio: ratio.clamp(0.0, 1.0),
-          track: scheme.primaryContainer,
-          progress: scheme.primary,
-        ),
-        child: Center(
-          child: Text(
-            '$percent%',
-            style: TextStyle(
-              fontFamily: AppFonts.numeric,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: scheme.onPrimaryContainer,
-              fontFeatures: const [FontFeature.tabularFigures()],
+    final value = ratio;
+    final label = value == null ? '—' : '${(value * 100).round()}%';
+    return Semantics(
+      label: value == null ? '尚未安排任务，暂无完成进度' : '今日任务完成进度 $label',
+      container: true,
+      excludeSemantics: true,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          painter: _RingPainter(
+            ratio: (value ?? 0).clamp(0.0, 1.0),
+            track: scheme.primaryContainer,
+            progress: scheme.primary,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: AppFonts.numeric,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: scheme.onPrimaryContainer,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ),

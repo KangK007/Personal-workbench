@@ -32,6 +32,37 @@ void main() {
     expect(find.byType(BackdropFilter), findsNothing);
   });
 
+  testWidgets('solid panel paints list ink above its opaque background', (
+    tester,
+  ) async {
+    var tapped = false;
+    await tester.pumpWidget(
+      _host(
+        SizedBox(
+          width: 280,
+          child: SolidPanel(
+            child: ListTile(
+              title: const Text('可点击列表'),
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final panelMaterial = find.descendant(
+      of: find.byType(SolidPanel),
+      matching: find.byType(Material),
+    );
+    expect(panelMaterial, findsOneWidget);
+    expect(
+      tester.widget<Material>(panelMaterial).type,
+      MaterialType.transparency,
+    );
+    await tester.tap(find.text('可点击列表'));
+    expect(tapped, isTrue);
+  });
+
   testWidgets('elevated panel uses raised shadow depth', (tester) async {
     await tester.pumpWidget(
       _host(

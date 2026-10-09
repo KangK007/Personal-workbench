@@ -65,6 +65,7 @@ class GoalsPage extends StatelessWidget {
                     AppSpacing.bottomNavClearance,
                   ),
                   children: [
+                    _GoalOverviewBand(goals: goals, controller: controller),
                     SectionHeading(
                       title: '目标树',
                       scale:
@@ -92,6 +93,78 @@ class GoalsPage extends StatelessWidget {
                 ),
         ),
       ],
+    );
+  }
+}
+
+class _GoalOverviewBand extends StatelessWidget {
+  const _GoalOverviewBand({required this.goals, required this.controller});
+
+  final List<WorkspaceRecord> goals;
+  final WorkbenchController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final milestones = [
+      for (final goal in goals) ...controller.milestonesForGoal(goal.id),
+    ];
+    final completed = milestones.where((item) => item.isDone).length;
+    final active = goals.where((item) => !item.isDone).length;
+    final upcoming =
+        goals
+            .where((item) => !item.isDone && item.dueAt != null)
+            .map((item) => item.dueAt!)
+            .toList()
+          ..sort();
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    return LogSurface(
+      accent: tokens.reward,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.alt_route_outlined, color: scheme.primary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '目标路径',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              Text(
+                '$completed / ${milestones.length} 里程碑',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: tokens.mutedText),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          LinearProgressIndicator(
+            value: milestones.isEmpty ? 0 : completed / milestones.length,
+            minHeight: 6,
+            color: scheme.primary,
+            backgroundColor: tokens.orbitTrack,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.xl,
+            runSpacing: AppSpacing.sm,
+            children: [
+              Text('$active 项进行中'),
+              Text(
+                upcoming.isEmpty
+                    ? '暂无设定期限的目标'
+                    : '最近期限 ${formatShortDate(upcoming.first)}',
+              ),
+              if (milestones.isEmpty) const Text('添加里程碑后显示完成路径'),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

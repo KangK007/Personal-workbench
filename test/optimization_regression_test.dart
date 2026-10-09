@@ -565,14 +565,189 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.tap(find.text('任务群'));
-      await tester.pump();
+      final projectScroll = find
+          .descendant(
+            of: find.byType(ProjectsPage),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      final groupsTile = find.widgetWithText(ExpansionTile, '任务群');
+      await tester.scrollUntilVisible(
+        groupsTile,
+        180,
+        scrollable: projectScroll,
+      );
+      await tester.tap(groupsTile);
+      await tester.pumpAndSettle();
       expect(find.textContaining('根据成员推断'), findsOneWidget);
-      await tester.tap(find.text('任务'));
+      final groupTile = find.byKey(PageStorageKey('project-group-${group.id}'));
+      await tester.scrollUntilVisible(
+        find.text('旧任务群'),
+        120,
+        scrollable: projectScroll,
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('旧任务群'));
+      await tester.pumpAndSettle();
+      expect(groupTile, findsOneWidget);
+      await tester.tap(find.text('旧任务群'));
+      await tester.pumpAndSettle();
+      expect(find.text('项目成员'), findsOneWidget);
+      expect(find.textContaining('并行执行'), findsOneWidget);
+      final tasksTile = find.widgetWithText(ExpansionTile, '任务');
+      await tester.scrollUntilVisible(
+        tasksTile,
+        -180,
+        scrollable: projectScroll,
+      );
+      await tester.tap(tasksTile);
       await tester.pump();
       expect(find.textContaining('根据成员推断'), findsNothing);
     },
   );
+
+  testWidgets('project review row opens its own period and record', (
+    tester,
+  ) async {
+    final controller = _controller(
+      _MemoryDatabase(),
+      DateTime(2026, 8, 10, 10),
+    );
+    addTearDown(controller.dispose);
+    final project = WorkspaceRecord.create(
+      kind: RecordKind.project,
+      title: '回顾关联项目',
+    );
+    await controller.addRecord(project);
+    final review = await controller.savePeriodReview(
+      type: ReviewPeriodType.weekly,
+      periodKey: '2026-W33',
+      periodStart: DateTime(2026, 8, 10),
+      periodEnd: DateTime(2026, 8, 17),
+      title: '项目周回顾',
+      body: '已完成访谈整理',
+      relatedProjectIds: {project.id},
+    );
+    WorkspaceRecord? opened;
+    await tester.pumpWidget(
+      _host(
+        SizedBox(
+          width: 1200,
+          child: ProjectsPage(
+            controller: controller,
+            selectedProjectId: project.id,
+            onOpenReview: (record) => opened = record,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final reviewsTile = find.widgetWithText(ExpansionTile, '回顾');
+    final scrollable = find
+        .descendant(
+          of: find.byType(ProjectsPage),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(reviewsTile, 180, scrollable: scrollable);
+    await tester.tap(reviewsTile);
+    await tester.pump();
+    final reviewRow = find.widgetWithText(ListTile, review.title);
+    await tester.scrollUntilVisible(reviewRow, 200, scrollable: scrollable);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(reviewRow);
+    await tester.pumpAndSettle();
+    await tester.tap(reviewRow);
+    await tester.pump();
+    expect(opened?.id, review.id);
+    expect(review.data['periodType'], 'weekly');
+
+    var returned = false;
+    await tester.pumpWidget(
+      _host(
+        ReviewPage(
+          controller: controller,
+          initialTab: ReviewTab.weekly,
+          initialPreview: opened,
+          onBackToProject: () => returned = true,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('回顾预览'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('已完成访谈整理'),
+      120,
+      scrollable: find
+          .descendant(
+            of: find.byType(ReviewPage),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(find.text('已完成访谈整理'), findsOneWidget);
+    await tester.tap(find.text('返回项目'));
+    await tester.pump();
+    expect(returned, isTrue);
+  });
+
+  testWidgets('review guards unsaved text before moving to another period', (
+    tester,
+  ) async {
+    final controller = _controller(
+      _MemoryDatabase(),
+      DateTime(2026, 8, 10, 10),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(_host(ReviewPage(controller: controller)));
+    await tester.pump();
+    final reviewScroll = find
+        .descendant(
+          of: find.byType(ReviewPage),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('标题'),
+      180,
+      scrollable: reviewScroll,
+    );
+    await tester.enterText(find.byType(TextField).first, '未保存的标题');
+    await tester.scrollUntilVisible(
+      find.byTooltip('上一期间'),
+      -180,
+      scrollable: reviewScroll,
+    );
+    await tester.tap(find.byTooltip('上一期间'));
+    await tester.pumpAndSettle();
+    expect(find.text('保存当前回顾？'), findsOneWidget);
+    await tester.tap(find.text('继续编辑'));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text('标题'),
+      180,
+      scrollable: reviewScroll,
+    );
+    expect(find.text('未保存的标题'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byTooltip('上一期间'),
+      -180,
+      scrollable: reviewScroll,
+    );
+    await tester.tap(find.byTooltip('上一期间'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('放弃修改'));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text('标题'),
+      180,
+      scrollable: reviewScroll,
+    );
+    expect(
+      tester.widget<TextField>(find.byType(TextField).first).controller?.text,
+      isEmpty,
+    );
+  });
 
   testWidgets('time ruler follows the natural day and injected clock', (
     tester,
@@ -712,6 +887,16 @@ void main() {
         ),
       );
       await tester.pump();
+      await tester.scrollUntilVisible(
+        find.byKey(ValueKey('growth-day:${entry.$2}')),
+        220,
+        scrollable: find
+            .descendant(
+              of: find.byType(GrowthPage),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       expect(find.byKey(ValueKey('growth-day:${entry.$2}')), findsOneWidget);
       expect(find.byKey(ValueKey('growth-day:${entry.$2 + 1}')), findsNothing);
       expect(tester.takeException(), isNull);

@@ -61,7 +61,8 @@ class _GrowthHubPageState extends State<GrowthHubPage>
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final android = defaultTargetPlatform == TargetPlatform.android;
     final androidCompact = android && compact;
     final tabsVisible =

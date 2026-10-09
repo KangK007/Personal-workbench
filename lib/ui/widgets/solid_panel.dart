@@ -29,7 +29,7 @@ class SolidPanel extends StatelessWidget {
   /// 左侧强调条颜色（优先级低于 [selected]）。
   final Color? accent;
 
-  /// 圆角半径，默认 [AppRadius.panel]（20px，主要工作面）。
+  /// 圆角半径，默认取当前昼夜主题的主要工作面半径。
   final double? radius;
 
   /// 是否为浮层（对话框/弹层/菜单）——使用更深的投影。
@@ -48,8 +48,8 @@ class SolidPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final r = radius ?? AppRadius.panel;
-    final selectedBorderColor = scheme.primary.withValues(alpha: 0.4);
+    final r = radius ?? tokens.panelRadius;
+    final selectedBorderColor = scheme.primary.withValues(alpha: 0.55);
     final effectiveBorder =
         borderColor ??
         (selected
@@ -76,30 +76,35 @@ class SolidPanel extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(r),
-        child: Stack(
-          children: [
-            Padding(
-              padding: EdgeInsetsDirectional.only(
-                start: effectiveAccent == null ? 0 : 3,
+        // InkWell / ListTile 必须在工作面本身绘制水波纹；否则最近的 Material
+        // 在面板外，反馈会被不透明的 DecoratedBox 遮住。
+        child: Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            children: [
+              Padding(
+                padding: EdgeInsetsDirectional.only(
+                  start: effectiveAccent == null ? 0 : 3,
+                ),
+                child: Padding(padding: padding, child: child),
               ),
-              child: Padding(padding: padding, child: child),
-            ),
-            if (effectiveAccent != null)
-              PositionedDirectional(
-                start: 0,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: 3,
-                  decoration: BoxDecoration(
-                    color: effectiveAccent,
-                    borderRadius: BorderRadiusDirectional.horizontal(
-                      start: Radius.circular(r),
+              if (effectiveAccent != null)
+                PositionedDirectional(
+                  start: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 3,
+                    decoration: BoxDecoration(
+                      color: effectiveAccent,
+                      borderRadius: BorderRadiusDirectional.horizontal(
+                        start: Radius.circular(r),
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

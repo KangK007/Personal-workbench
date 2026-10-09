@@ -50,334 +50,360 @@ class SettingsPage extends StatelessWidget {
     return Column(
       children: [
         if (showHeader) ...[
-          const PageHeader(title: '设置', subtitle: '外观、提醒、同步与本地数据管理'),
+          const PageHeader(
+            title: '设置',
+            subtitle: '外观、提醒、同步与本地数据管理',
+            maxWidth: AppLayout.formMax,
+          ),
           const Divider(),
         ],
         Expanded(
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              20,
-              20,
-              MediaQuery.sizeOf(context).width < AppBreakpoints.compact
-                  ? AppSpacing.bottomNavClearance
-                  : 96,
-            ),
-            children: [
-              _CloudSection(controller: controller),
-              const SizedBox(height: 16),
-              _AppearanceSection(
-                controller: controller,
-                onEditAlias: () => _editAlias(context),
-              ),
-              const SizedBox(height: 16),
-              _Section(
-                title: '任务与周期',
-                children: [
-                  ListTile(
-                    leading: const _SettingsIcon(Icons.schedule_outlined),
-                    title: const Text('逻辑日分界'),
-                    subtitle: const Text('修改只影响今后生成的任务实例'),
-                    trailing: DropdownButton<int>(
-                      value: controller.logicalDayBoundaryHour,
-                      underline: const SizedBox.shrink(),
-                      items: [
-                        for (var hour = 0; hour <= 6; hour++)
-                          DropdownMenuItem(
-                            value: hour,
-                            child: Text(
-                              '${hour.toString().padLeft(2, '0')}:00',
-                            ),
-                          ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          controller.setLogicalDayBoundaryHour(value);
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              if (windows) ...[
-                const SizedBox(height: 16),
-                _Section(
-                  title: '专注与检测',
-                  children: [
-                    SwitchListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      secondary: const _SettingsIcon(Icons.visibility_outlined),
-                      title: const Text('前台应用检测'),
-                      subtitle: const Text('默认关闭；只保存应用标识、开始时间、持续时间和预设'),
-                      value: controller.foregroundDetectionEnabled,
-                      onChanged: controller.setForegroundDetectionEnabled,
-                    ),
-                    SwitchListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      secondary: const _SettingsIcon(
-                        Icons.open_in_new_outlined,
-                      ),
-                      title: const Text('定时专注显示工作台'),
-                      subtitle: const Text('到点先提醒并恢复窗口；Windows 拒绝置前时闪烁任务栏'),
-                      value: controller.bringToFrontOnFocusSchedule,
-                      onChanged: controller.setBringToFrontOnFocusSchedule,
-                    ),
-                    ListTile(
-                      leading: const _SettingsIcon(Icons.delete_sweep_outlined),
-                      title: const Text('前台日志'),
-                      subtitle: const Text('本地保留 30 天，不上传云端'),
-                      trailing: TextButton(
-                        onPressed: () => _clearForegroundHistory(context),
-                        child: const Text('立即清除'),
-                      ),
-                    ),
-                  ],
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: AppLayout.formMax),
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  WorkbenchViewport.sizeOf(context).width <
+                          AppBreakpoints.compact
+                      ? AppSpacing.bottomNavClearance
+                      : 96,
                 ),
-              ],
-              const SizedBox(height: 16),
-              _Section(
-                title: '回顾与提醒',
                 children: [
-                  for (final type in activeReviewPeriodTypes)
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.only(
-                        left: 16,
-                        right:
-                            MediaQuery.sizeOf(context).width <
-                                AppBreakpoints.compact
-                            ? 80
-                            : 16,
-                      ),
-                      secondary: _SettingsIcon(_reviewIcon(type)),
-                      title: Text(_reviewName(type)),
-                      subtitle: Text(_reviewSchedule(type, controller)),
-                      value: controller.reviewReminderEnabled(type),
-                      onChanged: (enabled) => controller.setReviewReminder(
-                        type: type,
-                        enabled: enabled,
-                      ),
-                    ),
-                  for (final type in activeReviewPeriodTypes)
-                    ListTile(
-                      leading: const SizedBox(width: 34),
-                      title: Text('修改${_reviewName(type)}时间'),
-                      trailing: OutlinedButton(
-                        onPressed: () => _editReviewReminder(context, type),
-                        child: Text(controller.reviewReminderTime(type)),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _Section(
-                title: '通知与后台',
-                children: [
-                  if (windows) ...[
-                    SwitchListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      secondary: const _SettingsIcon(Icons.minimize_outlined),
-                      title: const Text('关闭窗口时最小化到托盘'),
-                      subtitle: const Text('启用后请通过托盘菜单退出应用'),
-                      value: controller.closeToTray,
-                      onChanged: controller.setCloseToTray,
-                    ),
-                    SwitchListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      secondary: const _SettingsIcon(
-                        Icons.power_settings_new_outlined,
-                      ),
-                      title: const Text('开机启动'),
-                      subtitle: const Text('默认关闭，仅当前 Windows 用户'),
-                      value: controller.startupEnabled,
-                      onChanged: controller.setStartupEnabled,
-                    ),
-                    ListTile(
-                      leading: const _SettingsIcon(Icons.exit_to_app_outlined),
-                      title: const Text('真正退出'),
-                      subtitle: const Text('停止托盘、计时和后台提醒'),
-                      trailing: OutlinedButton(
-                        onPressed:
-                            controller.windowsActivityService.exitApplication,
-                        child: const Text('退出'),
-                      ),
-                    ),
-                  ],
-                  ListTile(
-                    leading: const _SettingsIcon(Icons.notifications_outlined),
-                    title: const Text('任务和休息提醒'),
-                    subtitle: Text(
-                      defaultTargetPlatform == TargetPlatform.android
-                          ? '由 Android 系统管理通知'
-                          : controller
-                                .notificationService
-                                .supportsSystemNotifications
-                          ? '由 Windows 系统管理通知'
-                          : '当前平台仅显示应用内提示',
-                    ),
-                    trailing: OutlinedButton(
-                      onPressed:
-                          controller
-                              .notificationService
-                              .supportsSystemNotifications
-                          ? () => _requestNotifications(context)
-                          : null,
-                      child: const Text('申请权限'),
-                    ),
+                  _AppearanceSection(
+                    controller: controller,
+                    onEditAlias: () => _editAlias(context),
                   ),
-                ],
-              ),
-              if (windows) ...[
-                const SizedBox(height: 16),
-                _Section(
-                  title: '诊断与恢复',
-                  children: [
-                    ListTile(
-                      leading: const _SettingsIcon(
-                        Icons.admin_panel_settings_outlined,
-                      ),
-                      title: const Text('管理员权限'),
-                      subtitle: Text(
-                        controller.restrictionHostsStatus.administrator
-                            ? '已具备 Windows 管理员权限'
-                            : '未具备，写入 hosts 时可能需要 UAC',
-                      ),
-                    ),
-                    ListTile(
-                      leading: _SettingsIcon(
-                        controller.restrictionHostsStatus.active
-                            ? Icons.check_circle_outline
-                            : Icons.cloud_off_outlined,
-                      ),
-                      title: const Text('hosts 健康状态'),
-                      subtitle: Text(_hostsSummary(controller)),
-                      trailing: Wrap(
-                        spacing: 4,
-                        children: [
-                          IconButton(
-                            tooltip: '重新检查',
-                            onPressed: controller.refreshRestrictionHostsStatus,
-                            icon: const Icon(Icons.refresh),
-                          ),
-                          if (controller.restrictionProfile?.websiteBlocking ==
-                              true)
-                            IconButton(
-                              tooltip: '修复 hosts',
-                              onPressed: controller.repairRestrictionHosts,
-                              icon: const Icon(Icons.build_outlined),
-                            ),
-                          if (controller.restrictionHostsStatus.active)
-                            IconButton(
-                              tooltip: '清理 hosts',
-                              onPressed: controller.clearRestrictionHosts,
-                              icon: const Icon(
-                                Icons.cleaning_services_outlined,
+                  const SizedBox(height: 16),
+                  _CloudSection(controller: controller),
+                  const SizedBox(height: 16),
+                  _Section(
+                    title: '任务与周期',
+                    children: [
+                      ListTile(
+                        leading: const _SettingsIcon(Icons.schedule_outlined),
+                        title: const Text('逻辑日分界'),
+                        subtitle: const Text('修改只影响今后生成的任务实例'),
+                        trailing: DropdownButton<int>(
+                          value: controller.logicalDayBoundaryHour,
+                          underline: const SizedBox.shrink(),
+                          items: [
+                            for (var hour = 0; hour <= 6; hour++)
+                              DropdownMenuItem(
+                                value: hour,
+                                child: Text(
+                                  '${hour.toString().padLeft(2, '0')}:00',
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              controller.setLogicalDayBoundaryHour(value);
+                            }
+                          },
+                        ),
                       ),
-                    ),
-                    ListTile(
-                      leading: const _SettingsIcon(
-                        Icons.power_settings_new_outlined,
-                      ),
-                      title: const Text('异常退出恢复'),
-                      subtitle: Text(
-                        controller.restrictionRecoveredAfterAbnormalExit
-                            ? '检测到上次异常退出，活动限制已恢复'
-                            : '未发现异常退出',
-                      ),
+                    ],
+                  ),
+                  if (windows) ...[
+                    const SizedBox(height: 16),
+                    _Section(
+                      title: '专注与检测',
+                      children: [
+                        SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          secondary: const _SettingsIcon(
+                            Icons.visibility_outlined,
+                          ),
+                          title: const Text('前台应用检测'),
+                          subtitle: const Text('默认关闭；只保存应用标识、开始时间、持续时间和预设'),
+                          value: controller.foregroundDetectionEnabled,
+                          onChanged: controller.setForegroundDetectionEnabled,
+                        ),
+                        SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          secondary: const _SettingsIcon(
+                            Icons.open_in_new_outlined,
+                          ),
+                          title: const Text('定时专注显示工作台'),
+                          subtitle: const Text('到点先提醒并恢复窗口；Windows 拒绝置前时闪烁任务栏'),
+                          value: controller.bringToFrontOnFocusSchedule,
+                          onChanged: controller.setBringToFrontOnFocusSchedule,
+                        ),
+                        ListTile(
+                          leading: const _SettingsIcon(
+                            Icons.delete_sweep_outlined,
+                          ),
+                          title: const Text('前台日志'),
+                          subtitle: const Text('本地保留 30 天，不上传云端'),
+                          trailing: TextButton(
+                            onPressed: () => _clearForegroundHistory(context),
+                            child: const Text('立即清除'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
-              const SizedBox(height: 16),
-              _Section(
-                title: '数据与备份',
-                children: [
-                  ListTile(
-                    leading: const _SettingsIcon(Icons.lock_outline),
-                    title: const Text('创建加密备份'),
-                    subtitle: const Text('保存全部本地内容，密码至少 8 个字符'),
-                    trailing: FilledButton.tonal(
-                      onPressed: () => _createBackup(context),
-                      child: const Text('备份'),
-                    ),
+                  const SizedBox(height: 16),
+                  _Section(
+                    title: '回顾与提醒',
+                    children: [
+                      for (final type in activeReviewPeriodTypes)
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.only(
+                            left: 16,
+                            right:
+                                WorkbenchViewport.sizeOf(context).width <
+                                    AppBreakpoints.compact
+                                ? 80
+                                : 16,
+                          ),
+                          secondary: _SettingsIcon(_reviewIcon(type)),
+                          title: Text(_reviewName(type)),
+                          subtitle: Text(_reviewSchedule(type, controller)),
+                          value: controller.reviewReminderEnabled(type),
+                          onChanged: (enabled) => controller.setReviewReminder(
+                            type: type,
+                            enabled: enabled,
+                          ),
+                        ),
+                      for (final type in activeReviewPeriodTypes)
+                        ListTile(
+                          leading: const SizedBox(width: 34),
+                          title: Text('修改${_reviewName(type)}时间'),
+                          trailing: OutlinedButton(
+                            onPressed: () => _editReviewReminder(context, type),
+                            child: Text(controller.reviewReminderTime(type)),
+                          ),
+                        ),
+                    ],
                   ),
-                  ListTile(
-                    leading: const _SettingsIcon(Icons.restore_outlined),
-                    title: const Text('预览并恢复备份'),
-                    subtitle: const Text('确认数据范围后才会替换当前数据'),
-                    trailing: OutlinedButton(
-                      onPressed: () => _restoreBackup(context),
-                      child: const Text('选择文件'),
-                    ),
+                  const SizedBox(height: 16),
+                  _Section(
+                    title: '通知与后台',
+                    children: [
+                      if (windows) ...[
+                        SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          secondary: const _SettingsIcon(
+                            Icons.minimize_outlined,
+                          ),
+                          title: const Text('关闭窗口时最小化到托盘'),
+                          subtitle: const Text('启用后请通过托盘菜单退出应用'),
+                          value: controller.closeToTray,
+                          onChanged: controller.setCloseToTray,
+                        ),
+                        SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          secondary: const _SettingsIcon(
+                            Icons.power_settings_new_outlined,
+                          ),
+                          title: const Text('开机启动'),
+                          subtitle: const Text('默认关闭，仅当前 Windows 用户'),
+                          value: controller.startupEnabled,
+                          onChanged: controller.setStartupEnabled,
+                        ),
+                        ListTile(
+                          leading: const _SettingsIcon(
+                            Icons.exit_to_app_outlined,
+                          ),
+                          title: const Text('真正退出'),
+                          subtitle: const Text('停止托盘、计时和后台提醒'),
+                          trailing: OutlinedButton(
+                            onPressed: controller
+                                .windowsActivityService
+                                .exitApplication,
+                            child: const Text('退出'),
+                          ),
+                        ),
+                      ],
+                      ListTile(
+                        leading: const _SettingsIcon(
+                          Icons.notifications_outlined,
+                        ),
+                        title: const Text('任务和休息提醒'),
+                        subtitle: Text(
+                          defaultTargetPlatform == TargetPlatform.android
+                              ? '由 Android 系统管理通知'
+                              : controller
+                                    .notificationService
+                                    .supportsSystemNotifications
+                              ? '由 Windows 系统管理通知'
+                              : '当前平台仅显示应用内提示',
+                        ),
+                        trailing: OutlinedButton(
+                          onPressed:
+                              controller
+                                  .notificationService
+                                  .supportsSystemNotifications
+                              ? () => _requestNotifications(context)
+                              : null,
+                          child: const Text('申请权限'),
+                        ),
+                      ),
+                    ],
                   ),
-                  ListTile(
-                    leading: const _SettingsIcon(Icons.download_outlined),
-                    title: const Text('导出 JSON'),
-                    subtitle: const Text('生成可读取的完整数据副本'),
-                    trailing: OutlinedButton(
-                      onPressed: () => _exportJson(context),
-                      child: const Text('导出'),
+                  if (windows) ...[
+                    const SizedBox(height: 16),
+                    _Section(
+                      title: '诊断与恢复',
+                      children: [
+                        ListTile(
+                          leading: const _SettingsIcon(
+                            Icons.admin_panel_settings_outlined,
+                          ),
+                          title: const Text('管理员权限'),
+                          subtitle: Text(
+                            controller.restrictionHostsStatus.administrator
+                                ? '已具备 Windows 管理员权限'
+                                : '未具备，写入 hosts 时可能需要 UAC',
+                          ),
+                        ),
+                        ListTile(
+                          leading: _SettingsIcon(
+                            controller.restrictionHostsStatus.active
+                                ? Icons.check_circle_outline
+                                : Icons.cloud_off_outlined,
+                          ),
+                          title: const Text('hosts 健康状态'),
+                          subtitle: Text(_hostsSummary(controller)),
+                          trailing: Wrap(
+                            spacing: 4,
+                            children: [
+                              IconButton(
+                                tooltip: '重新检查',
+                                onPressed:
+                                    controller.refreshRestrictionHostsStatus,
+                                icon: const Icon(Icons.refresh),
+                              ),
+                              if (controller
+                                      .restrictionProfile
+                                      ?.websiteBlocking ==
+                                  true)
+                                IconButton(
+                                  tooltip: '修复 hosts',
+                                  onPressed: controller.repairRestrictionHosts,
+                                  icon: const Icon(Icons.build_outlined),
+                                ),
+                              if (controller.restrictionHostsStatus.active)
+                                IconButton(
+                                  tooltip: '清理 hosts',
+                                  onPressed: controller.clearRestrictionHosts,
+                                  icon: const Icon(
+                                    Icons.cleaning_services_outlined,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        ListTile(
+                          leading: const _SettingsIcon(
+                            Icons.power_settings_new_outlined,
+                          ),
+                          title: const Text('异常退出恢复'),
+                          subtitle: Text(
+                            controller.restrictionRecoveredAfterAbnormalExit
+                                ? '检测到上次异常退出，活动限制已恢复'
+                                : '未发现异常退出',
+                          ),
+                        ),
+                      ],
                     ),
+                  ],
+                  const SizedBox(height: 16),
+                  _Section(
+                    title: '数据与备份',
+                    children: [
+                      ListTile(
+                        leading: const _SettingsIcon(Icons.lock_outline),
+                        title: const Text('创建加密备份'),
+                        subtitle: const Text('保存全部本地内容，密码至少 8 个字符'),
+                        trailing: FilledButton.tonal(
+                          onPressed: () => _createBackup(context),
+                          child: const Text('备份'),
+                        ),
+                      ),
+                      ListTile(
+                        leading: const _SettingsIcon(Icons.restore_outlined),
+                        title: const Text('预览并恢复备份'),
+                        subtitle: const Text('确认数据范围后才会替换当前数据'),
+                        trailing: OutlinedButton(
+                          onPressed: () => _restoreBackup(context),
+                          child: const Text('选择文件'),
+                        ),
+                      ),
+                      ListTile(
+                        leading: const _SettingsIcon(Icons.download_outlined),
+                        title: const Text('导出 JSON'),
+                        subtitle: const Text('生成可读取的完整数据副本'),
+                        trailing: OutlinedButton(
+                          onPressed: () => _exportJson(context),
+                          child: const Text('导出'),
+                        ),
+                      ),
+                      ListTile(
+                        leading: const _SettingsIcon(Icons.toll_outlined),
+                        title: const Text('导出本地游戏状态'),
+                        subtitle: const Text('把积分和押注账本加入 JSON；这些数据不会上传云端'),
+                        trailing: OutlinedButton(
+                          onPressed: () =>
+                              _exportJson(context, includeGameState: true),
+                          child: const Text('含游戏状态'),
+                        ),
+                      ),
+                      ListTile(
+                        leading: const _SettingsIcon(
+                          Icons.upload_file_outlined,
+                        ),
+                        title: const Text('导入文件'),
+                        subtitle: const Text('支持 JSON、CSV、Markdown 和 TXT'),
+                        trailing: OutlinedButton(
+                          onPressed: () => _importFile(context),
+                          child: const Text('导入'),
+                        ),
+                      ),
+                    ],
                   ),
-                  ListTile(
-                    leading: const _SettingsIcon(Icons.toll_outlined),
-                    title: const Text('导出本地游戏状态'),
-                    subtitle: const Text('把积分和押注账本加入 JSON；这些数据不会上传云端'),
-                    trailing: OutlinedButton(
-                      onPressed: () =>
-                          _exportJson(context, includeGameState: true),
-                      child: const Text('含游戏状态'),
-                    ),
+                  const SizedBox(height: 16),
+                  _ExperimentalSection(controller: controller),
+                  const SizedBox(height: 16),
+                  _TrashSection(controller: controller),
+                  const SizedBox(height: 16),
+                  _Section(
+                    title: '示例内容',
+                    children: [
+                      ListTile(
+                        leading: const _SettingsIcon(
+                          Icons.cleaning_services_outlined,
+                        ),
+                        title: const Text('清除首次使用示例'),
+                        subtitle: const Text('只移除带有示例标记的内容'),
+                        trailing: TextButton(
+                          onPressed: () => _clearSamples(context),
+                          child: const Text('清除'),
+                        ),
+                      ),
+                    ],
                   ),
-                  ListTile(
-                    leading: const _SettingsIcon(Icons.upload_file_outlined),
-                    title: const Text('导入文件'),
-                    subtitle: const Text('支持 JSON、CSV、Markdown 和 TXT'),
-                    trailing: OutlinedButton(
-                      onPressed: () => _importFile(context),
-                      child: const Text('导入'),
-                    ),
+                  const SizedBox(height: 24),
+                  Text(
+                    '个人工作台 0.2',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _ExperimentalSection(controller: controller),
-              const SizedBox(height: 16),
-              _TrashSection(controller: controller),
-              const SizedBox(height: 16),
-              _Section(
-                title: '示例内容',
-                children: [
-                  ListTile(
-                    leading: const _SettingsIcon(
-                      Icons.cleaning_services_outlined,
-                    ),
-                    title: const Text('清除首次使用示例'),
-                    subtitle: const Text('只移除带有示例标记的内容'),
-                    trailing: TextButton(
-                      onPressed: () => _clearSamples(context),
-                      child: const Text('清除'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text(
-                '个人工作台 0.2',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+            ),
           ),
         ),
       ],
@@ -565,31 +591,241 @@ class _AccentPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
+    final primary = Theme.of(context).colorScheme.primary;
+    final reward = context.tokens.reward;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 18,
+          width: 12,
           height: 28,
-          margin: const EdgeInsets.only(left: 3),
           decoration: BoxDecoration(
-            color: color,
+            color: primary,
             borderRadius: BorderRadius.circular(3),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.onSurface,
-              width: 0.5,
-            ),
           ),
-          child: Icon(
-            Icons.check,
-            size: 12,
-            color: Theme.of(context).colorScheme.onPrimary,
+        ),
+        const SizedBox(width: 4),
+        Container(
+          width: 12,
+          height: 28,
+          decoration: BoxDecoration(
+            color: reward,
+            borderRadius: BorderRadius.circular(3),
           ),
         ),
       ],
     );
   }
+}
+
+class _ThemeChoiceCard extends StatelessWidget {
+  const _ThemeChoiceCard({
+    required this.mode,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ThemeMode mode;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$title，$subtitle',
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: Material(
+          color: context.tokens.panel,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(context.tokens.cardRadius),
+            side: BorderSide(
+              color: selected ? scheme.primary : context.tokens.panelBorder,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ThemeMiniPreview(mode: mode),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ),
+                      Icon(
+                        selected ? Icons.check_circle : Icons.circle_outlined,
+                        color: selected
+                            ? scheme.primary
+                            : context.tokens.mutedText,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeMiniPreview extends StatelessWidget {
+  const _ThemeMiniPreview({required this.mode});
+
+  final ThemeMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final night = mode == ThemeMode.dark;
+    final canvas = night ? AppColors.darkCanvas : AppColors.lightCanvas;
+    final navigation = night
+        ? AppColors.darkNavigation
+        : AppColors.lightNavigation;
+    final surface = night ? AppColors.darkSurface : AppColors.lightSurface;
+    final raised = night
+        ? AppColors.darkEmphasisSurface
+        : AppColors.lightEmphasisSurface;
+    final accent = night ? AppColors.darkPrimary : AppColors.lightPrimary;
+    final achievement = night ? AppColors.darkReward : AppColors.lightReward;
+    return Container(
+      height: 82,
+      decoration: BoxDecoration(
+        color: canvas,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: night ? AppColors.darkPanelBorder : AppColors.lightPanelBorder,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            color: navigation,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            child: Column(
+              children: [
+                _MiniBar(color: accent, height: 8),
+                const SizedBox(height: 9),
+                _MiniBar(color: raised, height: 4),
+                const SizedBox(height: 7),
+                _MiniBar(color: raised, height: 4),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(9),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FractionallySizedBox(
+                    widthFactor: 0.48,
+                    child: _MiniBar(color: accent, height: 5),
+                  ),
+                  const SizedBox(height: 7),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: surface,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(7),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  FractionallySizedBox(
+                                    widthFactor: 0.72,
+                                    child: _MiniBar(color: raised, height: 5),
+                                  ),
+                                  const Spacer(),
+                                  _MiniBar(color: accent, height: 4),
+                                  const SizedBox(height: 4),
+                                  FractionallySizedBox(
+                                    widthFactor: 0.68,
+                                    child: _MiniBar(color: raised, height: 4),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          flex: 2,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: surface,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 21,
+                                height: 21,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: achievement,
+                                    width: 4,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniBar extends StatelessWidget {
+  const _MiniBar({required this.color, required this.height});
+
+  final Color color;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: height,
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(height / 2),
+    ),
+  );
 }
 
 class _AppearanceSection extends StatelessWidget {
@@ -601,25 +837,87 @@ class _AppearanceSection extends StatelessWidget {
   final WorkbenchController controller;
   final VoidCallback onEditAlias;
 
+  Future<void> _selectTheme(BuildContext context, ThemeMode mode) async {
+    try {
+      await controller.setThemeMode(mode);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('主题保存失败，已恢复原设置，请重试')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final windows = controller.windowsActivityService.supported;
     return _Section(
       title: '外观与导航',
       children: [
-        ListTile(
-          leading: const _SettingsIcon(Icons.brightness_6_outlined),
-          title: const Text('主题'),
-          trailing: DropdownButton<ThemeMode>(
-            value: controller.themeMode,
-            underline: const SizedBox.shrink(),
-            items: const [
-              DropdownMenuItem(value: ThemeMode.system, child: Text('跟随系统')),
-              DropdownMenuItem(value: ThemeMode.light, child: Text('浅色')),
-              DropdownMenuItem(value: ThemeMode.dark, child: Text('深色')),
-            ],
-            onChanged: (value) {
-              if (value != null) controller.setThemeMode(value);
+        const ListTile(
+          leading: _SettingsIcon(Icons.brightness_6_outlined),
+          title: Text('主题外观'),
+          subtitle: Text('选择白天或夜间主题；跟随系统会响应设备外观设置'),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final day = _ThemeChoiceCard(
+                mode: ThemeMode.light,
+                title: '白天 · 柔壤图鉴',
+                subtitle: '植物、纸面与陶土成果',
+                selected: controller.themeMode == ThemeMode.light,
+                onTap: () => _selectTheme(context, ThemeMode.light),
+              );
+              final night = _ThemeChoiceCard(
+                mode: ThemeMode.dark,
+                title: '夜间 · 夜航工作室',
+                subtitle: '靛蓝、冷青与琥珀成果',
+                selected: controller.themeMode == ThemeMode.dark,
+                onTap: () => _selectTheme(context, ThemeMode.dark),
+              );
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (constraints.maxWidth >= 560)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: day),
+                        const SizedBox(width: 12),
+                        Expanded(child: night),
+                      ],
+                    )
+                  else ...[
+                    day,
+                    const SizedBox(height: 12),
+                    night,
+                  ],
+                  const SizedBox(height: 12),
+                  Semantics(
+                    selected: controller.themeMode == ThemeMode.system,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _selectTheme(context, ThemeMode.system),
+                      icon: Icon(
+                        controller.themeMode == ThemeMode.system
+                            ? Icons.check_circle
+                            : Icons.brightness_auto_outlined,
+                        size: 20,
+                      ),
+                      label: const Text('跟随系统'),
+                      style: OutlinedButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        minimumSize: const Size.fromHeight(48),
+                        backgroundColor:
+                            controller.themeMode == ThemeMode.system
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              );
             },
           ),
         ),
@@ -681,8 +979,8 @@ class _ExperimentalSection extends StatelessWidget {
             ),
             ListTile(
               leading: _SettingsIcon(Icons.palette_outlined),
-              title: const Text('成长主题'),
-              subtitle: const Text('翠绿主题已启用，随浅色与深色模式自动适配'),
+              title: const Text('成果标记'),
+              subtitle: const Text('成果颜色随柔壤图鉴与夜航工作室切换'),
               trailing: _AccentPreview(),
             ),
           ],
@@ -700,11 +998,12 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: context.tokens.panelBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

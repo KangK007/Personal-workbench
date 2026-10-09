@@ -1,5 +1,12 @@
 # 柔壤 · 年轮 — 个人工作台 UI 设计方案 v1.0
 
+> **2026-10-08 双主题实施修订**：本文件记录早期视觉探索；当前实现以
+> [个人工作台双主题全界面升级执行方案](docs/DUAL_THEME_EXECUTION_PLAN.md) 为准。
+> 浅色为「柔壤图鉴」，深色为「夜航工作室」。两套主题允许在领域入口、引导面和
+> 空状态使用少量与当前任务有关的无文字插画；时间、进度、统计、关系与状态仍须由
+> 真实数据和 Flutter 原生文字呈现。本文件下文的“禁止装饰插画”和旧色值条款仅作
+> 历史记录，不再约束当前双主题实现。
+
 > 设计系统代号 **「柔壤 · 年轮」**。风格方向：温柔有机（柔和自然色系、圆润有机线条、充足留白）。
 > 本文件是 Flutter 实现与 `design_preview/organic/index.html` 的共同设计源，**取代**根目录 `MASTER.md` 的视觉章节。
 > 产品语义、路由、控制器调用、数据模型与真实文案不因本次视觉调整而改变。
@@ -9,6 +16,10 @@
 > **2026-09-19 换代（方案 C · 绿）**：色板由「晨间陶土 / 夜间炭壤」切换为
 > **「新芽晨光 / 夜露」**。第 4 节为**现行色板**；主行动色语义名由 `sprout` 改为
 > `sprout`。第 13、15–18 节是历史记录，保留旧名与旧色值，不作修订。
+>
+> **2026-10-07 共用控件修订**：保留主色与语义色。工作面边界从装饰分组线独立为
+> `panelBorder`；日期引题和分区计数改用可读的 `inkMuted`。空态、状态标签和
+> 表单错误/键盘焦点细节按第 9 节及当前组件实现执行，后文旧方案记录不回写。
 
 ---
 
@@ -156,6 +167,7 @@
 | `inkMuted` | `#5D7961` | 辅助说明、次要元数据 | **4.80:1** ✅ |
 | `inkFaint` | `#849A88` | 禁用文字、纯装饰 | 3.02:1（装饰级，禁止承载信息） |
 | `divider` | `#DFEBE1` | 柔化分组线 | 1.23:1（装饰级，见 4.4） |
+| `panelBorder` | `#CBDDCE` | 工作面和卡片边界；比装饰分组线清楚，弱于控件边界 | 非文本边界 |
 | `borderStrong` | `#C4D8C9` | 输入框 / 控件边界 | 1.50:1（配合 `subtle` 填充共同构成边界） |
 | `sprout` | `#3E7F4B` | **主行动色**：主按钮、当前路线、链接 | **4.84:1** ✅ |
 | `sproutContainer` | `#E2F3E5` | 选中底、tonal 按钮底 | — |
@@ -194,6 +206,7 @@
 | `inkMuted` | `#A2B5A6` | **7.52:1** ✅ |
 | `inkFaint` | `#73867A` | 4.20:1（装饰级） |
 | `divider` | `#2A3A2F` | 1.35:1（装饰级） |
+| `panelBorder` | `#374A3B` | 工作面和卡片边界 |
 | `borderStrong` | `#3D5044` | 1.88:1 |
 | `sprout` | `#7FCB8E` | **8.40:1** ✅ |
 | `sproutContainer` | `#1D3A26` | — |
@@ -222,7 +235,7 @@
 
 `divider` 对比度仅 1.2–1.4:1，这是**刻意的柔化取向**。因此本方案规定：
 
-> **分组职责由留白承担，线条只做次要提示。** 组间留白 ≥ 组内留白的 2 倍（见 6.3），即使完全看不见线条，分组依然成立。
+> **分组职责由留白承担，线条只做次要提示。** 组间留白 ≥ 组内留白的 2 倍（见 6.3），即使完全看不见线条，分组依然成立。`panelBorder` 负责识别白色工作面边界，`divider` 只分隔内部内容。
 
 需要明确边界的交互控件（输入框、复选框）**不依赖单一线条**，而是"`subtle` 填充 + `borderStrong` 描边 + 文字标签"三重构成。键盘焦点则使用实色 `sprout` 2px 外环（≥3:1），确保 `WCAG 2.1 一 4.11` 达标。
 
@@ -411,17 +424,17 @@
 
 | 组件 | 对应实现 | 规范 |
 | --- | --- | --- |
-| **OrganicPanel** | `SolidPanel` (`widgets/solid_panel.dart`) | 实色 `surface`，1px `divider` 描边，R=20，内边距 20，**默认无阴影**；hover 抬升 2px + `raisedShadow`（blur 16 / offset 0,6）。禁止玻璃拟态与渐变。 |
-| **PageHeader** | `common.dart:437` | 页名 `displayLarge`（LXGW 500）；下方 4px 接一行 meta（`bodySmall` + `inkMuted`）；**移除下边框**，用 24px 下留白分组。 |
-| **SectionHeading** | `common.dart:529` | 18 / 1.50 w600；**移除装饰航迹条**；层级由 24px 上留白确立。右侧可放一个 ghost 文本按钮（如「全部」）。 |
+| **OrganicPanel** | `SolidPanel` (`widgets/solid_panel.dart`) | 实色 `surface`，1px `panelBorder` 描边，R=20，**默认无阴影**；浮层才用 `raisedShadow`（blur 16 / offset 0,6）。面板内的 Ink 反馈绘于透明 Material，不能被表面挡住。 |
+| **PageHeader** | `widgets/common.dart` | 页名 `displayLarge`（LXGW 500）；日期引题和 meta 用可读的 `inkMuted`；**移除下边框**，用 24px 下留白分组。 |
+| **SectionHeading** | `widgets/common.dart` | 桌面 18 / 1.50 w600，移动 16 / 1.45 w600；计数用 12–13px `inkMuted`，不使用装饰级 `inkFaint`；右侧 ghost 文本按钮至少 13px。 |
 | **VineRail** | `common.dart:628`（原 `LogRail`） | 芽点 10px 圆头；连线 1.5px 圆头 `divider`；四态见 3.2。**设置页等无序内容不得创建假藤线**。 |
 | **GrowthArc** | 新增 | `strokeCap: round`，线宽 10（大）/ 6（小）；轨道 `divider`，进度 `sprout`，达成 `clay`；圆心等宽数字。`reduce-motion` 下不做扫弧动画，直接呈现终态。 |
 | **TaskRow** | `widgets/task_row.dart` | 行高 48 / 60；复选框 22px R=8，`sprout` 实心勾；**完成态 = 勾选 + 标题转 `inkMuted`，不使用删除线**（删除线降低中文可读性）；右侧时间等宽右对齐。状态同时具备「勾选形状 + 文字 + 颜色」三重表达。 |
-| **SoftButton** | `app_theme.dart:578-679` | 四型：`filled`(sprout 实心，白字) / `tonal`(sproutContainer 底 + sproutOnContainer 字) / `outline`(borderStrong 边 + sprout 字) / `ghost`(透明 + sprout 字)。高度 40 桌面 / 52 移动，R=12。**每个工作面只允许一个 `filled`**。 |
-| **StatusPill** | `common.dart:918` | R=999，内边距 8×4，12 / 1.40 w600；底用 `*Container`，字用 `*OnContainer`。**必须含文字，颜色仅作辅助**。 |
+| **SoftButton** | `core/theme/app_theme.dart` | 四型：`filled`(sprout 实心，白字) / `tonal`(sproutContainer 底 + sproutOnContainer 字) / `outline`(borderStrong 边 + sprout 字) / `ghost`(透明 + sprout 字)。高度 40 桌面 / 52 移动，R=12；键盘聚焦有 2px 实色边界。**每个工作面只允许一个 `filled`**。 |
+| **StatusPill** | `widgets/common.dart` | R=999，常规内边距 8×4，紧凑 8×3；文字不小于 12px；底用 `*Container`，字用 `*OnContainer`。**必须含文字，颜色仅作辅助**。 |
 | **NumericText** | `common.dart:960` | `IBM Plex Mono` 500 + tabular figures；与相邻文字间距 4。 |
-| **SurfaceIcon** | `common.dart:16` | 32px 底 R=10 + 18px 描边图标；语义底用对应 `*Container`。 |
-| **EmptyState** | `common.dart:790` | 上下各 56px 留白；一句说明（15 / 1.60 `inkMuted`）+ **一个** filled 主操作。禁止插画式装饰。 |
+| **SurfaceIcon** | `widgets/common.dart` | 36px 底 R=12 + 18px 描边图标；默认用成对的主色容器令牌。 |
+| **EmptyState** | `widgets/common.dart` | 64px 圆角图标底、18px 标题和 15–16px `inkMuted` 说明；上下留白桌面 56px / 移动 32px；最多一个推荐操作。禁止插画式装饰。 |
 | **SkeletonBlock** | `common.dart:321` | 圆角 = 被替换元素的真实圆角；脉冲 1.6s；`reduce-motion` 下静态。异步 >300ms 必须出现。 |
 | **TickDivider** | `common.dart:1011` | 保留，但改为**左右内缩 20px 的柔化刻度**（不贯穿满宽），形成呼吸断点。 |
 

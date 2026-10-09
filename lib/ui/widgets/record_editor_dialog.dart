@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -104,6 +106,53 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
   bool showCtdpTriggerError = false;
   bool showRsipMinimumError = false;
   String? formError;
+  late final String _initialSnapshot;
+
+  String _snapshot() => jsonEncode([
+    for (final field in [
+      titleController,
+      bodyController,
+      tagsController,
+      estimateController,
+      completionWindowController,
+      urlController,
+      ctdpTriggerController,
+      ctdpSessionController,
+      ctdpDelayController,
+      ctdpAuxSignalController,
+      ctdpAuxCompletionController,
+      ctdpMinimumController,
+      ctdpGroupHoursController,
+      rsipTriggerController,
+      rsipMinimumController,
+      rsipRuleController,
+      rsipGroupController,
+      rsipTimerController,
+    ])
+      field.text,
+    status,
+    recurrence,
+    frequency,
+    priority,
+    favorite,
+    protocolEnabled,
+    ctdpDurationless,
+    rsipUseTimer,
+    ctdpUnitType,
+    date?.toIso8601String(),
+    taskDueAt?.toIso8601String(),
+    recurrenceEndAt?.toIso8601String(),
+    recurrenceWeekdays.toList()..sort(),
+    projectId,
+    rsipParentId,
+    ctdpParentId,
+  ]);
+
+  Widget _protectDraft(Widget child) => UnsavedChangesGuard(
+    hasChanges: () => _snapshot() != _initialSnapshot,
+    isBusy: () => saving,
+    child: child,
+  );
 
   bool get isTask => widget.kind == RecordKind.task;
   bool get isGoal => widget.kind == RecordKind.goal;
@@ -215,6 +264,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
     showMoreOptions =
         record != null &&
         !(existingProtocol && !widget.controller.advancedFeaturesEnabled);
+    _initialSnapshot = _snapshot();
   }
 
   @override
@@ -238,6 +288,29 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
     rsipGroupController.dispose();
     rsipTimerController.dispose();
     super.dispose();
+  }
+
+  Widget _pairedFields(BuildContext context, Widget first, Widget second) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack =
+            constraints.maxWidth < 420 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [first, const SizedBox(height: 12), second],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: first),
+            const SizedBox(width: 12),
+            Expanded(child: second),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -423,98 +496,86 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
           ],
           if (isTask && showMoreOptions) ...[
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ExternalField(
-                    label: '状态',
-                    child: DropdownButtonFormField<String>(
-                      initialValue: status,
-                      decoration: const InputDecoration(),
-                      items: const [
-                        DropdownMenuItem(
-                          value: WorkStatus.inbox,
-                          child: Text('收集箱'),
-                        ),
-                        DropdownMenuItem(
-                          value: WorkStatus.todo,
-                          child: Text('待办'),
-                        ),
-                        DropdownMenuItem(
-                          value: WorkStatus.doing,
-                          child: Text('进行中'),
-                        ),
-                        DropdownMenuItem(
-                          value: WorkStatus.done,
-                          child: Text('已完成'),
-                        ),
-                        DropdownMenuItem(
-                          value: WorkStatus.cancelled,
-                          child: Text('已取消'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) setState(() => status = value);
-                      },
+            _pairedFields(
+              context,
+              ExternalField(
+                label: '状态',
+                child: DropdownButtonFormField<String>(
+                  initialValue: status,
+                  isExpanded: true,
+                  decoration: const InputDecoration(),
+                  items: const [
+                    DropdownMenuItem(
+                      value: WorkStatus.inbox,
+                      child: Text('收集箱'),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ExternalField(
-                    label: '优先级',
-                    child: DropdownButtonFormField<int>(
-                      initialValue: priority,
-                      decoration: const InputDecoration(),
-                      items: const [
-                        DropdownMenuItem(value: 0, child: Text('普通')),
-                        DropdownMenuItem(value: 1, child: Text('低')),
-                        DropdownMenuItem(value: 2, child: Text('中')),
-                        DropdownMenuItem(value: 3, child: Text('高')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) setState(() => priority = value);
-                      },
+                    DropdownMenuItem(value: WorkStatus.todo, child: Text('待办')),
+                    DropdownMenuItem(
+                      value: WorkStatus.doing,
+                      child: Text('进行中'),
                     ),
-                  ),
+                    DropdownMenuItem(
+                      value: WorkStatus.done,
+                      child: Text('已完成'),
+                    ),
+                    DropdownMenuItem(
+                      value: WorkStatus.cancelled,
+                      child: Text('已取消'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => status = value);
+                  },
                 ),
-              ],
+              ),
+              ExternalField(
+                label: '优先级',
+                child: DropdownButtonFormField<int>(
+                  initialValue: priority,
+                  isExpanded: true,
+                  decoration: const InputDecoration(),
+                  items: const [
+                    DropdownMenuItem(value: 0, child: Text('普通')),
+                    DropdownMenuItem(value: 1, child: Text('低')),
+                    DropdownMenuItem(value: 2, child: Text('中')),
+                    DropdownMenuItem(value: 3, child: Text('高')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => priority = value);
+                  },
+                ),
+              ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ExternalField(
-                    label: '预计分钟',
-                    child: TextField(
-                      controller: estimateController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(suffixText: 'min'),
-                    ),
-                  ),
+            _pairedFields(
+              context,
+              ExternalField(
+                label: '预计分钟',
+                child: TextField(
+                  controller: estimateController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(suffixText: 'min'),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ExternalField(
-                    label: '循环',
-                    child: DropdownButtonFormField<String>(
-                      initialValue: recurrence,
-                      decoration: const InputDecoration(),
-                      items: const [
-                        DropdownMenuItem(value: 'none', child: Text('不循环')),
-                        DropdownMenuItem(value: 'daily', child: Text('每天')),
-                        DropdownMenuItem(value: 'weekdays', child: Text('工作日')),
-                        DropdownMenuItem(value: 'weekly', child: Text('每周')),
-                        DropdownMenuItem(value: 'monthly', child: Text('每月')),
-                        DropdownMenuItem(value: 'yearly', child: Text('每年')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) setState(() => recurrence = value);
-                      },
-                    ),
-                  ),
+              ),
+              ExternalField(
+                label: '循环',
+                child: DropdownButtonFormField<String>(
+                  initialValue: recurrence,
+                  isExpanded: true,
+                  decoration: const InputDecoration(),
+                  items: const [
+                    DropdownMenuItem(value: 'none', child: Text('不循环')),
+                    DropdownMenuItem(value: 'daily', child: Text('每天')),
+                    DropdownMenuItem(value: 'weekdays', child: Text('工作日')),
+                    DropdownMenuItem(value: 'weekly', child: Text('每周')),
+                    DropdownMenuItem(value: 'monthly', child: Text('每月')),
+                    DropdownMenuItem(value: 'yearly', child: Text('每年')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => recurrence = value);
+                  },
                 ),
-              ],
+              ),
             ),
             if (recurrence == 'weekly') ...[
               const SizedBox(height: 12),
@@ -554,119 +615,102 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
             ],
             if (recurrence != 'none') ...[
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ExternalField(
-                      label: '完成窗口',
-                      child: TextField(
-                        controller: completionWindowController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(suffixText: 'min'),
+              _pairedFields(
+                context,
+                ExternalField(
+                  label: '完成窗口',
+                  child: TextField(
+                    controller: completionWindowController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(suffixText: 'min'),
+                  ),
+                ),
+                ExternalField(
+                  label: '周期结束',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                    onTap: _pickRecurrenceEnd,
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        suffixIcon: recurrenceEndAt == null
+                            ? null
+                            : IconButton(
+                                onPressed: () =>
+                                    setState(() => recurrenceEndAt = null),
+                                tooltip: '清除周期结束日期',
+                                icon: const Icon(Icons.close),
+                              ),
+                      ),
+                      child: Text(
+                        recurrenceEndAt == null
+                            ? '持续执行'
+                            : formatShortDate(recurrenceEndAt!),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ExternalField(
-                      label: '周期结束',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(AppRadius.control),
-                        onTap: _pickRecurrenceEnd,
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            suffixIcon: recurrenceEndAt == null
-                                ? null
-                                : IconButton(
-                                    onPressed: () =>
-                                        setState(() => recurrenceEndAt = null),
-                                    tooltip: '清除周期结束日期',
-                                    icon: const Icon(Icons.close),
-                                  ),
-                          ),
-                          child: Text(
-                            recurrenceEndAt == null
-                                ? '持续执行'
-                                : formatShortDate(recurrenceEndAt!),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
             if (protocolEnabled && showMoreOptions) ...[
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ExternalField(
-                      label: 'CTDP 类型',
-                      child: DropdownButtonFormField<String>(
-                        initialValue: ctdpUnitType,
-                        decoration: const InputDecoration(),
-                        items: const [
-                          DropdownMenuItem(value: 'unit', child: Text('执行单元')),
-                          DropdownMenuItem(value: 'group', child: Text('任务组')),
-                          DropdownMenuItem(
-                            value: 'assault',
-                            child: Text('突击单元'),
-                          ),
-                          DropdownMenuItem(value: 'recon', child: Text('侦察单元')),
-                          DropdownMenuItem(
-                            value: 'command',
-                            child: Text('指挥单元'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'special_ops',
-                            child: Text('特勤单元'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'engineering',
-                            child: Text('工程单元'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'quartermaster',
-                            child: Text('保障单元'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() => ctdpUnitType = value);
-                          }
-                        },
+              _pairedFields(
+                context,
+                ExternalField(
+                  label: 'CTDP 类型',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: ctdpUnitType,
+                    isExpanded: true,
+                    decoration: const InputDecoration(),
+                    items: const [
+                      DropdownMenuItem(value: 'unit', child: Text('执行单元')),
+                      DropdownMenuItem(value: 'group', child: Text('任务组')),
+                      DropdownMenuItem(value: 'assault', child: Text('突击单元')),
+                      DropdownMenuItem(value: 'recon', child: Text('侦察单元')),
+                      DropdownMenuItem(value: 'command', child: Text('指挥单元')),
+                      DropdownMenuItem(
+                        value: 'special_ops',
+                        child: Text('特勤单元'),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ExternalField(
-                      label: '所属任务组',
-                      child: DropdownButtonFormField<String?>(
-                        initialValue: ctdpParentId,
-                        decoration: const InputDecoration(),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('不属于任务组'),
-                          ),
-                          ...ctdpGroups.map(
-                            (group) => DropdownMenuItem<String?>(
-                              value: group.id,
-                              child: Text(
-                                group.title,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ],
-                        onChanged: (value) =>
-                            setState(() => ctdpParentId = value),
+                      DropdownMenuItem(
+                        value: 'engineering',
+                        child: Text('工程单元'),
                       ),
-                    ),
+                      DropdownMenuItem(
+                        value: 'quartermaster',
+                        child: Text('保障单元'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => ctdpUnitType = value);
+                      }
+                    },
                   ),
-                ],
+                ),
+                ExternalField(
+                  label: '所属任务组',
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: ctdpParentId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('不属于任务组'),
+                      ),
+                      ...ctdpGroups.map(
+                        (group) => DropdownMenuItem<String?>(
+                          value: group.id,
+                          child: Text(
+                            group.title,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() => ctdpParentId = value),
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               ExternalField(
@@ -686,56 +730,42 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ExternalField(
-                      label: '辅助信号',
-                      child: TextField(
-                        controller: ctdpAuxSignalController,
-                        decoration: const InputDecoration(hintText: '例如：闹钟响起'),
-                      ),
-                    ),
+              _pairedFields(
+                context,
+                ExternalField(
+                  label: '辅助信号',
+                  child: TextField(
+                    controller: ctdpAuxSignalController,
+                    decoration: const InputDecoration(hintText: '例如：闹钟响起'),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ExternalField(
-                      label: '辅助链完成条件',
-                      child: TextField(
-                        controller: ctdpAuxCompletionController,
-                        decoration: const InputDecoration(
-                          hintText: '例如：截止前执行触发标志',
-                        ),
-                      ),
-                    ),
+                ),
+                ExternalField(
+                  label: '辅助链完成条件',
+                  child: TextField(
+                    controller: ctdpAuxCompletionController,
+                    decoration: const InputDecoration(hintText: '例如：截止前执行触发标志'),
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ExternalField(
-                      label: '主链时长',
-                      child: TextField(
-                        controller: ctdpSessionController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(suffixText: 'min'),
-                      ),
-                    ),
+              _pairedFields(
+                context,
+                ExternalField(
+                  label: '主链时长',
+                  child: TextField(
+                    controller: ctdpSessionController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(suffixText: 'min'),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ExternalField(
-                      label: '预约缓冲',
-                      child: TextField(
-                        controller: ctdpDelayController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(suffixText: 'min'),
-                      ),
-                    ),
+                ),
+                ExternalField(
+                  label: '预约缓冲',
+                  child: TextField(
+                    controller: ctdpDelayController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(suffixText: 'min'),
                   ),
-                ],
+                ),
               ),
               if (ctdpUnitType == 'group') ...[
                 const SizedBox(height: 12),
@@ -1003,7 +1033,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
       ),
     );
     final cancelAction = TextButton(
-      onPressed: saving ? null : () => Navigator.pop(context),
+      onPressed: saving ? null : () => Navigator.maybePop(context),
       child: const Text('取消'),
     );
     final saveAction = FilledButton(
@@ -1017,37 +1047,41 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
     );
     final heading = Text(editorTitle);
     if (compact) {
-      return Dialog.fullscreen(
-        child: Scaffold(
-          resizeToAvoidBottomInset: true,
-          appBar: AppBar(
-            leading: IconButton(
-              onPressed: saving ? null : () => Navigator.pop(context),
-              tooltip: '关闭',
-              icon: const Icon(Icons.close),
-            ),
-            title: heading,
-            bottom: const PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Divider(height: 1),
-            ),
-          ),
-          body: SafeArea(top: false, child: editorContent),
-          bottomNavigationBar: SafeArea(
-            top: false,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border(top: BorderSide(color: context.tokens.divider)),
+      return _protectDraft(
+        Dialog.fullscreen(
+          child: Scaffold(
+            resizeToAvoidBottomInset: true,
+            appBar: AppBar(
+              leading: IconButton(
+                onPressed: saving ? null : () => Navigator.maybePop(context),
+                tooltip: '关闭',
+                icon: const Icon(Icons.close),
               ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                child: Row(
-                  children: [
-                    Expanded(child: cancelAction),
-                    const SizedBox(width: 12),
-                    Expanded(child: saveAction),
-                  ],
+              title: heading,
+              bottom: const PreferredSize(
+                preferredSize: Size.fromHeight(1),
+                child: Divider(height: 1),
+              ),
+            ),
+            body: SafeArea(top: false, child: editorContent),
+            bottomNavigationBar: SafeArea(
+              top: false,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border(
+                    top: BorderSide(color: context.tokens.divider),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                  child: Row(
+                    children: [
+                      Expanded(child: cancelAction),
+                      const SizedBox(width: 12),
+                      Expanded(child: saveAction),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1055,13 +1089,15 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
         ),
       );
     }
-    return AlertDialog(
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [heading, const SizedBox(height: 8), const Divider()],
+    return _protectDraft(
+      AlertDialog(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [heading, const SizedBox(height: 8), const Divider()],
+        ),
+        content: SizedBox(width: 560, child: editorContent),
+        actions: [cancelAction, saveAction],
       ),
-      content: SizedBox(width: 560, child: editorContent),
-      actions: [cancelAction, saveAction],
     );
   }
 

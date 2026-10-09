@@ -29,8 +29,8 @@ class ProtocolsPage extends StatefulWidget {
 }
 
 class _ProtocolsPageState extends State<ProtocolsPage>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  late final TabController tabController;
+    with TickerProviderStateMixin, WidgetsBindingObserver {
+  late TabController tabController;
   Timer? ticker;
   String ruleQuery = '';
   bool _tickerActive = false;
@@ -54,13 +54,37 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    tabController = _newTabController(widget.initialTab);
+    _startTicker();
+  }
+
+  TabController _newTabController(ProtocolTab selected) {
     final tabs = _tabs;
-    tabController = TabController(
+    return TabController(
       length: tabs.length,
-      initialIndex: tabs.indexOf(widget.initialTab).clamp(0, tabs.length - 1),
+      initialIndex: tabs.indexOf(selected).clamp(0, tabs.length - 1),
       vsync: this,
     )..addListener(_handleTabChanged);
-    _startTicker();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProtocolsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final tabs = _tabs;
+    if (tabController.length != tabs.length) {
+      final previousTabs = tabController.length == 1
+          ? const [ProtocolTab.execution]
+          : const [
+              ProtocolTab.execution,
+              ProtocolTab.habits,
+              ProtocolTab.rules,
+              ProtocolTab.analytics,
+            ];
+      final selected = previousTabs[tabController.index];
+      tabController.removeListener(_handleTabChanged);
+      tabController.dispose();
+      tabController = _newTabController(selected);
+    }
   }
 
   @override
@@ -76,7 +100,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // 应用退到后台时暂停秒级重建，回到前台立即恢复。
     if (state == AppLifecycleState.resumed) {
-      if (TickerMode.of(context)) _startTicker();
+      if (TickerMode.valuesOf(context).enabled) _startTicker();
     } else if (state != AppLifecycleState.inactive) {
       _stopTicker();
     }
@@ -86,14 +110,15 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   Widget build(BuildContext context) {
     // 页面不在前台 Section（IndexedStack 非激活页）时暂停秒级重建，
     // 修复「页面不可见时 Timer 仍每秒重建」的性能问题。
-    final visible = TickerMode.of(context);
+    final visible = TickerMode.valuesOf(context).enabled;
     if (visible && !_tickerActive) {
       _startTicker();
     } else if (!visible && _tickerActive) {
       _stopTicker();
     }
     final tabs = _tabs;
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final android = defaultTargetPlatform == TargetPlatform.android;
     return Column(
       children: [
@@ -245,7 +270,17 @@ class _ProtocolsPageState extends State<ProtocolsPage>
     final children = widget.controller.ctdpChildren(task.id);
     return [
       Padding(
-        padding: EdgeInsets.only(left: depth * 20, bottom: 10),
+        padding: EdgeInsets.only(
+          left:
+              (depth *
+                      (WorkbenchViewport.sizeOf(context).width <
+                              AppBreakpoints.compact
+                          ? 12
+                          : 20))
+                  .clamp(0, 60)
+                  .toDouble(),
+          bottom: 10,
+        ),
         child: _CtdpCard(
           task: task,
           controller: widget.controller,
@@ -349,7 +384,17 @@ class _ProtocolsPageState extends State<ProtocolsPage>
     final children = all.where((item) => item.parentId == node.id).toList();
     return [
       Padding(
-        padding: EdgeInsets.only(left: depth * 20, bottom: 10),
+        padding: EdgeInsets.only(
+          left:
+              (depth *
+                      (WorkbenchViewport.sizeOf(context).width <
+                              AppBreakpoints.compact
+                          ? 12
+                          : 20))
+                  .clamp(0, 60)
+                  .toDouble(),
+          bottom: 10,
+        ),
         child: _RsipCard(
           node: node,
           now: widget.controller.currentTime(),
@@ -428,6 +473,23 @@ class _ProtocolsPageState extends State<ProtocolsPage>
         AppSpacing.bottomNavClearance,
       ),
       children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            StatusPill(
+              label:
+                  '${widget.controller.exceptionRules.where((rule) => rule.data['archived'] != true).length} 条生效判例',
+              icon: Icons.gavel_outlined,
+            ),
+            StatusPill(
+              label:
+                  '${widget.controller.exceptionRules.where((rule) => rule.data['archived'] == true).length} 条已归档',
+              icon: Icons.archive_outlined,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, constraints) {
             final narrow = constraints.maxWidth < 560;
@@ -549,6 +611,11 @@ class _ProtocolsPageState extends State<ProtocolsPage>
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 18),
+        _ProtocolOutcomeTimeline(
+          events: events,
+          now: widget.controller.currentTime(),
         ),
         const SizedBox(height: 18),
         const SectionHeading(title: '最近协议记录', scale: 'AUDIT LOG'),
@@ -819,7 +886,7 @@ class _CtdpCard extends StatelessWidget {
           }).length;
     return LogSurface(
       accent: task.ctdpReservationPending
-          ? context.tokens.reward
+          ? context.tokens.info
           : Theme.of(context).colorScheme.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -897,12 +964,43 @@ class _CtdpCard extends StatelessWidget {
                   : '本轮 ${task.ctdpSessionMinutes} 分钟',
             ),
           ],
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              StatusPill(
+                label: task.ctdpReservationPending ? '预约缓冲中' : '等待触发',
+                icon: task.ctdpReservationPending
+                    ? Icons.hourglass_top
+                    : Icons.bolt_outlined,
+                color: task.ctdpReservationPending
+                    ? context.tokens.infoContainer
+                    : null,
+                foreground: task.ctdpReservationPending
+                    ? context.tokens.infoOnContainer
+                    : null,
+              ),
+              StatusPill(
+                label: task.ctdpIsGroup
+                    ? '${children.length} 个执行单元'
+                    : '执行 ${task.ctdpIsDurationless ? '正计时' : '${task.ctdpSessionMinutes} 分'}',
+                icon: Icons.timer_outlined,
+              ),
+              StatusPill(
+                label: '完成证据 ${task.ctdpTotalCompletions} 轮',
+                icon: Icons.verified_outlined,
+                color: context.tokens.rewardContainer,
+                foreground: context.tokens.rewardOnContainer,
+              ),
+            ],
+          ),
           if (task.ctdpReservationPending && dueAt != null) ...[
             const SizedBox(height: 8),
             Text(
               '预约倒计时 ${_countdown(dueAt.difference(now))}',
               style: TextStyle(
-                color: context.tokens.reward,
+                color: context.tokens.info,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -913,6 +1011,31 @@ class _CtdpCard extends StatelessWidget {
             style: Theme.of(
               context,
             ).textTheme.labelMedium?.copyWith(color: context.tokens.mutedText),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: () => onAction(
+                task.ctdpIsGroup
+                    ? 'group_start'
+                    : task.ctdpReservationPending
+                    ? 'confirm'
+                    : 'start',
+              ),
+              icon: Icon(
+                task.ctdpReservationPending
+                    ? Icons.check_circle_outline
+                    : Icons.play_arrow,
+              ),
+              label: Text(
+                task.ctdpIsGroup
+                    ? '启动任务组时限'
+                    : task.ctdpReservationPending
+                    ? '确认触发并开始'
+                    : '开始本轮专注',
+              ),
+            ),
           ),
         ],
       ),
@@ -941,75 +1064,307 @@ class _RsipCard extends StatelessWidget {
     )?.toLocal();
     return LogSurface(
       accent: node.rsipFrozen
-          ? context.tokens.reward
+          ? context.tokens.info
           : node.rsipActive
           ? Theme.of(context).colorScheme.primary
           : context.tokens.mutedText,
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            node.rsipActive
-                ? Icons.account_tree_outlined
-                : Icons.power_off_outlined,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                node.rsipActive
+                    ? Icons.account_tree_outlined
+                    : Icons.power_off_outlined,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      node.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text('${node.rsipGroup} · 最小动作：${node.rsipMinimumAction}'),
+                    if (node.rsipRule.isNotEmpty) Text('规则：${node.rsipRule}'),
+                    if (node.rsipTimerRunning && dueAt != null)
+                      Text('计时 ${_countdown(dueAt.difference(now))}'),
+                    if (node.rsipFrozen && frozenUntil != null)
+                      Text('水密隔舱至 ${_dateTime(frozenUntil)}'),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${node.rsipActive ? '生效' : '熄灭'} · 连续 #${node.rsipChainCount} · 内化 ${node.rsipInternalization}% · 失败 ${node.rsipFailureCount}',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: context.tokens.mutedText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'RSIP 国策操作',
+                onSelected: onAction,
+                itemBuilder: (context) => [
+                  if (node.rsipActive && !node.rsipFrozen) ...[
+                    if (node.rsipUseTimer && !node.rsipTimerRunning)
+                      const PopupMenuItem(
+                        value: 'timer_start',
+                        child: Text('开始最小动作计时'),
+                      ),
+                    if (node.rsipTimerRunning)
+                      const PopupMenuItem(
+                        value: 'timer_complete',
+                        child: Text('结算计时'),
+                      ),
+                    if (!node.rsipUseTimer)
+                      const PopupMenuItem(value: 'done', child: Text('完成最小动作')),
+                    const PopupMenuItem(
+                      value: 'freeze',
+                      child: Text('水密隔舱 24 小时'),
+                    ),
+                    const PopupMenuItem(value: 'fail', child: Text('失败并熄灭分支')),
+                  ],
+                  if (!node.rsipActive)
+                    const PopupMenuItem(
+                      value: 'reactivate',
+                      child: Text('重建当前节点'),
+                    ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(value: 'child', child: Text('新增子国策')),
+                  const PopupMenuItem(value: 'edit', child: Text('编辑国策')),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              StatusPill(
+                label: node.rsipFrozen
+                    ? '暂停至 ${frozenUntil == null ? '稍后' : _dateTime(frozenUntil)}'
+                    : node.rsipActive
+                    ? '生效中'
+                    : '待重建',
+                icon: node.rsipFrozen
+                    ? Icons.ac_unit_outlined
+                    : node.rsipActive
+                    ? Icons.check_circle_outline
+                    : Icons.restart_alt,
+              ),
+              StatusPill(
+                label: '内化 ${node.rsipInternalization}%',
+                icon: Icons.auto_graph_outlined,
+              ),
+            ],
+          ),
+          if (!node.rsipFrozen) ...[
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () => onAction(
+                !node.rsipActive
+                    ? 'reactivate'
+                    : node.rsipUseTimer
+                    ? node.rsipTimerRunning
+                          ? 'timer_complete'
+                          : 'timer_start'
+                    : 'done',
+              ),
+              icon: Icon(
+                !node.rsipActive
+                    ? Icons.restart_alt
+                    : node.rsipTimerRunning
+                    ? Icons.check
+                    : Icons.play_arrow,
+              ),
+              label: Text(
+                !node.rsipActive
+                    ? '重建当前节点'
+                    : node.rsipUseTimer
+                    ? node.rsipTimerRunning
+                          ? '结算最小行动'
+                          : '开始最小行动'
+                    : '完成最小行动',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProtocolOutcomeTimeline extends StatelessWidget {
+  const _ProtocolOutcomeTimeline({required this.events, required this.now});
+
+  final List<WorkspaceRecord> events;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime(now.year, now.month, now.day);
+    final dates = List.generate(
+      7,
+      (index) => today.subtract(Duration(days: 6 - index)),
+    );
+    final counts = [
+      for (final day in dates)
+        (
+          events.where((event) {
+            final at = (event.scheduledFor ?? event.createdAt).toLocal();
+            return at.year == day.year &&
+                at.month == day.month &&
+                at.day == day.day &&
+                event.data['successful'] == true;
+          }).length,
+          events.where((event) {
+            final at = (event.scheduledFor ?? event.createdAt).toLocal();
+            return at.year == day.year &&
+                at.month == day.month &&
+                at.day == day.day &&
+                event.data['successful'] == false;
+          }).length,
+        ),
+    ];
+    final maximum = counts.fold<int>(1, (max, pair) {
+      final total = pair.$1 + pair.$2;
+      return total > max ? total : max;
+    });
+    const weekday = ['一', '二', '三', '四', '五', '六', '日'];
+    return LogSurface(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('近七日结算', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            '仅统计有成功或失败结论的协议事件。',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 78,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  node.title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 4),
-                Text('${node.rsipGroup} · 最小动作：${node.rsipMinimumAction}'),
-                if (node.rsipRule.isNotEmpty) Text('规则：${node.rsipRule}'),
-                if (node.rsipTimerRunning && dueAt != null)
-                  Text('计时 ${_countdown(dueAt.difference(now))}'),
-                if (node.rsipFrozen && frozenUntil != null)
-                  Text('水密隔舱至 ${_dateTime(frozenUntil)}'),
-                const SizedBox(height: 5),
-                Text(
-                  '${node.rsipActive ? '生效' : '熄灭'} · 连续 #${node.rsipChainCount} · 内化 ${node.rsipInternalization}% · 失败 ${node.rsipFailureCount}',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: context.tokens.mutedText,
+                for (var index = 0; index < 7; index++)
+                  Expanded(
+                    child: Semantics(
+                      label:
+                          '${dates[index].month}月${dates[index].day}日，成功 ${counts[index].$1} 次，失败 ${counts[index].$2} 次',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: FractionallySizedBox(
+                                  widthFactor: 0.75,
+                                  heightFactor:
+                                      counts[index].$1 + counts[index].$2 == 0
+                                      ? 0.06
+                                      : (counts[index].$1 + counts[index].$2) /
+                                            maximum,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      if (counts[index].$2 > 0)
+                                        Expanded(
+                                          flex: counts[index].$2,
+                                          child: ColoredBox(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.error,
+                                          ),
+                                        ),
+                                      if (counts[index].$1 > 0)
+                                        Expanded(
+                                          flex: counts[index].$1,
+                                          child: ColoredBox(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                          ),
+                                        ),
+                                      if (counts[index].$1 + counts[index].$2 ==
+                                          0)
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: context.tokens.orbitTrack,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            ExcludeSemantics(
+                              child: Text(
+                                weekday[dates[index].weekday - 1],
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
-          PopupMenuButton<String>(
-            tooltip: 'RSIP 国策操作',
-            onSelected: onAction,
-            itemBuilder: (context) => [
-              if (node.rsipActive && !node.rsipFrozen) ...[
-                if (node.rsipUseTimer && !node.rsipTimerRunning)
-                  const PopupMenuItem(
-                    value: 'timer_start',
-                    child: Text('开始最小动作计时'),
-                  ),
-                if (node.rsipTimerRunning)
-                  const PopupMenuItem(
-                    value: 'timer_complete',
-                    child: Text('结算计时'),
-                  ),
-                if (!node.rsipUseTimer)
-                  const PopupMenuItem(value: 'done', child: Text('完成最小动作')),
-                const PopupMenuItem(value: 'freeze', child: Text('水密隔舱 24 小时')),
-                const PopupMenuItem(value: 'fail', child: Text('失败并熄灭分支')),
-              ],
-              if (!node.rsipActive)
-                const PopupMenuItem(value: 'reactivate', child: Text('重建当前节点')),
-              const PopupMenuDivider(),
-              const PopupMenuItem(value: 'child', child: Text('新增子国策')),
-              const PopupMenuItem(value: 'edit', child: Text('编辑国策')),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 14,
+            runSpacing: 4,
+            children: [
+              _OutcomeLegend(
+                color: Theme.of(context).colorScheme.primary,
+                label: '成功',
+              ),
+              _OutcomeLegend(
+                color: Theme.of(context).colorScheme.error,
+                label: '失败',
+              ),
             ],
           ),
         ],
       ),
     );
   }
+}
+
+class _OutcomeLegend extends StatelessWidget {
+  const _OutcomeLegend({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(3),
+        ),
+      ),
+      const SizedBox(width: 5),
+      Text(label, style: Theme.of(context).textTheme.labelMedium),
+    ],
+  );
 }
 
 class _MetricStrip extends StatelessWidget {
@@ -1095,7 +1450,7 @@ class _EventTile extends StatelessWidget {
         success ? Icons.check_circle_outline : Icons.error_outline,
         color: success
             ? Theme.of(context).colorScheme.primary
-            : context.tokens.reward,
+            : Theme.of(context).colorScheme.error,
       ),
       title: Text(event.title),
       subtitle: Text(

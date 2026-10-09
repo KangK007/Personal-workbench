@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <title>个人工作台 · 三套主题对比</title>
+  <style>
+    @font-face{font-family:PlexSC;src:url('assets/fonts/plex-regular.woff') format('woff');font-weight:400}
+    @font-face{font-family:PlexSC;src:url('assets/fonts/plex-semibold.woff') format('woff');font-weight:600}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:4800px;height:2050px;overflow:hidden}
+    body{font-family:PlexSC,'Microsoft YaHei',sans-serif;background:#EAECE8;color:#1A2C2F}
+    header{height:160px;padding:32px 62px 22px;display:flex;align-items:flex-end;justify-content:space-between}
+    header h1{font-size:49px;line-height:1.1;font-weight:600;letter-spacing:-2px;margin:0}
+    header p{font-size:22px;color:#587075;margin:10px 0 0}
+    header strong{font-size:22px;color:#587075;font-weight:400;padding-bottom:7px}
+    .board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;margin:0 54px}
+    .theme{height:1850px;padding:24px 27px 27px;border-radius:28px;border:1px solid var(--border);background:var(--paper);color:var(--text);box-shadow:0 22px 65px rgba(25,49,50,.09);overflow:hidden}
+    .theme.green{--paper:#F8FBF6;--text:#23432C;--sub:#617966;--border:#D1E2D0}
+    .theme.night{--paper:#101B2D;--text:#EAF3F3;--sub:#B1C1D0;--border:#30445E}
+    .theme.sun{--paper:#FFF9F0;--text:#233D58;--sub:#64768A;--border:#E2D6C7}
+    .theme-head{height:111px;display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+    .theme-name{display:flex;align-items:center;gap:14px;font-size:30px;font-weight:600;line-height:1.15}
+    .theme-index{display:grid;place-items:center;flex:none;width:43px;height:43px;border-radius:12px;background:var(--key);color:var(--key-text);font-size:18px}
+    .green{--key:#3E7F4B;--key-text:#FFF}.night{--key:#83D0D1;--key-text:#102333}.sun{--key:#C24B36;--key-text:#FFF}
+    .theme-summary{font-size:17px;color:var(--sub);line-height:1.4;margin:12px 0 0 57px}
+    .swatches{display:flex;gap:8px;padding-top:3px}
+    .swatches i{display:block;width:27px;height:27px;border-radius:50%;background:var(--swatch);border:2px solid rgba(0,0,0,.07);box-shadow:0 0 0 2px rgba(255,255,255,.55)}
+    .label{height:27px;display:flex;justify-content:space-between;align-items:center;font-size:16px;color:var(--sub);font-weight:600;letter-spacing:.3px}
+    .label em{font-style:normal;font-weight:400;opacity:.85}
+    .shot{display:block;width:100%;border:1px solid var(--border);border-radius:15px;box-shadow:0 6px 16px rgba(0,0,0,.12);object-fit:contain;object-position:top center}
+    .today{height:925px;background:var(--paper)}
+    .lower-labels{display:grid;grid-template-columns:minmax(0,1fr) 311px;gap:18px;margin-top:17px}
+    .lower{height:680px;display:grid;grid-template-columns:minmax(0,1fr) 311px;gap:18px;align-items:start}
+    .lower .shot{height:680px}
+    .lower .project{background:var(--paper)}
+    .lower .mobile{background:var(--paper)}
+  </style>
+</head>
+<body>
+  <header><div><h1>同一组内容，三种工作氛围。</h1><p>桌面规划与阅读 · 手机快速记录 · 今日、项目、任务的完整界面对照</p></div><strong>个人工作台 · 视觉主题提案 / 2026.10</strong></header>
+  <main class="board">
+    <section class="theme green"><div class="theme-head"><div><div class="theme-name"><span class="theme-index">01</span>柔壤图鉴</div><p class="theme-summary">新芽绿 × 陶土色 · 植物生长与轻纸感层次</p></div><div class="swatches"><i style="--swatch:#3E7F4B"></i><i style="--swatch:#A95D37"></i><i style="--swatch:#F4F8F0"></i></div></div><div class="label"><span>桌面 · 今日</span><em>1440 × 900</em></div><img class="shot today" src="renders/green-today-desktop.png" alt="柔壤图鉴桌面今日页"><div class="lower-labels"><div class="label"><span>桌面 · 项目与任务</span><em>1440 × 900</em></div><div class="label"><span>手机 · 今日</span><em>390 × 844</em></div></div><div class="lower"><img class="shot project" src="renders/green-projects-desktop.png" alt="柔壤图鉴桌面项目页"><img class="shot mobile" src="renders/green-today-mobile.png" alt="柔壤图鉴手机今日页"></div></section>
+    <section class="theme night"><div class="theme-head"><div><div class="theme-name"><span class="theme-index">02</span>夜航工作室</div><p class="theme-summary">深靛蓝 × 冷青 × 琥珀 · 安静的时间轨道</p></div><div class="swatches"><i style="--swatch:#10192B"></i><i style="--swatch:#83D0D1"></i><i style="--swatch:#F1C17F"></i></div></div><div class="label"><span>桌面 · 今日</span><em>1440 × 900</em></div><img class="shot today" src="renders/night-today-desktop.png" alt="夜航工作室桌面今日页"><div class="lower-labels"><div class="label"><span>桌面 · 项目与任务</span><em>1440 × 900</em></div><div class="label"><span>手机 · 今日</span><em>390 × 844</em></div></div><div class="lower"><img class="shot project" src="renders/night-projects-desktop.png" alt="夜航工作室桌面项目页"><img class="shot mobile" src="renders/night-today-mobile.png" alt="夜航工作室手机今日页"></div></section>
+    <section class="theme sun"><div class="theme-head"><div><div class="theme-name"><span class="theme-index">03</span>日光编辑室</div><p class="theme-summary">奶油白 × 深蓝 × 珊瑚橘 · 杂志编排与文具拼贴</p></div><div class="swatches"><i style="--swatch:#FFF7EC"></i><i style="--swatch:#284A69"></i><i style="--swatch:#C24B36"></i></div></div><div class="label"><span>桌面 · 今日</span><em>1440 × 900</em></div><img class="shot today" src="renders/sun-today-desktop.png" alt="日光编辑室桌面今日页"><div class="lower-labels"><div class="label"><span>桌面 · 项目与任务</span><em>1440 × 900</em></div><div class="label"><span>手机 · 今日</span><em>390 × 844</em></div></div><div class="lower"><img class="shot project" src="renders/sun-projects-desktop.png" alt="日光编辑室桌面项目页"><img class="shot mobile" src="renders/sun-today-mobile.png" alt="日光编辑室手机今日页"></div></section>
+  </main>
+</body>
+</html>

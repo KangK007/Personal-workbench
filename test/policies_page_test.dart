@@ -47,7 +47,7 @@ class _MemoryDatabase extends AppDatabase {
   Future<void> close() async {}
 }
 
-WorkbenchController _controller() => WorkbenchController(
+WorkbenchController _controller({DateTime? now}) => WorkbenchController(
   database: _MemoryDatabase(),
   backupService: BackupService(),
   searchService: SearchService(),
@@ -55,13 +55,15 @@ WorkbenchController _controller() => WorkbenchController(
   notificationService: NotificationService(),
   shareCaptureService: ShareCaptureService(),
   syncService: SupabaseSyncService(null),
-  now: () => DateTime(2026, 8, 14, 10),
+  now: () => now ?? DateTime(2026, 8, 14, 10),
 );
 
 Future<void> _pump(
   WidgetTester tester,
   WorkbenchController controller, {
   Size size = const Size(1280, 900),
+  PolicyTab initialTab = PolicyTab.tree,
+  double textScale = 1,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -70,6 +72,12 @@ Future<void> _pump(
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light(),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN')],
       localizationsDelegates: const [
@@ -81,6 +89,7 @@ Future<void> _pump(
         body: PoliciesPage(
           controller: controller,
           showHeader: size.width >= AppBreakpoints.compact,
+          initialTab: initialTab,
         ),
       ),
     ),
@@ -133,7 +142,13 @@ void main() {
     expect(controller.rsipNodes.single.record.title, '实验后记录');
     expect(controller.rsipNodes.single.rule, '实验结束后十分钟内记录关键参数');
     expect(controller.rsipNodes.single.stage, 'E0');
-    expect(find.text('实验后记录'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(InteractiveViewer),
+        matching: find.text('实验后记录'),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -153,10 +168,13 @@ void main() {
       type: RsipNodeType.ritual,
       groupId: group.id,
     );
-    await _pump(tester, controller);
+    await _pump(tester, controller, size: const Size(620, 780));
 
-    await tester.ensureVisible(find.byTooltip('标记已违反'));
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byTooltip('标记已违反'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.byTooltip('标记已违反'));
     await tester.pumpAndSettle();
     expect(find.textContaining('容错耗尽'), findsOneWidget);
@@ -189,7 +207,7 @@ void main() {
       tester.getCenter(find.byType(TabBar)).dy,
       tester.getCenter(find.byTooltip('添加国策')).dy,
     );
-    expect(find.text('晨间检查'), findsOneWidget);
+    expect(find.text('晨间检查'), findsWidgets);
     expect(find.text('触发器'), findsWidgets);
     expect(tester.takeException(), isNull);
 
@@ -198,6 +216,36 @@ void main() {
     await tester.tap(find.widgetWithText(Tab, '高级分析'));
     await tester.pumpAndSettle();
     expect(find.text('规则启发式'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop policy tree exposes the graph and all root nodes', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    await controller.setRsipAllowMultiplePerDay(true);
+    await controller.saveRsipNode(
+      title: '桌面图形根节点',
+      rule: '工作开始前核对任务',
+      type: RsipNodeType.trigger,
+    );
+    await _pump(tester, controller);
+    final graph = find.byType(InteractiveViewer);
+    expect(graph, findsOneWidget);
+    expect(
+      find.descendant(of: graph, matching: find.text('桌面图形根节点')),
+      findsOneWidget,
+    );
+    for (final size in const [Size(1024, 600), Size(1920, 1080)]) {
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+      final node = find.descendant(of: graph, matching: find.text('桌面图形根节点'));
+      expect(tester.getRect(graph).contains(tester.getCenter(node)), isTrue);
+      expect(find.byTooltip('适应窗口'), findsOneWidget);
+      await tester.tap(find.byTooltip('适应窗口'));
+      await tester.pumpAndSettle();
+    }
     expect(tester.takeException(), isNull);
   });
 
@@ -220,6 +268,127 @@ void main() {
       (tester.getCenter(marker).dy - tester.getCenter(label).dy).abs(),
       lessThanOrEqualTo(1),
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('library groups in-use and archived rules and filters them', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    await controller.setRsipAllowMultiplePerDay(true);
+    await controller.saveRsipNode(
+      title: '在用晨间规则',
+      rule: '开始工作前核对清单',
+      type: RsipNodeType.ritual,
+    );
+    final archived = await controller.saveRsipNode(
+      title: '归档阅读规则',
+      rule: '午后阅读报告',
+      type: RsipNodeType.policy,
+    );
+    await controller.archiveRsipNode(archived, reason: '阶段结束');
+    await _pump(tester, controller, initialTab: PolicyTab.library);
+
+    expect(find.text('在用国策'), findsOneWidget);
+    expect(find.text('已归档国策'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilterChip, '归档 1'));
+    await tester.pumpAndSettle();
+    expect(find.text('在用国策'), findsNothing);
+    expect(find.text('已归档国策'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('policy-library-search')),
+      '不存在的规则',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('没有匹配的国策'), findsOneWidget);
+    await tester.tap(find.text('查看全部'));
+    await tester.pumpAndSettle();
+    expect(find.text('在用国策'), findsOneWidget);
+    expect(find.text('已归档国策'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('run timeline expands to settlement evidence', (tester) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    final node = await controller.saveRsipNode(
+      title: '证据节点',
+      rule: '记录完成证据',
+      type: RsipNodeType.policy,
+    );
+    await controller.settleRsipNode(
+      node,
+      status: RsipExecutionStatus.executed,
+      reason: '已保存记录',
+    );
+    await _pump(tester, controller, initialTab: PolicyTab.history);
+
+    expect(find.textContaining('第 1 轮'), findsOneWidget);
+    expect(find.text('已执行 1'), findsOneWidget);
+    await tester.tap(find.text('证据节点 · 已执行'));
+    await tester.pumpAndSettle();
+    expect(find.text('结算原因：已保存记录'), findsOneWidget);
+    expect(find.textContaining('来源：手动结算'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('analysis plots real settlements and explains no sample', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final controller = _controller(now: now);
+    addTearDown(controller.dispose);
+    final node = await controller.saveRsipNode(
+      title: '分析节点',
+      rule: '完成一次清点',
+      type: RsipNodeType.policy,
+    );
+    await controller.settleRsipNode(node, status: RsipExecutionStatus.executed);
+    await _pump(tester, controller, initialTab: PolicyTab.analytics);
+    expect(find.text('14 日结算分布'), findsOneWidget);
+    expect(find.text('已执行 1'), findsOneWidget);
+    expect(find.text('已违反 0'), findsOneWidget);
+    final todayKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    expect(find.byKey(ValueKey('policy-day-bar-$todayKey')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      controller,
+      size: const Size(320, 700),
+      initialTab: PolicyTab.analytics,
+      textScale: 2,
+    );
+    expect(find.text('14 日结算分布'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    final empty = _controller();
+    addTearDown(empty.dispose);
+    await _pump(tester, empty, initialTab: PolicyTab.analytics);
+    expect(find.text('暂无可分析的协议记录'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('library stays usable at 320dp and 200 percent text', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    await controller.saveRsipNode(
+      title: '小屏国策',
+      rule: '核对任务',
+      type: RsipNodeType.policy,
+    );
+    await _pump(
+      tester,
+      controller,
+      size: const Size(320, 700),
+      initialTab: PolicyTab.library,
+      textScale: 2,
+    );
+    expect(find.byKey(const ValueKey('policy-library-search')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-"""复算「柔壤 · 年轮」色板的对比度与分类色色差，供文档引用。
-
-2026-09-19 换代：浅色「晨间陶土」→「新芽晨光」，深色「夜间炭壤」→「夜露」。
+"""复算「柔壤图鉴 / 夜航工作室」语义色板的对比度与分类色色差。
 
 输出：
   1. 正文级/图形级配对对比度（WCAG 2.1）
@@ -107,23 +105,29 @@ def delta_e00(hex_a, hex_b):
 
 
 LIGHT = {
-    "canvas": "#F5FAF0",
+    "canvas": "#F4F8F0",
+    "navigation": "#FBFDF9",
     "surface": "#FFFFFF",
     "raised": "#FFFFFF",
-    "subtle": "#EFF8F0",
-    "ink": "#17301B",
-    "inkMuted": "#5D7961",
-    "inkFaint": "#849A88",
-    "divider": "#DFEBE1",
-    "borderStrong": "#C4D8C9",
-    "primary": "#3E7F4B",
-    "primaryContainer": "#E2F3E5",
+    "subtle": "#EDF5EA",
+    "emphasisSurface": "#E2EFDF",
+    "heroStart": "#E8F2E7",
+    "heroEnd": "#F7F5EB",
+    "orbitTrack": "#CBE5D1",
+    "ink": "#203A29",
+    "inkMuted": "#4F6959",
+    "inkFaint": "#586F60",
+    "divider": "#E1EAE0",
+    "borderStrong": "#789B83",
+    "primary": "#347340",
+    "onPrimary": "#FFFFFF",
+    "primaryContainer": "#E6F2E4",
     "primaryOnContainer": "#1D4A27",
     "signal": "#9E3A32",
     "signalContainer": "#F7DEDA",
     "signalOnContainer": "#5A1F19",
-    "reward": "#9B5227",
-    "rewardContainer": "#F5E3D6",
+    "reward": "#A95D37",
+    "rewardContainer": "#F8E7D8",
     "rewardOnContainer": "#4A2410",
     "info": "#3E6883",
     "infoContainer": "#DCE8F0",
@@ -138,46 +142,57 @@ LIGHT = {
 }
 
 DARK = {
-    "canvas": "#0F1A13",
-    "surface": "#16231A",
-    "raised": "#1E2C21",
-    "subtle": "#243528",
-    "ink": "#E4EFE6",
-    "inkMuted": "#A2B5A6",
-    "inkFaint": "#73867A",
-    "divider": "#2A3A2F",
-    "borderStrong": "#3D5044",
-    "primary": "#7FCB8E",
-    "primaryContainer": "#1D3A26",
-    "primaryOnContainer": "#C9EBD0",
+    "canvas": "#10192B",
+    "navigation": "#0B1525",
+    "surface": "#19263C",
+    "raised": "#23334B",
+    "subtle": "#23334B",
+    "emphasisSurface": "#2C4058",
+    "heroStart": "#1A3450",
+    "heroEnd": "#14233B",
+    "orbitTrack": "#355465",
+    "ink": "#EAF3F3",
+    "inkMuted": "#AABCC9",
+    "inkFaint": "#99AEBF",
+    "divider": "#2A3B52",
+    "borderStrong": "#55728D",
+    "primary": "#83D0D1",
+    "onPrimary": "#102333",
+    "primaryContainer": "#20444C",
+    "primaryOnContainer": "#D7F6F4",
     "signal": "#E88C7E",
     "signalContainer": "#4C2A26",
     "signalOnContainer": "#F9D9D3",
-    "reward": "#E2A176",
-    "rewardContainer": "#4A3629",
-    "rewardOnContainer": "#F7DCC6",
+    "reward": "#F1C17F",
+    "rewardContainer": "#493D39",
+    "rewardOnContainer": "#FAE9CC",
     "info": "#93B7CF",
-    "infoContainer": "#27333D",
+    "infoContainer": "#273B54",
     "infoOnContainer": "#C7DCE8",
-    "teal": "#5FC0BD",
+    "teal": "#68C8A1",
     "olive": "#D4D864",
     "oliveContainer": "#2B3312",
     "oliveOnContainer": "#D4D864",
     "violet": "#C2A6E4",
     "amber": "#DBA657",
-    "outline": "#8A968C",
+    "outline": "#A9A9A7",
 }
 
 # content=(前景, 背景, 要求下限, 说明)
 PAIRS = [
     ("ink", "canvas", 4.5, "正文压画布"),
+    ("ink", "navigation", 4.5, "导航正文"),
     ("ink", "surface", 4.5, "正文压工作面"),
     ("inkMuted", "surface", 4.5, "辅助文字压实面"),
     ("inkMuted", "canvas", 4.5, "辅助文字压画布"),
-    ("inkFaint", "surface", 3.0, "装饰级（禁承载信息）"),
-    ("primary", "surface", 4.5, "新芽绿实面"),
-    ("primary", "canvas", 4.5, "新芽绿压画布"),
-    ("primaryOnContainer", "primaryContainer", 4.5, "新芽绿容器槽"),
+    ("inkFaint", "surface", 4.5, "辅助小字压工作面"),
+    *[(fg, bg, 4.5, "辅助文字与操作压分组/选中面")
+      for fg in ("inkMuted", "inkFaint", "primary")
+      for bg in ("subtle", "emphasisSurface")],
+    ("primary", "surface", 4.5, "主操作色压工作面"),
+    ("primary", "canvas", 4.5, "主操作色压画布"),
+    ("onPrimary", "primary", 4.5, "主按钮文字"),
+    ("primaryOnContainer", "primaryContainer", 4.5, "主操作容器槽"),
     ("signal", "surface", 4.5, "砖红实面"),
     ("signalOnContainer", "signalContainer", 4.5, "砖红容器槽"),
     ("reward", "surface", 4.5, "陶土实面"),
@@ -185,8 +200,10 @@ PAIRS = [
     ("oliveOnContainer", "oliveContainer", 4.5, "嫩黄绿容器槽"),
     ("info", "surface", 4.5, "靛蓝实面"),
     ("infoOnContainer", "infoContainer", 4.5, "靛蓝容器槽"),
+    ("ink", "heroStart", 4.5, "引导面正文起点"),
+    ("ink", "heroEnd", 4.5, "引导面正文终点"),
     ("divider", "surface", 1.0, "分组线（非文本）"),
-    ("borderStrong", "surface", 1.0, "控件边界（非文本）"),
+    ("borderStrong", "surface", 3.0, "控件边界（非文本）"),
     ("primary", "canvas", 3.0, "焦点环压画布（图形级）"),
 ]
 
@@ -238,6 +255,7 @@ def report(title, palette, panel_key):
 
 
 if __name__ == "__main__":
-    total = report("浅色 · 新芽晨光", LIGHT, "surface")
-    total += report("深色 · 夜露", DARK, "surface")
+    total = report("浅色 · 柔壤图鉴", LIGHT, "surface")
+    total += report("深色 · 夜航工作室", DARK, "surface")
     sys.stdout.write("\n合计未达标配对：%d\n" % total)
+    sys.exit(1 if total else 0)

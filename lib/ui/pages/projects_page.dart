@@ -11,6 +11,8 @@ import '../widgets/task_row.dart';
 import '../widgets/task_group_editor_dialog.dart';
 import '../widgets/markdown_editor_dialog.dart';
 import '../widgets/task_hierarchy.dart';
+import '../widgets/solid_panel.dart';
+import '../widgets/workbench_illustration.dart';
 
 enum ProjectViewMode { list, board }
 
@@ -36,7 +38,7 @@ class ProjectsPage extends StatefulWidget {
   final String? selectedProjectId;
   final ValueChanged<String>? onProjectSelected;
   final VoidCallback? onOpenGoals;
-  final VoidCallback? onOpenReview;
+  final ValueChanged<WorkspaceRecord?>? onOpenReview;
 
   @override
   State<ProjectsPage> createState() => _ProjectsPageState();
@@ -57,7 +59,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
     // keeps the public ProjectDetailTab routes distinct without changing the
     // project data model or duplicating the page implementation.
     expandedPanel = switch (widget.initialTab) {
-      ProjectDetailTab.overview => null,
+      ProjectDetailTab.overview => 'tasks',
       ProjectDetailTab.tasks => 'tasks',
       ProjectDetailTab.groups => 'groups',
       ProjectDetailTab.milestones => 'milestones',
@@ -70,6 +72,14 @@ class _ProjectsPageState extends State<ProjectsPage> {
     super.didUpdateWidget(oldWidget);
     if (widget.selectedProjectId != oldWidget.selectedProjectId) {
       selectedProjectId = widget.selectedProjectId;
+    }
+    if (widget.initialTab != oldWidget.initialTab) {
+      expandedPanel = switch (widget.initialTab) {
+        ProjectDetailTab.overview || ProjectDetailTab.tasks => 'tasks',
+        ProjectDetailTab.groups => 'groups',
+        ProjectDetailTab.milestones => 'milestones',
+        ProjectDetailTab.notes => 'notes',
+      };
     }
   }
 
@@ -87,7 +97,10 @@ class _ProjectsPageState extends State<ProjectsPage> {
             .where((project) => project.id == selectedProjectId)
             .firstOrNull ??
         projects.firstOrNull;
-    final desktop = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final desktop =
+        WorkbenchViewport.sizeOf(context).width >=
+        AppLayout.masterDetailMin * textScale.clamp(1, 1.5);
     return Column(
       children: [
         if (widget.showHeader)
@@ -124,20 +137,33 @@ class _ProjectsPageState extends State<ProjectsPage> {
           ),
         Expanded(
           child: projects.isEmpty
-              ? EmptyState(
-                  icon: Icons.folder_open_outlined,
-                  title: '还没有项目',
-                  message: '项目用于组织相关任务、里程碑、笔记和资料链接。',
-                  action: widget.showHeader
-                      ? FilledButton(
+              ? SingleChildScrollView(
+                  padding: const EdgeInsets.only(
+                    bottom: AppSpacing.bottomNavClearance,
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: AppSpacing.xl),
+                      const WorkbenchIllustration(
+                        kind: WorkbenchIllustrationKind.project,
+                        width: 210,
+                        height: 142,
+                      ),
+                      EmptyState(
+                        icon: Icons.folder_open_outlined,
+                        title: '还没有项目',
+                        message: '项目用于组织相关任务、里程碑、笔记和资料链接。',
+                        action: FilledButton(
                           onPressed: () => showRecordEditor(
                             context,
                             controller,
                             kind: RecordKind.project,
                           ),
                           child: const Text('创建第一个项目'),
-                        )
-                      : null,
+                        ),
+                      ),
+                    ],
+                  ),
                 )
               : desktop
               ? Row(
@@ -175,13 +201,19 @@ class _ProjectsPageState extends State<ProjectsPage> {
           child: ExternalField(
             label: '当前项目',
             child: DropdownButtonFormField<String>(
+              key: ValueKey(selected.id),
               initialValue: selected.id,
+              isExpanded: true,
               decoration: const InputDecoration(),
               items: projects
                   .map(
                     (project) => DropdownMenuItem(
                       value: project.id,
-                      child: Text(project.title),
+                      child: Text(
+                        project.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   )
                   .toList(),
@@ -256,29 +288,28 @@ class _ProjectsPageState extends State<ProjectsPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 600;
+              final title = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    project.title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  if (project.body.isNotEmpty)
                     Text(
-                      project.title,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    if (project.body.isNotEmpty)
-                      Text(
-                        project.body,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      project.body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                  ],
-                ),
-              ),
-              SegmentedButton<ProjectViewMode>(
+                    ),
+                ],
+              );
+              final viewSwitch = SegmentedButton<ProjectViewMode>(
                 showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(
@@ -295,8 +326,39 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 selected: {mode},
                 onSelectionChanged: (value) =>
                     setState(() => mode = value.first),
-              ),
-              PopupMenuButton<String>(
+              );
+              final compactViewSwitch = PopupMenuButton<ProjectViewMode>(
+                tooltip: '切换项目视图',
+                onSelected: (value) => setState(() => mode = value),
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: ProjectViewMode.list,
+                    child: Text('清单视图'),
+                  ),
+                  PopupMenuItem(
+                    value: ProjectViewMode.board,
+                    child: Text('看板视图'),
+                  ),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        mode == ProjectViewMode.list
+                            ? Icons.view_list
+                            : Icons.view_kanban_outlined,
+                        size: AppIconSize.sm,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(mode == ProjectViewMode.list ? '清单视图' : '看板视图'),
+                      const Icon(Icons.arrow_drop_down),
+                    ],
+                  ),
+                ),
+              );
+              final menu = PopupMenuButton<String>(
                 tooltip: '项目操作',
                 onSelected: (value) {
                   if (value == 'edit') _editProject(project);
@@ -318,8 +380,26 @@ class _ProjectsPageState extends State<ProjectsPage> {
                     ),
                   ),
                 ],
-              ),
-            ],
+              );
+              return compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        title,
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [compactViewSwitch, const Spacer(), menu],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: title),
+                        viewSwitch,
+                        menu,
+                      ],
+                    );
+            },
           ),
         ),
         Expanded(
@@ -331,6 +411,34 @@ class _ProjectsPageState extends State<ProjectsPage> {
               AppSpacing.bottomNavClearance,
             ),
             children: [
+              if (widget.initialTab != ProjectDetailTab.overview ||
+                  expandedPanel != null) ...[
+                _ProjectSectionSignal(
+                  section:
+                      expandedPanel ??
+                      switch (widget.initialTab) {
+                        ProjectDetailTab.overview => 'tasks',
+                        ProjectDetailTab.tasks => 'tasks',
+                        ProjectDetailTab.groups => 'groups',
+                        ProjectDetailTab.milestones => 'milestones',
+                        ProjectDetailTab.notes => 'notes',
+                      },
+                  tasks: tasks,
+                  groups: groups,
+                  milestones: milestones,
+                  notes: documents,
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              if (widget.initialTab == ProjectDetailTab.overview) ...[
+                _ProjectOverview(
+                  tasks: tasks,
+                  milestones: milestones,
+                  notes: documents,
+                  onOpenTasks: () => setState(() => expandedPanel = 'tasks'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
               panel(
                 id: 'tasks',
                 title: '任务',
@@ -410,22 +518,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                       )
                     else
                       for (final group in groups)
-                        ListTile(
-                          leading: const Icon(Icons.account_tree_outlined),
-                          title: Text(group.title),
-                          subtitle: Text(
-                            '${controller.groupMembers(group.id).length} 项任务${group.projectId == null ? ' · 根据成员推断' : ''}',
-                          ),
-                          trailing: IconButton(
-                            tooltip: '编辑任务群',
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => showTaskGroupEditor(
-                              context: context,
-                              controller: controller,
-                              group: group,
-                            ),
-                          ),
-                        ),
+                        _ProjectGroupCard(controller: controller, group: group),
                   ],
                 ),
               ),
@@ -449,27 +542,45 @@ class _ProjectsPageState extends State<ProjectsPage> {
                         label: const Text('新增里程碑'),
                       ),
                     ),
+                    if (milestones.isEmpty)
+                      const EmptyState(
+                        icon: Icons.flag_outlined,
+                        title: '还没有里程碑',
+                        message: '为项目标记下一次需要核对的成果或日期。',
+                      ),
                     for (final milestone in milestones)
-                      ListTile(
-                        leading: Icon(
-                          milestone.isDone
-                              ? Icons.check_circle
-                              : Icons.flag_outlined,
-                        ),
-                        title: Text(milestone.title),
-                        subtitle: Text(
-                          milestone.dueAt == null
-                              ? '未设置截止日期'
-                              : '截止 ${formatShortDate(milestone.dueAt!)}',
-                        ),
-                        trailing: IconButton(
-                          tooltip: '编辑里程碑',
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => showRecordEditor(
-                            context,
-                            controller,
-                            kind: RecordKind.milestone,
-                            record: milestone,
+                      Card(
+                        child: ListTile(
+                          leading: Icon(
+                            milestone.isDone
+                                ? Icons.check_circle
+                                : Icons.flag_outlined,
+                            color: milestone.isDone
+                                ? context.tokens.reward
+                                : milestone.dueAt != null &&
+                                      milestone.dueAt!.isBefore(
+                                        controller.currentTime(),
+                                      )
+                                ? context.tokens.signal
+                                : Theme.of(context).colorScheme.primary,
+                          ),
+                          title: Text(milestone.title),
+                          subtitle: Text(
+                            milestone.isDone
+                                ? '已达成${milestone.dueAt == null ? '' : ' · ${formatShortDate(milestone.dueAt!)}'}'
+                                : milestone.dueAt == null
+                                ? '待到达 · 未设置日期'
+                                : '${milestone.dueAt!.isBefore(controller.currentTime()) ? '已逾期' : '待到达'} · ${formatShortDate(milestone.dueAt!)}',
+                          ),
+                          trailing: IconButton(
+                            tooltip: '编辑里程碑',
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: () => showRecordEditor(
+                              context,
+                              controller,
+                              kind: RecordKind.milestone,
+                              record: milestone,
+                            ),
                           ),
                         ),
                       ),
@@ -502,18 +613,22 @@ class _ProjectsPageState extends State<ProjectsPage> {
                         message: '从此处新建一篇属于当前项目的笔记。',
                       ),
                     for (final document in documents)
-                      ListTile(
-                        leading: const Icon(Icons.note_alt_outlined),
-                        title: Text(document.title),
-                        subtitle: Text(
-                          document.body,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        onTap: () => showMarkdownNoteEditor(
-                          context,
-                          controller,
-                          note: document,
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.note_alt_outlined),
+                          title: Text(document.title),
+                          subtitle: Text(
+                            document.body.isEmpty
+                                ? '更新于 ${formatShortDate(document.updatedAt)}'
+                                : '${document.body}\n更新于 ${formatShortDate(document.updatedAt)}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => showMarkdownNoteEditor(
+                            context,
+                            controller,
+                            note: document,
+                          ),
                         ),
                       ),
                   ],
@@ -529,7 +644,9 @@ class _ProjectsPageState extends State<ProjectsPage> {
                     Align(
                       alignment: AlignmentDirectional.centerEnd,
                       child: FilledButton.icon(
-                        onPressed: widget.onOpenReview,
+                        onPressed: widget.onOpenReview == null
+                            ? null
+                            : () => widget.onOpenReview!(null),
                         icon: const Icon(Icons.add),
                         label: const Text('打开当前回顾'),
                       ),
@@ -545,9 +662,16 @@ class _ProjectsPageState extends State<ProjectsPage> {
                         leading: const Icon(Icons.insights_outlined),
                         title: Text(review.title),
                         subtitle: Text(
-                          review.data['periodKey']?.toString() ?? '',
+                          '${switch (review.data['periodType']) {
+                            'weekly' => '周回顾',
+                            'monthly' => '月回顾',
+                            _ => '日回顾',
+                          }} · ${review.data['periodKey']?.toString() ?? formatShortDate(review.updatedAt)}',
                         ),
-                        onTap: widget.onOpenReview,
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: widget.onOpenReview == null
+                            ? null
+                            : () => widget.onOpenReview!(review),
                       ),
                   ],
                 ),
@@ -630,6 +754,448 @@ class _ProjectsPageState extends State<ProjectsPage> {
   }
 }
 
+class _ProjectGroupCard extends StatelessWidget {
+  const _ProjectGroupCard({required this.controller, required this.group});
+
+  final WorkbenchController controller;
+  final WorkspaceRecord group;
+
+  @override
+  Widget build(BuildContext context) {
+    final members = controller.groupMembers(group.id);
+    final sequential = group.data['mode'] == 'sequential';
+    final completed = members.where((task) => task.isDone).length;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        key: PageStorageKey('project-group-${group.id}'),
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text(group.title),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${sequential ? '顺序链' : '并行群'} · 已完成 $completed/${members.length}'
+              '${group.projectId == null ? ' · 根据成员推断' : ''}',
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            LinearProgressIndicator(
+              value: members.isEmpty ? 0 : completed / members.length,
+              minHeight: 5,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              backgroundColor: context.tokens.subtle,
+            ),
+          ],
+        ),
+        trailing: IconButton(
+          tooltip: '编辑任务群',
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: () => showTaskGroupEditor(
+            context: context,
+            controller: controller,
+            group: group,
+          ),
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                sequential ? '顺序依赖 · 完成前一项后解锁下一项' : '并行执行 · 每项任务可独立推进',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ),
+          if (members.isEmpty)
+            const ListTile(title: Text('群内暂无任务'))
+          else
+            for (var index = 0; index < members.length; index++)
+              Builder(
+                builder: (context) {
+                  final task = members[index];
+                  final locked = controller.isTaskGroupMemberLocked(
+                    task,
+                    group,
+                  );
+                  return ListTile(
+                    leading: CircleAvatar(
+                      child: locked
+                          ? const Icon(Icons.lock_outline, size: 18)
+                          : Text('${index + 1}'),
+                    ),
+                    title: Text(task.title),
+                    subtitle: Text(
+                      locked
+                          ? '第 ${index + 1} 项 · 前置任务尚未通过'
+                          : '第 ${index + 1} 项 · ${task.status}',
+                    ),
+                    trailing: const Icon(Icons.open_in_new_outlined),
+                    onTap: () => showRecordEditor(
+                      context,
+                      controller,
+                      kind: RecordKind.task,
+                      record: task,
+                    ),
+                  );
+                },
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Each project subpage keeps a distinct live-data cue above its work area.
+class _ProjectSectionSignal extends StatelessWidget {
+  const _ProjectSectionSignal({
+    required this.section,
+    required this.tasks,
+    required this.groups,
+    required this.milestones,
+    required this.notes,
+  });
+
+  final String section;
+  final List<WorkspaceRecord> tasks;
+  final List<WorkspaceRecord> groups;
+  final List<WorkspaceRecord> milestones;
+  final List<WorkspaceRecord> notes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    final doneTasks = tasks.where((task) => task.isDone).length;
+    final doingTasks = tasks
+        .where((task) => task.status == WorkStatus.doing)
+        .length;
+    final pendingTasks = tasks
+        .where(
+          (task) =>
+              !WorkStatus.terminal.contains(task.status) &&
+              task.status != WorkStatus.doing,
+        )
+        .length;
+    final doneMilestones = milestones.where((item) => item.isDone).length;
+    final pendingMilestones = milestones.where((item) => !item.isDone).toList()
+      ..sort((a, b) {
+        final aDate = a.dueAt;
+        final bDate = b.dueAt;
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return aDate.compareTo(bDate);
+      });
+    final recentNotes = [...notes]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    late final IconData icon;
+    late final String title;
+    late final String description;
+    late final List<Widget> facts;
+    switch (section) {
+      case 'groups':
+        final sequential = groups
+            .where((group) => group.data['mode'] == 'sequential')
+            .length;
+        icon = Icons.account_tree_outlined;
+        title = '任务群关系';
+        description = groups.isEmpty
+            ? '把有依赖的动作串成顺序链，独立动作组成并行群。'
+            : '关系决定下一步是否可以开始，展开任务群可查看成员。';
+        facts = [
+          _ProjectSignalFact(
+            label: '顺序链',
+            value: sequential,
+            icon: Icons.linear_scale,
+          ),
+          _ProjectSignalFact(
+            label: '并行群',
+            value: groups.length - sequential,
+            icon: Icons.hub_outlined,
+          ),
+        ];
+      case 'milestones':
+        icon = Icons.flag_outlined;
+        title = '成果里程碑';
+        description = pendingMilestones.isEmpty
+            ? '尚无待到达的里程碑。'
+            : '下一节点：${pendingMilestones.first.title}'
+                  '${pendingMilestones.first.dueAt == null ? '' : ' · ${formatShortDate(pendingMilestones.first.dueAt!)}'}';
+        facts = [
+          _ProjectSignalFact(
+            label: '待到达',
+            value: pendingMilestones.length,
+            icon: Icons.outlined_flag,
+          ),
+          _ProjectSignalFact(
+            label: '已达成',
+            value: doneMilestones,
+            icon: Icons.verified_outlined,
+            color: tokens.reward,
+          ),
+        ];
+      case 'notes':
+        icon = Icons.auto_stories_outlined;
+        title = '项目知识';
+        description = recentNotes.isEmpty
+            ? '把决策、材料和发现放在项目的同一处。'
+            : '最近更新：${recentNotes.first.title}';
+        facts = [
+          _ProjectSignalFact(
+            label: '关联笔记',
+            value: notes.length,
+            icon: Icons.note_alt_outlined,
+          ),
+          if (recentNotes.isNotEmpty)
+            Text(
+              '更新于 ${formatShortDate(recentNotes.first.updatedAt)}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: tokens.mutedText,
+              ),
+            ),
+        ];
+      default:
+        icon = Icons.route_outlined;
+        title = '任务推进管线';
+        description = tasks.isEmpty
+            ? '先写下可以行动的一步，项目便有了推进路径。'
+            : '从待办到完成，清单和看板显示同一组任务。';
+        facts = [
+          _ProjectSignalFact(
+            label: '待推进',
+            value: pendingTasks,
+            icon: Icons.pending_actions_outlined,
+          ),
+          _ProjectSignalFact(
+            label: '进行中',
+            value: doingTasks,
+            icon: Icons.play_circle_outline,
+          ),
+          _ProjectSignalFact(
+            label: '已完成',
+            value: doneTasks,
+            icon: Icons.check_circle_outline,
+            color: theme.colorScheme.primary,
+          ),
+        ];
+    }
+    return SolidPanel(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: theme.colorScheme.primary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(color: tokens.mutedText),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (section == 'tasks' && tasks.isNotEmpty) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: LinearProgressIndicator(
+                value: doneTasks / tasks.length,
+                minHeight: 7,
+                backgroundColor: tokens.subtle,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          Wrap(
+            spacing: AppSpacing.lg,
+            runSpacing: AppSpacing.sm,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: facts,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectSignalFact extends StatelessWidget {
+  const _ProjectSignalFact({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.color,
+  });
+
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = color ?? context.tokens.mutedText;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: AppIconSize.xs, color: foreground),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          '$label $value',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: foreground,
+            fontFamily: AppFonts.numeric,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProjectOverview extends StatelessWidget {
+  const _ProjectOverview({
+    required this.tasks,
+    required this.milestones,
+    required this.notes,
+    required this.onOpenTasks,
+  });
+
+  final List<WorkspaceRecord> tasks;
+  final List<WorkspaceRecord> milestones;
+  final List<WorkspaceRecord> notes;
+  final VoidCallback onOpenTasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    final completed = tasks.where((task) => task.isDone).length;
+    final progress = tasks.isEmpty ? 0.0 : completed / tasks.length;
+    return SolidPanel(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 500;
+              final showArt = MediaQuery.textScalerOf(context).scale(1) < 1.6;
+              return Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [tokens.heroStart, tokens.heroEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(tokens.cardRadius),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('项目进展', style: theme.textTheme.titleMedium),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            tasks.isEmpty
+                                ? '从第一步开始搭起项目路径'
+                                : '已完成 $completed / ${tasks.length} 项任务',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: tokens.mutedText,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          TextButton.icon(
+                            onPressed: onOpenTasks,
+                            icon: const Icon(
+                              Icons.arrow_forward,
+                              size: AppIconSize.xs,
+                            ),
+                            label: const Text('查看任务'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (showArt) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      WorkbenchIllustration(
+                        kind: WorkbenchIllustrationKind.project,
+                        width: compact ? 92 : 180,
+                        height: compact ? 94 : 130,
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Semantics(
+            label: '任务进度：已完成 $completed 项，共 ${tasks.length} 项',
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 7,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              backgroundColor: tokens.subtle,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.xl,
+            runSpacing: AppSpacing.sm,
+            children: [
+              _ProjectOverviewCount(label: '任务', value: tasks.length),
+              _ProjectOverviewCount(label: '已完成', value: completed),
+              _ProjectOverviewCount(label: '里程碑', value: milestones.length),
+              _ProjectOverviewCount(label: '笔记', value: notes.length),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectOverviewCount extends StatelessWidget {
+  const _ProjectOverviewCount({required this.label, required this.value});
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      label: '$label $value',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$value',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontFamily: AppFonts.numeric,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: context.tokens.mutedText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ProjectList extends StatelessWidget {
   const _ProjectList({
     required this.projects,
@@ -653,35 +1219,57 @@ class _ProjectList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
       children: [
         for (final project in projects)
-          ListTile(
-            selected: project.id == selectedId,
-            selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-            ),
-            leading: Icon(
-              project.favorite
-                  ? Icons.folder_special_outlined
-                  : Icons.folder_outlined,
-            ),
-            title: Text(
-              project.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text('${controller.projectTasks(project.id).length} 项任务'),
-            trailing: PopupMenuButton<String>(
-              tooltip: '项目操作',
-              onSelected: (value) {
-                if (value == 'edit') onEdit(project);
-                if (value == 'trash') onDelete(project);
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'edit', child: Text('编辑')),
-                PopupMenuItem(value: 'trash', child: Text('移入回收站')),
-              ],
-            ),
-            onTap: () => onSelected(project.id),
+          Builder(
+            builder: (context) {
+              final tasks = controller.projectTasks(project.id);
+              final done = tasks.where((task) => task.isDone).length;
+              return ListTile(
+                selected: project.id == selectedId,
+                selectedTileColor: Theme.of(
+                  context,
+                ).colorScheme.primaryContainer,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                ),
+                leading: Icon(
+                  project.favorite
+                      ? Icons.folder_special_outlined
+                      : Icons.folder_outlined,
+                ),
+                title: Text(
+                  project.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tasks.isEmpty ? '尚未添加任务' : '已完成 $done/${tasks.length} 项',
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    LinearProgressIndicator(
+                      value: tasks.isEmpty ? 0 : done / tasks.length,
+                      minHeight: 4,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      backgroundColor: context.tokens.subtle,
+                    ),
+                  ],
+                ),
+                trailing: PopupMenuButton<String>(
+                  tooltip: '项目操作',
+                  onSelected: (value) {
+                    if (value == 'edit') onEdit(project);
+                    if (value == 'trash') onDelete(project);
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'edit', child: Text('编辑')),
+                    PopupMenuItem(value: 'trash', child: Text('移入回收站')),
+                  ],
+                ),
+                onTap: () => onSelected(project.id),
+              );
+            },
           ),
       ],
     );
@@ -754,7 +1342,8 @@ class _KanbanBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final narrow = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final narrow =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final columns = [
       (WorkStatus.todo, '待办'),
       (WorkStatus.doing, '进行中'),

@@ -62,6 +62,25 @@ class _BehaviorPageState extends State<BehaviorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final ordinary = widget.controller.habits
+        .where((habit) => !habit.hasRsipProtocol)
+        .toList(growable: false);
+    final today = widget.controller.currentTime();
+    final habitPending = ordinary
+        .where(
+          (habit) => widget.controller.habitLogForDay(habit.id, today) == null,
+        )
+        .length;
+    final policyNodes = widget.controller.activeRsipHabits;
+    final policyPending = policyNodes
+        .where(
+          (node) =>
+              widget.controller.rsipExecutionForDay(node.id, today) == null,
+        )
+        .length;
+    final compactLabels =
+        WorkbenchViewport.sizeOf(context).width < 360 ||
+        MediaQuery.textScalerOf(context).scale(14) > 20;
     return Column(
       children: [
         if (widget.showHeader)
@@ -112,6 +131,57 @@ class _BehaviorPageState extends State<BehaviorPage> {
                 ),
               ],
             ],
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            widget.showHeader ? 20 : 8,
+            0,
+            widget.showHeader ? 20 : 8,
+            8,
+          ),
+          child: LogSurface(
+            accent: Theme.of(context).colorScheme.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    ActionChip(
+                      avatar: const Icon(Icons.repeat_outlined, size: 18),
+                      label: Text(
+                        compactLabels
+                            ? '习惯 $habitPending/${ordinary.length}'
+                            : '习惯待结算 $habitPending / ${ordinary.length}',
+                      ),
+                      onPressed: () => _selectMode(BehaviorMode.habits),
+                    ),
+                    ActionChip(
+                      avatar: const Icon(Icons.account_tree_outlined, size: 18),
+                      label: Text(
+                        compactLabels
+                            ? '国策 $policyPending/${policyNodes.length}'
+                            : '国策待结算 $policyPending / ${policyNodes.length}',
+                      ),
+                      onPressed: () => _selectMode(BehaviorMode.policies),
+                    ),
+                  ],
+                ),
+                if (mode == BehaviorMode.policies && policyNodes.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '当前节点：${policyNodes.first.title}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
         Expanded(

@@ -6,6 +6,8 @@ import '../../core/theme/app_theme.dart';
 import '../../services/growth_service.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
+import '../widgets/record_editor_dialog.dart';
+import '../widgets/workbench_illustration.dart';
 
 class GrowthPage extends StatelessWidget {
   const GrowthPage({
@@ -22,13 +24,14 @@ class GrowthPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final snapshot = controller.growthSnapshot;
+    final gameEnabled = controller.gameFeaturesEnabled;
     final ledgerNow = (now ?? controller.currentTime()).toLocal();
     return Column(
       children: [
         if (showHeader)
           PageHeader(
             title: '成长',
-            subtitle: controller.gameFeaturesEnabled
+            subtitle: gameEnabled
                 ? '虚拟积分 · 签到 · 执行证据'
                 : '本月执行账本 · 承诺 / 专注 / 习惯 / 日结',
           ),
@@ -41,11 +44,13 @@ class GrowthPage extends StatelessWidget {
               AppSpacing.bottomNavClearance,
             ),
             children: [
-              if (controller.gameFeaturesEnabled) ...[
+              _GrowthOpening(snapshot: snapshot, showGameProgress: gameEnabled),
+              const SizedBox(height: AppSpacing.md),
+              if (gameEnabled) ...[
                 _GameProfilePanel(controller: controller),
+                SectionHeading(title: '当前等级', scale: '证据账本'),
+                _LevelLedger(snapshot: snapshot),
               ],
-              SectionHeading(title: '当前等级', scale: '证据账本'),
-              _LevelLedger(snapshot: snapshot),
               if (snapshot.availableRecoveries > 0)
                 Align(
                   alignment: Alignment.centerLeft,
@@ -63,19 +68,120 @@ class GrowthPage extends StatelessWidget {
                     '${ledgerNow.year}-${ledgerNow.month.toString().padLeft(2, '0')}',
               ),
               _ActivityLedger(controller: controller, now: ledgerNow),
-              const SectionHeading(
-                title: '里程碑印章',
-                scale: 'LV 03 / 07 / 12 / 20',
-              ),
-              _MilestoneStamps(level: snapshot.level),
+              if (gameEnabled) ...[
+                const SectionHeading(
+                  title: '里程碑印章',
+                  scale: 'LV 03 / 07 / 12 / 20',
+                ),
+                _MilestoneStamps(level: snapshot.level),
+              ],
               const SectionHeading(title: '最近证据', scale: '最近'),
-              _RecentEvents(events: controller.growthEvents.take(8).toList()),
+              _RecentEvents(
+                events: controller.growthEvents.take(8).toList(),
+                showXp: gameEnabled,
+                onCreateTask: gameEnabled
+                    ? null
+                    : () => showRecordEditor(
+                        context,
+                        controller,
+                        kind: RecordKind.task,
+                        initialScheduledFor: ledgerNow,
+                      ),
+              ),
               if (controller.growthEvents.length < 5)
                 const SizedBox(height: 12),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _GrowthOpening extends StatelessWidget {
+  const _GrowthOpening({
+    required this.snapshot,
+    required this.showGameProgress,
+  });
+
+  final GrowthSnapshot snapshot;
+  final bool showGameProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
+    final copy = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '成长证据',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text('每一步都有记录', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          showGameProgress
+              ? '等级 ${snapshot.level} · 累计 ${snapshot.totalXp} XP · 连续 ${snapshot.streak} 日'
+              : '连续 ${snapshot.streak} 日 · 累计 ${snapshot.closedDays} 次日结',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: tokens.mutedText),
+        ),
+        if (showGameProgress) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Semantics(
+            label: '距下一级 ${snapshot.levelXp}，共需 ${snapshot.nextLevelXp} XP',
+            child: LinearProgressIndicator(
+              value: snapshot.levelProgress.clamp(0, 1),
+              minHeight: 6,
+              backgroundColor: tokens.orbitTrack,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
+      ],
+    );
+    final art = WorkbenchIllustration(
+      kind: WorkbenchIllustrationKind.growth,
+      width: compact ? 126 : 198,
+      height: compact ? 100 : 146,
+      alignment: Alignment.centerRight,
+    );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(tokens.panelRadius),
+        border: Border.all(color: tokens.panelBorder),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [tokens.heroStart, tokens.heroEnd],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  copy,
+                  Align(alignment: Alignment.centerRight, child: art),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(child: copy),
+                  const SizedBox(width: AppSpacing.xl),
+                  art,
+                ],
+              ),
+      ),
     );
   }
 }
@@ -561,7 +667,8 @@ class _ActivityLedger extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final cellSize = compact ? 16.0 : 14.0;
     final cellSlot = cellSize + 4;
     const categories = [
@@ -659,7 +766,8 @@ class _ActivityCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final cellSize = compact ? 16.0 : 14.0;
     final color = switch (state) {
       2 => Theme.of(context).colorScheme.primary,
@@ -766,17 +874,46 @@ class _Stamp extends StatelessWidget {
 }
 
 class _RecentEvents extends StatelessWidget {
-  const _RecentEvents({required this.events});
+  const _RecentEvents({
+    required this.events,
+    required this.showXp,
+    this.onCreateTask,
+  });
   final List<WorkspaceRecord> events;
+  final bool showXp;
+  final VoidCallback? onCreateTask;
 
   @override
   Widget build(BuildContext context) {
     if (events.isEmpty) {
-      return Text(
-        '尚无成长记录。从一次明确承诺开始。',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
+      return LogSurface(
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpacing.lg,
+          runSpacing: AppSpacing.md,
+          children: [
+            const Icon(Icons.auto_graph_outlined, size: 32),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('还没有执行证据', style: Theme.of(context).textTheme.titleSmall),
+                Text(
+                  '从一次明确承诺开始，完成后这里会留下记录。',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.tokens.mutedText,
+                  ),
+                ),
+              ],
+            ),
+            if (onCreateTask != null)
+              FilledButton.icon(
+                onPressed: onCreateTask,
+                icon: const Icon(Icons.add_task),
+                label: const Text('记录今天的下一步'),
+              ),
+          ],
+        ),
       );
     }
     return LogSurface(
@@ -784,14 +921,19 @@ class _RecentEvents extends StatelessWidget {
         children: [
           for (var index = 0; index < events.length; index++) ...[
             ListTile(
-              leading: NumericText(
-                ((events[index].data['xp'] as num?)?.toInt() ?? 0) >= 0
-                    ? '+${events[index].data['xp']}'
-                    : '${events[index].data['xp']}',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(color: context.tokens.reward),
-              ),
+              leading: showXp
+                  ? NumericText(
+                      ((events[index].data['xp'] as num?)?.toInt() ?? 0) >= 0
+                          ? '+${events[index].data['xp']}'
+                          : '${events[index].data['xp']}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: context.tokens.reward,
+                      ),
+                    )
+                  : Icon(
+                      Icons.fact_check_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
               title: Text(
                 events[index].title,
                 maxLines: 1,

@@ -1,0 +1,8 @@
+Windows: flutter run -d windows --debug --no-pub; build succeeded in 59.1 seconds.
+Final FocusModeControl and landscape toolbar adjustments loaded by hot reload.
+Client sizes verified at DPI 96: 1876x979, 1440x500, 1024x600, 700x700.
+Views checked: Today and Settings. Screenshots acquired from Flutter Inspector.
+Android: flutter build apk --debug --no-pub succeeded; flutter run on emulator-5554 succeeded in 60.1 seconds after reinstall.
+Standalone Activity start after emulator restart was verified; final screenshots are 1080x2400 and 2400x1080, density 420.
+Temporary wm override reset to physical 1080x2400.
+Physical Android device testing was not available.

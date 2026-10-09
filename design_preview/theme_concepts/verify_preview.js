@@ -1,0 +1,37 @@
+async (page) => {
+  const base = 'http://127.0.0.1:8765/design_preview/theme_concepts/';
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({width:1440,height:900});
+  await page.goto(`${base}?theme=green&screen=today`);
+  await page.getByRole('button', {name:'快速新增'}).click();
+  const captureOpened = await page.getByRole('dialog').isVisible();
+  await page.getByRole('textbox', {name:'内容'}).fill('补充方案评审要点');
+  await page.getByRole('button', {name:'保存记录'}).click();
+  const taskCreated = await page.getByRole('checkbox', {name:'补充方案评审要点'}).count() === 1;
+  await page.getByRole('checkbox', {name:'补充方案评审要点'}).click();
+  const countUpdated = await page.locator('.hero-stats span').first().textContent();
+  await page.locator('.search-button').click();
+  await page.getByRole('searchbox').fill('访谈');
+  const searchResultCount = await page.locator('.search-results button:visible').count();
+  await page.getByRole('button', {name:'关闭'}).click();
+  await page.locator('.focus-button').click();
+  await page.getByRole('button', {name:'开始计时'}).click();
+  await page.waitForTimeout(1150);
+  const timerValue = await page.locator('#timer-value').textContent();
+  await page.getByRole('button', {name:'暂停计时'}).click();
+  await page.keyboard.press('Escape');
+  const dialogClosed = !(await page.getByRole('dialog').isVisible());
+  await page.getByRole('link', {name:'项目',exact:true}).click();
+  const navigatedProject = await page.locator('.project-task-list .task-card').count() === 6;
+  await page.getByRole('button', {name:'新建项目'}).click();
+  await page.getByRole('textbox', {name:'项目名称'}).fill('客户研究计划');
+  await page.getByRole('button', {name:'创建项目'}).click();
+  const projectCreated = await page.locator('.project-choice').count() === 4;
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(`${base}?theme=green&screen=today`);
+  const responsiveMobile = await page.locator('.mobile-shell').count() === 1;
+  await page.getByRole('button', {name:'菜单'}).click();
+  const mobileMenuOpened = await page.getByRole('link', {name:'项目'}).count() >= 1;
+  return {captureOpened,taskCreated,countUpdated,searchResultCount,timerValue,dialogClosed,navigatedProject,projectCreated,responsiveMobile,mobileMenuOpened,errors};
+}

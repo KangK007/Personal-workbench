@@ -842,9 +842,21 @@ class WorkbenchController extends WorkbenchControllerBase
   }
 
   Future<void> setThemeMode(ThemeMode value) async {
+    if (_themeMode == value) return;
+    final previous = _themeMode;
     _themeMode = value;
-    await database.writeMetadata('theme_mode', value.name);
     notifyListeners();
+    try {
+      await database.writeMetadata('theme_mode', value.name);
+    } catch (_) {
+      // The preview is immediate, but a failed preference write must not leave
+      // the UI showing a choice that will disappear on the next launch.
+      if (_themeMode == value) {
+        _themeMode = previous;
+        notifyListeners();
+      }
+      rethrow;
+    }
   }
 
   Future<void> setNavigationCollapsed(bool value) async {
