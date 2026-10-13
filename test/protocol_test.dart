@@ -419,7 +419,17 @@ void main() {
       1,
     );
     expect(controller.protocolEvents.first.data['ruleId'], local.id);
-    await controller.archiveExceptionRule(local, true);
+    final edited = await controller.updateExceptionRule(
+      local,
+      name: '更新后的仪器报警',
+      description: '仅在真实安全报警时暂停',
+      ruleType: 'pause',
+      scope: 'global',
+    );
+    expect(edited.parentId, isNull);
+    expect(edited.data['usageCount'], 1);
+    expect(controller.exceptionRulesFor(second), contains(edited));
+    await controller.archiveExceptionRule(edited, true);
     expect(controller.exceptionRulesFor(first), [global]);
     await database.close();
   });

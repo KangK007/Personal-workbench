@@ -13,6 +13,7 @@ $Configuration = $Configuration.ToLowerInvariant()
 # 安全删除助手：垫片环境下 Remove-Item 会「报错但已生效」，
 # 故删除一律走状态校验式助手，避免构建死在产物复制之前。
 . (Join-Path $PSScriptRoot 'lib\Remove-Verified.ps1')
+. (Join-Path $PSScriptRoot 'lib\Test-LocalAuthenticode.ps1')
 
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $buildScript = Join-Path $projectRoot 'tool\build_windows.ps1'
@@ -114,7 +115,7 @@ if ($Configuration -eq 'release') {
         } else {
             ''
         }
-        if ($signature.Status -ne 'Valid' -or $actualThumbprint -ne $expectedThumbprint) {
+        if (-not (Test-LocalAuthenticodeSignature -Path $signedFile -ExpectedThumbprint $expectedThumbprint)) {
             throw "Windows distribution signature verification failed: $signedFile (status: $($signature.Status), thumbprint: $actualThumbprint)"
         }
     }

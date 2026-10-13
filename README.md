@@ -2,7 +2,7 @@
 
 > 当前项目结构、文件职责、冗余文件判定和文档同步口径见 [项目全量审查与文件说明](PROJECT_REVIEW.md)。
 
-个人工作台 0.2 是一款面向知识工作者的本地优先 Flutter 应用。它把“快速收集、项目规划、安排今天、专注执行、知识沉淀、回顾、目标与行为追踪”放在一条可验证的工作流中，并融合了 SelfControl 的 Windows 自律限制能力。界面提供「柔壤图鉴」浅色主题与「夜航工作室」深色主题：植物与纸面适合白天规划，深靛蓝工作台与冷青时间轨道适合夜间阅读。主题可手动选择或跟随系统；统计和时间图形始终读取真实记录。
+个人工作台 0.2 是一款面向知识工作者的本地优先 Flutter 应用。它把“快速收集、项目规划、安排今天、专注执行、知识沉淀、回顾、目标与行为追踪”放在一条可验证的工作流中，并融合了 SelfControl 的 Windows 自律限制能力。界面采用「青玉柔光」：浅色为薄荷白与青玉绿，深色为分层森林绿；主题可手动选择或跟随系统，统计和时间图形始终读取真实记录。改版逐页状态、素材与截图见 [49 项实施矩阵](docs/jade-redesign/REQUIREMENT_MATRIX.md)、[素材清单](docs/jade-redesign/ASSET_MANIFEST.md)和[验证记录](docs/jade-redesign/VERIFICATION.md)。
 
 ## 详细使用指南
 
@@ -38,7 +38,7 @@ lib/
   ui/pages/          今日、任务、项目、专注、自律、笔记、回顾、国策、设置及 Android 兼容页面
   ui/widgets/        日期刻度带、日志表面、任务行、快速收集、记录编辑、全局搜索等通用界面
 assets/branding/     应用图标源文件和主图标
-assets/illustrations/双主题领域插画（WebP，文字与数据仍由 Flutter 绘制）
+assets/illustrations/旧版双主题 WebP 源文件（当前界面使用代码绘制的纸页与叶片图形，旧图不打包）
 android/             Android 应用清单和构建配置
 windows/             Windows 原生进程、托盘、通知、快捷方式和 hosts 受管能力
 packaging/windows/   Windows 安装与独立 hosts 恢复脚本
@@ -115,6 +115,11 @@ keyPassword=<本地保存的密钥密码>
 `tool\build_android.ps1` 构建 Release 后，脚本还会调用 Android SDK 中的
 `apksigner` 验证签名；只有验证通过才会复制到项目 `build/` 目录。密钥库及密码应另行
 安全备份，不能只保存在项目工作区。
+
+若只需生成 Windows 本地安装包，可先运行 `tool/setup_local_signing.ps1 -WindowsOnly`；
+它不会新建 Android 发布密钥。Windows 自签名包校验要求文件签名与本机配置的证书
+指纹一致；在没有公共 CA 的机器上，只允许证书链的唯一错误为自签根未受信任，文件
+内容哈希不匹配仍会拒绝。正式 Android 更新必须继续使用此前发布版本的同一密钥。
 
 Windows 和 Android 构建脚本会把源码镜像到 `%LOCALAPPDATA%\PersonalWorkbenchBuild\` 下的纯 ASCII 暂存目录，再从该副本构建，规避中文工作区路径导致的 Gradle/MSBuild 编码问题。`build/`、`dist/`、`.git/` 等生成内容不会进入暂存副本；构建结果会复制回项目的标准输出目录。Android 脚本还会为 JDK/Gradle 使用短临时路径，避免 Windows AF_UNIX 回环通道的路径长度限制。Release 仅在签名验证通过后复制 APK。如需强制清理构建缓存，可增加 `-Clean` 参数。Android 脚本默认使用本机缓存的 Gradle 8.14 离线构建；新机器首次使用或缓存缺失时追加 `-Online` 下载 Gradle/插件依赖。脚本会加载 `tool/gradle_plugin_mirror.init.gradle`，在 Gradle Plugin Portal 重定向受限时使用镜像。
 

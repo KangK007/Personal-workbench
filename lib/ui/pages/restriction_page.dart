@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/models/restriction_models.dart';
@@ -81,10 +84,7 @@ class RestrictionSection extends StatelessWidget {
         : profile?.enabled == true
         ? '等待时段'
         : '未启用';
-    final statusColor =
-        monitor.active && !monitor.isPaused(controller.currentTime())
-        ? Theme.of(context).colorScheme.error
-        : Theme.of(context).colorScheme.primary;
+    final statusColor = context.accents.slate.color;
     final next = profile == null
         ? null
         : const RestrictionPolicyEngine().nextTransition(
@@ -96,12 +96,23 @@ class RestrictionSection extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compactMetrics = constraints.maxWidth < 720;
-          final metricWidth = compactMetrics
-              ? (constraints.maxWidth - AppSpacing.md) / 2
-              : 150.0;
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final metricCount = windows ? 5 : 3;
+          final columns = math.min(
+            metricCount,
+            constraints.maxWidth >= 950 * textScale
+                ? 5
+                : constraints.maxWidth >= 570 * textScale
+                ? 3
+                : constraints.maxWidth >= 300 * textScale
+                ? 2
+                : 1,
+          );
+          final metricWidth =
+              (constraints.maxWidth - AppSpacing.md * (columns - 1)) / columns;
           return Wrap(
-            spacing: compactMetrics ? AppSpacing.md : AppSpacing.xl,
+            alignment: WrapAlignment.center,
+            spacing: AppSpacing.md,
             runSpacing: AppSpacing.md,
             children: [
               _Metric(
@@ -187,6 +198,7 @@ class RestrictionSection extends StatelessWidget {
             ),
             secondary: SurfaceIcon(
               profile.enabled ? Icons.shield : Icons.shield_outlined,
+              color: context.accents.slate.color,
             ),
           ),
           const Divider(height: 1),
@@ -194,7 +206,10 @@ class RestrictionSection extends StatelessWidget {
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
             ),
-            leading: const SurfaceIcon(Icons.schedule_outlined),
+            leading: SurfaceIcon(
+              Icons.schedule_outlined,
+              color: context.accents.slate.color,
+            ),
             title: const Text('时段规则'),
             subtitle: Text(
               profile.schedules.isEmpty
@@ -211,7 +226,10 @@ class RestrictionSection extends StatelessWidget {
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
             ),
-            leading: const SurfaceIcon(Icons.apps_outlined),
+            leading: SurfaceIcon(
+              Icons.apps_outlined,
+              color: context.accents.slate.color,
+            ),
             title: Text(
               profile.blockMode == RestrictionBlockMode.blacklist
                   ? '应用黑名单'
@@ -227,7 +245,10 @@ class RestrictionSection extends StatelessWidget {
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
             ),
-            leading: const SurfaceIcon(Icons.public_outlined),
+            leading: SurfaceIcon(
+              Icons.public_outlined,
+              color: context.accents.slate.color,
+            ),
             title: Text(
               controller.windowsActivityService.supported ? '网站拦截' : '网站名单',
             ),
@@ -439,14 +460,65 @@ class RestrictionSection extends StatelessWidget {
 
 /// The seven rails map configured restriction minutes, including the part of
 /// an overnight interval which belongs to the following day.
-class _RestrictionWeekRail extends StatelessWidget {
+class _RestrictionWeekRail extends StatefulWidget {
   const _RestrictionWeekRail({required this.profile});
 
   final RestrictionProfile profile;
 
   @override
+  State<_RestrictionWeekRail> createState() => _RestrictionWeekRailState();
+}
+
+class _RestrictionWeekRailState extends State<_RestrictionWeekRail> {
+  late String _scheduleSignature;
+  late List<List<(int, int)>> _intervalsByDay;
+
+  String _signature(RestrictionProfile profile) =>
+      jsonEncode(profile.schedules.map((rule) => rule.toJson()).toList());
+
+  void _rebuildIntervals() {
+    _intervalsByDay = List.generate(7, (_) => <(int, int)>[]);
+    for (final rule in widget.profile.schedules) {
+      if (!rule.enabled) continue;
+      for (final day in rule.days) {
+        if (day < DateTime.monday || day > DateTime.sunday) continue;
+        _intervalsByDay[day - 1].add((
+          rule.startMinutes,
+          rule.crossesMidnight ? 1440 : rule.endMinutes,
+        ));
+        if (rule.crossesMidnight) {
+          final following = day == DateTime.sunday ? 1 : day + 1;
+          _intervalsByDay[following - 1].add((0, rule.endMinutes));
+        }
+      }
+    }
+    for (final intervals in _intervalsByDay) {
+      intervals.sort((a, b) => a.$1.compareTo(b.$1));
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleSignature = _signature(widget.profile);
+    _rebuildIntervals();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RestrictionWeekRail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final signature = _signature(widget.profile);
+    if (signature == _scheduleSignature) return;
+    _scheduleSignature = signature;
+    _rebuildIntervals();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final profile = widget.profile;
+    final accent = context.accents.slate.color;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     return LogSurface(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
@@ -460,7 +532,7 @@ class _RestrictionWeekRail extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SurfaceIcon(Icons.date_range_outlined),
+                  SurfaceIcon(Icons.date_range_outlined, color: accent),
                   const SizedBox(width: 10),
                   Text(
                     '每周限制时段',
@@ -470,6 +542,7 @@ class _RestrictionWeekRail extends StatelessWidget {
               ),
               StatusPill(
                 label: profile.enabled ? '规则已启用' : '规则未启用',
+                color: context.accents.slate.container,
                 icon: profile.enabled
                     ? Icons.shield_outlined
                     : Icons.shield_moon_outlined,
@@ -498,48 +571,62 @@ class _RestrictionWeekRail extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Semantics(
-                      label: '星期${_dayLabel(day)}，${_daySchedules(day)}',
-                      child: Tooltip(
-                        message: '星期${_dayLabel(day)}：${_daySchedules(day)}',
-                        child: SizedBox(
-                          height: 15,
-                          child: LayoutBuilder(
-                            builder: (context, constraints) => Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: context.tokens.orbitTrack,
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.xs,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Semantics(
+                          label: '星期${_dayLabel(day)}，${_daySchedules(day)}',
+                          child: Tooltip(
+                            message:
+                                '星期${_dayLabel(day)}：${_daySchedules(day)}',
+                            child: SizedBox(
+                              height: 15,
+                              child: LayoutBuilder(
+                                builder: (context, constraints) => Stack(
+                                  children: [
+                                    Positioned.fill(
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: context.tokens.orbitTrack,
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadius.xs,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                    for (final interval in _intervals(day))
+                                      Positioned(
+                                        left:
+                                            constraints.maxWidth *
+                                            interval.$1 /
+                                            1440,
+                                        width:
+                                            constraints.maxWidth *
+                                            (interval.$2 - interval.$1) /
+                                            1440,
+                                        top: 0,
+                                        bottom: 0,
+                                        child: ColoredBox(
+                                          color: profile.enabled
+                                              ? accent
+                                              : context.tokens.mutedText,
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                                for (final interval in _intervals(day))
-                                  Positioned(
-                                    left:
-                                        constraints.maxWidth *
-                                        interval.$1 /
-                                        1440,
-                                    width:
-                                        constraints.maxWidth *
-                                        (interval.$2 - interval.$1) /
-                                        1440,
-                                    top: 0,
-                                    bottom: 0,
-                                    child: ColoredBox(
-                                      color: profile.enabled
-                                          ? primary
-                                          : context.tokens.mutedText,
-                                    ),
-                                  ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                        if (compact) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            _daySchedules(day),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: context.tokens.mutedText),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
@@ -550,20 +637,7 @@ class _RestrictionWeekRail extends StatelessWidget {
     );
   }
 
-  Iterable<(int, int)> _intervals(int day) sync* {
-    final previous = day == DateTime.monday ? DateTime.sunday : day - 1;
-    for (final rule in profile.schedules.where((rule) => rule.enabled)) {
-      if (rule.days.contains(day)) {
-        yield (
-          rule.startMinutes,
-          rule.crossesMidnight ? 1440 : rule.endMinutes,
-        );
-      }
-      if (rule.crossesMidnight && rule.days.contains(previous)) {
-        yield (0, rule.endMinutes);
-      }
-    }
-  }
+  List<(int, int)> _intervals(int day) => _intervalsByDay[day - 1];
 
   String _daySchedules(int day) {
     final intervals = _intervals(day).toList();
@@ -654,33 +728,34 @@ Future<void> _editProfile(
   WorkbenchController controller,
   RestrictionProfile initial,
 ) async {
-  final result = await showWorkbenchDialog<RestrictionProfile>(
+  final result = await showWorkbenchDialog<_RestrictionSaveResult>(
     context: context,
     builder: (context) => _RestrictionEditor(
       initial: initial,
       windowsActionsAvailable: controller.windowsActivityService.supported,
+      onSave: (profile, credential) =>
+          controller.saveRestrictionProfile(profile, credential: credential),
     ),
   );
   if (result == null) return;
-  try {
-    final executeAt = await controller.saveRestrictionProfile(result);
-    if (context.mounted) {
-      showWorkbenchSnackBar(
-        context,
-        SnackBar(
-          content: Text(
-            executeAt == null
-                ? '规则已保存'
-                : '强保护生效中，将在 ${_dateTime(executeAt)} 应用',
-          ),
+  if (context.mounted) {
+    showWorkbenchSnackBar(
+      context,
+      SnackBar(
+        content: Text(
+          result.executeAt == null
+              ? '规则已保存'
+              : '强保护生效中，将在 ${_dateTime(result.executeAt!)} 应用',
         ),
-      );
-    }
-  } catch (error) {
-    if (context.mounted) {
-      showWorkbenchSnackBar(context, SnackBar(content: Text('$error')));
-    }
+      ),
+    );
   }
+}
+
+class _RestrictionSaveResult {
+  const _RestrictionSaveResult(this.executeAt);
+
+  final DateTime? executeAt;
 }
 
 Future<void> _setPassword(
@@ -824,9 +899,11 @@ class _RestrictionEditor extends StatefulWidget {
   const _RestrictionEditor({
     required this.initial,
     required this.windowsActionsAvailable,
+    required this.onSave,
   });
   final RestrictionProfile initial;
   final bool windowsActionsAvailable;
+  final Future<DateTime?> Function(RestrictionProfile, String) onSave;
 
   @override
   State<_RestrictionEditor> createState() => _RestrictionEditorState();
@@ -870,9 +947,49 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
   late final List<RestrictionScheduleRule> _schedules = [
     ...widget.initial.schedules,
   ];
+  final titleFocusNode = FocusNode(debugLabel: 'RestrictionEditor.title');
+  bool saving = false;
+  String? saveError;
+  late final String initialSnapshot;
+
+  String _snapshot() => jsonEncode([
+    _title.text,
+    _apps.text,
+    _allowed.text,
+    _appActions.text,
+    _keywords.text,
+    _keywordProcesses.text,
+    _websites.text,
+    _mode.name,
+    _action.name,
+    _titleAction.name,
+    _enabled,
+    _titleBlocking,
+    _websiteBlocking,
+    _allowBreak,
+    _strong,
+    _breakMinutes,
+    _maxBreaks,
+    _poll,
+    [for (final rule in _schedules) rule.toJson()],
+  ]);
+
+  @override
+  void initState() {
+    super.initState();
+    initialSnapshot = _snapshot();
+    _title.addListener(_clearTitleError);
+  }
+
+  void _clearTitleError() {
+    if (saveError == '请填写规则名称。' && _title.text.trim().isNotEmpty) {
+      setState(() => saveError = null);
+    }
+  }
 
   @override
   void dispose() {
+    _title.removeListener(_clearTitleError);
     for (final field in [
       _title,
       _apps,
@@ -884,6 +1001,7 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
     ]) {
       field.dispose();
     }
+    titleFocusNode.dispose();
     super.dispose();
   }
 
@@ -904,6 +1022,7 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
                   label: '规则名称',
                   child: TextField(
                     controller: _title,
+                    focusNode: titleFocusNode,
                     decoration: const InputDecoration(),
                   ),
                 ),
@@ -913,31 +1032,9 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
                   onChanged: (v) => setState(() => _enabled = v),
                   title: const Text('启用规则'),
                 ),
-                ExternalField(
-                  label: '应用匹配模式',
-                  child: DropdownButtonFormField<RestrictionBlockMode>(
-                    isExpanded: true,
-                    initialValue: _mode,
-                    decoration: const InputDecoration(),
-                    items: const [
-                      DropdownMenuItem(
-                        value: RestrictionBlockMode.blacklist,
-                        child: Text(
-                          '黑名单：命中后限制',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: RestrictionBlockMode.whitelist,
-                        child: Text(
-                          '白名单：未命中后限制',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _mode = v ?? _mode),
-                  ),
-                ),
+                _impactSummary(context),
+                const SizedBox(height: AppSpacing.lg),
+                _modeSelector(context),
                 const SizedBox(height: AppSpacing.md),
                 ExternalField(
                   label: '默认动作',
@@ -1053,6 +1150,8 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
                       ),
                     ),
                   ),
+                const SizedBox(height: AppSpacing.md),
+                _RestrictionSchedulePreview(schedules: _schedules),
                 _sectionLabel(context, '应用'),
                 ExternalField(
                   label: '阻止应用',
@@ -1272,45 +1371,71 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
           )
         : _androidEditorContent(compact);
     final cancelAction = TextButton(
-      onPressed: () => Navigator.pop(context),
+      onPressed: saving ? null : () => Navigator.maybePop(context),
       child: const Text('取消'),
     );
     final saveAction = FilledButton(
-      onPressed: () => Navigator.pop(context, _result()),
-      child: const Text('保存'),
+      onPressed: saving ? null : _save,
+      child: saving
+          ? const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Text('保存'),
     );
     if (compact) {
-      return Dialog.fullscreen(
-        child: Scaffold(
-          resizeToAvoidBottomInset: true,
-          appBar: AppBar(
-            leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              tooltip: '关闭',
-              icon: const Icon(Icons.close),
-            ),
-            title: const Text('编辑自律规则'),
-            bottom: const PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Divider(height: 1),
-            ),
-          ),
-          body: SafeArea(top: false, child: editorContent),
-          bottomNavigationBar: SafeArea(
-            top: false,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border(top: BorderSide(color: context.tokens.divider)),
+      return _guard(
+        Dialog.fullscreen(
+          child: Scaffold(
+            resizeToAvoidBottomInset: true,
+            appBar: AppBar(
+              leading: IconButton(
+                onPressed: saving ? null : () => Navigator.maybePop(context),
+                tooltip: '关闭',
+                icon: const Icon(Icons.close),
               ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                child: Row(
-                  children: [
-                    Expanded(child: cancelAction),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(child: saveAction),
-                  ],
+              title: const Text('编辑自律规则'),
+              bottom: const PreferredSize(
+                preferredSize: Size.fromHeight(1),
+                child: Divider(height: 1),
+              ),
+            ),
+            body: SafeArea(
+              top: false,
+              child: AbsorbPointer(absorbing: saving, child: editorContent),
+            ),
+            bottomNavigationBar: SafeArea(
+              top: false,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border(
+                    top: BorderSide(color: context.tokens.divider),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (saveError != null) ...[
+                        Text(
+                          saveError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                      ],
+                      Row(
+                        children: [
+                          Expanded(child: cancelAction),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(child: saveAction),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1318,19 +1443,42 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
         ),
       );
     }
-    return AlertDialog(
-      title: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('编辑自律规则'),
-          SizedBox(height: AppSpacing.sm),
-          Divider(),
+    return _guard(
+      AlertDialog(
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('编辑自律规则'),
+            SizedBox(height: AppSpacing.sm),
+            Divider(),
+          ],
+        ),
+        content: SizedBox(
+          width: 680,
+          child: AbsorbPointer(absorbing: saving, child: editorContent),
+        ),
+        actions: [
+          if (saveError != null)
+            SizedBox(
+              width: double.infinity,
+              child: Text(
+                saveError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          cancelAction,
+          saveAction,
         ],
       ),
-      content: SizedBox(width: 620, child: editorContent),
-      actions: [cancelAction, saveAction],
     );
   }
+
+  Widget _guard(Widget child) => UnsavedChangesGuard(
+    hasChanges: () => _snapshot() != initialSnapshot,
+    isBusy: () => saving,
+    onSave: _save,
+    child: child,
+  );
 
   Widget _androidEditorContent(bool compact) => SingleChildScrollView(
     padding: compact
@@ -1351,6 +1499,7 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
           label: '规则名称',
           child: TextField(
             controller: _title,
+            focusNode: titleFocusNode,
             decoration: const InputDecoration(),
           ),
         ),
@@ -1360,6 +1509,9 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
           onChanged: (value) => setState(() => _enabled = value),
           title: const Text('在 Windows 启用此规则'),
         ),
+        _impactSummary(context),
+        const SizedBox(height: AppSpacing.lg),
+        _modeSelector(context),
         _sectionLabel(context, '时段'),
         Row(
           children: [
@@ -1412,6 +1564,8 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
               ),
             ),
           ),
+        const SizedBox(height: AppSpacing.md),
+        _RestrictionSchedulePreview(schedules: _schedules),
         _sectionLabel(context, '同步到 Windows 的名单'),
         ExternalField(
           label: '阻止应用',
@@ -1464,19 +1618,121 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
     ),
   );
 
+  Widget _modeSelector(BuildContext context) => ExternalField(
+    label: '应用匹配模式',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SegmentedButton<RestrictionBlockMode>(
+            segments: const [
+              ButtonSegment(
+                value: RestrictionBlockMode.blacklist,
+                icon: Icon(Icons.block_outlined),
+                label: Text('黑名单'),
+              ),
+              ButtonSegment(
+                value: RestrictionBlockMode.whitelist,
+                icon: Icon(Icons.verified_user_outlined),
+                label: Text('白名单'),
+              ),
+            ],
+            selected: {_mode},
+            onSelectionChanged: (value) => setState(() => _mode = value.first),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          _mode == RestrictionBlockMode.blacklist
+              ? '命中阻止名单后执行所选动作。'
+              : '未列入允许名单的应用将受到限制。',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 13),
+        ),
+      ],
+    ),
+  );
+
+  Widget _impactSummary(BuildContext context) => AnimatedBuilder(
+    animation: Listenable.merge([_apps, _allowed, _keywords, _websites]),
+    builder: (context, _) {
+      final slate = context.accents.slate;
+      final appSummary = _mode == RestrictionBlockMode.blacklist
+          ? '阻止应用 ${_lines(_apps.text).length} 项'
+          : '允许应用 ${_lines(_allowed.text).length} 项，其余受限';
+      final titleSummary = _titleBlocking
+          ? '窗口标题关键词 ${_lines(_keywords.text).length} 项'
+          : '窗口标题匹配未启用';
+      final websiteSummary = _websiteBlocking
+          ? '网站域名 ${_lines(_websites.text).length} 项'
+          : '网站名单未启用';
+      return LogSurface(
+        accent: slate.color,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.shield_outlined, size: 20, color: slate.color),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    '受影响范围',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '$appSummary · $titleSummary · $websiteSummary',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontSize: 15),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _enabled
+                  ? _action == RestrictionAction.forceClose
+                        ? '启用后，限制时段内命中的应用会被强制结束。'
+                        : '启用后，限制时段内命中的应用会收到提醒。'
+                  : '规则尚未启用，保存后不会立即限制应用。',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontSize: 13,
+                color: _enabled && _action == RestrictionAction.forceClose
+                    ? Theme.of(context).colorScheme.error
+                    : null,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              widget.windowsActionsAvailable
+                  ? '应用与网站限制由本机 Windows 权限执行；请确认系统权限已授予。'
+                  : '当前设备只保存规则配置；应用与网站限制将在支持的 Windows 设备执行。',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+
   Widget _sectionLabel(
     BuildContext context,
     String text, {
     bool topPadding = true,
   }) => Padding(
     padding: EdgeInsets.only(
-      top: topPadding ? AppSpacing.lg : 0,
+      top: topPadding ? AppSpacing.xl : 0,
       bottom: AppSpacing.sm,
     ),
     child: Text(
       text,
       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-        color: Theme.of(context).colorScheme.primary,
+        color: context.accents.slate.color,
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -1505,10 +1761,44 @@ class _RestrictionEditorState extends State<_RestrictionEditor> {
     ),
   );
 
+  Future<void> _save() async {
+    if (saving) return;
+    if (_title.text.trim().isEmpty) {
+      setState(() => saveError = '请填写规则名称。');
+      titleFocusNode.requestFocus();
+      return;
+    }
+    setState(() {
+      saving = true;
+      saveError = null;
+    });
+    try {
+      final profile = _result();
+      DateTime? executeAt;
+      try {
+        executeAt = await widget.onSave(profile, '');
+      } on FormatException catch (error) {
+        if (!error.message.toString().contains('请输入保护密码')) rethrow;
+        if (!mounted) return;
+        final credential = await _credential(context, '保存自律规则');
+        if (!mounted || credential == null) return;
+        executeAt = await widget.onSave(profile, credential);
+      }
+      if (mounted) Navigator.pop(context, _RestrictionSaveResult(executeAt));
+    } catch (error) {
+      if (!mounted) return;
+      setState(
+        () => saveError = error is FormatException
+            ? error.message.toString()
+            : '保存失败，当前输入已保留，请稍后重试。',
+      );
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
   RestrictionProfile _result() => widget.initial.copyWith(
-    title: _title.text.trim().isEmpty
-        ? widget.initial.title
-        : _title.text.trim(),
+    title: _title.text.trim(),
     enabled: _enabled,
     schedules: _schedules,
     blockMode: _mode,
@@ -1584,95 +1874,125 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('时段规则'),
-    content: SizedBox(
-      width: 420,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ExternalField(
-            label: '名称',
-            child: TextField(
-              controller: _label,
-              decoration: const InputDecoration(),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final fields = [
-                ExternalField(
-                  label: '开始 HH:MM',
-                  child: TextField(
-                    controller: _start,
-                    keyboardType: TextInputType.datetime,
-                    style: const TextStyle(
-                      fontFamily: AppFonts.numeric,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                    decoration: const InputDecoration(),
-                  ),
+  Widget build(BuildContext context) {
+    final previewStart = _parseMinutes(_start.text);
+    final previewEnd = _parseMinutes(_end.text);
+    return AlertDialog(
+      insetPadding: EdgeInsets.all(
+        MediaQuery.sizeOf(context).width < 600 ? 8 : 24,
+      ),
+      title: const Text('时段规则'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ExternalField(
+                label: '名称',
+                child: TextField(
+                  controller: _label,
+                  decoration: const InputDecoration(),
                 ),
-                ExternalField(
-                  label: '结束 HH:MM',
-                  child: TextField(
-                    controller: _end,
-                    keyboardType: TextInputType.datetime,
-                    style: const TextStyle(
-                      fontFamily: AppFonts.numeric,
-                      fontFeatures: [FontFeature.tabularFigures()],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final fields = [
+                    ExternalField(
+                      label: '开始 HH:MM',
+                      child: TextField(
+                        controller: _start,
+                        onChanged: (_) => setState(() {}),
+                        keyboardType: TextInputType.datetime,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.numeric,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                        decoration: const InputDecoration(),
+                      ),
                     ),
-                    decoration: const InputDecoration(),
-                  ),
-                ),
-              ];
-              if (constraints.maxWidth < 320) {
-                return Column(
+                    ExternalField(
+                      label: '结束 HH:MM',
+                      child: TextField(
+                        controller: _end,
+                        onChanged: (_) => setState(() {}),
+                        keyboardType: TextInputType.datetime,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.numeric,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                        decoration: const InputDecoration(),
+                      ),
+                    ),
+                  ];
+                  if (constraints.maxWidth < 320) {
+                    return Column(
+                      children: [
+                        fields.first,
+                        const SizedBox(height: AppSpacing.md),
+                        fields.last,
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: fields.first),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(child: fields.last),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
                   children: [
-                    fields.first,
-                    const SizedBox(height: AppSpacing.md),
-                    fields.last,
+                    for (final day in List.generate(7, (i) => i + 1))
+                      FilterChip(
+                        label: Text(_dayLabel(day)),
+                        selected: _days.contains(day),
+                        onSelected: (v) => setState(
+                          () => v ? _days.add(day) : _days.remove(day),
+                        ),
+                      ),
                   ],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: fields.first),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(child: fields.last),
-                ],
-              );
-            },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              if (previewStart != null &&
+                  previewEnd != null &&
+                  previewStart != previewEnd &&
+                  _days.isNotEmpty)
+                _RestrictionSchedulePreview(
+                  schedules: [
+                    RestrictionScheduleRule(
+                      id: 'draft-preview',
+                      label: _label.text,
+                      days: _days.toList(),
+                      startMinutes: previewStart,
+                      endMinutes: previewEnd,
+                    ),
+                  ],
+                )
+              else
+                const Text('输入有效时间并选择日期后显示预览。'),
+            ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                for (final day in List.generate(7, (i) => i + 1))
-                  FilterChip(
-                    label: Text(_dayLabel(day)),
-                    selected: _days.contains(day),
-                    onSelected: (v) =>
-                        setState(() => v ? _days.add(day) : _days.remove(day)),
-                  ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('取消'),
-      ),
-      FilledButton(onPressed: _save, child: const Text('保存')),
-    ],
-  );
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('保存')),
+      ],
+    );
+  }
 
   void _save() {
     final start = _parseMinutes(_start.text);
@@ -1692,6 +2012,122 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
         days: _days.toList()..sort(),
         startMinutes: start,
         endMinutes: end,
+      ),
+    );
+  }
+}
+
+class _RestrictionSchedulePreview extends StatelessWidget {
+  const _RestrictionSchedulePreview({required this.schedules});
+
+  final List<RestrictionScheduleRule> schedules;
+
+  List<({int start, int end})> _segmentsForDay(int day) {
+    final segments = <({int start, int end})>[];
+    for (final rule in schedules.where((rule) => rule.enabled)) {
+      if (rule.days.contains(day)) {
+        segments.add((
+          start: rule.startMinutes,
+          end: rule.crossesMidnight ? 1440 : rule.endMinutes,
+        ));
+      }
+      if (rule.crossesMidnight &&
+          rule.days.any((startDay) => startDay % 7 + 1 == day) &&
+          rule.endMinutes > 0) {
+        segments.add((start: 0, end: rule.endMinutes));
+      }
+    }
+    return segments.where((segment) => segment.end > segment.start).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final slate = context.accents.slate;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final rowHeight = 28.0 * textScale.clamp(1.0, 1.6);
+    return LogSurface(
+      accent: slate.color,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.schedule_outlined, size: 18, color: slate.color),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '每周时段预览',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (var day = 1; day <= 7; day++)
+            Semantics(
+              label:
+                  '周${_dayLabel(day)}：${_segmentsForDay(day).isEmpty ? '未安排' : _segmentsForDay(day).map((segment) => '${_formatMinutes(segment.start)} 至 ${_formatMinutes(segment.end)}').join('、')}',
+              child: SizedBox(
+                height: rowHeight,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 40 * textScale.clamp(1.0, 1.5),
+                      child: Text(
+                        '周${_dayLabel(day)}',
+                        style: Theme.of(context).textTheme.labelSmall,
+                        maxLines: 1,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: SizedBox(
+                            height: 12,
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: ColoredBox(
+                                    color: context.tokens.subtle,
+                                  ),
+                                ),
+                                for (final segment in _segmentsForDay(day))
+                                  Positioned(
+                                    left:
+                                        segment.start /
+                                        1440 *
+                                        constraints.maxWidth,
+                                    width: math.max(
+                                      2,
+                                      (segment.end - segment.start) /
+                                          1440 *
+                                          constraints.maxWidth,
+                                    ),
+                                    top: 0,
+                                    bottom: 0,
+                                    child: ColoredBox(color: slate.color),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '按本地表单静态预览，跨午夜时段延续到次日。',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontSize: 13),
+          ),
+        ],
       ),
     );
   }

@@ -13,10 +13,10 @@ import '../../state/workbench_controller.dart';
 import '../platform_feedback.dart';
 import '../widgets/celebration.dart';
 import '../widgets/common.dart';
+import '../widgets/jade_botanical_edge.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/solid_panel.dart';
-import '../widgets/workbench_illustration.dart';
 import 'focus_page.dart';
 
 class TodayPage extends StatelessWidget {
@@ -29,6 +29,7 @@ class TodayPage extends StatelessWidget {
     this.onOpenInbox,
     this.onOpenReview,
     this.onOpenHabits,
+    this.onOpenFocus,
   });
 
   final WorkbenchController controller;
@@ -38,6 +39,7 @@ class TodayPage extends StatelessWidget {
   final VoidCallback? onOpenInbox;
   final VoidCallback? onOpenReview;
   final VoidCallback? onOpenHabits;
+  final VoidCallback? onOpenFocus;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +50,7 @@ class TodayPage extends StatelessWidget {
           PageHeader(
             maxWidth: AppLayout.todayMax,
             title: '今日',
+            displayTitle: true,
             // 方案 C 的页头把日期放在标题**之上**，移动端 AppBar 即此排布
             // （规格 §20.4）。桌面原先把同一段日期放在标题**下方**，
             // 同一天在两个端上是两种读法，故改为 kicker。
@@ -76,10 +79,12 @@ class TodayPage extends StatelessWidget {
           child: _TodayContent(
             controller: controller,
             date: date,
+            showHeader: showHeader,
             onOpenPlan: onOpenPlan,
             onOpenInbox: onOpenInbox,
             onOpenReview: onOpenReview,
             onOpenHabits: onOpenHabits,
+            onOpenFocus: onOpenFocus,
           ),
         ),
       ],
@@ -128,10 +133,25 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
 
   void _scheduleTimer() {
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => now = widget.controller.currentTime().toLocal());
-    });
+    // The ruler shows whole minutes; redrawing every second needlessly
+    // repaints its 24 labels and progress marks while the page is visible.
+    final current = widget.controller.currentTime().toLocal();
+    final nextMinute = DateTime(
+      current.year,
+      current.month,
+      current.day,
+      current.hour,
+      current.minute + 1,
+    );
+    final delay = nextMinute.difference(current);
+    _timer = Timer(
+      delay > Duration.zero ? delay : const Duration(minutes: 1),
+      () {
+        if (!mounted) return;
+        setState(() => now = widget.controller.currentTime().toLocal());
+        _scheduleTimer();
+      },
+    );
   }
 
   double get _progress {
@@ -158,10 +178,9 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final progress = _progress.clamp(0.0, 1.0).toDouble();
-            // Android landscape can report a wide physical surface but only
-            // ~900 logical pixels at high density. Keep every hour addressable
-            // while shortening the visual label so adjacent labels do not run
-            // together; the full time remains available to accessibility.
+            // Keep all 24 hours in the ruler and semantics. Shorten the text
+            // and show fewer visual labels when the available hour cells are
+            // too narrow for the current text scale.
             final compactLabels = constraints.maxWidth < 1200;
             return Stack(
               children: [
@@ -186,33 +205,64 @@ class _TimeRulerState extends State<_TimeRuler> with WidgetsBindingObserver {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Row(
-                          children: [
-                            for (var index = 0; index < labels.length; index++)
-                              Expanded(
-                                child: Center(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      compactLabels
-                                          ? labels[index].substring(0, 2)
-                                          : labels[index],
+                        child: LayoutBuilder(
+                          builder: (context, hourConstraints) {
+                            final hourWidth = hourConstraints.maxWidth / 24;
+                            final textScale =
+                                MediaQuery.textScalerOf(context).scale(12) / 12;
+                            final labelEvery = const [1, 2, 3, 4, 6, 8, 12, 24]
+                                .firstWhere(
+                                  (stride) =>
+                                      hourWidth * stride >= 24 * textScale,
+                                  orElse: () => 24,
+                                );
+                            return Row(
+                              children: [
+                                for (
+                                  var index = 0;
+                                  index < labels.length;
+                                  index++
+                                )
+                                  Expanded(
+                                    child: Semantics(
                                       key: ValueKey('time-ruler-hour-$index'),
-                                      semanticsLabel: labels[index],
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall
-                                          ?.copyWith(
-                                            color: scheme.onSurfaceVariant,
-                                            fontFeatures: const [
-                                              FontFeature.tabularFigures(),
-                                            ],
-                                          ),
+                                      container: true,
+                                      label: labels[index],
+                                      child: index % labelEvery == 0
+                                          ? ExcludeSemantics(
+                                              child: SizedBox(
+                                                height: 38,
+                                                child: OverflowBox(
+                                                  alignment: index == 0
+                                                      ? Alignment.centerLeft
+                                                      : Alignment.center,
+                                                  maxWidth:
+                                                      hourWidth * labelEvery,
+                                                  child: Text(
+                                                    compactLabels
+                                                        ? labels[index]
+                                                              .substring(0, 2)
+                                                        : labels[index],
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .labelSmall
+                                                        ?.copyWith(
+                                                          color: scheme
+                                                              .onSurfaceVariant,
+                                                          fontFeatures: const [
+                                                            FontFeature.tabularFigures(),
+                                                          ],
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : const SizedBox.expand(),
                                     ),
                                   ),
-                                ),
-                              ),
-                          ],
+                              ],
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -306,30 +356,41 @@ class _TodayContent extends StatelessWidget {
   const _TodayContent({
     required this.controller,
     required this.date,
+    required this.showHeader,
     this.onOpenPlan,
     this.onOpenInbox,
     this.onOpenReview,
     this.onOpenHabits,
+    this.onOpenFocus,
   });
 
   final WorkbenchController controller;
   final DateTime date;
+  final bool showHeader;
   final VoidCallback? onOpenPlan;
   final VoidCallback? onOpenInbox;
   final VoidCallback? onOpenReview;
   final VoidCallback? onOpenHabits;
+  final VoidCallback? onOpenFocus;
 
   @override
   Widget build(BuildContext context) {
     final commitments = controller.commitmentTasks;
     final pageWidth = WorkbenchViewport.sizeOf(context).width;
+    final contentWidth = pageWidth - AppSpacing.pageWide * 2;
     final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-    final wide = pageWidth >= AppLayout.todaySplitMin * textScale.clamp(1, 1.6);
+    final wide =
+        contentWidth >= AppLayout.todaySplitMin * textScale.clamp(1, 1.6);
     final overdue = controller.overdueTasks;
-    final today = controller.todayTasks
+    final allTodayTasks = controller.todayTasks;
+    final today = allTodayTasks
         .where((task) => !WorkStatus.terminal.contains(task.status))
         .toList();
     final settled = controller.settledTodayTasks;
+    final spotlightIds = controller.commitmentIds.toSet();
+    final settledRest = settled
+        .where((task) => !spotlightIds.contains(task.id))
+        .toList();
     final nextStep = _NextStepPanel(
       controller: controller,
       date: date,
@@ -342,12 +403,12 @@ class _TodayContent extends StatelessWidget {
         title: '时间安排',
         scale: '06:00—02:00',
         trailing: TextButton.icon(
-          onPressed: controller.todayTasks.isEmpty
+          onPressed: allTodayTasks.isEmpty
               ? null
               : () => _showTimeBlockDialog(
                   context,
                   controller,
-                  controller.todayTasks.first,
+                  allTodayTasks.first,
                 ),
           icon: const Icon(Icons.add),
           label: const Text('安排'),
@@ -362,18 +423,9 @@ class _TodayContent extends StatelessWidget {
       emptyMessage: '没有逾期待处理的任务。',
       overdue: true,
     );
-    final todaySection = _TodayTaskSection(
-      title: '今日',
-      tasks: today,
-      controller: controller,
-      emptyMessage: '今天还没有待处理任务。',
-      action: '全部',
-      onAction: onOpenPlan,
-      countLabel: '剩 ${today.length} 项',
-    );
     final settledSection = _TodayTaskSection(
       title: '已结算',
-      tasks: settled,
+      tasks: settledRest,
       controller: controller,
       emptyMessage: '今天还没有已结算任务。',
       settled: true,
@@ -382,20 +434,20 @@ class _TodayContent extends StatelessWidget {
     // 承诺本身就是今日任务的子集，若再把全量任务列一遍，
     // 同一个标题会在同屏出现两次。故移动端「今日」只列
     // 未被聚光的那部分；全为承诺时整段省略，页面顺序即与源稿一致。
-    final spotlightIds = controller.commitmentIds.toSet();
     final todayRest = today
         .where((task) => !spotlightIds.contains(task.id))
         .toList();
     final todayRestSection = _TodayTaskSection(
+      key: const ValueKey('today-pending-section'),
       title: '今日',
       tasks: todayRest,
       controller: controller,
       emptyMessage: '今天还没有待处理任务。',
+      hideWhenEmpty: wide || today.isNotEmpty,
       action: '全部',
       onAction: onOpenPlan,
       countLabel: '剩 ${todayRest.length} 项',
     );
-    final taskSections = <Widget>[overdueSection, todaySection, settledSection];
     final details = <Widget>[
       const SectionHeading(title: '计划习惯'),
       _HabitLog(controller: controller, date: date),
@@ -436,7 +488,9 @@ class _TodayContent extends StatelessWidget {
     final commitmentSection = <Widget>[
       SectionHeading(
         title: '今日重点',
-        scale: controller.todayStarted ? '剩 ${commitments.length} 项' : '最多 3 项',
+        scale: controller.todayStarted
+            ? '剩 ${commitments.where((task) => !task.isDone).length} 项'
+            : '最多 3 项',
         trailing: controller.todayStarted
             ? Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
@@ -465,12 +519,20 @@ class _TodayContent extends StatelessWidget {
     ];
 
     if (wide) {
-      final sideWidth = (pageWidth * 0.26).clamp(280.0, 360.0);
+      final sideWidth = ((contentWidth - AppLayout.columnGap) * 0.36).clamp(
+        AppLayout.scheduleColumnMin,
+        416.0,
+      );
       return WorkbenchContentFrame(
         key: const ValueKey('today-workspace'),
         maxWidth: AppLayout.todayMax,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageWide,
+            0,
+            AppSpacing.pageWide,
+            AppSpacing.pageWide,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -481,18 +543,17 @@ class _TodayContent extends StatelessWidget {
                   key: const PageStorageKey('today-main-column'),
                   padding: const EdgeInsets.only(bottom: 72),
                   children: [
-                    _TodayScene(controller: controller, date: date),
-                    const SizedBox(height: AppSpacing.md),
-                    // 概览卡是方案 C 的视觉锚点：移动端在顶层，桌面同样
-                    // 置顶。少了它，同一天在两个端上是两种观感。
-                    _TodayOverviewCard(
-                      remaining: today.length,
-                      completed: settled.where((task) => task.isDone).length,
-                      focus: controller.todayFocusDuration,
+                    _TodayScene(
+                      controller: controller,
+                      date: date,
+                      showHeader: showHeader,
                     ),
+                    const SizedBox(height: AppSpacing.md),
+                    ...commitmentSection,
+                    if (controller.todayStarted) todayRestSection,
+                    overdueSection,
+                    if (settledRest.isNotEmpty) settledSection,
                     nextStep,
-                    ...taskSections,
-                    ...timeline,
                     ExpansionTile(
                       key: const PageStorageKey('today-desktop-details'),
                       tilePadding: EdgeInsets.zero,
@@ -506,15 +567,42 @@ class _TodayContent extends StatelessWidget {
               const SizedBox(width: AppLayout.columnGap),
               SizedBox(
                 width: sideWidth,
-                child: ListView(
-                  key: const PageStorageKey('today-side-column'),
-                  padding: const EdgeInsets.only(bottom: 80),
+                child: Column(
                   children: [
-                    ...commitmentSection,
-                    if (controller.advancedFeaturesEnabled) ...[
-                      const SectionHeading(title: '成长进度'),
-                      _CompactGrowth(controller: controller),
-                    ],
+                    Expanded(
+                      child: ListView(
+                        key: const PageStorageKey('today-side-column'),
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        children: [
+                          ...timeline,
+                          const SizedBox(height: AppSpacing.lg),
+                          _TodayOverviewCard(
+                            remaining: today.length,
+                            completed: settled
+                                .where((task) => task.isDone)
+                                .length,
+                            focus: controller.todayFocusDuration,
+                            dense: true,
+                          ),
+                          if (controller.advancedFeaturesEnabled) ...[
+                            const SectionHeading(title: '成长进度'),
+                            _CompactGrowth(controller: controller),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (onOpenFocus != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.sm),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: onOpenFocus,
+                            icon: const Icon(Icons.timer_outlined),
+                            label: const Text('开始专注'),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -537,17 +625,25 @@ class _TodayContent extends StatelessWidget {
         AppSpacing.bottomNavClearance + MediaQuery.paddingOf(context).bottom,
       ),
       children: [
-        _TodayScene(controller: controller, date: date),
+        _TodayScene(controller: controller, date: date, showHeader: showHeader),
         const SizedBox(height: AppSpacing.md),
         _TodayOverviewCard(
           remaining: today.length,
           completed: settled.where((task) => task.isDone).length,
           focus: controller.todayFocusDuration,
         ),
+        if (onOpenFocus != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          FilledButton.icon(
+            onPressed: onOpenFocus,
+            icon: const Icon(Icons.timer_outlined),
+            label: const Text('开始专注'),
+          ),
+        ],
         nextStep,
         // 空白天仍保留「今日」分区（给出「今天还没有待处理任务」的明示），
         // 只有当内容**整体搬进「今日重点」**时才省略整段。
-        if (todayRest.isNotEmpty || today.isEmpty) todayRestSection,
+        todayRestSection,
         ...commitmentSection,
         ...habitSection,
         ExpansionTile(
@@ -557,7 +653,7 @@ class _TodayContent extends StatelessWidget {
           title: const Text('更多今日记录'),
           children: [
             overdueSection,
-            settledSection,
+            if (settledRest.isNotEmpty) settledSection,
             ...timeline,
             ExpansionTile(
               key: const PageStorageKey('today-mobile-details'),
@@ -583,12 +679,14 @@ enum _TodayNextState {
   closed,
 }
 
-class _TodayTaskSection extends StatelessWidget {
+class _TodayTaskSection extends StatefulWidget {
   const _TodayTaskSection({
+    super.key,
     required this.title,
     required this.tasks,
     required this.controller,
     required this.emptyMessage,
+    this.hideWhenEmpty = false,
     this.settled = false,
     this.overdue = false,
     this.action,
@@ -600,6 +698,7 @@ class _TodayTaskSection extends StatelessWidget {
   final List<WorkspaceRecord> tasks;
   final WorkbenchController controller;
   final String emptyMessage;
+  final bool hideWhenEmpty;
   final bool settled;
 
   /// 逾期分区：卡片上补一枚「已逾期」标签。
@@ -616,21 +715,119 @@ class _TodayTaskSection extends StatelessWidget {
   final String? countLabel;
 
   @override
+  State<_TodayTaskSection> createState() => _TodayTaskSectionState();
+}
+
+class _TodayTaskSectionState extends State<_TodayTaskSection> {
+  late List<WorkspaceRecord> _displayed;
+  final Set<String> _departing = {};
+  final Map<String, Timer> _departureTimers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _displayed = List.of(widget.tasks);
+  }
+
+  @override
+  void didUpdateWidget(covariant _TodayTaskSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final currentIds = widget.tasks.map((task) => task.id).toSet();
+    final previous = _displayed;
+    for (final id in currentIds) {
+      _departing.remove(id);
+      _departureTimers.remove(id)?.cancel();
+    }
+    for (final task in previous) {
+      if (!currentIds.contains(task.id) && _departing.add(task.id)) {
+        // A lazy list may not build an off-screen row, so its animation's
+        // onEnd cannot be the only way to release the departing record.
+        _departureTimers[task.id] = Timer(
+          AppMotion.taskReflow + const Duration(milliseconds: 40),
+          () => _finishDeparture(task.id),
+        );
+      }
+    }
+    final next = List<WorkspaceRecord>.of(widget.tasks);
+    for (var index = 0; index < previous.length; index++) {
+      final task = previous[index];
+      if (_departing.contains(task.id)) {
+        next.insert(index.clamp(0, next.length), task);
+      }
+    }
+    _displayed = next;
+  }
+
+  void _finishDeparture(String id) {
+    if (!_departing.contains(id) || !mounted) return;
+    setState(() {
+      _departureTimers.remove(id)?.cancel();
+      _departing.remove(id);
+      _displayed.removeWhere((task) => task.id == id);
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final timer in _departureTimers.values) {
+      timer.cancel();
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final compact =
         WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
-    return Column(
+    final maxListHeight = (WorkbenchViewport.sizeOf(context).height * 0.6)
+        .clamp(220.0, 640.0);
+    final commitmentIds = widget.controller.commitmentIds.toSet();
+    // A shrink-wrapped sliver measures far more rows during a desktop resize.
+    // Give long sections a real viewport, while short sections keep their
+    // natural height and avoid empty space below the final card.
+    final longList = _displayed.length >= 8;
+    final indices = <String, int>{
+      for (var index = 0; index < _displayed.length; index++)
+        _displayed[index].id: index,
+    };
+    final taskList = ListView.builder(
+      key: PageStorageKey('today-task-scroll-${widget.title}'),
+      primary: false,
+      shrinkWrap: !longList,
+      itemCount: _displayed.length,
+      findChildIndexCallback: (key) =>
+          key is ValueKey<String> ? indices[key.value] : null,
+      itemBuilder: (context, index) {
+        final task = _displayed[index];
+        return _AnimatedTodayTaskRow(
+          key: ValueKey<String>(task.id),
+          task: task,
+          controller: widget.controller,
+          isCommitment: commitmentIds.contains(task.id),
+          settled: widget.settled,
+          overdue: widget.overdue,
+          departing: _departing.contains(task.id),
+          bottomGap: index == _displayed.length - 1
+              ? 0
+              : compact
+              ? 7
+              : AppSpacing.sm,
+          onDepartureComplete: () => _finishDeparture(task.id),
+        );
+      },
+    );
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeading(
-          title: title,
-          scale: countLabel ?? '${tasks.length} 项',
-          action: action,
-          onAction: onAction,
+          title: widget.title,
+          scale: widget.countLabel ?? '${widget.tasks.length} 项',
+          action: widget.action,
+          onAction: widget.onAction,
         ),
-        if (tasks.isEmpty)
+        if (_displayed.isEmpty && !widget.hideWhenEmpty)
           Text(
-            emptyMessage,
+            widget.emptyMessage,
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
@@ -638,29 +835,102 @@ class _TodayTaskSection extends StatelessWidget {
         else
           // 方案 C：一项一张独立卡。原先「一张面板 + 行内分隔线 + 左侧
           // 3px 状态竖条」的形态在方案 C 里没有任何对应物。
-          Column(
-            children: [
-              for (var index = 0; index < tasks.length; index++) ...[
-                _TodayStatusTask(
-                  task: tasks[index],
-                  controller: controller,
-                  settled: settled,
-                  overdue: overdue,
-                ),
-                if (index < tasks.length - 1)
-                  SizedBox(height: compact ? 7 : AppSpacing.sm),
-              ],
-            ],
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxListHeight),
+            child: longList
+                ? SizedBox(height: maxListHeight, child: taskList)
+                : taskList,
           ),
       ],
+    );
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: widget.hideWhenEmpty && widget.tasks.isEmpty ? 0 : 1),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : AppMotion.taskReflow,
+      curve: Curves.easeOutCubic,
+      builder: (context, factor, child) => ClipRect(
+        child: Align(
+          alignment: Alignment.topCenter,
+          heightFactor: factor,
+          child: Opacity(opacity: factor, child: child),
+        ),
+      ),
+      child: content,
+    );
+  }
+}
+
+class _AnimatedTodayTaskRow extends StatelessWidget {
+  const _AnimatedTodayTaskRow({
+    super.key,
+    required this.task,
+    required this.controller,
+    required this.isCommitment,
+    required this.settled,
+    required this.overdue,
+    required this.departing,
+    required this.bottomGap,
+    required this.onDepartureComplete,
+  });
+
+  final WorkspaceRecord task;
+  final WorkbenchController controller;
+  final bool isCommitment;
+  final bool settled;
+  final bool overdue;
+  final bool departing;
+  final double bottomGap;
+  final VoidCallback onDepartureComplete;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: departing ? 0 : 1),
+      duration: reduceMotion ? Duration.zero : AppMotion.taskReflow,
+      curve: Curves.easeOutCubic,
+      onEnd: () {
+        if (departing) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            onDepartureComplete();
+          });
+        }
+      },
+      builder: (context, factor, child) => ClipRect(
+        child: Align(
+          alignment: Alignment.topCenter,
+          heightFactor: factor,
+          child: Opacity(opacity: factor, child: child),
+        ),
+      ),
+      child: ExcludeSemantics(
+        excluding: departing,
+        child: IgnorePointer(
+          ignoring: departing,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomGap),
+            child: _TodayStatusTask(
+              key: ValueKey('today-task-${task.id}'),
+              task: task,
+              controller: controller,
+              isCommitment: isCommitment,
+              settled: settled,
+              overdue: overdue,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _TodayStatusTask extends StatelessWidget {
   const _TodayStatusTask({
+    super.key,
     required this.task,
     required this.controller,
+    required this.isCommitment,
     required this.settled,
     this.overdue = false,
     this.extraActions,
@@ -668,6 +938,7 @@ class _TodayStatusTask extends StatelessWidget {
 
   final WorkspaceRecord task;
   final WorkbenchController controller;
+  final bool isCommitment;
   final bool settled;
   final bool overdue;
 
@@ -682,6 +953,7 @@ class _TodayStatusTask extends StatelessWidget {
     return _ExpandableTodayTask(
       task: task,
       controller: controller,
+      isCommitment: isCommitment,
       settled: settled,
       overdue: overdue,
       extraActions: extraActions,
@@ -998,6 +1270,7 @@ class _ExpandableTodayTask extends StatefulWidget {
   const _ExpandableTodayTask({
     required this.task,
     required this.controller,
+    required this.isCommitment,
     required this.settled,
     required this.onSettle,
     required this.onCorrect,
@@ -1007,6 +1280,7 @@ class _ExpandableTodayTask extends StatefulWidget {
 
   final WorkspaceRecord task;
   final WorkbenchController controller;
+  final bool isCommitment;
   final bool settled;
   final bool overdue;
   final ValueChanged<String> onSettle;
@@ -1069,7 +1343,7 @@ class _ExpandableTodayTaskState extends State<_ExpandableTodayTask> {
           foreground: statusOnContainer,
           dense: compact,
         ),
-      if (widget.controller.commitmentIds.contains(task.id))
+      if (widget.isCommitment)
         StatusPill(
           label: '今日必达',
           color: tokens.oliveContainer,
@@ -1186,7 +1460,9 @@ class _ExpandableTodayTaskState extends State<_ExpandableTodayTask> {
             ),
           ),
           AnimatedCrossFade(
-            duration: const Duration(milliseconds: 160),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
             crossFadeState: expanded
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
@@ -1615,6 +1891,7 @@ class _CommitmentLog extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact =
         WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
+    final commitmentIds = controller.commitmentIds.toSet();
     // 方案 C 只有一种任务卡：白底、圆角 16、1px 描边、
     // 圆角方复选框 + pill 标签。承诺卡不再走 TaskRow——
     // 左侧索引竖条、内联五行事实、⋯ 菜单是桌面
@@ -1626,6 +1903,7 @@ class _CommitmentLog extends StatelessWidget {
           _TodayStatusTask(
             task: commitments[index],
             controller: controller,
+            isCommitment: commitmentIds.contains(commitments[index].id),
             settled: false,
             extraActions: _commitmentActions(context, index),
           ),
@@ -2351,6 +2629,7 @@ Future<void> _showCloseDialog(
                           child: FocusCelebration(
                             title: '今日已收尾',
                             subtitle: '今日航迹已写入执行日志',
+                            actionLabel: '返回今日',
                           ),
                         ),
                       );
@@ -2616,10 +2895,15 @@ class _DismissAfterState extends State<_DismissAfter> {
 /// The illustrated entry is a quiet scene; all daily facts stay live Flutter
 /// text and controls, so the same composition works in both color themes.
 class _TodayScene extends StatelessWidget {
-  const _TodayScene({required this.controller, required this.date});
+  const _TodayScene({
+    required this.controller,
+    required this.date,
+    required this.showHeader,
+  });
 
   final WorkbenchController controller;
   final DateTime date;
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context) {
@@ -2629,20 +2913,21 @@ class _TodayScene extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 440;
-        final showArt = textScale < 1.6;
-        final artWidth = compact ? 98.0 : 178.0;
+        final showArt = textScale < 1.6 && constraints.maxWidth > 340;
+        final showEyebrow =
+            !showHeader ||
+            WorkbenchViewport.sizeOf(context).height >= 500 ||
+            textScale < 1.6;
         final state = controller.todayClosed
             ? '今日已收尾，留下完成的证据'
             : controller.todayStarted
             ? '沿着重点任务，稳步推进'
             : '先选出真正重要的下一步';
         return Container(
-          constraints: BoxConstraints(minHeight: compact ? 112 : 154),
-          padding: EdgeInsets.fromLTRB(
-            compact ? AppSpacing.lg : AppSpacing.xl,
-            AppSpacing.lg,
-            compact ? AppSpacing.md : AppSpacing.xl,
-            AppSpacing.lg,
+          constraints: const BoxConstraints(minHeight: 56),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
           ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -2660,60 +2945,46 @@ class _TodayScene extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          theme.brightness == Brightness.dark
-                              ? Icons.nights_stay_outlined
-                              : Icons.wb_sunny_outlined,
-                          size: AppIconSize.xs,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Flexible(
-                          child: Text(
-                            '今日节奏 · ${formatShortDate(date)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontFamily: AppFonts.numeric,
+                    if (showEyebrow)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            theme.brightness == Brightness.dark
+                                ? Icons.nights_stay_outlined
+                                : Icons.wb_sunny_outlined,
+                            size: AppIconSize.xs,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Flexible(
+                            child: Text(
+                              '今日节奏 · ${formatShortDate(date)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontFamily: AppFonts.numeric,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
+                        ],
+                      ),
+                    if (showEyebrow) const SizedBox(height: AppSpacing.xs),
                     Text(
                       state,
-                      maxLines: showArt ? (compact ? 2 : 3) : null,
-                      overflow: showArt ? TextOverflow.ellipsis : null,
-                      style:
-                          (compact
-                                  ? theme.textTheme.titleMedium
-                                  : theme.textTheme.headlineSmall)
-                              ?.copyWith(color: theme.colorScheme.onSurface),
-                    ),
-                    if (controller.todayStarted) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        '今日重点 ${controller.commitmentTasks.length} 项',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: tokens.mutedText,
-                        ),
+                      maxLines: compact ? 2 : 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
               if (showArt) ...[
                 const SizedBox(width: AppSpacing.sm),
-                WorkbenchIllustration(
-                  kind: WorkbenchIllustrationKind.today,
-                  width: artWidth,
-                  height: compact ? 88 : 122,
-                ),
+                JadeBotanicalEdge(width: compact ? 40 : 64, compact: compact),
               ],
             ],
           ),
@@ -2735,11 +3006,13 @@ class _TodayOverviewCard extends StatelessWidget {
     required this.remaining,
     required this.completed,
     required this.focus,
+    this.dense = false,
   });
 
   final int remaining;
   final int completed;
   final Duration focus;
+  final bool dense;
 
   static String formatFocus(Duration value) {
     final hours = value.inHours;
@@ -2755,110 +3028,123 @@ class _TodayOverviewCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final total = remaining + completed;
     final ratio = total == 0 ? 0.0 : completed / total;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.md + 2,
-        AppSpacing.lg - 2,
-        AppSpacing.md + 2,
-      ),
-      decoration: BoxDecoration(
-        color: tokens.subtle,
-        borderRadius: BorderRadius.circular(AppRadius.panel),
-        border: Border.all(color: scheme.primaryContainer),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        total == 0
-                            ? '今日尚未安排'
-                            : remaining == 0
-                            ? '今日已清空'
-                            : '还剩 $remaining 件事',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onPrimaryContainer,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    // 源稿此处是 U+2726（四角星）。四款内置字体的 cmap
-                    // 都没有这个码位（`tool/verify_glyph_coverage.py` 实测），
-                    // 文字渲染出来是豆腐块——移动端 golden 也一直是坏的，
-                    // 只是没放大看过。改用 Material 图标字体里的同形四角星，
-                    // 已实测 U+E0B7 存在。
-                    Icon(
-                      total == 0
-                          ? Icons.event_note_outlined
-                          : Icons.auto_awesome,
-                      size: 13,
-                      color: scheme.onPrimaryContainer,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '已完成 $completed 项 · 专注 ${formatFocus(focus)}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 11.5,
-                    color: scheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 11),
-                _SegmentedProgress(ratio: ratio),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          _RingProgress(ratio: total == 0 ? null : ratio),
-        ],
-      ),
+    final decoration = BoxDecoration(
+      color: tokens.subtle,
+      borderRadius: BorderRadius.circular(AppRadius.panel),
+      border: Border.all(color: scheme.primaryContainer),
     );
-  }
-}
-
-/// 分段进度条：12 段方块，已完成的段用主色。
-///
-/// 用分段而非连续条，是为了让「还剩几件」可以被数出来——进度不是大概，
-/// 是 N 件事。这也是方案 C 在概览卡里最显眼的一处细节。
-class _SegmentedProgress extends StatelessWidget {
-  const _SegmentedProgress({required this.ratio});
-
-  /// 段数固定 12：源稿即 12 段，且它同时是「还剩几件事」的可数刻度。
-  static const segments = 12;
-
-  final double ratio;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final filled = (ratio * segments).round().clamp(0, segments);
-    return Row(
-      children: [
-        for (var index = 0; index < segments; index++) ...[
-          if (index > 0) const SizedBox(width: 5),
-          Expanded(
-            child: Container(
-              height: 5,
-              decoration: BoxDecoration(
-                color: index < filled
-                    ? scheme.primary
-                    : scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+    if (dense) {
+      final summary = total == 0
+          ? '今日尚未安排 · 专注 ${formatFocus(focus)}'
+          : '待办 $remaining · 完成 $completed · 专注 ${formatFocus(focus)}';
+      final largeText = MediaQuery.textScalerOf(context).scale(13) > 18;
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: decoration,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                summary,
+                maxLines: largeText ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: scheme.onPrimaryContainer,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ),
+            const SizedBox(width: AppSpacing.sm),
+            _RingProgress(ratio: total == 0 ? null : ratio),
+          ],
+        ),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final textWidth = constraints.maxWidth - AppSpacing.lg * 2 - 78;
+        final stacked = textWidth < 160 * textScale;
+        final title = Row(
+          children: [
+            Flexible(
+              child: Text(
+                total == 0
+                    ? '今日尚未安排'
+                    : remaining == 0
+                    ? '今日已清空'
+                    : '还剩 $remaining 件事',
+                maxLines: stacked ? 2 : 1,
+                overflow: stacked ? TextOverflow.clip : TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+            const SizedBox(width: 5),
+            // The source glyph is missing from the bundled fonts.
+            Icon(
+              total == 0 ? Icons.event_note_outlined : Icons.auto_awesome,
+              size: 13,
+              color: scheme.onPrimaryContainer,
+            ),
+          ],
+        );
+        final summary = Text(
+          stacked
+              ? '已完成 $completed 项\n专注 ${formatFocus(focus)}'
+              : '已完成 $completed 项 · 专注 ${formatFocus(focus)}',
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontSize: 11.5,
+            color: scheme.primary,
           ),
-        ],
-      ],
+        );
+        final facts = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            title,
+            const SizedBox(height: 5),
+            summary,
+            const SizedBox(height: AppSpacing.xs),
+          ],
+        );
+        final ring = _RingProgress(ratio: total == 0 ? null : ratio);
+        return Container(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md + 2,
+            AppSpacing.lg - 2,
+            AppSpacing.md + 2,
+          ),
+          decoration: decoration,
+          child: stacked
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    title,
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Expanded(child: summary),
+                        const SizedBox(width: 14),
+                        ring,
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: facts),
+                    const SizedBox(width: 14),
+                    ring,
+                  ],
+                ),
+        );
+      },
     );
   }
 }
@@ -2876,29 +3162,38 @@ class _RingProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final value = ratio;
-    final label = value == null ? '—' : '${(value * 100).round()}%';
+    final target = (value ?? 0).clamp(0.0, 1.0);
+    final targetLabel = value == null ? '—' : '${(target * 100).round()}%';
     return Semantics(
-      label: value == null ? '尚未安排任务，暂无完成进度' : '今日任务完成进度 $label',
+      label: value == null ? '尚未安排任务，暂无完成进度' : '今日任务完成进度 $targetLabel',
       container: true,
       excludeSemantics: true,
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: CustomPaint(
-          painter: _RingPainter(
-            ratio: (value ?? 0).clamp(0.0, 1.0),
-            track: scheme.primaryContainer,
-            progress: scheme.primary,
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: AppFonts.numeric,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: scheme.onPrimaryContainer,
-                fontFeatures: const [FontFeature.tabularFigures()],
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: target),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : AppMotion.progressUpdate,
+        curve: Curves.easeOutCubic,
+        builder: (context, progress, _) => SizedBox(
+          width: size,
+          height: size,
+          child: CustomPaint(
+            key: const ValueKey('today-progress-ring'),
+            painter: _RingPainter(
+              ratio: progress,
+              track: scheme.primaryContainer,
+              progress: scheme.primary,
+            ),
+            child: Center(
+              child: Text(
+                value == null ? '—' : '${(progress * 100).round()}%',
+                style: TextStyle(
+                  fontFamily: AppFonts.numeric,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onPrimaryContainer,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ),
           ),
@@ -2966,7 +3261,11 @@ class _TaskCheckbox extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final tokens = context.tokens;
-    return Container(
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : AppMotion.standard;
+    return AnimatedContainer(
+      duration: duration,
       width: 20,
       height: 20,
       margin: const EdgeInsets.only(top: 1),
@@ -2977,7 +3276,17 @@ class _TaskCheckbox extends StatelessWidget {
             ? null
             : Border.all(color: tokens.borderStrong, width: 1.5),
       ),
-      child: done ? Icon(Icons.check, size: 14, color: scheme.onPrimary) : null,
+      child: AnimatedSwitcher(
+        duration: duration,
+        child: done
+            ? Icon(
+                Icons.check,
+                key: const ValueKey('today-task-check'),
+                size: 14,
+                color: scheme.onPrimary,
+              )
+            : const SizedBox.shrink(key: ValueKey('today-task-unchecked')),
+      ),
     );
   }
 }

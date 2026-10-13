@@ -31,6 +31,10 @@ void main() {
         ),
         'onPrimary/primary': (scheme.onPrimary, scheme.primary),
         'error/surface': (scheme.error, scheme.surface),
+        'snackbar action/background': (
+          theme.snackBarTheme.actionTextColor!,
+          theme.snackBarTheme.backgroundColor!,
+        ),
       };
       for (final pair in pairs.entries) {
         expect(
@@ -71,8 +75,8 @@ void main() {
     expect(nightTokens.heroStart, AppColors.darkHeroStart);
     expect(dayTokens.reward, AppColors.lightReward);
     expect(nightTokens.reward, AppColors.darkReward);
-    expect(dayTokens.panelRadius, 20);
-    expect(nightTokens.panelRadius, 18);
+    expect(dayTokens.panelRadius, AppRadius.panel);
+    expect(nightTokens.panelRadius, AppRadius.panel);
 
     for (final theme in [day, night]) {
       final tokens = theme.extension<WorkbenchTokens>()!;
@@ -109,7 +113,7 @@ void main() {
       midpoint.orbitTrack,
       Color.lerp(day.orbitTrack, night.orbitTrack, 0.5),
     );
-    expect(midpoint.panelRadius, 19);
+    expect(midpoint.panelRadius, AppRadius.panel);
     expect(
       day.copyWith(navigation: night.navigation).navigation,
       night.navigation,

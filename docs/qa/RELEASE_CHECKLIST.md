@@ -1,5 +1,21 @@
 # 个人工作台发布检查清单
 
+## 2026-10-14 增量检查：0.2.2+8
+
+源码分支：`feature/jade-responsive-layout-20261014`。454 项 Flutter 测试通过，静态分析 0 issue，Windows Release 构建通过。35 个审计页面的双主题断点矩阵已更新并逐页检查代表尺寸；真实 Windows 系统缩放已测 125%、150%、175%，本机 200% 需注销，见 `docs/jade-redesign/VERIFICATION.md`。
+
+| 当前本地分发产物 | SHA-256 | 状态 |
+|---|---|---|
+| `dist/PersonalWorkbench_0.2.2+8_windows.zip` | `C10909DB5EA54DE2442BE7AA07D8689D59F3145334A0076A9ABBD54DC2519B94` | Windows 安装 ZIP 已生成，分离式 CMS 签名与本机自签证书指纹已验，4 项签名测试通过；未安装到稳定目录 |
+| `dist/apk/PersonalWorkbench_0.2.2_8_debug.apk` | `71FA85ADF917794D25277CEE1E5DBEB2320538216F7D63904B2B91709A9169EB` | 通用 Debug APK；`versionCode=8`、`versionName=0.2.2`、v2 签名已验 |
+| `dist/apk/PersonalWorkbench_0.2.2_8_debug-arm64-v8a.apk` | `A7F6947651141FB1713D886F637A61FD6D66D0791B94058CE9350A31D2DC09B3` | ARM64 Debug APK；只含 ARM64 Flutter 引擎库，插件仍含多 ABI 库 |
+| `dist/apk/PersonalWorkbench_0.2.2_8_debug-armeabi-v7a.apk` | `F007A3A135B07FBF158D8D1CE7B00D9C2A70C366FD74B329B835813E078F53FF` | ARM32 Debug APK；只含 ARM32 Flutter 引擎库，插件仍含多 ABI 库 |
+| `dist/apk/PersonalWorkbench_0.2.2_8_debug-x86_64.apk` | `614781E5BBCA0D96EB318CAE5519AC6D754F28404BF081587EC04BE522554C72` | x86_64 Debug APK；只含 x86_64 Flutter 引擎库，插件仍含多 ABI 库 |
+
+**正式 Android Release 尚未打包：**当前机器没有原有发布 keystore 和 `android/key.properties`。新建密钥会使已安装旧版无法原位升级，需先取得旧密钥或明确接受更换签名。Windows ZIP 使用本机自签证书，目标机器若未信任该证书，会显示发布者未受信任；本次校验未把该证书加入当前用户的受信任根库。
+
+以下为 2026-09-20 的历史检查记录，其版本和分支描述不代表上述当前产物。
+
 > 检查日期：2026-09-20
 > 最终安装包刷新：2026-09-20
 > 产物源码基线：当前工作区 `main`

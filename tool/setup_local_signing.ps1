@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$Force
+    [switch]$Force,
+    [switch]$WindowsOnly
 )
 
 Set-StrictMode -Version Latest
@@ -67,6 +68,7 @@ if (Test-Path -LiteralPath $statePath -PathType Leaf) {
     $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
 }
 
+if (-not $WindowsOnly.IsPresent) {
 if ($Force -or -not (Test-Path -LiteralPath $androidKeystore -PathType Leaf)) {
     $keytool = (Get-Command keytool -CommandType Application -ErrorAction Stop).Source
     $storePassword = New-RandomHex
@@ -125,6 +127,7 @@ if ($Force -or -not (Test-Path -LiteralPath $androidKeystore -PathType Leaf)) {
         Write-Output 'Repaired Android PKCS12 key password to match the store password.'
     }
 }
+}
 
 if ($Force -or -not $state -or -not $state.windowsThumbprint) {
     $certificate = New-SelfSignedCertificate `
@@ -175,6 +178,8 @@ foreach ($privatePath in @(
     Protect-PrivatePath $privatePath
 }
 
-Write-Output "Android signing configured: $keyPropertiesPath"
+if (-not $WindowsOnly.IsPresent) {
+    Write-Output "Android signing configured: $keyPropertiesPath"
+}
 Write-Output "Windows signing certificate: $($state.windowsThumbprint)"
 Write-Output "Private signing material is stored under: $signingRoot"

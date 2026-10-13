@@ -28,6 +28,7 @@ class GoalsPage extends StatelessWidget {
       children: [
         if (showHeader)
           PageHeader(
+            maxWidth: AppLayout.formMax,
             title: '目标',
             subtitle: '结果协议 → 里程碑 → 关联项目',
             actions: [
@@ -43,54 +44,67 @@ class GoalsPage extends StatelessWidget {
             ],
           ),
         Expanded(
-          child: goals.isEmpty
-              ? EmptyState(
-                  icon: Icons.flag_outlined,
-                  title: '还没有目标',
-                  message: '目标应描述一个有截止时间的结果，再用里程碑拆解。',
-                  action: FilledButton(
-                    onPressed: () => showRecordEditor(
-                      context,
-                      controller,
-                      kind: RecordKind.goal,
-                    ),
-                    child: const Text('建立第一个目标'),
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    0,
-                    20,
-                    AppSpacing.bottomNavClearance,
-                  ),
-                  children: [
-                    _GoalOverviewBand(goals: goals, controller: controller),
-                    SectionHeading(
-                      title: '目标树',
-                      scale:
-                          '${goals.length.toString().padLeft(2, '0')} OUTCOMES',
-                    ),
-                    LogSurface(
-                      child: Column(
-                        children: [
-                          for (
-                            var index = 0;
-                            index < goals.length;
-                            index++
-                          ) ...[
-                            _GoalBranch(
-                              goal: goals[index],
-                              controller: controller,
-                            ),
-                            if (index < goals.length - 1) const Divider(),
-                          ],
-                        ],
+          child: WorkbenchContentFrame(
+            child: goals.isEmpty
+                ? EmptyState(
+                    icon: Icons.flag_outlined,
+                    title: '还没有目标',
+                    message: '目标应描述一个有截止时间的结果，再用里程碑拆解。',
+                    action: FilledButton(
+                      onPressed: () => showRecordEditor(
+                        context,
+                        controller,
+                        kind: RecordKind.goal,
                       ),
+                      child: const Text('建立第一个目标'),
                     ),
-                    if (goals.length < 5) const SizedBox(height: 12),
-                  ],
-                ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      20,
+                      0,
+                      20,
+                      AppSpacing.bottomNavClearance,
+                    ),
+                    children: [
+                      _GoalOverviewBand(goals: goals, controller: controller),
+                      SectionHeading(
+                        title: '目标树',
+                        scale:
+                            '${goals.length.toString().padLeft(2, '0')} OUTCOMES',
+                      ),
+                      LogSurface(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight:
+                                (WorkbenchViewport.sizeOf(context).height *
+                                        0.65)
+                                    .clamp(240.0, 680.0),
+                          ),
+                          child: ListView.builder(
+                            key: const PageStorageKey('goal-branch-scroll'),
+                            primary: false,
+                            shrinkWrap: true,
+                            itemCount: goals.length,
+                            itemBuilder: (context, index) => Column(
+                              children: [
+                                _GoalBranch(
+                                  key: ValueKey(
+                                    'goal-branch-${goals[index].id}',
+                                  ),
+                                  goal: goals[index],
+                                  controller: controller,
+                                ),
+                                if (index < goals.length - 1) const Divider(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (goals.length < 5) const SizedBox(height: 12),
+                    ],
+                  ),
+          ),
         ),
       ],
     );
@@ -116,17 +130,17 @@ class _GoalOverviewBand extends StatelessWidget {
             .map((item) => item.dueAt!)
             .toList()
           ..sort();
-    final scheme = Theme.of(context).colorScheme;
+    final moss = context.accents.moss;
     final tokens = context.tokens;
     return LogSurface(
-      accent: tokens.reward,
+      accent: moss.color,
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.alt_route_outlined, color: scheme.primary),
+              Icon(Icons.alt_route_outlined, color: moss.color),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
@@ -146,8 +160,8 @@ class _GoalOverviewBand extends StatelessWidget {
           LinearProgressIndicator(
             value: milestones.isEmpty ? 0 : completed / milestones.length,
             minHeight: 6,
-            color: scheme.primary,
-            backgroundColor: tokens.orbitTrack,
+            color: moss.color,
+            backgroundColor: moss.container,
           ),
           const SizedBox(height: AppSpacing.md),
           Wrap(
@@ -170,7 +184,7 @@ class _GoalOverviewBand extends StatelessWidget {
 }
 
 class _GoalBranch extends StatelessWidget {
-  const _GoalBranch({required this.goal, required this.controller});
+  const _GoalBranch({super.key, required this.goal, required this.controller});
 
   final WorkspaceRecord goal;
   final WorkbenchController controller;
@@ -184,6 +198,7 @@ class _GoalBranch extends StatelessWidget {
         .where((record) => record.kind == RecordKind.project)
         .toList();
     return ExpansionTile(
+      key: PageStorageKey('goal-expanded-${goal.id}'),
       tilePadding: const EdgeInsets.fromLTRB(14, 5, 8, 5),
       childrenPadding: const EdgeInsets.fromLTRB(48, 0, 14, 14),
       leading: SizedBox(
@@ -194,7 +209,7 @@ class _GoalBranch extends StatelessWidget {
             Icon(
               Icons.flag_outlined,
               size: 18,
-              color: Theme.of(context).colorScheme.primary,
+              color: context.accents.moss.color,
             ),
             Container(width: 1, height: 10, color: context.tokens.divider),
           ],
@@ -268,7 +283,7 @@ class _GoalBranch extends StatelessWidget {
                   height: 46,
                   margin: const EdgeInsets.only(left: 8, right: 14),
                   color: milestone.isDone
-                      ? Theme.of(context).colorScheme.primary
+                      ? context.accents.moss.color
                       : context.tokens.divider,
                 ),
                 Expanded(

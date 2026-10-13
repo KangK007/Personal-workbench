@@ -24,9 +24,10 @@ class _MemoryDatabase extends AppDatabase {
 }
 
 void main() {
-  for (final width in [320.0, 390.0]) {
+  for (final scenario in [(320.0, 1.0), (390.0, 1.0), (320.0, 2.0)]) {
+    final (width, textScale) = scenario;
     testWidgets(
-      'habit month stays readable and scrollable at ${width.toInt()}dp',
+      'habit month stays readable and scrollable at ${width.toInt()}dp / ${textScale}x text',
       (tester) async {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = Size(width, 700);
@@ -55,12 +56,18 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             theme: AppTheme.light(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(textScale)),
+              child: child!,
+            ),
             home: Scaffold(
               body: HabitsPage(controller: controller, showHeader: false),
             ),
           ),
         );
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
 
         final strip = find.byWidgetPredicate(
           (widget) =>
@@ -68,17 +75,38 @@ void main() {
               widget.scrollDirection == Axis.horizontal,
         );
         final todayCell = find.byTooltip('修改今日打卡');
-        final dayLabel = find.byKey(ValueKey('habit-day:${habit.id}:19'));
+        final dayLabel = find.byKey(
+          ValueKey('habit-day:${habit.id}:2026-8-19'),
+        );
         expect(strip, findsOneWidget);
-        expect(find.text('左右滑动查看整月 · 今天可点按修改'), findsOneWidget);
+        expect(find.text('近两周 · 今天可点按修改'), findsOneWidget);
+        expect(find.text('展开整月'), findsOneWidget);
+        expect(
+          find.byKey(ValueKey('habit-day:${habit.id}:2026-8-5')),
+          findsNothing,
+        );
         expect(todayCell, findsOneWidget);
         expect(tester.getSize(todayCell).width, greaterThanOrEqualTo(48));
         expect(tester.getSize(todayCell).height, greaterThanOrEqualTo(48));
 
         final before = tester.getTopLeft(dayLabel).dx;
-        await tester.drag(strip, const Offset(-80, 0));
+        await tester.drag(strip, const Offset(80, 0));
         await tester.pumpAndSettle();
-        expect(tester.getTopLeft(dayLabel).dx, lessThan(before));
+        expect(tester.getTopLeft(dayLabel).dx, greaterThan(before));
+        await tester.tap(find.text('展开整月'));
+        await tester.pumpAndSettle();
+        expect(find.text('左右滑动查看整月 · 今天可点按修改'), findsOneWidget);
+        expect(
+          find.byKey(ValueKey('habit-day:${habit.id}:2026-8-1')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(ValueKey('habit-day:${habit.id}:2026-8-31')),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('收起整月'));
+        await tester.pumpAndSettle();
+        expect(find.text('近两周 · 今天可点按修改'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );

@@ -35,7 +35,22 @@ class _CalendarPageState extends State<CalendarPage> {
   void initState() {
     super.initState();
     weekStart = _startOfWeek(_now);
-    selectedDay = startOfDay(_now);
+    selectedDay = _workdayInWeek(_now);
+  }
+
+  void _shiftWeek(int weeks) {
+    setState(() {
+      final selectedOffset = selectedDay.weekday.clamp(1, 5) - 1;
+      weekStart = weekStart.add(Duration(days: weeks * 7));
+      selectedDay = weekStart.add(Duration(days: selectedOffset));
+    });
+  }
+
+  void _returnToCurrentWeek() {
+    setState(() {
+      weekStart = _startOfWeek(_now);
+      selectedDay = _workdayInWeek(_now);
+    });
   }
 
   @override
@@ -53,24 +68,17 @@ class _CalendarPageState extends State<CalendarPage> {
                 '${formatShortDate(days.first)}—${formatShortDate(days.last)} · 5 分钟吸附',
             actions: [
               IconButton(
-                onPressed: () => setState(
-                  () => weekStart = weekStart.subtract(const Duration(days: 7)),
-                ),
+                onPressed: () => _shiftWeek(-1),
                 tooltip: '上一周',
                 icon: const Icon(Icons.chevron_left),
               ),
               IconButton(
-                onPressed: () => setState(() {
-                  weekStart = _startOfWeek(_now);
-                  selectedDay = startOfDay(_now);
-                }),
+                onPressed: _returnToCurrentWeek,
                 tooltip: '回到本周',
                 icon: const Icon(Icons.today_outlined),
               ),
               IconButton(
-                onPressed: () => setState(
-                  () => weekStart = weekStart.add(const Duration(days: 7)),
-                ),
+                onPressed: () => _shiftWeek(1),
                 tooltip: '下一周',
                 icon: const Icon(Icons.chevron_right),
               ),
@@ -91,25 +99,17 @@ class _CalendarPageState extends State<CalendarPage> {
                 Text('工作周', style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
                 IconButton(
-                  onPressed: () => setState(
-                    () =>
-                        weekStart = weekStart.subtract(const Duration(days: 7)),
-                  ),
+                  onPressed: () => _shiftWeek(-1),
                   tooltip: '上一周',
                   icon: const Icon(Icons.chevron_left),
                 ),
                 IconButton(
-                  onPressed: () => setState(() {
-                    weekStart = _startOfWeek(_now);
-                    selectedDay = startOfDay(_now);
-                  }),
+                  onPressed: _returnToCurrentWeek,
                   tooltip: '回到本周',
                   icon: const Icon(Icons.today_outlined),
                 ),
                 IconButton(
-                  onPressed: () => setState(
-                    () => weekStart = weekStart.add(const Duration(days: 7)),
-                  ),
+                  onPressed: () => _shiftWeek(1),
                   tooltip: '下一周',
                   icon: const Icon(Icons.chevron_right),
                 ),
@@ -136,20 +136,33 @@ class _CalendarPageState extends State<CalendarPage> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-              return constraints.maxWidth >= 820 * textScale.clamp(1, 1.6)
-                  ? _DesktopWeek(
-                      controller: widget.controller,
-                      days: days,
-                      now: _now,
-                      onEdit: (block) => _editBlock(context, block),
-                    )
-                  : _MobileWeek(
-                      controller: widget.controller,
-                      days: days,
-                      selectedDay: selectedDay,
-                      onSelected: (day) => setState(() => selectedDay = day),
-                      onEdit: (block) => _editBlock(context, block),
-                    );
+              return TweenAnimationBuilder<double>(
+                key: ValueKey('week-content-${weekStart.toIso8601String()}'),
+                tween: Tween(begin: 0.6, end: 1),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 180),
+                builder: (context, opacity, child) => Opacity(
+                  key: const ValueKey('week-content-fade'),
+                  opacity: opacity,
+                  child: child,
+                ),
+                child: constraints.maxWidth >= 820 * textScale.clamp(1, 1.6)
+                    ? _DesktopWeek(
+                        controller: widget.controller,
+                        days: days,
+                        now: _now,
+                        onEdit: (block) => _editBlock(context, block),
+                        onMove: (block, start) => _moveBlock(block, start),
+                      )
+                    : _MobileWeek(
+                        controller: widget.controller,
+                        days: days,
+                        selectedDay: selectedDay,
+                        onSelected: (day) => setState(() => selectedDay = day),
+                        onEdit: (block) => _editBlock(context, block),
+                      ),
+              );
             },
           ),
         ),
@@ -216,6 +229,50 @@ class _CalendarPageState extends State<CalendarPage> {
       minutes: result.minutes,
     );
   }
+
+  Future<void> _moveBlock(WorkspaceRecord block, DateTime start) async {
+    final originalStart = block.scheduledFor;
+    if (originalStart == null || originalStart == start) return;
+    final minutes = (block.data['durationMinutes'] as num?)?.toInt() ?? 25;
+    try {
+      await widget.controller.updateTimeBlock(
+        block: block,
+        start: start,
+        minutes: minutes,
+      );
+      if (!mounted) return;
+      showWorkbenchSnackBar(
+        context,
+        SnackBar(
+          content: Text('时间块已移至 ${formatDateTime(start)}'),
+          action: SnackBarAction(
+            label: '撤销',
+            onPressed: () async {
+              try {
+                await widget.controller.updateTimeBlock(
+                  block: block,
+                  start: originalStart,
+                  minutes: minutes,
+                );
+              } catch (_) {
+                if (!mounted) return;
+                showWorkbenchSnackBar(
+                  context,
+                  const SnackBar(content: Text('撤销失败，请稍后重试。')),
+                );
+              }
+            },
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showWorkbenchSnackBar(
+        context,
+        const SnackBar(content: Text('移动失败，时间块仍在原位置。')),
+      );
+    }
+  }
 }
 
 /// A five-day workload silhouette from the same time blocks as the grid.
@@ -273,7 +330,7 @@ class _WeekLoadMap extends StatelessWidget {
               Icon(
                 Icons.view_week_outlined,
                 size: AppIconSize.sm,
-                color: theme.colorScheme.primary,
+                color: context.accents.teal.color,
               ),
               Text('本周时间配比', style: theme.textTheme.titleSmall),
               Text(
@@ -304,7 +361,7 @@ class _WeekLoadMap extends StatelessWidget {
                         decoration: BoxDecoration(
                           color:
                               startOfDay(days[index]) == startOfDay(selectedDay)
-                              ? theme.colorScheme.primaryContainer
+                              ? context.accents.teal.container
                               : null,
                           borderRadius: BorderRadius.circular(
                             AppRadius.control,
@@ -324,7 +381,7 @@ class _WeekLoadMap extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: minutes[index] == 0
                                         ? tokens.divider
-                                        : theme.colorScheme.primary,
+                                        : context.accents.teal.color,
                                     borderRadius: BorderRadius.circular(
                                       AppRadius.xs,
                                     ),
@@ -357,12 +414,14 @@ class _DesktopWeek extends StatelessWidget {
     required this.days,
     required this.now,
     required this.onEdit,
+    required this.onMove,
   });
 
   final WorkbenchController controller;
   final List<DateTime> days;
   final DateTime now;
   final ValueChanged<WorkspaceRecord> onEdit;
+  final void Function(WorkspaceRecord, DateTime) onMove;
 
   @override
   Widget build(BuildContext context) {
@@ -404,14 +463,15 @@ class _DesktopWeek extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: isSameDay(day, now)
-                          ? Theme.of(context).colorScheme.primaryContainer
-                                .withValues(alpha: 0.58)
+                          ? context.accents.teal.container.withValues(
+                              alpha: 0.58,
+                            )
                           : Colors.transparent,
                       border: Border(
                         left: BorderSide(color: context.tokens.divider),
                         bottom: isSameDay(day, now)
                             ? BorderSide(
-                                color: Theme.of(context).colorScheme.primary,
+                                color: context.accents.teal.color,
                                 width: 2,
                               )
                             : BorderSide.none,
@@ -477,6 +537,7 @@ class _DesktopWeek extends StatelessWidget {
                         endHour: endHour,
                         hourHeight: hourHeight,
                         onEdit: onEdit,
+                        onMove: onMove,
                       ),
                     ),
                 ],
@@ -489,7 +550,7 @@ class _DesktopWeek extends StatelessWidget {
   }
 }
 
-class _DayLane extends StatelessWidget {
+class _DayLane extends StatefulWidget {
   const _DayLane({
     required this.controller,
     required this.day,
@@ -498,6 +559,7 @@ class _DayLane extends StatelessWidget {
     required this.endHour,
     required this.hourHeight,
     required this.onEdit,
+    required this.onMove,
   });
 
   final WorkbenchController controller;
@@ -507,47 +569,86 @@ class _DayLane extends StatelessWidget {
   final int endHour;
   final double hourHeight;
   final ValueChanged<WorkspaceRecord> onEdit;
+  final void Function(WorkspaceRecord, DateTime) onMove;
+
+  @override
+  State<_DayLane> createState() => _DayLaneState();
+}
+
+class _DayLaneState extends State<_DayLane> {
+  final _laneKey = GlobalKey();
+  int? _previewMinute;
+  WorkspaceRecord? _previewBlock;
+
+  int _slotAt(Offset globalPosition, int durationMinutes) {
+    final box = _laneKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return 0;
+    final local = box.globalToLocal(globalPosition);
+    final snapped = (local.dy / widget.hourHeight * 12).round() * 5;
+    final maxMinute = math.max(
+      0,
+      (widget.endHour - widget.startHour) * 60 - durationMinutes,
+    );
+    return snapped.clamp(0, maxMinute);
+  }
+
+  DateTime _startAt(int minute) => DateTime(
+    widget.day.year,
+    widget.day.month,
+    widget.day.day,
+    widget.startHour,
+  ).add(Duration(minutes: minute));
+
+  void _clearPreview() {
+    if (_previewMinute == null && _previewBlock == null) return;
+    if (!mounted) return;
+    setState(() {
+      _previewMinute = null;
+      _previewBlock = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final blocks = controller.timeBlocksForDay(day);
+    final blocks = widget.controller.timeBlocksForDay(widget.day);
     final conflicts = _conflictingIds(blocks);
     return DragTarget<WorkspaceRecord>(
+      onMove: (details) {
+        final minutes =
+            (details.data.data['durationMinutes'] as num?)?.toInt() ?? 25;
+        final slot = _slotAt(details.offset, minutes);
+        if (_previewMinute == slot && _previewBlock?.id == details.data.id) {
+          return;
+        }
+        setState(() {
+          _previewMinute = slot;
+          _previewBlock = details.data;
+        });
+      },
+      onLeave: (_) => _clearPreview(),
       onAcceptWithDetails: (details) {
         final source = details.data;
-        final sourceStart = source.scheduledFor!;
-        final target = DateTime(
-          day.year,
-          day.month,
-          day.day,
-          sourceStart.hour,
-          sourceStart.minute,
-        );
-        controller.updateTimeBlock(
-          block: source,
-          start: target,
-          minutes: (source.data['durationMinutes'] as num?)?.toInt() ?? 25,
-        );
+        final minutes = (source.data['durationMinutes'] as num?)?.toInt() ?? 25;
+        final target = _startAt(_slotAt(details.offset, minutes));
+        _clearPreview();
+        widget.onMove(source, target);
       },
       builder: (context, candidateData, _) => Stack(
+        key: _laneKey,
         children: [
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: isSameDay(day, now)
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer.withValues(alpha: 0.20)
+                color: isSameDay(widget.day, widget.now)
+                    ? context.accents.teal.container.withValues(alpha: 0.36)
                     : candidateData.isNotEmpty
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.06)
+                    ? context.accents.teal.color.withValues(alpha: 0.10)
                     : Colors.transparent,
                 border: Border(
                   left: BorderSide(color: context.tokens.divider),
-                  right: isSameDay(day, now)
+                  right: isSameDay(widget.day, widget.now)
                       ? BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
+                          color: context.accents.teal.color,
                           width: 1.5,
                         )
                       : BorderSide.none,
@@ -555,9 +656,13 @@ class _DayLane extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  for (var hour = startHour; hour < endHour; hour++)
+                  for (
+                    var hour = widget.startHour;
+                    hour < widget.endHour;
+                    hour++
+                  )
                     Container(
-                      height: hourHeight,
+                      height: widget.hourHeight,
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(color: context.tokens.divider),
@@ -568,16 +673,43 @@ class _DayLane extends StatelessWidget {
               ),
             ),
           ),
+          if (candidateData.isNotEmpty &&
+              _previewMinute != null &&
+              _previewBlock != null)
+            Positioned(
+              top: _previewMinute! / 60 * widget.hourHeight,
+              left: 3,
+              right: 3,
+              height: math.max(
+                32,
+                ((_previewBlock!.data['durationMinutes'] as num?)?.toInt() ??
+                        25) /
+                    60 *
+                    widget.hourHeight,
+              ),
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  key: const ValueKey('week-drop-preview'),
+                  decoration: BoxDecoration(
+                    color: context.accents.teal.color.withValues(alpha: 0.18),
+                    border: Border.all(color: context.accents.teal.color),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+              ),
+            ),
           for (final block in blocks)
             Positioned(
-              top: (_logicalHour(block.scheduledFor!) - startHour) * hourHeight,
+              top:
+                  (_logicalHour(block.scheduledFor!) - widget.startHour) *
+                  widget.hourHeight,
               left: 3,
               right: 3,
               height: math.max(
                 32,
                 ((block.data['durationMinutes'] as num?)?.toInt() ?? 25) /
                     60 *
-                    hourHeight,
+                    widget.hourHeight,
               ),
               child: LongPressDraggable<WorkspaceRecord>(
                 data: block,
@@ -604,23 +736,22 @@ class _DayLane extends StatelessWidget {
                 child: _BlockTile(
                   block: block,
                   conflict: conflicts.contains(block.id),
-                  onTap: () => onEdit(block),
+                  onTap: () => widget.onEdit(block),
                 ),
               ),
             ),
-          if (isSameDay(day, now) &&
-              _logicalHour(now) >= startHour &&
-              _logicalHour(now) <= endHour)
+          if (isSameDay(widget.day, widget.now) &&
+              _logicalHour(widget.now) >= widget.startHour &&
+              _logicalHour(widget.now) <= widget.endHour)
             Positioned(
-              top: (_logicalHour(now) - startHour) * hourHeight,
+              top:
+                  (_logicalHour(widget.now) - widget.startHour) *
+                  widget.hourHeight,
               left: 0,
               right: 0,
               child: Semantics(
                 label: '当前时间',
-                child: Container(
-                  height: 2,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                child: Container(height: 2, color: context.accents.teal.color),
               ),
             ),
         ],
@@ -648,7 +779,7 @@ class _BlockTile extends StatelessWidget {
       child: Material(
         color: conflict
             ? context.tokens.signal.withValues(alpha: 0.12)
-            : Theme.of(context).colorScheme.primaryContainer,
+            : context.accents.teal.container,
         borderRadius: BorderRadius.circular(5),
         child: InkWell(
           onTap: onTap,
@@ -661,7 +792,7 @@ class _BlockTile extends StatelessWidget {
                 left: BorderSide(
                   color: conflict
                       ? context.tokens.signal
-                      : Theme.of(context).colorScheme.primary,
+                      : context.accents.teal.color,
                   width: 3,
                 ),
               ),
@@ -680,7 +811,9 @@ class _BlockTile extends StatelessWidget {
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: conflict
                             ? Theme.of(context).colorScheme.onErrorContainer
-                            : Theme.of(context).colorScheme.onPrimaryContainer,
+                            : bestContrastingText(
+                                context.accents.teal.container,
+                              ),
                       ),
                     ),
                     if (showConflictLabel)
@@ -720,6 +853,8 @@ class _MobileWeek extends StatelessWidget {
     final blocks = controller.timeBlocksForDay(selectedDay);
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final dayPickerHeight = math.max(68.0, 44 + 24 * textScale);
+    final dayWidth = (WorkbenchViewport.sizeOf(context).width - 32) / 5;
+    final compactWeekday = dayWidth < 36 * textScale;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         16,
@@ -742,12 +877,12 @@ class _MobileWeek extends StatelessWidget {
                       child: Container(
                         decoration: BoxDecoration(
                           color: isSameDay(day, selectedDay)
-                              ? Theme.of(context).colorScheme.primaryContainer
+                              ? context.accents.teal.container
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
                             color: isSameDay(day, selectedDay)
-                                ? Theme.of(context).colorScheme.primary
+                                ? context.accents.teal.color
                                 : context.tokens.panelBorder,
                           ),
                         ),
@@ -755,7 +890,10 @@ class _MobileWeek extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              _weekday(day.weekday),
+                              compactWeekday
+                                  ? _weekday(day.weekday).substring(1)
+                                  : _weekday(day.weekday),
+                              semanticsLabel: _weekday(day.weekday),
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                             NumericText(
@@ -792,7 +930,7 @@ class _MobileWeek extends StatelessWidget {
                       child: NumericText(
                         formatTime(blocks[index].scheduledFor!),
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: context.tokens.reward,
+                          color: context.accents.teal.color,
                         ),
                       ),
                     ),
@@ -956,6 +1094,9 @@ DateTime _startOfWeek(DateTime day) {
   final value = startOfDay(day);
   return value.subtract(Duration(days: value.weekday - 1));
 }
+
+DateTime _workdayInWeek(DateTime day) =>
+    _startOfWeek(day).add(Duration(days: day.weekday.clamp(1, 5) - 1));
 
 double _logicalHour(DateTime value) =>
     (value.hour < 4 ? value.hour + 24 : value.hour) + value.minute / 60;

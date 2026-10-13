@@ -30,13 +30,25 @@ class BehaviorPage extends StatefulWidget {
   State<BehaviorPage> createState() => _BehaviorPageState();
 }
 
-class _BehaviorPageState extends State<BehaviorPage> {
+class _BehaviorPageState extends State<BehaviorPage>
+    with SingleTickerProviderStateMixin {
   late BehaviorMode mode;
+  late final AnimationController _modeTransition;
+  late final Animation<double> _modeOpacity;
 
   @override
   void initState() {
     super.initState();
     mode = widget.initialMode ?? _modeFromController();
+    _modeTransition = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+      value: 1,
+    );
+    _modeOpacity = CurvedAnimation(
+      parent: _modeTransition,
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -45,7 +57,14 @@ class _BehaviorPageState extends State<BehaviorPage> {
     if (widget.initialMode != null &&
         widget.initialMode != oldWidget.initialMode) {
       mode = widget.initialMode!;
+      _animateModeChange();
     }
+  }
+
+  @override
+  void dispose() {
+    _modeTransition.dispose();
+    super.dispose();
   }
 
   BehaviorMode _modeFromController() =>
@@ -56,8 +75,17 @@ class _BehaviorPageState extends State<BehaviorPage> {
   void _selectMode(BehaviorMode value) {
     if (mode == value) return;
     setState(() => mode = value);
+    _animateModeChange();
     widget.controller.setBehaviorMode(value.name);
     widget.onModeChanged?.call(value);
+  }
+
+  void _animateModeChange() {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _modeTransition.value = 1;
+    } else {
+      _modeTransition.forward(from: 0);
+    }
   }
 
   @override
@@ -133,7 +161,8 @@ class _BehaviorPageState extends State<BehaviorPage> {
             ],
           ),
         ),
-        Padding(
+        Container(
+          width: double.infinity,
           padding: EdgeInsets.fromLTRB(
             widget.showHeader ? 20 : 8,
             0,
@@ -141,7 +170,7 @@ class _BehaviorPageState extends State<BehaviorPage> {
             8,
           ),
           child: LogSurface(
-            accent: Theme.of(context).colorScheme.primary,
+            accent: context.accents.moss.color,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +180,11 @@ class _BehaviorPageState extends State<BehaviorPage> {
                   runSpacing: 4,
                   children: [
                     ActionChip(
-                      avatar: const Icon(Icons.repeat_outlined, size: 18),
+                      avatar: Icon(
+                        Icons.repeat_outlined,
+                        size: 18,
+                        color: context.accents.moss.color,
+                      ),
                       label: Text(
                         compactLabels
                             ? '习惯 $habitPending/${ordinary.length}'
@@ -160,7 +193,11 @@ class _BehaviorPageState extends State<BehaviorPage> {
                       onPressed: () => _selectMode(BehaviorMode.habits),
                     ),
                     ActionChip(
-                      avatar: const Icon(Icons.account_tree_outlined, size: 18),
+                      avatar: Icon(
+                        Icons.account_tree_outlined,
+                        size: 18,
+                        color: context.accents.moss.color,
+                      ),
                       label: Text(
                         compactLabels
                             ? '国策 $policyPending/${policyNodes.length}'
@@ -185,24 +222,36 @@ class _BehaviorPageState extends State<BehaviorPage> {
           ),
         ),
         Expanded(
-          child: IndexedStack(
-            index: mode.index,
-            children: [
-              HabitsPage(
-                key: const PageStorageKey('behavior-habits'),
-                controller: widget.controller,
-                showHeader: false,
-                includeRsip: false,
-              ),
-              PoliciesPage(
-                key: ValueKey(
-                  'behavior-policies-${widget.initialPolicyTab.name}',
+          child: FadeTransition(
+            key: const ValueKey('behavior-mode-transition'),
+            opacity: _modeOpacity,
+            child: IndexedStack(
+              index: mode.index,
+              children: [
+                TickerMode(
+                  key: const ValueKey('behavior-habits-tickers'),
+                  enabled: mode == BehaviorMode.habits,
+                  child: HabitsPage(
+                    key: const PageStorageKey('behavior-habits'),
+                    controller: widget.controller,
+                    showHeader: false,
+                    includeRsip: false,
+                  ),
                 ),
-                controller: widget.controller,
-                showHeader: false,
-                initialTab: widget.initialPolicyTab,
-              ),
-            ],
+                TickerMode(
+                  key: const ValueKey('behavior-policies-tickers'),
+                  enabled: mode == BehaviorMode.policies,
+                  child: PoliciesPage(
+                    key: ValueKey(
+                      'behavior-policies-${widget.initialPolicyTab.name}',
+                    ),
+                    controller: widget.controller,
+                    showHeader: false,
+                    initialTab: widget.initialPolicyTab,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

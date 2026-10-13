@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -7,12 +9,14 @@ import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
+import '../widgets/jade_icon.dart';
 import '../widgets/batch_task_toolbar.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/task_row.dart';
 import '../widgets/task_group_editor_dialog.dart';
 import '../widgets/task_hierarchy.dart';
+import '../widgets/task_hierarchy_navigation.dart';
 import '../widgets/solid_panel.dart';
 import 'calendar_page.dart';
 import 'inbox_page.dart';
@@ -20,7 +24,7 @@ import 'inbox_page.dart';
 /// Task page views. Projects have their own first-class navigation entry.
 enum PlanTab { all, inbox, week, groups }
 
-enum _MemberAction { moveUp, moveDown, skipAndContinue, remove }
+enum _MemberAction { edit, moveUp, moveDown, skipAndContinue, remove }
 
 enum _TaskStatusFilter { all, open, doing, done, otherClosed }
 
@@ -63,6 +67,7 @@ class _TaskDomainOverview extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = context.tokens;
+    final accent = context.accents.teal;
     final done = tasks.where((task) => task.isDone).length;
     final doing = tasks.where((task) => task.status == WorkStatus.doing).length;
     final overdue = tasks.where((task) {
@@ -81,14 +86,14 @@ class _TaskDomainOverview extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.route_outlined, color: theme.colorScheme.primary),
+              Icon(Icons.route_outlined, color: accent.color),
               const SizedBox(width: AppSpacing.sm),
               Expanded(child: Text('任务版图', style: theme.textTheme.titleMedium)),
               Text(
                 '$done/${tasks.length}',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontFamily: AppFonts.numeric,
-                  color: theme.colorScheme.primary,
+                  color: accent.color,
                 ),
               ),
             ],
@@ -104,7 +109,8 @@ class _TaskDomainOverview extends StatelessWidget {
             child: LinearProgressIndicator(
               value: tasks.isEmpty ? 0 : done / tasks.length,
               minHeight: 8,
-              backgroundColor: tokens.subtle,
+              backgroundColor: accent.container,
+              valueColor: AlwaysStoppedAnimation<Color>(accent.color),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -182,6 +188,7 @@ class _GroupOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final accent = context.accents.moss;
     final sequential = groups
         .where((group) => group.data['mode'] == 'sequential')
         .length;
@@ -193,9 +200,9 @@ class _GroupOverview extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Row(
         children: [
-          Icon(
-            Icons.account_tree_outlined,
-            color: theme.colorScheme.primary,
+          JadeIcon(
+            glyph: JadeGlyph.groups,
+            color: accent.color,
             size: AppIconSize.lg,
           ),
           const SizedBox(width: AppSpacing.md),
@@ -449,8 +456,6 @@ class _AllTasksPageState extends State<_AllTasksPage> {
   Widget build(BuildContext context) {
     final allTasks = widget.controller.tasks;
     final now = widget.controller.currentTime();
-    final compact =
-        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final tasks =
         allTasks
             .where((task) => _matchesStatus(task) && _matchesDate(task, now))
@@ -519,83 +524,111 @@ class _AllTasksPageState extends State<_AllTasksPage> {
           }
           return KeyEventResult.ignored;
         },
-        child: Column(
-          children: [
-            if (!_selectionMode)
-              compact
-                  ? ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.sizeOf(context).height * 0.55,
-                      ),
-                      child: SingleChildScrollView(child: overviewAndFilters),
-                    )
-                  : overviewAndFilters,
-            if (_selectionMode)
-              BatchTaskToolbar(
-                controller: widget.controller,
-                visibleTasks: tasks,
-                selectedTasks: selectedTasks,
-                onSelectionChanged: (ids) => setState(() {
-                  _selectedIds
-                    ..clear()
-                    ..addAll(ids);
-                }),
-                onExit: _exitSelection,
-              ),
-            Expanded(
-              child: entries.isEmpty
-                  ? Center(
-                      child: EmptyState(
-                        icon: Icons.filter_alt_off_outlined,
-                        title: '没有符合条件的任务',
-                        message: '调整状态或日期，看看其他任务。',
-                        action: OutlinedButton.icon(
-                          onPressed: _clearFilters,
-                          icon: const Icon(Icons.restart_alt),
-                          label: const Text('清除筛选'),
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(
-                        20,
-                        16,
-                        20,
-                        AppSpacing.bottomNavClearance,
-                      ),
-                      itemCount: entries.length,
-                      // 一项一张独立卡，卡间 8px 留白分组。
-                      //
-                      // 原先是裸行 + `Divider(height: 1)`。§8.2 对这个列表的要求是
-                      // 「分组之间留白，**无分隔线**」，§1 也写明「留白承担分组职责，
-                      // 线条只做次要提示」。收件箱页与项目看板早已是「一行一卡」，
-                      // 此处补齐后全应用只剩一种列表语言。
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final entry = entries[index];
-                        return Card(
-                          child: TaskRow(
-                            task: entry.task,
-                            controller: widget.controller,
-                            hierarchyDepth: entry.depth,
-                            hasChildren: entry.hasChildren,
-                            expanded: entry.expanded,
-                            relationInfo: entry.relation,
-                            onToggleExpanded: () => setState(() {
-                              entry.expanded
-                                  ? _collapsedTaskIds.add(entry.task.id)
-                                  : _collapsedTaskIds.remove(entry.task.id);
-                            }),
-                            selectionMode: _selectionMode,
-                            selected: _selectedIds.contains(entry.task.id),
-                            onSelectionChanged: (value) =>
-                                _toggleSelection(entry.task.id, value, tasks),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Column(
+            children: [
+              if (!_selectionMode)
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: constraints.maxHeight * 0.62,
+                  ),
+                  child: SingleChildScrollView(child: overviewAndFilters),
+                ),
+              if (_selectionMode)
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  builder: (context, opacity, child) => Opacity(
+                    key: const ValueKey('task-batch-enter'),
+                    opacity: opacity,
+                    child: child,
+                  ),
+                  child: BatchTaskToolbar(
+                    controller: widget.controller,
+                    visibleTasks: tasks,
+                    selectedTasks: selectedTasks,
+                    onSelectionChanged: (ids) => setState(() {
+                      _selectedIds
+                        ..clear()
+                        ..addAll(ids);
+                    }),
+                    onExit: _exitSelection,
+                  ),
+                ),
+              Expanded(
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey(
+                    'task-results-${_statusFilter.name}-${_dateFilter.name}-${_order.name}',
+                  ),
+                  tween: Tween(begin: 0.5, end: 1),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 120),
+                  builder: (context, opacity, child) => Opacity(
+                    key: const ValueKey('task-results-fade'),
+                    opacity: opacity,
+                    child: child,
+                  ),
+                  child: entries.isEmpty
+                      ? Center(
+                          child: EmptyState(
+                            icon: Icons.filter_alt_off_outlined,
+                            title: '没有符合条件的任务',
+                            message: '调整状态或日期，看看其他任务。',
+                            action: OutlinedButton.icon(
+                              onPressed: _clearFilters,
+                              icon: const Icon(Icons.restart_alt),
+                              label: const Text('清除筛选'),
+                            ),
                           ),
-                        );
-                      },
-                    ),
-            ),
-          ],
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(
+                            20,
+                            16,
+                            20,
+                            AppSpacing.bottomNavClearance,
+                          ),
+                          itemCount: entries.length,
+                          // 一项一张独立卡，卡间 8px 留白分组。
+                          //
+                          // 原先是裸行 + `Divider(height: 1)`。§8.2 对这个列表的要求是
+                          // 「分组之间留白，**无分隔线**」，§1 也写明「留白承担分组职责，
+                          // 线条只做次要提示」。收件箱页与项目看板早已是「一行一卡」，
+                          // 此处补齐后全应用只剩一种列表语言。
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final entry = entries[index];
+                            return Card(
+                              child: TaskRow(
+                                task: entry.task,
+                                controller: widget.controller,
+                                hierarchyDepth: entry.depth,
+                                hasChildren: entry.hasChildren,
+                                expanded: entry.expanded,
+                                relationInfo: entry.relation,
+                                onToggleExpanded: () => setState(() {
+                                  entry.expanded
+                                      ? _collapsedTaskIds.add(entry.task.id)
+                                      : _collapsedTaskIds.remove(entry.task.id);
+                                }),
+                                selectionMode: _selectionMode,
+                                selected: _selectedIds.contains(entry.task.id),
+                                onSelectionChanged: (value) => _toggleSelection(
+                                  entry.task.id,
+                                  value,
+                                  tasks,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -606,8 +639,11 @@ class _AllTasksPageState extends State<_AllTasksPage> {
     required int visibleCount,
     required int totalCount,
   }) {
+    final viewport = WorkbenchViewport.sizeOf(context);
     final compact =
-        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
+        viewport.width < AppBreakpoints.compact ||
+        viewport.height < AppBreakpoints.compactHeight ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.5;
     final activeCount =
         (_statusFilter == _TaskStatusFilter.all ? 0 : 1) +
         (_dateFilter == _TaskDateFilter.all ? 0 : 1) +
@@ -637,6 +673,26 @@ class _AllTasksPageState extends State<_AllTasksPage> {
               Expanded(child: _orderChoice()),
             ],
           );
+    final filtersBody = !compact || _filtersExpanded
+        ? Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                controls,
+                if (activeCount > 0)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: _clearFilters,
+                      icon: const Icon(Icons.restart_alt),
+                      label: const Text('重置筛选与排序'),
+                    ),
+                  ),
+              ],
+            ),
+          )
+        : const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, AppSpacing.md, 20, 0),
       child: SolidPanel(
@@ -691,32 +747,14 @@ class _AllTasksPageState extends State<_AllTasksPage> {
                   ),
                 ],
               ),
-            AnimatedSize(
-              alignment: Alignment.topCenter,
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 160),
-              child: !compact || _filtersExpanded
-                  ? Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.sm),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          controls,
-                          if (activeCount > 0)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: _clearFilters,
-                                icon: const Icon(Icons.restart_alt),
-                                label: const Text('重置筛选与排序'),
-                              ),
-                            ),
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
+            if (MediaQuery.disableAnimationsOf(context))
+              filtersBody
+            else
+              AnimatedSize(
+                alignment: Alignment.topCenter,
+                duration: const Duration(milliseconds: 160),
+                child: filtersBody,
+              ),
           ],
         ),
       ),
@@ -903,6 +941,66 @@ class _TaskGroupsPage extends StatefulWidget {
 }
 
 class _TaskGroupsPageState extends State<_TaskGroupsPage> {
+  final Set<String> _expandedGroupIds = {};
+  final Set<String> _renderedGroupIds = {};
+  final Map<String, Timer> _collapseTimers = {};
+  final Set<String> _collapsedTaskIds = {};
+  final Map<String, String> _rootTaskIds = {};
+  final Map<String, ExpansibleController> _groupControllers = {};
+  final Map<String, GlobalKey> _memberKeys = {};
+  final Map<String, FocusNode> _memberFocusNodes = {};
+  final Set<String> _newMemberIds = {};
+  final Map<String, Timer> _entryTimers = {};
+
+  void _selectHierarchyRoot(String groupId, String? taskId) {
+    setState(() {
+      if (taskId == null) {
+        _rootTaskIds.remove(groupId);
+      } else {
+        _rootTaskIds[groupId] = taskId;
+        _collapsedTaskIds.remove(taskId);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final timer in _collapseTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _entryTimers.values) {
+      timer.cancel();
+    }
+    for (final controller in _groupControllers.values) {
+      controller.dispose();
+    }
+    for (final focusNode in _memberFocusNodes.values) {
+      focusNode.dispose();
+    }
+    super.dispose();
+  }
+
+  void _setGroupExpanded(String id, bool expanded) {
+    _collapseTimers.remove(id)?.cancel();
+    if (expanded) {
+      setState(() {
+        _expandedGroupIds.add(id);
+        _renderedGroupIds.add(id);
+      });
+      return;
+    }
+    setState(() => _expandedGroupIds.remove(id));
+    if (MediaQuery.disableAnimationsOf(context)) {
+      setState(() => _renderedGroupIds.remove(id));
+      return;
+    }
+    _collapseTimers[id] = Timer(AppMotion.standard, () {
+      _collapseTimers.remove(id);
+      if (!mounted || _expandedGroupIds.contains(id)) return;
+      setState(() => _renderedGroupIds.remove(id));
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final groups = widget.controller.taskGroups;
@@ -964,46 +1062,123 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
     final members = widget.controller.groupMembers(group.id);
     final sequential = group.data['mode'] == 'sequential';
     final completed = members.where((task) => task.isDone).length;
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
+    final accent = context.accents.moss;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final expanded = _expandedGroupIds.contains(group.id);
+    final visibleMembers = !_renderedGroupIds.contains(group.id)
+        ? const <TaskHierarchyEntry>[]
+        : sequential
+        ? [
+            for (final task in members)
+              TaskHierarchyEntry(
+                task: task,
+                depth: 0,
+                hasChildren: false,
+                expanded: true,
+                relation: taskRelationInfo(task, widget.controller.tasks),
+              ),
+          ]
+        : buildTaskHierarchy(
+            visibleTasks: members,
+            allRecords: widget.controller.tasks,
+            collapsedIds: _collapsedTaskIds,
+            rootTaskId: _rootTaskIds[group.id],
+            maxDepth: compact ? 2 : 4,
+          );
     return Card(
       clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: ExpansionTile(
-        leading: Icon(sequential ? Icons.linear_scale : Icons.hub_outlined),
-        title: Text(group.title),
+        key: ValueKey('task-group-${group.id}'),
+        controller: _groupControllers.putIfAbsent(
+          group.id,
+          ExpansibleController.new,
+        ),
+        tilePadding: EdgeInsets.symmetric(
+          horizontal: compact ? AppSpacing.md : AppSpacing.lg,
+          vertical: AppSpacing.xs,
+        ),
+        childrenPadding: EdgeInsets.fromLTRB(
+          compact ? AppSpacing.sm : AppSpacing.md,
+          0,
+          compact ? AppSpacing.sm : AppSpacing.md,
+          AppSpacing.md,
+        ),
+        expansionAnimationStyle: AnimationStyle(
+          duration: reducedMotion ? Duration.zero : AppMotion.standard,
+          reverseDuration: reducedMotion ? Duration.zero : AppMotion.standard,
+        ),
+        onExpansionChanged: (value) => _setGroupExpanded(group.id, value),
+        leading: JadeIcon(glyph: JadeGlyph.groups, color: accent.color),
+        title: Text(
+          group.title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               '${sequential ? '顺序任务链' : '并行任务群'} · 已完成 $completed/${members.length}',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontSize: 13,
+                color: context.tokens.mutedText,
+              ),
             ),
             if (members.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
               _GroupMemberTrack(members: members, sequential: sequential),
+              const SizedBox(height: AppSpacing.sm),
+              Semantics(
+                label: '完成进度 $completed / ${members.length}',
+                child: LinearProgressIndicator(
+                  value: completed / members.length,
+                  minHeight: 3,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  color: accent.color,
+                  backgroundColor: accent.container,
+                ),
+              ),
             ],
           ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              onPressed: () => _addMember(group),
-              tooltip: '添加任务',
-              icon: const Icon(Icons.playlist_add),
-            ),
+            if (!compact)
+              IconButton(
+                onPressed: () => _addMember(group),
+                tooltip: '添加任务',
+                icon: const Icon(Icons.playlist_add),
+              ),
             PopupMenuButton<String>(
               tooltip: '任务群操作',
               onSelected: (value) {
+                if (value == 'add') _addMember(group);
                 if (value == 'edit') _editGroup(group);
                 if (value == 'trash') _deleteGroup(group);
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
+              itemBuilder: (context) => [
+                if (compact)
+                  const PopupMenuItem(
+                    value: 'add',
+                    child: ListTile(
+                      leading: Icon(Icons.playlist_add),
+                      title: Text('添加任务'),
+                    ),
+                  ),
+                const PopupMenuItem(
                   value: 'edit',
                   child: ListTile(
                     leading: Icon(Icons.edit_outlined),
                     title: Text('编辑任务群'),
                   ),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'trash',
                   child: ListTile(
                     leading: Icon(Icons.delete_outline),
@@ -1012,148 +1187,287 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
                 ),
               ],
             ),
+            Icon(
+              expanded ? Icons.expand_less : Icons.expand_more,
+              color: context.tokens.mutedText,
+            ),
           ],
         ),
-        children: [
-          if (members.isEmpty) const ListTile(title: Text('群内暂无任务')),
-          for (var index = 0; index < members.length; index++)
-            Builder(
-              builder: (context) {
-                final task = members[index];
-                final locked = widget.controller.isTaskGroupMemberLocked(
-                  task,
-                  group,
-                );
-                final compact =
-                    WorkbenchViewport.sizeOf(context).width <
-                    AppBreakpoints.compact;
-                Future<void> edit() => showRecordEditor(
-                  context,
-                  widget.controller,
-                  kind: RecordKind.task,
-                  record: task,
-                );
-                return ListTile(
-                  leading: CircleAvatar(
-                    child: locked
-                        ? const Icon(Icons.lock_outline, size: 18)
-                        : Text('${index + 1}'),
+        children: _renderedGroupIds.contains(group.id)
+            ? [
+                if (members.isEmpty) const ListTile(title: Text('群内暂无任务')),
+                if (!sequential && _rootTaskIds[group.id] != null)
+                  TaskHierarchyNavigation(
+                    path: taskHierarchyPath(_rootTaskIds[group.id]!, members),
+                    onSelected: (id) => _selectHierarchyRoot(group.id, id),
                   ),
-                  title: Text(task.title),
-                  subtitle: Text(locked ? '前置任务尚未通过' : task.status),
-                  onTap: edit,
-                  trailing: compact
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: '编辑任务',
-                              onPressed: edit,
-                              icon: const Icon(Icons.edit_outlined),
-                            ),
-                            PopupMenuButton<_MemberAction>(
-                              tooltip: '更多操作',
-                              itemBuilder: (context) => [
-                                if (sequential)
-                                  PopupMenuItem(
-                                    value: _MemberAction.moveUp,
-                                    enabled: widget.controller
-                                        .taskGroupMemberCanMove(
-                                          task,
-                                          group,
-                                          index - 1,
-                                        ),
-                                    child: const Text('上移'),
+                for (var index = 0; index < visibleMembers.length; index++)
+                  Builder(
+                    builder: (context) {
+                      final entry = visibleMembers[index];
+                      final task = entry.task;
+                      final memberId = '${group.id}:${task.id}';
+                      final rowKey = _memberKeys.putIfAbsent(
+                        memberId,
+                        GlobalKey.new,
+                      );
+                      final focusNode = _memberFocusNodes.putIfAbsent(
+                        memberId,
+                        () =>
+                            FocusNode(debugLabel: 'TaskGroupMember.${task.id}'),
+                      );
+                      final memberIndex = sequential
+                          ? index
+                          : members.indexWhere(
+                              (member) => member.id == task.id,
+                            );
+                      final locked = widget.controller.isTaskGroupMemberLocked(
+                        task,
+                        group,
+                      );
+                      final compact =
+                          WorkbenchViewport.sizeOf(context).width <
+                          AppBreakpoints.compact;
+                      Future<void> edit() => showRecordEditor(
+                        context,
+                        widget.controller,
+                        kind: RecordKind.task,
+                        record: task,
+                      );
+                      return TweenAnimationBuilder<double>(
+                        key: ValueKey('group-member-$memberId'),
+                        tween: Tween(
+                          begin: _newMemberIds.contains(memberId) ? 0 : 1,
+                          end: 1,
+                        ),
+                        duration:
+                            _newMemberIds.contains(memberId) && !reducedMotion
+                            ? AppMotion.standard
+                            : Duration.zero,
+                        builder: (context, opacity, child) =>
+                            Opacity(opacity: opacity, child: child),
+                        child: Container(
+                          key: rowKey,
+                          margin: EdgeInsets.only(
+                            left: entry.depth * (compact ? 16 : 20).toDouble(),
+                          ),
+                          decoration: entry.depth == 0
+                              ? null
+                              : BoxDecoration(
+                                  border: Border(
+                                    left: BorderSide(
+                                      color: accent.color.withValues(
+                                        alpha: 0.35,
+                                      ),
+                                    ),
                                   ),
-                                if (sequential)
-                                  PopupMenuItem(
-                                    value: _MemberAction.moveDown,
-                                    enabled: widget.controller
-                                        .taskGroupMemberCanMove(
-                                          task,
-                                          group,
-                                          index + 1,
-                                        ),
-                                    child: const Text('下移'),
+                                ),
+                          child: ListTile(
+                            focusNode: focusNode,
+                            leading: entry.hasChildren
+                                ? IconButton(
+                                    tooltip: entry.canDrill
+                                        ? '进入子层'
+                                        : entry.expanded
+                                        ? '收起子任务'
+                                        : '展开子任务',
+                                    onPressed: () {
+                                      if (entry.canDrill) {
+                                        _selectHierarchyRoot(group.id, task.id);
+                                        return;
+                                      }
+                                      setState(() {
+                                        if (entry.expanded) {
+                                          _collapsedTaskIds.add(task.id);
+                                        } else {
+                                          _collapsedTaskIds.remove(task.id);
+                                        }
+                                      });
+                                    },
+                                    icon: Icon(
+                                      entry.canDrill
+                                          ? Icons.subdirectory_arrow_right
+                                          : entry.expanded
+                                          ? Icons.expand_less
+                                          : Icons.expand_more,
+                                      color: accent.color,
+                                    ),
+                                  )
+                                : CircleAvatar(
+                                    backgroundColor: accent.container,
+                                    foregroundColor: accent.color,
+                                    child: locked
+                                        ? const Icon(
+                                            Icons.lock_outline,
+                                            size: 18,
+                                          )
+                                        : Text('${memberIndex + 1}'),
                                   ),
-                                if (task.status == WorkStatus.failed)
-                                  const PopupMenuItem(
-                                    value: _MemberAction.skipAndContinue,
-                                    child: Text('跳过并继续'),
+                            title: Row(
+                              children: [
+                                Icon(
+                                  entry.hasChildren
+                                      ? Icons.park_outlined
+                                      : Icons.eco_outlined,
+                                  size: AppIconSize.xs,
+                                  color: accent.color,
+                                ),
+                                const SizedBox(width: AppSpacing.xs),
+                                Expanded(
+                                  child: Text(
+                                    task.title,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(fontSize: 15),
                                   ),
-                                const PopupMenuItem(
-                                  value: _MemberAction.remove,
-                                  child: Text('移出任务群'),
                                 ),
                               ],
-                              onSelected: (action) {
-                                switch (action) {
-                                  case _MemberAction.moveUp:
-                                    _moveMember(group, task, index - 1);
-                                  case _MemberAction.moveDown:
-                                    _moveMember(group, task, index + 1);
-                                  case _MemberAction.skipAndContinue:
-                                    widget.controller.skipTaskAndContinueChain(
-                                      task,
-                                    );
-                                  case _MemberAction.remove:
-                                    _removeMember(group, task);
-                                }
-                              },
                             ),
-                          ],
-                        )
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (sequential) ...[
-                              IconButton(
-                                tooltip: '上移',
-                                onPressed:
-                                    widget.controller.taskGroupMemberCanMove(
-                                      task,
-                                      group,
-                                      index - 1,
-                                    )
-                                    ? () => _moveMember(group, task, index - 1)
-                                    : null,
-                                icon: const Icon(Icons.arrow_upward),
-                              ),
-                              IconButton(
-                                tooltip: '下移',
-                                onPressed:
-                                    widget.controller.taskGroupMemberCanMove(
-                                      task,
-                                      group,
-                                      index + 1,
-                                    )
-                                    ? () => _moveMember(group, task, index + 1)
-                                    : null,
-                                icon: const Icon(Icons.arrow_downward),
-                              ),
-                            ],
-                            if (task.status == WorkStatus.failed)
-                              TextButton(
-                                onPressed: () => widget.controller
-                                    .skipTaskAndContinueChain(task),
-                                child: const Text('跳过并继续'),
-                              ),
-                            IconButton(
-                              tooltip: '编辑任务',
-                              onPressed: edit,
-                              icon: const Icon(Icons.edit_outlined),
+                            subtitle: Text(
+                              [
+                                locked ? '前置任务尚未通过' : statusLabel(task.status),
+                                if (entry.depth >= 3 &&
+                                    entry.relation.path.isNotEmpty)
+                                  entry.relation.path.join(' › '),
+                                if (entry.relation.isWarning)
+                                  entry.relation.label ?? '',
+                              ].join(' · '),
                             ),
-                            IconButton(
-                              tooltip: '移出任务群',
-                              onPressed: () => _removeMember(group, task),
-                              icon: const Icon(Icons.remove_circle_outline),
-                            ),
-                          ],
+                            onTap: edit,
+                            trailing: compact
+                                ? PopupMenuButton<_MemberAction>(
+                                    tooltip: '更多操作',
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: _MemberAction.edit,
+                                        child: Text('编辑任务'),
+                                      ),
+                                      if (sequential)
+                                        PopupMenuItem(
+                                          value: _MemberAction.moveUp,
+                                          enabled: widget.controller
+                                              .taskGroupMemberCanMove(
+                                                task,
+                                                group,
+                                                memberIndex - 1,
+                                              ),
+                                          child: const Text('上移'),
+                                        ),
+                                      if (sequential)
+                                        PopupMenuItem(
+                                          value: _MemberAction.moveDown,
+                                          enabled: widget.controller
+                                              .taskGroupMemberCanMove(
+                                                task,
+                                                group,
+                                                memberIndex + 1,
+                                              ),
+                                          child: const Text('下移'),
+                                        ),
+                                      if (task.status == WorkStatus.failed)
+                                        const PopupMenuItem(
+                                          value: _MemberAction.skipAndContinue,
+                                          child: Text('跳过并继续'),
+                                        ),
+                                      const PopupMenuItem(
+                                        value: _MemberAction.remove,
+                                        child: Text('移出任务群'),
+                                      ),
+                                    ],
+                                    onSelected: (action) {
+                                      switch (action) {
+                                        case _MemberAction.edit:
+                                          edit();
+                                        case _MemberAction.moveUp:
+                                          _moveMember(
+                                            group,
+                                            task,
+                                            memberIndex - 1,
+                                          );
+                                        case _MemberAction.moveDown:
+                                          _moveMember(
+                                            group,
+                                            task,
+                                            memberIndex + 1,
+                                          );
+                                        case _MemberAction.skipAndContinue:
+                                          widget.controller
+                                              .skipTaskAndContinueChain(task);
+                                        case _MemberAction.remove:
+                                          _removeMember(group, task);
+                                      }
+                                    },
+                                  )
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (sequential) ...[
+                                        IconButton(
+                                          tooltip: '上移',
+                                          onPressed:
+                                              widget.controller
+                                                  .taskGroupMemberCanMove(
+                                                    task,
+                                                    group,
+                                                    memberIndex - 1,
+                                                  )
+                                              ? () => _moveMember(
+                                                  group,
+                                                  task,
+                                                  memberIndex - 1,
+                                                )
+                                              : null,
+                                          icon: const Icon(Icons.arrow_upward),
+                                        ),
+                                        IconButton(
+                                          tooltip: '下移',
+                                          onPressed:
+                                              widget.controller
+                                                  .taskGroupMemberCanMove(
+                                                    task,
+                                                    group,
+                                                    memberIndex + 1,
+                                                  )
+                                              ? () => _moveMember(
+                                                  group,
+                                                  task,
+                                                  memberIndex + 1,
+                                                )
+                                              : null,
+                                          icon: const Icon(
+                                            Icons.arrow_downward,
+                                          ),
+                                        ),
+                                      ],
+                                      if (task.status == WorkStatus.failed)
+                                        TextButton(
+                                          onPressed: () => widget.controller
+                                              .skipTaskAndContinueChain(task),
+                                          child: const Text('跳过并继续'),
+                                        ),
+                                      IconButton(
+                                        tooltip: '编辑任务',
+                                        onPressed: edit,
+                                        icon: const Icon(Icons.edit_outlined),
+                                      ),
+                                      IconButton(
+                                        tooltip: '移出任务群',
+                                        onPressed: () =>
+                                            _removeMember(group, task),
+                                        icon: const Icon(
+                                          Icons.remove_circle_outline,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
                         ),
-                );
-              },
-            ),
-        ],
+                      );
+                    },
+                  ),
+              ]
+            : const [],
       ),
     );
   }
@@ -1314,20 +1628,80 @@ class _TaskGroupsPageState extends State<_TaskGroupsPage> {
     }).toList();
     final selected = await showWorkbenchDialog<WorkspaceRecord>(
       context: context,
-      builder: (context) => SimpleDialog(
+      builder: (context) => AlertDialog(
         title: const Text('添加现有任务'),
-        children: [
-          for (final task in candidates)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, task),
-              child: Text(task.title),
-            ),
+        content: SizedBox(
+          width: 480,
+          height: (candidates.length * 64.0).clamp(
+            80.0,
+            (MediaQuery.sizeOf(context).height * 0.55).clamp(180.0, 360.0),
+          ),
+          child: candidates.isEmpty
+              ? const Center(child: Text('没有可添加的任务'))
+              : ListView.builder(
+                  itemCount: candidates.length,
+                  itemBuilder: (context, index) => ListTile(
+                    title: Text(candidates[index].title),
+                    onTap: () => Navigator.pop(context, candidates[index]),
+                  ),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
         ],
       ),
     );
     if (selected == null) return;
     try {
       await widget.controller.addTaskToGroup(task: selected, group: group);
+      if (!mounted) return;
+      final path = taskHierarchyPath(
+        selected.id,
+        widget.controller.groupMembers(group.id),
+      );
+      final memberId = '${group.id}:${selected.id}';
+      setState(() {
+        _newMemberIds.add(memberId);
+        _expandedGroupIds.add(group.id);
+        _renderedGroupIds.add(group.id);
+        for (final task in path) {
+          _collapsedTaskIds.remove(task.id);
+        }
+        if (path.length > 3) {
+          _rootTaskIds[group.id] = path[path.length - 2].id;
+        } else {
+          _rootTaskIds.remove(group.id);
+        }
+      });
+      _groupControllers[group.id]?.expand();
+      _entryTimers.remove(memberId)?.cancel();
+      _entryTimers[memberId] = Timer(AppMotion.standard, () {
+        _entryTimers.remove(memberId);
+        _newMemberIds.remove(memberId);
+      });
+      final reducedMotion = MediaQuery.disableAnimationsOf(context);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!reducedMotion) await Future<void>.delayed(AppMotion.standard);
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
+        final rowContext = _memberKeys[memberId]?.currentContext;
+        if (rowContext == null || !rowContext.mounted) return;
+        await Scrollable.ensureVisible(
+          rowContext,
+          duration: reducedMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 160),
+          alignment: 0.4,
+        );
+        if (mounted) _memberFocusNodes[memberId]?.requestFocus();
+      });
+      showWorkbenchSnackBar(
+        context,
+        SnackBar(content: Text('已添加“${selected.title}”')),
+      );
     } on FormatException catch (error) {
       if (mounted) {
         showWorkbenchSnackBar(context, SnackBar(content: Text(error.message)));

@@ -20,6 +20,52 @@ import 'package:personal_workbench/ui/widgets/task_row.dart';
 /// testWidgets 运行在 FakeAsync 时区，sqflite 的真实 IO 不会完成，
 /// 因此使用同步内存数据库替身（与 ui_coverage_regression_test 一致）。
 void main() {
+  testWidgets('task metadata starts compact and expands on demand', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(fixture.dispose);
+    final task = (await tester.runAsync<WorkspaceRecord>(() async {
+      final record = WorkspaceRecord.create(
+        kind: RecordKind.task,
+        title: '清晰的任务行',
+      );
+      await fixture.controller.addRecord(record);
+      return record;
+    }))!;
+    await _pumpRow(tester, fixture.controller, task);
+    expect(find.textContaining('优先级'), findsNothing);
+    await tester.tap(find.byTooltip('展开任务详情'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('优先级'), findsOneWidget);
+  });
+
+  testWidgets('ordinary task completion can be undone to its prior status', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(fixture.dispose);
+    final task = (await tester.runAsync<WorkspaceRecord>(() async {
+      final record = WorkspaceRecord.create(
+        kind: RecordKind.task,
+        title: '可撤销的任务',
+      ).copyWith(status: WorkStatus.doing);
+      await fixture.controller.addRecord(record);
+      return record;
+    }))!;
+    await _pumpRow(tester, fixture.controller, task);
+
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 240));
+    expect(find.text('任务已完成'), findsOneWidget);
+    expect(find.text('撤销'), findsOneWidget);
+
+    await tester.tap(find.text('撤销'));
+    await tester.pump();
+    expect(fixture.controller.latestRecordById(task).status, WorkStatus.doing);
+  });
+
   testWidgets('completion plays a one-shot log node pulse', (tester) async {
     final fixture = _fixture();
     addTearDown(fixture.dispose);

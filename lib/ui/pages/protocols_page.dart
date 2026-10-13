@@ -5,10 +5,14 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
+import '../widgets/jade_icon.dart';
 import '../widgets/record_editor_dialog.dart';
 import 'focus_page.dart';
+import 'goals_page.dart';
+import 'habits_page.dart';
 
 enum ProtocolTab { goals, habits, execution, rules, analytics }
 
@@ -31,8 +35,12 @@ class ProtocolsPage extends StatefulWidget {
 class _ProtocolsPageState extends State<ProtocolsPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late TabController tabController;
+  late List<ProtocolTab> _activeTabs;
   Timer? ticker;
   String ruleQuery = '';
+  String ruleTypeFilter = 'all';
+  int _analyticsDays = 7;
+  final Set<String> expandedRuleIds = <String>{};
   bool _tickerActive = false;
 
   void _startTicker() {
@@ -54,12 +62,15 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    tabController = _newTabController(widget.initialTab);
+    _activeTabs = _tabs;
+    tabController = _newTabController(_activeTabs, widget.initialTab);
     _startTicker();
   }
 
-  TabController _newTabController(ProtocolTab selected) {
-    final tabs = _tabs;
+  TabController _newTabController(
+    List<ProtocolTab> tabs,
+    ProtocolTab selected,
+  ) {
     return TabController(
       length: tabs.length,
       initialIndex: tabs.indexOf(selected).clamp(0, tabs.length - 1),
@@ -70,20 +81,21 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   @override
   void didUpdateWidget(covariant ProtocolsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final tabs = _tabs;
-    if (tabController.length != tabs.length) {
-      final previousTabs = tabController.length == 1
-          ? const [ProtocolTab.execution]
-          : const [
-              ProtocolTab.execution,
-              ProtocolTab.habits,
-              ProtocolTab.rules,
-              ProtocolTab.analytics,
-            ];
-      final selected = previousTabs[tabController.index];
+    final nextTabs = _tabs;
+    final initialChanged = widget.initialTab != oldWidget.initialTab;
+    final selected = initialChanged
+        ? widget.initialTab
+        : _activeTabs[tabController.index];
+    if (!listEquals(_activeTabs, nextTabs)) {
       tabController.removeListener(_handleTabChanged);
       tabController.dispose();
-      tabController = _newTabController(selected);
+      _activeTabs = nextTabs;
+      tabController = _newTabController(_activeTabs, selected);
+    } else if (initialChanged) {
+      final index = _activeTabs.indexOf(selected);
+      tabController.animateTo(
+        index < 0 ? _activeTabs.indexOf(ProtocolTab.execution) : index,
+      );
     }
   }
 
@@ -116,58 +128,69 @@ class _ProtocolsPageState extends State<ProtocolsPage>
     } else if (!visible && _tickerActive) {
       _stopTicker();
     }
-    final tabs = _tabs;
+    final tabs = _activeTabs;
     final compact =
         WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
-    final android = defaultTargetPlatform == TargetPlatform.android;
-    return Column(
-      children: [
-        if (widget.showHeader)
-          PageHeader(
-            title: '协议',
-            subtitle: '执行协议 · 行为规则 · 判例 · 分析；目标与日常习惯请在成长中管理',
-            actions: [
-              if (_tabs[tabController.index] == ProtocolTab.execution)
-                FilledButton.icon(
-                  onPressed: _createForCurrentTab,
-                  icon: const Icon(Icons.add),
-                  label: const Text('新建执行协议'),
-                ),
-            ],
+    return WorkbenchContentFrame(
+      maxWidth: AppLayout.formMax,
+      child: Column(
+        children: [
+          if (widget.showHeader)
+            PageHeader(
+              title: '协议',
+              subtitle: '执行协议 · 行为规则 · 判例 · 分析；目标与日常习惯请在成长中管理',
+              actions: [
+                if (_activeTabs[tabController.index] == ProtocolTab.execution)
+                  FilledButton.icon(
+                    onPressed: _createForCurrentTab,
+                    icon: const Icon(Icons.add),
+                    label: const Text('新建执行协议'),
+                  ),
+              ],
+            ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 20),
+            child: WorkbenchTabBar(
+              controller: tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              labelPadding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16),
+              tabs: [for (final tab in tabs) _tabWidget(tab)],
+            ),
           ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 20),
-          child: WorkbenchTabBar(
-            controller: tabController,
-            isScrollable: !(android && compact),
-            tabAlignment: android && compact ? TabAlignment.fill : null,
-            labelPadding: android && compact ? EdgeInsets.zero : null,
-            tabs: [for (final tab in tabs) _tabWidget(tab)],
+          Expanded(
+            child: TabBarView(
+              controller: tabController,
+              children: [for (final tab in tabs) _tabView(tab)],
+            ),
           ),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: tabController,
-            children: [for (final tab in tabs) _tabView(tab)],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  List<ProtocolTab> get _tabs => widget.controller.advancedFeaturesEnabled
-      ? const [
-          ProtocolTab.execution,
-          ProtocolTab.habits,
-          ProtocolTab.rules,
-          ProtocolTab.analytics,
-        ]
-      : const [ProtocolTab.execution];
+  List<ProtocolTab> get _tabs => [
+    if (widget.initialTab == ProtocolTab.goals) ProtocolTab.goals,
+    ProtocolTab.execution,
+    if (widget.controller.advancedFeaturesEnabled ||
+        widget.initialTab == ProtocolTab.habits)
+      ProtocolTab.habits,
+    if (widget.controller.advancedFeaturesEnabled) ...const [
+      ProtocolTab.rules,
+      ProtocolTab.analytics,
+    ],
+  ];
 
   Widget _tabWidget(ProtocolTab tab) => switch (tab) {
     ProtocolTab.goals => const Tab(icon: Icon(Icons.flag_outlined), text: '目标'),
-    ProtocolTab.habits => const Tab(icon: Icon(Icons.repeat), text: '行为协议'),
-    ProtocolTab.execution => const Tab(icon: Icon(Icons.link), text: '执行协议'),
+    ProtocolTab.habits => Tab(
+      icon: const Icon(Icons.repeat),
+      text: widget.initialTab == ProtocolTab.habits ? '习惯' : '行为协议',
+    ),
+    ProtocolTab.execution => const Tab(
+      icon: JadeIcon(glyph: JadeGlyph.protocols),
+      text: '执行协议',
+    ),
     ProtocolTab.rules => const Tab(
       icon: Icon(Icons.gavel_outlined),
       text: '判例',
@@ -179,39 +202,67 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   };
 
   Widget _tabView(ProtocolTab tab) => switch (tab) {
-    // 目标与普通习惯的唯一管理入口是「成长」下的对应页面。
-    // 这里保留枚举分支以兼容旧深链，但不再提供重复的 CRUD 页面。
-    ProtocolTab.goals => const SizedBox.shrink(),
-    ProtocolTab.habits => ListView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        18,
-        20,
-        AppSpacing.bottomNavClearance,
-      ),
-      children: [
-        const SectionHeading(title: '行为协议', scale: 'RSIP'),
-        Text(
-          '这里配置最小行动、规则树与结算；日常打卡和本月事实矩阵请在成长 → 习惯中完成。',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
-        ),
-        const SizedBox(height: 12),
-        ..._rsipContent(),
-      ],
+    // 旧入口仅在显式请求时复用正式页面和同一份记录。
+    ProtocolTab.goals => _legacyContent(
+      '目标',
+      GoalsPage(controller: widget.controller, showHeader: false),
     ),
+    ProtocolTab.habits =>
+      widget.initialTab == ProtocolTab.habits
+          ? _legacyContent(
+              '习惯',
+              HabitsPage(controller: widget.controller, showHeader: false),
+            )
+          : _rsipView(),
     ProtocolTab.execution => _ctdpView(),
     ProtocolTab.rules => _rulesView(),
     ProtocolTab.analytics => _analyticsView(),
   };
+
+  Widget _legacyContent(String title, Widget page) => Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        child: Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(
+            '兼容视图 · $title内容与成长页同步',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+          ),
+        ),
+      ),
+      Expanded(child: page),
+    ],
+  );
+
+  Widget _rsipView() => ListView(
+    padding: const EdgeInsets.fromLTRB(
+      20,
+      18,
+      20,
+      AppSpacing.bottomNavClearance,
+    ),
+    children: [
+      const SectionHeading(title: '行为协议', scale: 'RSIP'),
+      Text(
+        '这里配置最小行动、规则树与结算；日常打卡和本月事实矩阵请在成长 → 习惯中完成。',
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
+      ),
+      const SizedBox(height: 12),
+      ..._rsipContent(),
+    ],
+  );
 
   void _handleTabChanged() {
     if (!tabController.indexIsChanging && mounted) setState(() {});
   }
 
   Future<void> _createForCurrentTab() {
-    final current = _tabs[tabController.index];
+    final current = _activeTabs[tabController.index];
     return showRecordEditor(
       context,
       widget.controller,
@@ -225,71 +276,260 @@ class _ProtocolsPageState extends State<ProtocolsPage>
 
   Widget _ctdpView() {
     final chains = widget.controller.ctdpTasks;
-    final roots = chains.where((task) => task.parentId == null).toList();
-    return ListView(
+    final chainIds = {for (final task in chains) task.id};
+    final childrenByParent = <String, List<WorkspaceRecord>>{};
+    for (final task in chains) {
+      if (task.parentId != null) {
+        childrenByParent.putIfAbsent(task.parentId!, () => []).add(task);
+      }
+    }
+    final roots = chains
+        .where(
+          (task) => task.parentId == null || !chainIds.contains(task.parentId),
+        )
+        .toList();
+    final groupRoots = roots.where((task) => task.ctdpIsGroup).toList();
+    final chainRoots = roots.where((task) => !task.ctdpIsGroup).toList();
+    final chainById = {for (final task in chains) task.id: task};
+    final linkedSessions =
+        widget.controller
+            .recordsOf(RecordKind.focusSession)
+            .where((session) => chainById.containsKey(session.parentId))
+            .toList()
+          ..sort(
+            (a, b) => (b.scheduledFor ?? b.createdAt).compareTo(
+              a.scheduledFor ?? a.createdAt,
+            ),
+          );
+    final now = widget.controller.currentTime();
+    final rows = <WidgetBuilder>[];
+    rows.add(
+      (_) => _MetricStrip(
+        values: [
+          ('链条', chains.length),
+          ('待触发', chains.where((task) => task.ctdpReservationPending).length),
+          (
+            '主链轮次',
+            chains.fold(0, (sum, task) => sum + task.ctdpTotalCompletions),
+          ),
+          ('失败', chains.fold(0, (sum, task) => sum + task.ctdpTotalFailures)),
+        ],
+      ),
+    );
+    rows.add((_) => const SizedBox(height: 18));
+    void appendTree(WorkspaceRecord task, int depth) {
+      final children = childrenByParent[task.id] ?? const <WorkspaceRecord>[];
+      rows.add(
+        (context) => Padding(
+          padding: EdgeInsets.only(
+            left:
+                (depth *
+                        (WorkbenchViewport.sizeOf(context).width <
+                                AppBreakpoints.compact
+                            ? 12
+                            : 20))
+                    .clamp(0, 60)
+                    .toDouble(),
+            bottom: 10,
+          ),
+          child: _CtdpCard(
+            task: task,
+            children: children,
+            now: now,
+            onAction: (action) => _handleCtdpAction(task, action),
+          ),
+        ),
+      );
+      for (final child in children) {
+        appendTree(child, depth + 1);
+      }
+    }
+
+    if (chains.isEmpty) {
+      rows.add(
+        (context) => EmptyState(
+          icon: Icons.link_off_outlined,
+          title: '还没有 CTDP 链',
+          message: '创建任务并定义触发标志、预约缓冲和完成时长。',
+          action: FilledButton(
+            onPressed: () => showRecordEditor(
+              context,
+              widget.controller,
+              kind: RecordKind.task,
+            ),
+            child: const Text('创建第一条链'),
+          ),
+        ),
+      );
+    } else {
+      if (groupRoots.isNotEmpty) {
+        rows.add(
+          (_) => SectionHeading(
+            title: '任务组',
+            scale: '${groupRoots.length} GROUPS',
+          ),
+        );
+        for (final task in groupRoots) {
+          appendTree(task, 0);
+        }
+      }
+      if (chainRoots.isNotEmpty) {
+        rows.add(
+          (_) => SectionHeading(
+            title: '执行链',
+            scale: '${chainRoots.length} CHAINS',
+          ),
+        );
+        for (final task in chainRoots) {
+          appendTree(task, 0);
+        }
+      }
+      rows.add(
+        (_) => SectionHeading(
+          title: '关联专注',
+          scale: '${linkedSessions.length} SESSIONS',
+        ),
+      );
+      if (linkedSessions.isEmpty) {
+        rows.add(
+          (context) => LogSurface(
+            child: Row(
+              children: [
+                Icon(Icons.timer_outlined, color: context.tokens.mutedText),
+                const SizedBox(width: AppSpacing.md),
+                const Expanded(child: Text('尚无关联专注。可从上方执行协议启动一轮。')),
+              ],
+            ),
+          ),
+        );
+      } else {
+        for (
+          var index = 0;
+          index < linkedSessions.length && index < 6;
+          index++
+        ) {
+          final session = linkedSessions[index];
+          final isLast = index == linkedSessions.length - 1 || index == 5;
+          rows.add(
+            (_) => _linkedSessionTile(
+              session,
+              chainById[session.parentId]!,
+              showConnector: !isLast,
+            ),
+          );
+        }
+        if (linkedSessions.length > 6) {
+          rows.add(
+            (context) => Text(
+              '仅显示最近 6 轮；完整记录可在专注中心查看。',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+            ),
+          );
+        }
+      }
+    }
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
         20,
         18,
         20,
         AppSpacing.bottomNavClearance,
       ),
+      itemCount: rows.length,
+      itemBuilder: (context, index) => rows[index](context),
+    );
+  }
+
+  Widget _linkedSessionTile(
+    WorkspaceRecord session,
+    WorkspaceRecord task, {
+    required bool showConnector,
+  }) {
+    final seconds = (session.data['seconds'] as num?)?.toInt() ?? 0;
+    final duration = Duration(seconds: seconds < 0 ? 0 : seconds);
+    final time = (session.scheduledFor ?? session.createdAt).toLocal();
+    return Column(
       children: [
-        _MetricStrip(
-          values: [
-            ('链条', chains.length),
-            ('待触发', chains.where((task) => task.ctdpReservationPending).length),
-            (
-              '主链轮次',
-              chains.fold(0, (sum, task) => sum + task.ctdpTotalCompletions),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.md),
+              child: Icon(
+                Icons.timer_outlined,
+                size: AppIconSize.md,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
-            ('失败', chains.fold(0, (sum, task) => sum + task.ctdpTotalFailures)),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: LogSurface(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.title.isEmpty ? task.title : session.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleMedium?.copyWith(fontSize: 15),
+                    ),
+                    if (session.title != task.title) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        '关联任务：${task.title}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.tokens.mutedText,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        NumericText(
+                          _sessionDateTime(time),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        NumericText(
+                          formatDuration(duration),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 18),
-        if (chains.isEmpty)
-          EmptyState(
-            icon: Icons.link_off_outlined,
-            title: '还没有 CTDP 链',
-            message: '创建任务并定义触发标志、预约缓冲和完成时长。',
-            action: FilledButton(
-              onPressed: () => showRecordEditor(
-                context,
-                widget.controller,
-                kind: RecordKind.task,
+        if (showConnector)
+          Padding(
+            padding: const EdgeInsets.only(left: 11),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Container(
+                width: 1,
+                height: AppSpacing.md,
+                color: context.tokens.divider,
               ),
-              child: const Text('创建第一条链'),
             ),
-          )
-        else
-          for (final task in roots) ..._ctdpTree(task, 0),
+          ),
       ],
     );
   }
 
-  List<Widget> _ctdpTree(WorkspaceRecord task, int depth) {
-    final children = widget.controller.ctdpChildren(task.id);
-    return [
-      Padding(
-        padding: EdgeInsets.only(
-          left:
-              (depth *
-                      (WorkbenchViewport.sizeOf(context).width <
-                              AppBreakpoints.compact
-                          ? 12
-                          : 20))
-                  .clamp(0, 60)
-                  .toDouble(),
-          bottom: 10,
-        ),
-        child: _CtdpCard(
-          task: task,
-          controller: widget.controller,
-          now: widget.controller.currentTime(),
-          onAction: (action) => _handleCtdpAction(task, action),
-        ),
-      ),
-      for (final child in children) ..._ctdpTree(child, depth + 1),
-    ];
+  String _sessionDateTime(DateTime time) {
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${time.year}-${two(time.month)}-${two(time.day)} '
+        '${two(time.hour)}:${two(time.minute)}';
   }
 
   Future<void> _handleCtdpAction(WorkspaceRecord task, String action) async {
@@ -332,9 +572,34 @@ class _ProtocolsPageState extends State<ProtocolsPage>
     final nodes = widget.controller.habits
         .where((habit) => habit.hasRsipProtocol)
         .toList();
-    final roots = nodes.where((habit) => habit.parentId == null).toList();
+    final nodeIds = {for (final node in nodes) node.id};
+    final childrenByParent = <String, List<WorkspaceRecord>>{};
+    for (final node in nodes) {
+      if (node.parentId != null) {
+        childrenByParent.putIfAbsent(node.parentId!, () => []).add(node);
+      }
+    }
+    final day = widget.controller.growthService.logicalDay(
+      widget.controller.currentTime(),
+    );
+    final dayLogs = <String, WorkspaceRecord>{};
+    for (final log in widget.controller.recordsOf(RecordKind.habitLog)) {
+      if (log.parentId != null && isSameDay(log.scheduledFor, day)) {
+        dayLogs.putIfAbsent(log.parentId!, () => log);
+      }
+    }
+    final roots = nodes
+        .where(
+          (node) => node.parentId == null || !nodeIds.contains(node.parentId),
+        )
+        .toList();
+    final groups = <String, List<WorkspaceRecord>>{};
+    for (final root in roots) {
+      groups.putIfAbsent(root.rsipGroup, () => []).add(root);
+    }
     return [
       LogSurface(
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('允许一天新增多个节点'),
@@ -372,16 +637,24 @@ class _ProtocolsPageState extends State<ProtocolsPage>
           message: '从一个足够小、可以稳定执行的动作开始。',
         )
       else
-        for (final root in roots) ..._rsipTree(root, nodes, 0),
+        for (final group in groups.entries) ...[
+          SectionHeading(
+            title: group.key,
+            scale: '${group.value.length} ROOTS',
+          ),
+          for (final root in group.value)
+            ..._rsipTree(root, childrenByParent, dayLogs, 0),
+        ],
     ];
   }
 
   List<Widget> _rsipTree(
     WorkspaceRecord node,
-    List<WorkspaceRecord> all,
+    Map<String, List<WorkspaceRecord>> childrenByParent,
+    Map<String, WorkspaceRecord> dayLogs,
     int depth,
   ) {
-    final children = all.where((item) => item.parentId == node.id).toList();
+    final children = childrenByParent[node.id] ?? const <WorkspaceRecord>[];
     return [
       Padding(
         padding: EdgeInsets.only(
@@ -398,10 +671,12 @@ class _ProtocolsPageState extends State<ProtocolsPage>
         child: _RsipCard(
           node: node,
           now: widget.controller.currentTime(),
+          settledToday: dayLogs[node.id]?.status == WorkStatus.done,
           onAction: (action) => _handleRsipAction(node, action),
         ),
       ),
-      for (final child in children) ..._rsipTree(child, all, depth + 1),
+      for (final child in children)
+        ..._rsipTree(child, childrenByParent, dayLogs, depth + 1),
     ];
   }
 
@@ -460,11 +735,22 @@ class _ProtocolsPageState extends State<ProtocolsPage>
 
   Widget _rulesView() {
     final query = ruleQuery.trim().toLowerCase();
-    final rules = widget.controller.exceptionRules.where((rule) {
+    final allRules = widget.controller.exceptionRules;
+    final chainNames = {
+      for (final task in widget.controller.ctdpTasks) task.id: task.title,
+    };
+    final rules = allRules.where((rule) {
+      if (ruleTypeFilter != 'all' && rule.data['ruleType'] != ruleTypeFilter) {
+        return false;
+      }
+      final scopeName = chainNames[rule.parentId] ?? '';
       return query.isEmpty ||
           rule.title.toLowerCase().contains(query) ||
-          rule.body.toLowerCase().contains(query);
+          rule.body.toLowerCase().contains(query) ||
+          scopeName.toLowerCase().contains(query) ||
+          _ruleTypeLabel(rule.data['ruleType']?.toString()).contains(query);
     }).toList();
+    final slate = context.accents.slate;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         20,
@@ -489,7 +775,14 @@ class _ProtocolsPageState extends State<ProtocolsPage>
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          '判例为 CTDP 专注提供暂停、提前完成和中断依据。归档后不可再引用，已有记录仍保留。',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+        ),
+        const SizedBox(height: AppSpacing.lg),
         LayoutBuilder(
           builder: (context, constraints) {
             final narrow = constraints.maxWidth < 560;
@@ -499,7 +792,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
               onChanged: (value) => setState(() => ruleQuery = value),
             );
             final create = FilledButton.icon(
-              onPressed: _createRule,
+              onPressed: () => _showRuleEditor(),
               icon: const Icon(Icons.add),
               label: const Text('新建判例'),
             );
@@ -518,61 +811,186 @@ class _ProtocolsPageState extends State<ProtocolsPage>
             );
           },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            for (final (value, label) in const [
+              ('all', '全部'),
+              ('pause', '暂停'),
+              ('early_completion', '提前完成'),
+              ('interruption', '允许中断'),
+            ])
+              ChoiceChip(
+                label: Text(
+                  '$label ${value == 'all' ? allRules.length : allRules.where((rule) => rule.data['ruleType'] == value).length}',
+                ),
+                selected: ruleTypeFilter == value,
+                selectedColor: slate.container,
+                onSelected: (_) => setState(() => ruleTypeFilter = value),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
         if (rules.isEmpty)
-          const EmptyState(
-            icon: Icons.gavel_outlined,
-            title: '还没有判例',
-            message: '暂停、提前完成和允许中断都必须先有可引用的规则。',
+          EmptyState(
+            icon: Icons.menu_book_outlined,
+            title: allRules.isEmpty ? '还没有判例' : '没有符合条件的判例',
+            message: allRules.isEmpty
+                ? '暂停、提前完成和允许中断都必须先有可引用的规则。'
+                : '调整分类或搜索词，查看其他判例。',
+            action: allRules.isEmpty
+                ? FilledButton.icon(
+                    onPressed: () => _showRuleEditor(),
+                    icon: const Icon(Icons.add),
+                    label: const Text('创建第一条判例'),
+                  )
+                : null,
           )
         else
-          for (final rule in rules)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: LogSurface(
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    rule.data['archived'] == true
-                        ? Icons.archive_outlined
-                        : Icons.gavel_outlined,
-                  ),
-                  title: Text(rule.title),
-                  subtitle: Text(
-                    '${_ruleTypeLabel(rule.data['ruleType']?.toString())} · '
-                    '${rule.data['scope'] == 'global' ? '全局' : '任务'} · '
-                    '使用 ${(rule.data['usageCount'] as num?)?.toInt() ?? 0} 次\n${rule.body}',
-                  ),
-                  isThreeLine: true,
-                  trailing: IconButton(
-                    tooltip: rule.data['archived'] == true ? '恢复判例' : '归档判例',
-                    onPressed: () => widget.controller.archiveExceptionRule(
-                      rule,
-                      rule.data['archived'] != true,
-                    ),
-                    icon: Icon(
-                      rule.data['archived'] == true
-                          ? Icons.unarchive_outlined
-                          : Icons.archive_outlined,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          for (final rule in rules) _ruleCard(rule, chainNames[rule.parentId]),
       ],
     );
   }
 
+  Widget _ruleCard(WorkspaceRecord rule, String? chainName) {
+    final archived = rule.data['archived'] == true;
+    final expanded = expandedRuleIds.contains(rule.id);
+    final scope = rule.data['scope'] == 'global'
+        ? '所有 CTDP 链'
+        : chainName ?? '原任务已移除';
+    final longDetails = scope.length > 22 || rule.body.length > 46;
+    final slate = context.accents.slate;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: LogSurface(
+        accent: slate.color,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.gavel_outlined, color: slate.color),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    rule.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: '判例操作：${rule.title}',
+                  onSelected: (action) async {
+                    if (action == 'edit') {
+                      await _showRuleEditor(rule: rule);
+                      return;
+                    }
+                    try {
+                      await widget.controller.archiveExceptionRule(
+                        rule,
+                        !archived,
+                      );
+                      if (mounted) setState(() {});
+                    } catch (_) {
+                      if (!mounted) return;
+                      showWorkbenchSnackBar(
+                        context,
+                        SnackBar(
+                          content: Text(
+                            archived ? '恢复判例失败，请重试。' : '归档判例失败，请重试。',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'edit', child: Text('编辑判例')),
+                    PopupMenuItem(
+                      value: 'archive',
+                      child: Text(archived ? '恢复判例' : '归档判例'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                StatusPill(
+                  label: _ruleTypeLabel(rule.data['ruleType']?.toString()),
+                  icon: Icons.rule_outlined,
+                  color: slate.container,
+                  foreground: slate.color,
+                  dense: true,
+                ),
+                AnimatedSwitcher(
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : AppMotion.standard,
+                  child: StatusPill(
+                    key: ValueKey(archived),
+                    label: archived ? '已归档 · 不可引用' : '生效中 · 可引用',
+                    icon: archived
+                        ? Icons.archive_outlined
+                        : Icons.verified_outlined,
+                    dense: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '作用范围：$scope',
+              maxLines: expanded ? null : 2,
+              overflow: expanded ? null : TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            if (rule.body.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                rule.body,
+                maxLines: expanded ? null : 2,
+                overflow: expanded ? null : TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.tokens.mutedText,
+                ),
+              ),
+            ],
+            if (longDetails)
+              TextButton(
+                onPressed: () => setState(() {
+                  expanded
+                      ? expandedRuleIds.remove(rule.id)
+                      : expandedRuleIds.add(rule.id);
+                }),
+                child: Text(expanded ? '收起详情' : '展开详情'),
+              ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '使用 ${(rule.data['usageCount'] as num?)?.toInt() ?? 0} 次',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: context.tokens.mutedText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _analyticsView() {
-    final events = widget.controller.protocolEvents;
-    final successes = events
-        .where((event) => event.data['successful'] == true)
-        .length;
-    final failures = events
-        .where((event) => event.data['successful'] == false)
-        .length;
-    final resolved = successes + failures;
-    final successRate = resolved == 0 ? 0.0 : successes / resolved;
+    final snapshot = _ProtocolAnalyticsSnapshot.fromEvents(
+      widget.controller.protocolEvents,
+      widget.controller.currentTime(),
+      _analyticsDays,
+    );
+    final events = snapshot.events;
+    final resolved = snapshot.successes + snapshot.failures;
+    final successRate = resolved == 0 ? null : snapshot.successes / resolved;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         20,
@@ -584,8 +1002,8 @@ class _ProtocolsPageState extends State<ProtocolsPage>
         _MetricStrip(
           values: [
             ('协议事件', events.length),
-            ('成功结算', successes),
-            ('失败结算', failures),
+            ('成功结算', snapshot.successes),
+            ('失败结算', snapshot.failures),
             (
               '判例使用',
               widget.controller.exceptionRules.fold(
@@ -596,28 +1014,55 @@ class _ProtocolsPageState extends State<ProtocolsPage>
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 24),
         LogSurface(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('可判定事件成功率', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
-              LinearProgressIndicator(value: successRate, minHeight: 10),
-              const SizedBox(height: 8),
-              Text(
-                '${(successRate * 100).toStringAsFixed(1)}% · $resolved 次有效结算',
+              Row(
+                children: [
+                  Icon(
+                    Icons.analytics_outlined,
+                    color: context.accents.slate.color,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '可判定事件成功率',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 12),
+              if (successRate == null)
+                Text(
+                  '暂无可判定结算。完成或失败的协议记录出现后，才会计算成功率。',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                )
+              else ...[
+                TweenAnimationBuilder<double>(
+                  tween: Tween(end: successRate),
+                  duration: const Duration(milliseconds: 240),
+                  builder: (context, value, _) =>
+                      LinearProgressIndicator(value: value, minHeight: 10),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${(successRate * 100).toStringAsFixed(1)}% · $resolved 次有效结算',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 24),
         _ProtocolOutcomeTimeline(
-          events: events,
-          now: widget.controller.currentTime(),
+          snapshot: snapshot,
+          onDaysChanged: (days) => setState(() => _analyticsDays = days),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 24),
         const SectionHeading(title: '最近协议记录', scale: 'AUDIT LOG'),
         if (events.isEmpty)
           const Text('尚无协议事件。')
@@ -628,11 +1073,11 @@ class _ProtocolsPageState extends State<ProtocolsPage>
               children: [
                 for (
                   var index = 0;
-                  index < events.take(30).length;
+                  index < events.length && index < 30;
                   index++
                 ) ...[
                   _EventTile(event: events[index]),
-                  if (index < events.take(30).length - 1) const Divider(),
+                  if (index < events.length - 1 && index < 29) const Divider(),
                 ],
               ],
             ),
@@ -641,144 +1086,13 @@ class _ProtocolsPageState extends State<ProtocolsPage>
     );
   }
 
-  Future<void> _createRule() async {
-    final name = TextEditingController();
-    final description = TextEditingController();
-    var type = 'pause';
-    var scope = 'global';
-    String? chainId;
-    final created = await showWorkbenchDialog<bool>(
+  Future<void> _showRuleEditor({WorkspaceRecord? rule}) async {
+    final saved = await showWorkbenchDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('新建结构化判例'),
-          content: SizedBox(
-            width: 500,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ExternalField(
-                    label: '判例名称',
-                    child: TextField(
-                      controller: name,
-                      autofocus: true,
-                      decoration: const InputDecoration(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ExternalField(
-                    label: '适用条件',
-                    child: TextField(
-                      controller: description,
-                      minLines: 2,
-                      maxLines: 4,
-                      decoration: const InputDecoration(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ExternalField(
-                    label: '允许行为',
-                    child: DropdownButtonFormField<String>(
-                      initialValue: type,
-                      decoration: const InputDecoration(),
-                      items: const [
-                        DropdownMenuItem(value: 'pause', child: Text('暂停')),
-                        DropdownMenuItem(
-                          value: 'early_completion',
-                          child: Text('提前完成'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'interruption',
-                          child: Text('允许中断'),
-                        ),
-                      ],
-                      onChanged: (value) => setDialogState(() => type = value!),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ExternalField(
-                    label: '作用范围',
-                    child: DropdownButtonFormField<String>(
-                      initialValue: scope,
-                      decoration: const InputDecoration(),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'global',
-                          child: Text('所有 CTDP 链'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'chain',
-                          child: Text('指定 CTDP 链'),
-                        ),
-                      ],
-                      onChanged: (value) => setDialogState(() {
-                        scope = value!;
-                        if (scope == 'global') chainId = null;
-                      }),
-                    ),
-                  ),
-                  if (scope == 'chain') ...[
-                    const SizedBox(height: 12),
-                    ExternalField(
-                      label: '适用任务',
-                      child: DropdownButtonFormField<String>(
-                        initialValue: chainId,
-                        decoration: const InputDecoration(),
-                        items: widget.controller.ctdpTasks
-                            .where((task) => !task.ctdpIsGroup)
-                            .map(
-                              (task) => DropdownMenuItem(
-                                value: task.id,
-                                child: Text(
-                                  task.title,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) =>
-                            setDialogState(() => chainId = value),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('创建'),
-            ),
-          ],
-        ),
-      ),
+      builder: (context) =>
+          _RuleEditorDialog(controller: widget.controller, rule: rule),
     );
-    if (created == true) {
-      try {
-        await widget.controller.createExceptionRule(
-          name: name.text,
-          description: description.text,
-          ruleType: type,
-          scope: scope,
-          chainId: chainId,
-        );
-      } on FormatException catch (error) {
-        if (mounted) {
-          showWorkbenchSnackBar(
-            context,
-            SnackBar(content: Text(error.message.toString())),
-          );
-        }
-      }
-    }
-    name.dispose();
-    description.dispose();
+    if (saved == true && mounted) setState(() {});
   }
 
   Future<void> _recordVictory() async {
@@ -852,16 +1166,312 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   }
 }
 
+class _RuleEditorDialog extends StatefulWidget {
+  const _RuleEditorDialog({required this.controller, this.rule});
+
+  final WorkbenchController controller;
+  final WorkspaceRecord? rule;
+
+  @override
+  State<_RuleEditorDialog> createState() => _RuleEditorDialogState();
+}
+
+class _RuleEditorDialogState extends State<_RuleEditorDialog> {
+  late final TextEditingController name;
+  late final TextEditingController description;
+  final FocusNode nameFocus = FocusNode();
+  final FocusNode chainFocus = FocusNode();
+  late String type;
+  late String scope;
+  String? chainId;
+  late final String initialName;
+  late final String initialDescription;
+  late final String initialType;
+  late final String initialScope;
+  String? initialChainId;
+  String? errorMessage;
+  bool saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    name = TextEditingController(text: widget.rule?.title ?? '');
+    description = TextEditingController(text: widget.rule?.body ?? '');
+    type = widget.rule?.data['ruleType']?.toString() ?? 'pause';
+    scope = widget.rule?.data['scope']?.toString() ?? 'global';
+    chainId = widget.rule?.parentId;
+    if (chainId != null &&
+        !widget.controller.ctdpTasks.any((task) => task.id == chainId)) {
+      chainId = null;
+    }
+    initialName = name.text;
+    initialDescription = description.text;
+    initialType = type;
+    initialScope = scope;
+    initialChainId = chainId;
+  }
+
+  bool get isDirty =>
+      name.text != initialName ||
+      description.text != initialDescription ||
+      type != initialType ||
+      scope != initialScope ||
+      chainId != initialChainId;
+
+  Future<void> _requestClose() async {
+    if (saving) return;
+    if (!isDirty) {
+      Navigator.of(context).pop(false);
+      return;
+    }
+    final discard = await showWorkbenchDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('放弃未保存的判例？'),
+        content: const Text('当前修改尚未保存。可以继续编辑，或放弃这次修改。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('继续编辑'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('放弃更改'),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop(false);
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    description.dispose();
+    nameFocus.dispose();
+    chainFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (name.text.trim().isEmpty) {
+      setState(() => errorMessage = '判例名称不能为空');
+      nameFocus.requestFocus();
+      return;
+    }
+    if (scope == 'chain' && chainId == null) {
+      setState(() => errorMessage = '请选择适用的 CTDP 任务');
+      chainFocus.requestFocus();
+      return;
+    }
+    setState(() {
+      saving = true;
+      errorMessage = null;
+    });
+    try {
+      if (widget.rule == null) {
+        await widget.controller.createExceptionRule(
+          name: name.text,
+          description: description.text,
+          ruleType: type,
+          scope: scope,
+          chainId: chainId,
+        );
+      } else {
+        await widget.controller.updateExceptionRule(
+          widget.rule!,
+          name: name.text,
+          description: description.text,
+          ruleType: type,
+          scope: scope,
+          chainId: chainId,
+        );
+      }
+      if (mounted) Navigator.of(context).pop(true);
+    } on FormatException catch (error) {
+      if (mounted) {
+        setState(() {
+          saving = false;
+          errorMessage = error.message.toString();
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          saving = false;
+          errorMessage = '保存失败，请重试；输入已保留。';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !saving && !isDirty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !saving) _requestClose();
+      },
+      child: AlertDialog(
+        title: Text(widget.rule == null ? '新建结构化判例' : '编辑结构化判例'),
+        content: SizedBox(
+          width: 500,
+          child: AbsorbPointer(
+            absorbing: saving,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ExternalField(
+                    label: '判例名称',
+                    child: TextField(
+                      controller: name,
+                      focusNode: nameFocus,
+                      autofocus: true,
+                      decoration: const InputDecoration(),
+                      onChanged: (_) => setState(() => errorMessage = null),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ExternalField(
+                    label: '适用条件',
+                    child: TextField(
+                      controller: description,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ExternalField(
+                    label: '允许行为',
+                    child: DropdownButtonFormField<String>(
+                      initialValue: type,
+                      isExpanded: true,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(value: 'pause', child: Text('暂停')),
+                        DropdownMenuItem(
+                          value: 'early_completion',
+                          child: Text('提前完成'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'interruption',
+                          child: Text('允许中断'),
+                        ),
+                      ],
+                      onChanged: (value) => setState(() => type = value!),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ExternalField(
+                    label: '作用范围',
+                    child: DropdownButtonFormField<String>(
+                      initialValue: scope,
+                      isExpanded: true,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'global',
+                          child: Text('所有 CTDP 链'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'chain',
+                          child: Text('指定 CTDP 链'),
+                        ),
+                      ],
+                      onChanged: (value) => setState(() {
+                        scope = value!;
+                        if (scope == 'global') chainId = null;
+                        errorMessage = null;
+                      }),
+                    ),
+                  ),
+                  if (scope == 'chain') ...[
+                    const SizedBox(height: AppSpacing.md),
+                    ExternalField(
+                      label: '适用任务',
+                      child: DropdownButtonFormField<String>(
+                        initialValue: chainId,
+                        isExpanded: true,
+                        focusNode: chainFocus,
+                        decoration: const InputDecoration(),
+                        items: widget.controller.ctdpTasks
+                            .where((task) => !task.ctdpIsGroup)
+                            .map(
+                              (task) => DropdownMenuItem(
+                                value: task.id,
+                                child: Text(
+                                  task.title,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) => setState(() {
+                          chainId = value;
+                          errorMessage = null;
+                        }),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    '判例只在符合范围的专注任务中供选择；归档后不可再引用。',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.tokens.mutedText,
+                    ),
+                  ),
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        errorMessage!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: saving ? null : _requestClose,
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: saving ? null : _save,
+            child: Text(
+              saving
+                  ? '保存中…'
+                  : widget.rule == null
+                  ? '创建'
+                  : '保存',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CtdpCard extends StatelessWidget {
   const _CtdpCard({
     required this.task,
-    required this.controller,
+    required this.children,
     required this.now,
     required this.onAction,
   });
 
   final WorkspaceRecord task;
-  final WorkbenchController controller;
+  final List<WorkspaceRecord> children;
   final DateTime now;
   final ValueChanged<String> onAction;
 
@@ -873,9 +1483,6 @@ class _CtdpCard extends StatelessWidget {
     final groupStarted = DateTime.tryParse(
       task.data['ctdpGroupStartedAt']?.toString() ?? '',
     )?.toLocal();
-    final children = task.ctdpIsGroup
-        ? controller.ctdpChildren(task.id)
-        : const <WorkspaceRecord>[];
     final completedChildren = groupStarted == null
         ? 0
         : children.where((child) {
@@ -884,65 +1491,92 @@ class _CtdpCard extends StatelessWidget {
             )?.toLocal();
             return completedAt != null && !completedAt.isBefore(groupStarted);
           }).length;
+    final descriptionStyle = Theme.of(
+      context,
+    ).textTheme.bodyMedium?.copyWith(fontSize: 14);
+    final chainMenu = PopupMenuButton<String>(
+      tooltip: 'CTDP 链操作',
+      onSelected: onAction,
+      itemBuilder: (context) => [
+        if (task.ctdpIsGroup)
+          const PopupMenuItem(value: 'group_start', child: Text('启动任务组时限'))
+        else ...[
+          const PopupMenuItem(value: 'start', child: Text('直接开始本轮')),
+          if (!task.ctdpReservationPending)
+            PopupMenuItem(
+              value: 'reserve',
+              child: Text('预约 ${task.ctdpDelayMinutes} 分钟后开始'),
+            )
+          else ...[
+            const PopupMenuItem(value: 'confirm', child: Text('确认触发并开始')),
+            const PopupMenuItem(value: 'aux_fail', child: Text('辅助链失败')),
+          ],
+        ],
+        const PopupMenuDivider(),
+        const PopupMenuItem(value: 'copy', child: Text('复制链条')),
+        const PopupMenuItem(value: 'edit', child: Text('编辑 / 移动')),
+        const PopupMenuItem(value: 'trash', child: Text('移入回收站')),
+      ],
+    );
+    List<Widget> badges() => [
+      _ChainBadge(label: '主', count: task.ctdpChainCount),
+      const SizedBox(width: 6),
+      _ChainBadge(label: '辅', count: task.ctdpAuxChainCount),
+    ];
     return LogSurface(
       accent: task.ctdpReservationPending
           ? context.tokens.info
           : Theme.of(context).colorScheme.primary,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(task.ctdpIsGroup ? Icons.account_tree_outlined : Icons.link),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  task.title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              _ChainBadge(label: '主', count: task.ctdpChainCount),
-              const SizedBox(width: 6),
-              _ChainBadge(label: '辅', count: task.ctdpAuxChainCount),
-              PopupMenuButton<String>(
-                tooltip: 'CTDP 链操作',
-                onSelected: onAction,
-                itemBuilder: (context) => [
-                  if (task.ctdpIsGroup)
-                    const PopupMenuItem(
-                      value: 'group_start',
-                      child: Text('启动任务组时限'),
-                    )
-                  else ...[
-                    const PopupMenuItem(value: 'start', child: Text('直接开始本轮')),
-                    if (!task.ctdpReservationPending)
-                      PopupMenuItem(
-                        value: 'reserve',
-                        child: Text('预约 ${task.ctdpDelayMinutes} 分钟后开始'),
-                      )
-                    else ...[
-                      const PopupMenuItem(
-                        value: 'confirm',
-                        child: Text('确认触发并开始'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'aux_fail',
-                        child: Text('辅助链失败'),
-                      ),
-                    ],
-                  ],
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(value: 'copy', child: Text('复制链条')),
-                  const PopupMenuItem(value: 'edit', child: Text('编辑 / 移动')),
-                  const PopupMenuItem(value: 'trash', child: Text('移入回收站')),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact =
+                  constraints.maxWidth < 460 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 20;
+              final titleRow = Row(
+                children: [
+                  JadeIcon(
+                    glyph: task.ctdpIsGroup
+                        ? JadeGlyph.groups
+                        : JadeGlyph.protocols,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      task.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  if (!compact) ...badges(),
+                  chainMenu,
                 ],
-              ),
-            ],
+              );
+              if (!compact) return titleRow;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  titleRow,
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xs,
+                    children: [
+                      _ChainBadge(label: '主', count: task.ctdpChainCount),
+                      _ChainBadge(label: '辅', count: task.ctdpAuxChainCount),
+                    ],
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 8),
           if (task.ctdpIsGroup) ...[
             Text(
               '任务组 · ${children.length} 个单元 · 时限 ${task.ctdpGroupTimeLimitHours == 0 ? '不限' : '${task.ctdpGroupTimeLimitHours} 小时'}',
+              style: descriptionStyle,
             ),
             if (groupStarted != null) ...[
               const SizedBox(height: 8),
@@ -953,42 +1587,57 @@ class _CtdpCard extends StatelessWidget {
                 minHeight: 8,
               ),
               const SizedBox(height: 5),
-              Text('本轮进度 $completedChildren / ${children.length}'),
+              Text(
+                '本轮进度 $completedChildren / ${children.length}',
+                style: descriptionStyle,
+              ),
             ],
           ] else ...[
-            Text('触发：${task.ctdpTrigger}'),
-            if (task.ctdpAuxSignal.isNotEmpty) Text('辅助：${task.ctdpAuxSignal}'),
+            Text('触发：${task.ctdpTrigger}', style: descriptionStyle),
+            if (task.ctdpAuxSignal.isNotEmpty)
+              Text('辅助：${task.ctdpAuxSignal}', style: descriptionStyle),
             Text(
               task.ctdpIsDurationless
                   ? '正计时 · 最低 ${task.ctdpMinimumMinutes} 分钟'
                   : '本轮 ${task.ctdpSessionMinutes} 分钟',
+              style: descriptionStyle,
             ),
           ],
           const SizedBox(height: 10),
+          _ProtocolStageBand(
+            key: ValueKey('protocol-stage-${task.id}'),
+            labels: task.ctdpIsGroup
+                ? const ['待启动', '单元执行', '本轮完成']
+                : const ['预约缓冲中', '等待触发', '任务结算'],
+            selected: task.ctdpIsGroup
+                ? groupStarted == null
+                      ? 0
+                      : children.isNotEmpty &&
+                            completedChildren == children.length
+                      ? 2
+                      : 1
+                : task.isDone
+                ? 2
+                : task.ctdpReservationPending
+                ? 0
+                : 1,
+            color: task.ctdpReservationPending ? context.tokens.info : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: [
               StatusPill(
-                label: task.ctdpReservationPending ? '预约缓冲中' : '等待触发',
-                icon: task.ctdpReservationPending
-                    ? Icons.hourglass_top
-                    : Icons.bolt_outlined,
-                color: task.ctdpReservationPending
-                    ? context.tokens.infoContainer
-                    : null,
-                foreground: task.ctdpReservationPending
-                    ? context.tokens.infoOnContainer
-                    : null,
-              ),
-              StatusPill(
                 label: task.ctdpIsGroup
                     ? '${children.length} 个执行单元'
                     : '执行 ${task.ctdpIsDurationless ? '正计时' : '${task.ctdpSessionMinutes} 分'}',
+                fontSize: 13,
                 icon: Icons.timer_outlined,
               ),
               StatusPill(
                 label: '完成证据 ${task.ctdpTotalCompletions} 轮',
+                fontSize: 13,
                 icon: Icons.verified_outlined,
                 color: context.tokens.rewardContainer,
                 foreground: context.tokens.rewardOnContainer,
@@ -1001,6 +1650,7 @@ class _CtdpCard extends StatelessWidget {
               '预约倒计时 ${_countdown(dueAt.difference(now))}',
               style: TextStyle(
                 color: context.tokens.info,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1047,11 +1697,13 @@ class _RsipCard extends StatelessWidget {
   const _RsipCard({
     required this.node,
     required this.now,
+    required this.settledToday,
     required this.onAction,
   });
 
   final WorkspaceRecord node;
   final DateTime now;
+  final bool settledToday;
   final ValueChanged<String> onAction;
 
   @override
@@ -1062,12 +1714,16 @@ class _RsipCard extends StatelessWidget {
     final frozenUntil = DateTime.tryParse(
       node.data['rsipFrozenUntil']?.toString() ?? '',
     )?.toLocal();
+    final descriptionStyle = Theme.of(
+      context,
+    ).textTheme.bodyMedium?.copyWith(fontSize: 14);
     return LogSurface(
       accent: node.rsipFrozen
           ? context.tokens.info
           : node.rsipActive
           ? Theme.of(context).colorScheme.primary
           : context.tokens.mutedText,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1089,12 +1745,22 @@ class _RsipCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 4),
-                    Text('${node.rsipGroup} · 最小动作：${node.rsipMinimumAction}'),
-                    if (node.rsipRule.isNotEmpty) Text('规则：${node.rsipRule}'),
+                    Text(
+                      '最小动作：${node.rsipMinimumAction}',
+                      style: descriptionStyle,
+                    ),
+                    if (node.rsipRule.isNotEmpty)
+                      Text('规则：${node.rsipRule}', style: descriptionStyle),
                     if (node.rsipTimerRunning && dueAt != null)
-                      Text('计时 ${_countdown(dueAt.difference(now))}'),
+                      Text(
+                        '计时 ${_countdown(dueAt.difference(now))}',
+                        style: descriptionStyle,
+                      ),
                     if (node.rsipFrozen && frozenUntil != null)
-                      Text('水密隔舱至 ${_dateTime(frozenUntil)}'),
+                      Text(
+                        '水密隔舱至 ${_dateTime(frozenUntil)}',
+                        style: descriptionStyle,
+                      ),
                     const SizedBox(height: 5),
                     Text(
                       '${node.rsipActive ? '生效' : '熄灭'} · 连续 #${node.rsipChainCount} · 内化 ${node.rsipInternalization}% · 失败 ${node.rsipFailureCount}',
@@ -1141,24 +1807,32 @@ class _RsipCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
+          _ProtocolStageBand(
+            key: ValueKey('protocol-stage-${node.id}'),
+            labels: [
+              node.rsipFrozen
+                  ? '水密隔舱'
+                  : node.rsipActive
+                  ? '规则生效'
+                  : '待重建',
+              node.rsipTimerRunning ? '最小行动计时' : '最小行动',
+              '今日已结算',
+            ],
+            selected: node.rsipFrozen || !node.rsipActive
+                ? 0
+                : settledToday
+                ? 2
+                : 1,
+            color: node.rsipFrozen ? context.tokens.info : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: [
               StatusPill(
-                label: node.rsipFrozen
-                    ? '暂停至 ${frozenUntil == null ? '稍后' : _dateTime(frozenUntil)}'
-                    : node.rsipActive
-                    ? '生效中'
-                    : '待重建',
-                icon: node.rsipFrozen
-                    ? Icons.ac_unit_outlined
-                    : node.rsipActive
-                    ? Icons.check_circle_outline
-                    : Icons.restart_alt,
-              ),
-              StatusPill(
                 label: '内化 ${node.rsipInternalization}%',
+                fontSize: 13,
                 icon: Icons.auto_graph_outlined,
               ),
             ],
@@ -1199,143 +1873,396 @@ class _RsipCard extends StatelessWidget {
   }
 }
 
-class _ProtocolOutcomeTimeline extends StatelessWidget {
-  const _ProtocolOutcomeTimeline({required this.events, required this.now});
+/// A view of persisted protocol state; only the current stage is highlighted.
+/// Earlier stages are not marked complete because CTDP reservations are optional.
+class _ProtocolStageBand extends StatelessWidget {
+  const _ProtocolStageBand({
+    super.key,
+    required this.labels,
+    required this.selected,
+    this.color,
+  });
 
-  final List<WorkspaceRecord> events;
-  final DateTime now;
+  final List<String> labels;
+  final int selected;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final today = DateTime(now.year, now.month, now.day);
-    final dates = List.generate(
-      7,
-      (index) => today.subtract(Duration(days: 6 - index)),
-    );
-    final counts = [
-      for (final day in dates)
-        (
-          events.where((event) {
-            final at = (event.scheduledFor ?? event.createdAt).toLocal();
-            return at.year == day.year &&
-                at.month == day.month &&
-                at.day == day.day &&
-                event.data['successful'] == true;
-          }).length,
-          events.where((event) {
-            final at = (event.scheduledFor ?? event.createdAt).toLocal();
-            return at.year == day.year &&
-                at.month == day.month &&
-                at.day == day.day &&
-                event.data['successful'] == false;
-          }).length,
-        ),
-    ];
-    final maximum = counts.fold<int>(1, (max, pair) {
-      final total = pair.$1 + pair.$2;
-      return total > max ? total : max;
-    });
-    const weekday = ['一', '二', '三', '四', '五', '六', '日'];
-    return LogSurface(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('近七日结算', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            '仅统计有成功或失败结论的协议事件。',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 78,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+    final activeColor = color ?? Theme.of(context).colorScheme.primary;
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 13);
+    return Semantics(
+      label: '协议阶段',
+      value: '${labels.join(' → ')}；当前：${labels[selected]}',
+      child: ExcludeSemantics(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact =
+                constraints.maxWidth < 420 ||
+                MediaQuery.textScalerOf(context).scale(1) > 1.5;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var index = 0; index < 7; index++)
-                  Expanded(
-                    child: Semantics(
-                      label:
-                          '${dates[index].month}月${dates[index].day}日，成功 ${counts[index].$1} 次，失败 ${counts[index].$2} 次',
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                Row(
+                  children: [
+                    for (var index = 0; index < labels.length; index++) ...[
+                      if (index > 0) const SizedBox(width: AppSpacing.sm),
+                      Expanded(
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Align(
-                                alignment: Alignment.bottomCenter,
-                                child: FractionallySizedBox(
-                                  widthFactor: 0.75,
-                                  heightFactor:
-                                      counts[index].$1 + counts[index].$2 == 0
-                                      ? 0.06
-                                      : (counts[index].$1 + counts[index].$2) /
-                                            maximum,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      if (counts[index].$2 > 0)
-                                        Expanded(
-                                          flex: counts[index].$2,
-                                          child: ColoredBox(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.error,
-                                          ),
-                                        ),
-                                      if (counts[index].$1 > 0)
-                                        Expanded(
-                                          flex: counts[index].$1,
-                                          child: ColoredBox(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                          ),
-                                        ),
-                                      if (counts[index].$1 + counts[index].$2 ==
-                                          0)
-                                        Expanded(
-                                          child: ColoredBox(
-                                            color: context.tokens.orbitTrack,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
+                            Container(
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: index == selected
+                                    ? activeColor
+                                    : context.tokens.divider,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.xs,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 5),
-                            ExcludeSemantics(
-                              child: Text(
-                                weekday[dates[index].weekday - 1],
-                                style: Theme.of(context).textTheme.labelSmall,
+                            if (!compact) ...[
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                labels[index],
+                                style: style?.copyWith(
+                                  color: index == selected
+                                      ? activeColor
+                                      : context.tokens.mutedText,
+                                  fontWeight: index == selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
+                    ],
+                  ],
+                ),
+                if (compact) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    labels[selected],
+                    style: style?.copyWith(
+                      color: activeColor,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                ],
               ],
-            ),
-          ),
-          const SizedBox(height: 10),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+enum _ProtocolOutcome { success, failure, informational }
+
+_ProtocolOutcome _protocolOutcome(WorkspaceRecord event) {
+  final action = event.data['action'];
+  if (event.data['protocol'] == 'ctdp') {
+    if (const {
+      'round_completed',
+      'round_completed_early',
+      'group_completed',
+      'task_closed',
+    }.contains(action)) {
+      return _ProtocolOutcome.success;
+    }
+    if (const {
+      'main_failed',
+      'auxiliary_failed',
+      'reservation_expired',
+      'group_expired',
+      'task_reopened',
+    }.contains(action)) {
+      return _ProtocolOutcome.failure;
+    }
+  }
+  if (event.data['protocol'] == 'rsip' && action == 'node_settled') {
+    return switch (event.data['executionStatus']) {
+      'executed' => _ProtocolOutcome.success,
+      'violated' => _ProtocolOutcome.failure,
+      _ => _ProtocolOutcome.informational,
+    };
+  }
+  return _ProtocolOutcome.informational;
+}
+
+class _ProtocolAnalyticsSnapshot {
+  const _ProtocolAnalyticsSnapshot({
+    required this.events,
+    required this.days,
+    required this.bucketDates,
+    required this.successCounts,
+    required this.failureCounts,
+    required this.successes,
+    required this.failures,
+  });
+
+  factory _ProtocolAnalyticsSnapshot.fromEvents(
+    List<WorkspaceRecord> source,
+    DateTime now,
+    int days,
+  ) {
+    final today = DateTime(now.year, now.month, now.day);
+    final first = today.subtract(Duration(days: days - 1));
+    final bucketCount = days == 7 ? 7 : 6;
+    final bucketDates = List.generate(
+      bucketCount,
+      (index) => first.add(Duration(days: index * (days == 7 ? 1 : 5))),
+    );
+    final successCounts = List<int>.filled(bucketCount, 0);
+    final failureCounts = List<int>.filled(bucketCount, 0);
+    final events = <WorkspaceRecord>[];
+    var successes = 0;
+    var failures = 0;
+    final firstUtc = DateTime.utc(first.year, first.month, first.day);
+    for (final event in source) {
+      if (event.data['protocol'] != 'ctdp' &&
+          event.data['protocol'] != 'rsip') {
+        continue;
+      }
+      events.add(event);
+      final outcome = _protocolOutcome(event);
+      if (outcome == _ProtocolOutcome.informational) continue;
+      if (outcome == _ProtocolOutcome.success) {
+        successes++;
+      } else {
+        failures++;
+      }
+      final at = (event.scheduledFor ?? event.createdAt).toLocal();
+      final dayOffset = DateTime.utc(
+        at.year,
+        at.month,
+        at.day,
+      ).difference(firstUtc).inDays;
+      if (dayOffset < 0 || dayOffset >= days) continue;
+      final bucket = days == 7 ? dayOffset : dayOffset ~/ 5;
+      if (outcome == _ProtocolOutcome.success) {
+        successCounts[bucket]++;
+      } else {
+        failureCounts[bucket]++;
+      }
+    }
+    return _ProtocolAnalyticsSnapshot(
+      events: events,
+      days: days,
+      bucketDates: bucketDates,
+      successCounts: successCounts,
+      failureCounts: failureCounts,
+      successes: successes,
+      failures: failures,
+    );
+  }
+
+  final List<WorkspaceRecord> events;
+  final int days;
+  final List<DateTime> bucketDates;
+  final List<int> successCounts;
+  final List<int> failureCounts;
+  final int successes;
+  final int failures;
+
+  bool get hasPeriodOutcomes =>
+      successCounts.any((count) => count > 0) ||
+      failureCounts.any((count) => count > 0);
+}
+
+class _ProtocolOutcomeTimeline extends StatelessWidget {
+  const _ProtocolOutcomeTimeline({
+    required this.snapshot,
+    required this.onDaysChanged,
+  });
+
+  final _ProtocolAnalyticsSnapshot snapshot;
+  final ValueChanged<int> onDaysChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final maximum = List.generate(snapshot.bucketDates.length, (index) {
+      return snapshot.successCounts[index] + snapshot.failureCounts[index];
+    }).fold<int>(1, (maximum, count) => count > maximum ? count : maximum);
+    const weekday = ['一', '二', '三', '四', '五', '六', '日'];
+    return LogSurface(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Wrap(
-            spacing: 14,
-            runSpacing: 4,
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _OutcomeLegend(
-                color: Theme.of(context).colorScheme.primary,
-                label: '成功',
+              Text('近期结算', style: Theme.of(context).textTheme.titleMedium),
+              ChoiceChip(
+                label: const Text('7 日'),
+                selected: snapshot.days == 7,
+                onSelected: (_) => onDaysChanged(7),
               ),
-              _OutcomeLegend(
-                color: Theme.of(context).colorScheme.error,
-                label: '失败',
+              ChoiceChip(
+                label: const Text('30 日'),
+                selected: snapshot.days == 30,
+                onSelected: (_) => onDaysChanged(30),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            snapshot.days == 7
+                ? '仅统计有成功或失败结论的协议事件。'
+                : '每格汇总 5 日，只统计有成功或失败结论的协议事件。',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
+          ),
+          const SizedBox(height: 16),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: !snapshot.hasPeriodOutcomes
+                ? Text(
+                    '近 ${snapshot.days} 日暂无可判定结算。',
+                    key: ValueKey('empty-${snapshot.days}'),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  )
+                : Column(
+                    key: ValueKey('chart-${snapshot.days}'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 94,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            for (
+                              var index = 0;
+                              index < snapshot.bucketDates.length;
+                              index++
+                            )
+                              Expanded(
+                                child: Semantics(
+                                  label:
+                                      '${snapshot.bucketDates[index].month}月'
+                                      '${snapshot.bucketDates[index].day}日起，'
+                                      '成功 ${snapshot.successCounts[index]} 次，'
+                                      '失败 ${snapshot.failureCounts[index]} 次',
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.bottomCenter,
+                                            child: SizedBox(
+                                              width: 18,
+                                              child: FractionallySizedBox(
+                                                key: ValueKey(
+                                                  'protocol-outcome-bar-$index',
+                                                ),
+                                                heightFactor:
+                                                    (snapshot.successCounts[index] +
+                                                            snapshot
+                                                                .failureCounts[index]) ==
+                                                        0
+                                                    ? 0.06
+                                                    : (snapshot.successCounts[index] +
+                                                              snapshot
+                                                                  .failureCounts[index]) /
+                                                          maximum,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment
+                                                          .stretch,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.end,
+                                                  children: [
+                                                    if (snapshot
+                                                            .failureCounts[index] >
+                                                        0)
+                                                      Expanded(
+                                                        flex: snapshot
+                                                            .failureCounts[index],
+                                                        child: ColoredBox(
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.error,
+                                                        ),
+                                                      ),
+                                                    if (snapshot
+                                                            .successCounts[index] >
+                                                        0)
+                                                      Expanded(
+                                                        flex: snapshot
+                                                            .successCounts[index],
+                                                        child: ColoredBox(
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary,
+                                                        ),
+                                                      ),
+                                                    if (snapshot.successCounts[index] +
+                                                            snapshot
+                                                                .failureCounts[index] ==
+                                                        0)
+                                                      Expanded(
+                                                        child: ColoredBox(
+                                                          color: context
+                                                              .tokens
+                                                              .orbitTrack,
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        ExcludeSemantics(
+                                          child: Text(
+                                            snapshot.days == 7
+                                                ? weekday[snapshot
+                                                          .bucketDates[index]
+                                                          .weekday -
+                                                      1]
+                                                : '${snapshot.bucketDates[index].day}',
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.labelSmall,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 4,
+                        children: [
+                          _OutcomeLegend(
+                            color: Theme.of(context).colorScheme.primary,
+                            label: '成功',
+                          ),
+                          _OutcomeLegend(
+                            color: Theme.of(context).colorScheme.error,
+                            label: '失败',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -1431,7 +2358,10 @@ class _ChainBadge extends StatelessWidget {
         border: Border.all(color: context.tokens.divider),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text('$label #$count'),
+      child: Text(
+        '$label #$count',
+        style: Theme.of(context).textTheme.labelMedium,
+      ),
     );
   }
 }
@@ -1443,21 +2373,33 @@ class _EventTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final success = event.data['successful'] != false;
+    final outcome = _protocolOutcome(event);
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < 600 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.5;
+    final at = _dateTime(event.scheduledFor ?? event.createdAt);
+    final detail =
+        '${event.data['protocol']?.toString().toUpperCase()} · '
+        '${_actionLabel(event.data['action']?.toString())}';
+    final color = switch (outcome) {
+      _ProtocolOutcome.success => Theme.of(context).colorScheme.primary,
+      _ProtocolOutcome.failure => Theme.of(context).colorScheme.error,
+      _ProtocolOutcome.informational => context.accents.slate.color,
+    };
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        success ? Icons.check_circle_outline : Icons.error_outline,
-        color: success
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.error,
-      ),
-      title: Text(event.title),
+      leading: Icon(switch (outcome) {
+        _ProtocolOutcome.success => Icons.check_circle_outline,
+        _ProtocolOutcome.failure => Icons.error_outline,
+        _ProtocolOutcome.informational => Icons.info_outline,
+      }, color: color),
+      title: Text(event.title, maxLines: 2, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        '${event.data['protocol']?.toString().toUpperCase()} · '
-        '${_actionLabel(event.data['action']?.toString())}',
+        compact ? '$detail · $at' : detail,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text(_dateTime(event.scheduledFor ?? event.createdAt)),
+      trailing: compact ? null : Text(at),
     );
   }
 }
@@ -1471,6 +2413,8 @@ String _ruleTypeLabel(String? value) => switch (value) {
 
 String _actionLabel(String? value) => switch (value) {
   'reservation_started' => '创建预约',
+  'task_closed' => '任务完成',
+  'task_reopened' => '重新打开任务',
   'reservation_confirmed' => '预约触发',
   'reservation_expired' => '预约超时',
   'round_completed' => '完成本轮',
@@ -1487,6 +2431,11 @@ String _actionLabel(String? value) => switch (value) {
   'branch_failed' => '分支熄灭',
   'daily_victory' => '今日胜利',
   'daily_settlement' => 'RSIP 自动日结',
+  'node_settled' => '节点结算',
+  'node_created' => '创建节点',
+  'run_started' => '启动规则树',
+  'run_collapsed' => '规则树收束',
+  'execution_corrected' => '结算更正',
   'pause_rule_used' => '使用暂停判例',
   'early_completion_rule_used' => '使用提前完成判例',
   'interruption_rule_used' => '使用中断判例',

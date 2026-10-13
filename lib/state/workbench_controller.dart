@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:csv/csv.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../core/models/game_state.dart';
 import '../core/models/restriction_models.dart';
@@ -57,6 +58,24 @@ class BatchOperationResult {
 
   int get failed => failures.length;
   bool get isSuccessful => failures.isEmpty;
+}
+
+class TaskGroupTransfer {
+  const TaskGroupTransfer({
+    required this.taskId,
+    required this.sourceGroupId,
+    required this.targetGroupId,
+    required this.sourceRelationId,
+    required this.targetRelationId,
+    required this.sourcePosition,
+  });
+
+  final String taskId;
+  final String sourceGroupId;
+  final String targetGroupId;
+  final String sourceRelationId;
+  final String targetRelationId;
+  final int sourcePosition;
 }
 
 class WorkbenchController extends WorkbenchControllerBase
@@ -114,12 +133,52 @@ class WorkbenchController extends WorkbenchControllerBase
   DateTime currentTime() => _clock();
 
   final List<WorkspaceRecord> _records = [];
+  final List<String> _recentSearchQueries = [];
+  List<String> get recentSearchQueries =>
+      List.unmodifiable(_recentSearchQueries);
+
+  void rememberSearchQuery(String value) {
+    final query = value.trim();
+    if (query.isEmpty) return;
+    _recentSearchQueries.removeWhere(
+      (entry) => entry.toLowerCase() == query.toLowerCase(),
+    );
+    _recentSearchQueries.insert(0, query);
+    if (_recentSearchQueries.length > 5) _recentSearchQueries.removeLast();
+    notifyListeners();
+  }
+
+  void clearRecentSearchQueries() {
+    if (_recentSearchQueries.isEmpty) return;
+    _recentSearchQueries.clear();
+    notifyListeners();
+  }
+
   Map<String, WorkspaceRecord>? _projectIndex;
+  _TaskContextLookup? _frameTaskContextLookup;
+
+  bool get _inBuildFrame {
+    try {
+      return SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks;
+    } on FlutterError {
+      // Pure controller tests may run before a Flutter binding exists.
+      return false;
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    _frameTaskContextLookup = null;
+    super.notifyListeners();
+  }
+
   bool _loading = true;
   String? _error;
   ThemeMode _themeMode = ThemeMode.system;
   SyncPhase _syncPhase = SyncPhase.localOnly;
   String _syncMessage = '本地数据已就绪';
+  DateTime? _lastSuccessfulSyncAt;
   bool _navigationCollapsed = false;
   String _behaviorMode = 'habits';
   Map<String, bool> _navigationGroups = const {
@@ -163,6 +222,10 @@ class WorkbenchController extends WorkbenchControllerBase
   ThemeMode get themeMode => _themeMode;
   SyncPhase get syncPhase => _syncPhase;
   String get syncMessage => _syncMessage;
+  DateTime? get lastSuccessfulSyncAt => _lastSuccessfulSyncAt;
+  List<WorkspaceRecord> get syncConflictCopies => activeRecords
+      .where((record) => record.data['conflictSourceId'] is String)
+      .toList(growable: false);
   String? get signedInEmail => syncService.currentUser?.email;
   bool get cloudConfigured => syncService.configured;
   bool get navigationCollapsed => _navigationCollapsed;
@@ -229,6 +292,7 @@ class WorkbenchController extends WorkbenchControllerBase
       ..clear()
       ..addAll(await database.loadRecords());
     _projectIndex = null;
+    _frameTaskContextLookup = null;
   }
 
   bool _isHiddenTrashRecord(WorkspaceRecord record) =>
@@ -245,9 +309,15 @@ class WorkbenchController extends WorkbenchControllerBase
       .where((record) => record.data['recordType'] == 'taskDefinition')
       .toList(growable: false);
   @override
-  List<WorkspaceRecord> get tasks => recordsOf(RecordKind.task)
-      .where((record) => record.data['recordType'] != 'taskDefinition')
-      .toList(growable: false);
+  List<WorkspaceRecord> get tasks {
+    if (_inBuildFrame) {
+      return _taskContextLookup().tasks.toList(growable: false);
+    }
+    return recordsOf(RecordKind.task)
+        .where((record) => record.data['recordType'] != 'taskDefinition')
+        .toList(growable: false);
+  }
+
   List<WorkspaceRecord> get projects => recordsOf(RecordKind.project);
   WorkspaceRecord? projectById(String? id) {
     if (id == null) return null;
@@ -357,8 +427,15 @@ class WorkbenchController extends WorkbenchControllerBase
   }
 
   List<WorkspaceRecord> get growthEvents => recordsOf(RecordKind.growthEvent);
-  WorkspaceRecord? get todayPlan =>
-      growthService.planForDay(activeRecords, currentTime());
+  WorkspaceRecord? get todayPlan {
+    if (_inBuildFrame) {
+      return _taskContextLookup().dailyPlansByKey[growthService.dayKey(
+        currentTime(),
+      )];
+    }
+    return growthService.planForDay(activeRecords, currentTime());
+  }
+
   GrowthSnapshot get growthSnapshot =>
       growthService.snapshot(activeRecords, currentTime());
   bool get todayStarted => todayPlan != null;
@@ -405,7 +482,15 @@ class WorkbenchController extends WorkbenchControllerBase
   }
 
   List<WorkspaceRecord> get commitmentTasks {
-    return activeCommitmentIds
+    final ids = activeCommitmentIds;
+    if (_inBuildFrame) {
+      final byId = _taskContextLookup().tasksById;
+      return ids
+          .map((id) => byId[id])
+          .whereType<WorkspaceRecord>()
+          .toList(growable: false);
+    }
+    return ids
         .map((id) => tasks.where((task) => task.id == id).firstOrNull)
         .whereType<WorkspaceRecord>()
         .toList(growable: false);
@@ -418,6 +503,9 @@ class WorkbenchController extends WorkbenchControllerBase
   }
 
   List<WorkspaceRecord> tasksForDay(DateTime day) {
+    if (_inBuildFrame) {
+      return _taskContextLookup().tasksForDay(day, growthService, _taskOrder);
+    }
     final targetKey = growthService.dayKey(day);
     final result = tasks.where((task) {
       final belonging = task.scheduledFor ?? task.createdAt;
@@ -2681,26 +2769,52 @@ class WorkbenchController extends WorkbenchControllerBase
     };
   }
 
+  _TaskContextLookup _taskContextLookup() {
+    if (!_inBuildFrame) {
+      return _TaskContextLookup.fromRecords(_records);
+    }
+    final cached = _frameTaskContextLookup;
+    if (cached != null) return cached;
+    final lookup = _TaskContextLookup.fromRecords(_records);
+    _frameTaskContextLookup = lookup;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (identical(_frameTaskContextLookup, lookup)) {
+        _frameTaskContextLookup = null;
+      }
+    });
+    return lookup;
+  }
+
   TaskContextSummary taskContextSummary(WorkspaceRecord task) {
-    final projectRecords = projectsForTaskIncludingTrash(task);
-    final primary = projectByIdIncludingTrash(task.projectId);
-    final groupRelation = relations
+    final lookup = _taskContextLookup();
+    final projectIds = <String>{if (task.projectId != null) task.projectId!};
+    final taskRelations = lookup.relationsByTask[task.id] ?? const [];
+    projectIds.addAll(
+      taskRelations
+          .where((record) => record.data['relationType'] == 'taskProject')
+          .map((record) => record.data['projectId']?.toString())
+          .whereType<String>(),
+    );
+    final projectRecords = projectIds
+        .map((id) => lookup.projectsById[id])
+        .whereType<WorkspaceRecord>()
+        .toList();
+    final primary = lookup.projectsById[task.projectId];
+    final groupRelation = taskRelations
         .where(
           (record) =>
               record.data['relationType'] == 'taskGroupMember' &&
-              record.data['taskId'] == task.id &&
               record.data['active'] != false,
         )
         .firstOrNull;
     final groupId = groupRelation?.data['groupId']?.toString();
-    final group = groupId == null
-        ? null
-        : taskGroups.where((record) => record.id == groupId).firstOrNull;
+    final group = lookup.groupsById[groupId];
     final members = group == null
         ? const <WorkspaceRecord>[]
         : groupMembers(group.id);
     final position = members.indexWhere((member) => member.id == task.id);
-    final definition = taskDefinitionFor(task);
+    final definitionId = task.data['definitionId']?.toString();
+    final definition = lookup.definitionsById[definitionId];
     DateTime? parseDate(Object? value) =>
         DateTime.tryParse(value?.toString() ?? '')?.toLocal();
     final reason = task.data['settlementReason']?.toString() ?? '';
@@ -2841,6 +2955,178 @@ class WorkbenchController extends WorkbenchControllerBase
         ),
     ];
     await _saveRecordsBatch(updates);
+  }
+
+  List<WorkspaceRecord> _activeGroupRelations(String groupId) {
+    final result = relations
+        .where(
+          (record) =>
+              record.data['relationType'] == 'taskGroupMember' &&
+              record.data['groupId'] == groupId &&
+              record.data['active'] != false,
+        )
+        .toList();
+    result.sort(
+      (a, b) => ((a.data['position'] as num?)?.toInt() ?? 0).compareTo(
+        (b.data['position'] as num?)?.toInt() ?? 0,
+      ),
+    );
+    return result;
+  }
+
+  Future<TaskGroupTransfer> moveTaskBetweenGroups({
+    required WorkspaceRecord task,
+    required WorkspaceRecord sourceGroup,
+    required WorkspaceRecord targetGroup,
+  }) async {
+    final current = latestRecordById(task);
+    final source = taskGroups
+        .where((group) => group.id == sourceGroup.id)
+        .firstOrNull;
+    final target = taskGroups
+        .where((group) => group.id == targetGroup.id)
+        .firstOrNull;
+    if (current.kind != RecordKind.task ||
+        current.isDeleted ||
+        source == null ||
+        target == null) {
+      throw const FormatException('任务或任务群不存在，请刷新后重试。');
+    }
+    if (source.id == target.id) throw const FormatException('请选择其他任务群。');
+    final memberships = relations
+        .where(
+          (record) =>
+              record.data['relationType'] == 'taskGroupMember' &&
+              record.data['taskId'] == current.id &&
+              record.data['active'] != false,
+        )
+        .toList();
+    if (memberships.length != 1 ||
+        memberships.single.data['groupId'] != source.id) {
+      throw const FormatException('任务群关系已变化，请重新选择。');
+    }
+    final original = memberships.single;
+    final sourceRelations = _activeGroupRelations(source.id);
+    final sourcePosition = sourceRelations.indexWhere(
+      (record) => record.id == original.id,
+    );
+    final remaining = sourceRelations
+        .where((record) => record.id != original.id)
+        .toList();
+    final targetRelations = _activeGroupRelations(target.id);
+    final moved = WorkspaceRecord.create(
+      kind: RecordKind.relation,
+      title: '${target.title} · ${current.title}',
+      parentId: target.id,
+      data: {
+        'relationType': 'taskGroupMember',
+        'groupId': target.id,
+        'taskId': current.id,
+        'position': targetRelations.length,
+        'active': true,
+        'movedFromGroupId': source.id,
+        'movedFromRelationId': original.id,
+      },
+    );
+    await _saveRecordsBatch([
+      original.copyWith(
+        data: {
+          ...original.data,
+          'active': false,
+          'replacedByGroupId': target.id,
+          'detachedAt': currentTime().toUtc().toIso8601String(),
+        },
+      ),
+      for (var index = 0; index < remaining.length; index++)
+        remaining[index].copyWith(
+          data: {...remaining[index].data, 'position': index},
+        ),
+      for (var index = 0; index < targetRelations.length; index++)
+        targetRelations[index].copyWith(
+          data: {...targetRelations[index].data, 'position': index},
+        ),
+      moved,
+    ]);
+    return TaskGroupTransfer(
+      taskId: current.id,
+      sourceGroupId: source.id,
+      targetGroupId: target.id,
+      sourceRelationId: original.id,
+      targetRelationId: moved.id,
+      sourcePosition: sourcePosition,
+    );
+  }
+
+  Future<void> undoTaskGroupTransfer(TaskGroupTransfer transfer) async {
+    final source = taskGroups
+        .where((group) => group.id == transfer.sourceGroupId)
+        .firstOrNull;
+    final target = taskGroups
+        .where((group) => group.id == transfer.targetGroupId)
+        .firstOrNull;
+    final task = tasks.where((task) => task.id == transfer.taskId).firstOrNull;
+    final original = relations
+        .where((record) => record.id == transfer.sourceRelationId)
+        .firstOrNull;
+    final memberships = relations
+        .where(
+          (record) =>
+              record.data['relationType'] == 'taskGroupMember' &&
+              record.data['taskId'] == transfer.taskId &&
+              record.data['active'] != false,
+        )
+        .toList();
+    if (source == null ||
+        target == null ||
+        task == null ||
+        original == null ||
+        original.data['relationType'] != 'taskGroupMember' ||
+        original.data['groupId'] != source.id ||
+        original.data['taskId'] != task.id ||
+        original.data['active'] != false ||
+        memberships.length != 1 ||
+        memberships.single.id != transfer.targetRelationId ||
+        memberships.single.data['groupId'] != target.id) {
+      throw const FormatException('任务群关系已变化，无法撤销此移动。');
+    }
+    final moved = memberships.single;
+    final sourceRelations = _activeGroupRelations(source.id);
+    sourceRelations.insert(
+      transfer.sourcePosition.clamp(0, sourceRelations.length),
+      original,
+    );
+    final targetRelations = _activeGroupRelations(
+      target.id,
+    ).where((record) => record.id != moved.id).toList();
+    await _saveRecordsBatch([
+      for (var index = 0; index < sourceRelations.length; index++)
+        sourceRelations[index].copyWith(
+          title: sourceRelations[index].id == original.id
+              ? '${source.title} · ${task.title}'
+              : null,
+          data: {
+            ...sourceRelations[index].data,
+            'position': index,
+            if (sourceRelations[index].id == original.id) ...{
+              'active': true,
+              'replacedByGroupId': null,
+              'restoredAt': currentTime().toUtc().toIso8601String(),
+            },
+          },
+        ),
+      moved.copyWith(
+        data: {
+          ...moved.data,
+          'active': false,
+          'detachedAt': currentTime().toUtc().toIso8601String(),
+          'undoOfTransferId': moved.id,
+        },
+      ),
+      for (var index = 0; index < targetRelations.length; index++)
+        targetRelations[index].copyWith(
+          data: {...targetRelations[index].data, 'position': index},
+        ),
+    ]);
   }
 
   Future<BatchOperationResult> batchSetTaskGroup(
@@ -3507,18 +3793,12 @@ class WorkbenchController extends WorkbenchControllerBase
     String scope = 'chain',
     String? chainId,
   }) async {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) throw const FormatException('判例名称不能为空');
-    if (!const {
-      'pause',
-      'early_completion',
-      'interruption',
-    }.contains(ruleType)) {
-      throw const FormatException('未知的判例类型');
-    }
-    if (scope == 'chain' && chainId == null) {
-      throw const FormatException('任务级判例必须关联 CTDP 任务');
-    }
+    final trimmed = _validateExceptionRule(
+      name: name,
+      ruleType: ruleType,
+      scope: scope,
+      chainId: chainId,
+    );
     final record = WorkspaceRecord.create(
       kind: RecordKind.exceptionRule,
       title: trimmed,
@@ -3534,6 +3814,62 @@ class WorkbenchController extends WorkbenchControllerBase
     );
     await addRecord(record);
     return record;
+  }
+
+  Future<WorkspaceRecord> updateExceptionRule(
+    WorkspaceRecord rule, {
+    required String name,
+    required String description,
+    required String ruleType,
+    required String scope,
+    String? chainId,
+  }) async {
+    final current = latestRecordById(rule);
+    if (current.kind != RecordKind.exceptionRule) {
+      throw const FormatException('该记录不是判例');
+    }
+    final trimmed = _validateExceptionRule(
+      name: name,
+      ruleType: ruleType,
+      scope: scope,
+      chainId: chainId,
+    );
+    final updated = current.copyWith(
+      title: trimmed,
+      body: description.trim(),
+      parentId: scope == 'chain' ? chainId : null,
+      data: {...current.data, 'ruleType': ruleType, 'scope': scope},
+    );
+    await updateRecord(updated);
+    return updated;
+  }
+
+  String _validateExceptionRule({
+    required String name,
+    required String ruleType,
+    required String scope,
+    String? chainId,
+  }) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) throw const FormatException('判例名称不能为空');
+    if (!const {
+      'pause',
+      'early_completion',
+      'interruption',
+    }.contains(ruleType)) {
+      throw const FormatException('未知的判例类型');
+    }
+    if (scope != 'global' && scope != 'chain') {
+      throw const FormatException('未知的判例作用范围');
+    }
+    if (scope == 'chain' &&
+        (chainId == null ||
+            !ctdpTasks.any(
+              (task) => task.id == chainId && !task.ctdpIsGroup,
+            ))) {
+      throw const FormatException('任务级判例必须关联 CTDP 任务');
+    }
+    return trimmed;
   }
 
   List<WorkspaceRecord> exceptionRulesFor(
@@ -3660,50 +3996,72 @@ class WorkbenchController extends WorkbenchControllerBase
     bool earlyCompletion = false,
   }) async {
     final current = latestRecordById(task);
-    if (!current.hasCtdpProtocol || current.ctdpIsGroup) return;
-    if (duration.inSeconds < 1) return;
-    if (current.ctdpMinimumMinutes > 0 &&
-        duration < Duration(minutes: current.ctdpMinimumMinutes) &&
-        !earlyCompletion) {
-      throw FormatException('至少执行 ${current.ctdpMinimumMinutes} 分钟后才能完成');
-    }
-    final now = currentTime();
-    await updateRecord(
-      current.copyWith(
-        data: {
-          ...current.data,
-          'ctdpReservationPending': false,
-          'ctdpSessionActive': false,
-          'ctdpChainCount': current.ctdpChainCount + 1,
-          'ctdpTotalCompletions': current.ctdpTotalCompletions + 1,
-          'ctdpLastCompletedAt': now.toUtc().toIso8601String(),
-          'actualMinutes': current.actualMinutes + max(1, duration.inMinutes),
-        },
+    await _saveRecordsBatch(
+      _ctdpRoundSettlementRecords(
+        current,
+        duration,
+        description: description,
+        notes: notes,
+        earlyCompletion: earlyCompletion,
       ),
     );
-    await addProtocolEvent(
-      protocol: 'ctdp',
-      action: earlyCompletion ? 'round_completed_early' : 'round_completed',
-      subject: current,
-      data: {
-        'seconds': duration.inSeconds,
-        'description': description.trim(),
-        'notes': notes.trim(),
-      },
-    );
-    await _settleCtdpParentGroup(current);
   }
 
-  Future<void> _settleCtdpParentGroup(WorkspaceRecord task) async {
+  List<WorkspaceRecord> _ctdpRoundSettlementRecords(
+    WorkspaceRecord task,
+    Duration duration, {
+    required String description,
+    required String notes,
+    required bool earlyCompletion,
+  }) {
+    if (!task.hasCtdpProtocol || task.ctdpIsGroup || duration.inSeconds < 1) {
+      return const [];
+    }
+    if (task.ctdpMinimumMinutes > 0 &&
+        duration < Duration(minutes: task.ctdpMinimumMinutes) &&
+        !earlyCompletion) {
+      throw FormatException('至少执行 ${task.ctdpMinimumMinutes} 分钟后才能完成');
+    }
+    final now = currentTime();
+    final completedTask = task.copyWith(
+      data: {
+        ...task.data,
+        'ctdpReservationPending': false,
+        'ctdpSessionActive': false,
+        'ctdpChainCount': task.ctdpChainCount + 1,
+        'ctdpTotalCompletions': task.ctdpTotalCompletions + 1,
+        'ctdpLastCompletedAt': now.toUtc().toIso8601String(),
+        'actualMinutes': task.actualMinutes + max(1, duration.inMinutes),
+      },
+    );
+    return [
+      completedTask,
+      _protocolEventRecord(
+        protocol: 'ctdp',
+        action: earlyCompletion ? 'round_completed_early' : 'round_completed',
+        subject: task,
+        data: {
+          'seconds': duration.inSeconds,
+          'description': description.trim(),
+          'notes': notes.trim(),
+        },
+      ),
+      ..._ctdpParentSettlementRecords(completedTask),
+    ];
+  }
+
+  List<WorkspaceRecord> _ctdpParentSettlementRecords(WorkspaceRecord task) {
     final parentId = task.parentId;
-    if (parentId == null) return;
+    if (parentId == null) return const [];
     final group = ctdpTasks.where((item) => item.id == parentId).firstOrNull;
-    if (group == null || !group.ctdpIsGroup) return;
+    if (group == null || !group.ctdpIsGroup) return const [];
     final startedAt = DateTime.tryParse(
       group.data['ctdpGroupStartedAt']?.toString() ?? '',
     )?.toLocal();
-    if (startedAt == null) return;
-    final children = ctdpChildren(group.id);
+    if (startedAt == null) return const [];
+    final children = ctdpChildren(group.id)
+        .map((child) => child.id == task.id ? task : child)
+        .toList(growable: false);
     if (children.isEmpty ||
         children.any((child) {
           final completedAt = DateTime.tryParse(
@@ -3711,9 +4069,9 @@ class WorkbenchController extends WorkbenchControllerBase
           )?.toLocal();
           return completedAt == null || completedAt.isBefore(startedAt);
         })) {
-      return;
+      return const [];
     }
-    await updateRecord(
+    return [
       group.copyWith(
         data: {
           ...group.data,
@@ -3724,12 +4082,12 @@ class WorkbenchController extends WorkbenchControllerBase
           'ctdpGroupExpiresAt': null,
         },
       ),
-    );
-    await addProtocolEvent(
-      protocol: 'ctdp',
-      action: 'group_completed',
-      subject: group,
-    );
+      _protocolEventRecord(
+        protocol: 'ctdp',
+        action: 'group_completed',
+        subject: group,
+      ),
+    ];
   }
 
   Future<void> setFocusTask(WorkspaceRecord task, bool selected) async {
@@ -3762,12 +4120,18 @@ class WorkbenchController extends WorkbenchControllerBase
     required int minutes,
   }) async {
     if (block.kind != RecordKind.timeBlock) return;
+    final current = latestRecordById(block);
+    final originalStart = current.scheduledFor;
     await updateRecord(
-      block.copyWith(
+      current.copyWith(
         scheduledFor: start,
-        data: {...block.data, 'durationMinutes': minutes.clamp(5, 720)},
+        data: {...current.data, 'durationMinutes': minutes.clamp(5, 720)},
       ),
     );
+    final task = tasks.where((item) => item.id == block.parentId).firstOrNull;
+    if (task != null && task.scheduledFor == originalStart) {
+      await scheduleTask(task, start);
+    }
   }
 
   Future<void> completeFocusSession(
@@ -3778,10 +4142,21 @@ class WorkbenchController extends WorkbenchControllerBase
     String description = '',
     String notes = '',
     bool earlyCompletion = false,
+    String? sessionId,
+    WorkspaceRecord? earlyCompletionRule,
+    Duration? remaining,
   }) async {
     if (duration.inSeconds < 1) return;
-    await addRecord(
+    if (sessionId != null &&
+        recordsOf(
+          RecordKind.focusSession,
+        ).any((record) => record.id == sessionId)) {
+      if (task != null) await _syncFocusXp(task.id);
+      return;
+    }
+    final records = <WorkspaceRecord>[
       WorkspaceRecord.create(
+        id: sessionId,
         kind: RecordKind.focusSession,
         title: sessionTitle ?? task?.title ?? '临时专注',
         parentId: task?.id,
@@ -3796,26 +4171,56 @@ class WorkbenchController extends WorkbenchControllerBase
           'earlyCompletion': earlyCompletion,
         },
       ),
-    );
-    if (task == null) return;
-    if (task.hasCtdpProtocol) {
-      await completeCtdpRound(
-        task,
-        duration,
-        description: description,
-        notes: notes,
-        earlyCompletion: earlyCompletion,
+    ];
+    if (task != null && task.hasCtdpProtocol) {
+      if (earlyCompletionRule != null) {
+        final rule = latestRecordById(earlyCompletionRule);
+        if (rule.kind != RecordKind.exceptionRule ||
+            rule.data['archived'] == true) {
+          throw const FormatException('该判例不可用');
+        }
+        records.addAll([
+          rule.copyWith(
+            data: {
+              ...rule.data,
+              'usageCount':
+                  ((rule.data['usageCount'] as num?)?.toInt() ?? 0) + 1,
+              'lastUsedAt': currentTime().toUtc().toIso8601String(),
+            },
+          ),
+          _protocolEventRecord(
+            protocol: 'ctdp',
+            action: 'early_completion_rule_used',
+            subject: task,
+            data: {
+              'ruleId': rule.id,
+              'ruleName': rule.title,
+              'elapsedSeconds': duration.inSeconds,
+              if (remaining != null) 'remainingSeconds': remaining.inSeconds,
+            },
+          ),
+        ]);
+      }
+      records.addAll(
+        _ctdpRoundSettlementRecords(
+          latestRecordById(task),
+          duration,
+          description: description,
+          notes: notes,
+          earlyCompletion: earlyCompletion,
+        ),
       );
-    } else {
+    } else if (task != null) {
       final current = latestRecordById(task);
-      await updateRecord(
+      records.add(
         current.withData(
           'actualMinutes',
           current.actualMinutes + max(1, duration.inMinutes),
         ),
       );
     }
-    await _syncFocusXp(task.id);
+    await _saveRecordsBatch(records);
+    if (task != null) await _syncFocusXp(task.id);
   }
 
   Future<WorkspaceRecord> saveDiary({
@@ -3872,6 +4277,8 @@ class WorkbenchController extends WorkbenchControllerBase
     String snapshotRefreshReason = '',
     Iterable<String>? relatedTaskIds,
     Iterable<String>? relatedProjectIds,
+    Iterable<String>? relatedGoalIds,
+    Iterable<String>? relatedNoteIds,
     String? title,
     int? mood,
     String completedToday = '',
@@ -3951,6 +4358,10 @@ class WorkbenchController extends WorkbenchControllerBase
         'relatedTaskIds': relatedTaskIds.toSet().toList(),
       if (relatedProjectIds != null)
         'relatedProjectIds': relatedProjectIds.toSet().toList(),
+      if (relatedGoalIds != null)
+        'relatedGoalIds': relatedGoalIds.toSet().toList(),
+      if (relatedNoteIds != null)
+        'relatedNoteIds': relatedNoteIds.toSet().toList(),
       if (type == ReviewPeriodType.daily) ...{
         'mood': mood?.clamp(1, 5),
         'completedToday': completedToday.trim(),
@@ -4719,18 +5130,21 @@ class WorkbenchController extends WorkbenchControllerBase
   Future<void> signIn(String email, String password) async {
     await syncService.signIn(email.trim(), password);
     await database.activateAccount(syncService.currentUser?.id);
+    _recentSearchQueries.clear();
     _records
       ..clear()
       ..addAll(await database.loadRecords());
     _projectIndex = null;
     _syncPhase = SyncPhase.idle;
     _syncMessage = '已登录 ${syncService.currentUser?.email ?? ''}';
+    _lastSuccessfulSyncAt = null;
     notifyListeners();
   }
 
   Future<void> signUp(String email, String password) async {
     await syncService.signUp(email.trim(), password);
     await database.activateAccount(syncService.currentUser?.id);
+    _recentSearchQueries.clear();
     _records
       ..clear()
       ..addAll(await database.loadRecords());
@@ -4739,18 +5153,21 @@ class WorkbenchController extends WorkbenchControllerBase
         ? SyncPhase.signedOut
         : SyncPhase.idle;
     _syncMessage = '账号已创建，请按邮件提示完成验证';
+    _lastSuccessfulSyncAt = null;
     notifyListeners();
   }
 
   Future<void> signOut() async {
     await syncService.signOut();
     await database.activateAccount(null);
+    _recentSearchQueries.clear();
     _records
       ..clear()
       ..addAll(await database.loadRecords());
     _projectIndex = null;
     _syncPhase = SyncPhase.signedOut;
     _syncMessage = '云端账号已退出，本地数据仍然可用';
+    _lastSuccessfulSyncAt = null;
     notifyListeners();
   }
 
@@ -4765,12 +5182,68 @@ class WorkbenchController extends WorkbenchControllerBase
         ..addAll(await database.loadRecords());
       _projectIndex = null;
       _syncPhase = SyncPhase.success;
+      _lastSuccessfulSyncAt = currentTime();
       _syncMessage =
           '已同步：上传 ${result.uploaded}，下载 ${result.downloaded}，冲突副本 ${result.conflicts}';
     } catch (exception) {
       _syncPhase = SyncPhase.error;
       _syncMessage = exception.toString();
     }
+    notifyListeners();
+  }
+
+  Future<void> resolveSyncConflict(
+    WorkspaceRecord conflictCopy, {
+    required bool useLocalCopy,
+  }) async {
+    final sourceId = conflictCopy.data['conflictSourceId'];
+    if (sourceId is! String || conflictCopy.isDeleted) {
+      throw StateError('冲突副本已失效，请刷新后重试。');
+    }
+    final copyIndex = _records.indexWhere(
+      (record) =>
+          record.id == conflictCopy.id &&
+          record.kind == conflictCopy.kind &&
+          !record.isDeleted,
+    );
+    final sourceIndex = _records.indexWhere(
+      (record) =>
+          record.id == sourceId &&
+          record.kind == conflictCopy.kind &&
+          !record.isDeleted,
+    );
+    if (copyIndex < 0 || sourceIndex < 0) {
+      throw StateError('冲突记录已变化，请刷新后重试。');
+    }
+    final currentCopy = _records[copyIndex];
+    final original = _records[sourceIndex];
+    final archivedCopy = currentCopy.copyWith(deletedAt: currentTime());
+    final updates = <WorkspaceRecord>[];
+    if (useLocalCopy) {
+      final restoredData = Map<String, dynamic>.from(currentCopy.data)
+        ..remove('conflictSourceId');
+      updates.add(
+        original.copyWith(
+          title: currentCopy.title.replaceFirst(RegExp(r'（冲突副本）$'), ''),
+          body: currentCopy.body,
+          status: currentCopy.status,
+          scheduledFor: currentCopy.scheduledFor,
+          dueAt: currentCopy.dueAt,
+          projectId: currentCopy.projectId,
+          parentId: currentCopy.parentId,
+          tags: currentCopy.tags
+              .where((tag) => tag != '同步冲突')
+              .toList(growable: false),
+          favorite: currentCopy.favorite,
+          data: restoredData,
+        ),
+      );
+    }
+    updates.add(archivedCopy);
+    await database.saveRecords(updates);
+    if (useLocalCopy) _records[sourceIndex] = updates.first;
+    _records[copyIndex] = archivedCopy;
+    _projectIndex = null;
     notifyListeners();
   }
 
@@ -4875,7 +5348,27 @@ class WorkbenchController extends WorkbenchControllerBase
     Map<String, dynamic> data = const {},
     DateTime? scheduledFor,
   }) async {
-    final record = WorkspaceRecord.create(
+    final record = _protocolEventRecord(
+      protocol: protocol,
+      action: action,
+      subject: subject,
+      successful: successful,
+      data: data,
+      scheduledFor: scheduledFor,
+    );
+    await addRecord(record);
+    return record;
+  }
+
+  WorkspaceRecord _protocolEventRecord({
+    required String protocol,
+    required String action,
+    required WorkspaceRecord subject,
+    bool successful = true,
+    Map<String, dynamic> data = const {},
+    DateTime? scheduledFor,
+  }) {
+    return WorkspaceRecord.create(
       kind: RecordKind.protocolEvent,
       title: subject.title,
       parentId: subject.id,
@@ -4889,8 +5382,6 @@ class WorkbenchController extends WorkbenchControllerBase
         ...data,
       },
     );
-    await addRecord(record);
-    return record;
   }
 
   Future<void> _createNextOccurrence(WorkspaceRecord task) async {
@@ -4996,5 +5487,101 @@ class WorkbenchController extends WorkbenchControllerBase
     notificationService.dispose();
     database.close();
     super.dispose();
+  }
+}
+
+class _TaskContextLookup {
+  _TaskContextLookup({
+    required this.projectsById,
+    required this.definitionsById,
+    required this.groupsById,
+    required this.relationsByTask,
+    required this.tasks,
+    required this.tasksById,
+    required this.dailyPlansByKey,
+  });
+
+  factory _TaskContextLookup.fromRecords(List<WorkspaceRecord> records) {
+    final projectsById = <String, WorkspaceRecord>{};
+    final definitionsById = <String, WorkspaceRecord>{};
+    final groupsById = <String, WorkspaceRecord>{};
+    final relationsByTask = <String, List<WorkspaceRecord>>{};
+    final tasks = <WorkspaceRecord>[];
+    final tasksById = <String, WorkspaceRecord>{};
+    final dailyPlansByKey = <String, WorkspaceRecord>{};
+    for (final record in records) {
+      if (record.kind == RecordKind.project) {
+        projectsById.putIfAbsent(record.id, () => record);
+      }
+      if (record.isDeleted) continue;
+      if (record.kind == RecordKind.task &&
+          record.data['recordType'] == 'taskDefinition') {
+        definitionsById.putIfAbsent(record.id, () => record);
+      } else if (record.kind == RecordKind.task) {
+        tasks.add(record);
+        tasksById.putIfAbsent(record.id, () => record);
+      } else if (record.kind == RecordKind.dailyPlan) {
+        final dayKey = record.data['dayKey']?.toString();
+        if (dayKey != null) {
+          dailyPlansByKey.putIfAbsent(dayKey, () => record);
+        }
+      } else if (record.kind == RecordKind.template &&
+          record.data['recordType'] == 'taskGroup') {
+        groupsById.putIfAbsent(record.id, () => record);
+      } else if (record.kind == RecordKind.relation) {
+        final taskId = record.data['taskId']?.toString();
+        if (taskId != null) {
+          relationsByTask.putIfAbsent(taskId, () => []).add(record);
+        }
+      }
+    }
+    return _TaskContextLookup(
+      projectsById: projectsById,
+      definitionsById: definitionsById,
+      groupsById: groupsById,
+      relationsByTask: relationsByTask,
+      tasks: tasks,
+      tasksById: tasksById,
+      dailyPlansByKey: dailyPlansByKey,
+    );
+  }
+
+  final Map<String, WorkspaceRecord> projectsById;
+  final Map<String, WorkspaceRecord> definitionsById;
+  final Map<String, WorkspaceRecord> groupsById;
+  final Map<String, List<WorkspaceRecord>> relationsByTask;
+  final List<WorkspaceRecord> tasks;
+  final Map<String, WorkspaceRecord> tasksById;
+  final Map<String, WorkspaceRecord> dailyPlansByKey;
+  final Map<int, List<WorkspaceRecord>> _tasksByDay = {};
+
+  List<WorkspaceRecord> tasksForDay(
+    DateTime day,
+    GrowthService growthService,
+    int Function(WorkspaceRecord, WorkspaceRecord) compare,
+  ) {
+    final logicalDay = growthService.logicalDay(day);
+    final key = logicalDay.microsecondsSinceEpoch;
+    final matches = _tasksByDay.putIfAbsent(key, () {
+      // logicalDay subtracts the boundary duration from local time. The
+      // matching interval is therefore midnight plus that same duration;
+      // using absolute instants also preserves the rule across DST changes.
+      final boundary = Duration(hours: growthService.logicalDayBoundaryHour);
+      final first = logicalDay.add(boundary).microsecondsSinceEpoch;
+      final last = DateTime(
+        logicalDay.year,
+        logicalDay.month,
+        logicalDay.day + 1,
+      ).add(boundary).microsecondsSinceEpoch;
+      final result = <WorkspaceRecord>[];
+      for (final task in tasks) {
+        final instant =
+            (task.scheduledFor ?? task.createdAt).microsecondsSinceEpoch;
+        if (instant >= first && instant < last) result.add(task);
+      }
+      result.sort(compare);
+      return result;
+    });
+    return List<WorkspaceRecord>.of(matches);
   }
 }
