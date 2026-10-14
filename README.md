@@ -81,7 +81,10 @@ flutter run -d android
 # Windows Release 构建；完成后自动刷新桌面快捷方式
 powershell -ExecutionPolicy Bypass -File .\tool\build_windows.ps1 -Configuration release
 
-# 生成可分发 Windows 安装包，并安装到稳定目录后刷新桌面/开始菜单快捷方式
+# 生成带路径选择、安装说明和卸载入口的 Windows 安装向导 EXE（需要 Inno Setup 7）
+powershell -ExecutionPolicy Bypass -File .\tool\build_windows_installer.ps1
+
+# 兼容旧版的 ZIP 安装包；-Install 会直接安装到默认目录
 powershell -ExecutionPolicy Bypass -File .\tool\package_windows_release.ps1 -Configuration release -Install
 
 # Android 调试 APK（兼容中文工作区路径）
@@ -152,7 +155,9 @@ Windows 侧栏按真实页面组织层级：任务和项目展开后显示各自
 
 ### 版本与入口一致性
 
-`pubspec.yaml` 的 `version` 是唯一版本源。每次发布使用 `tool/package_windows_release.ps1 -Install`；它会构建当前版本、安装到稳定目录、刷新桌面/开始菜单快捷方式和开机启动项，并执行 `tool/verify_release_consistency.ps1`。提交后自动钩子也会刷新现有安装的快捷方式并执行校验；首次启用请运行：
+`pubspec.yaml` 的 `version` 是唯一版本源。Windows 正式安装向导由 `tool/build_windows_installer.ps1` 生成，它会先构建并校验 Release/ZIP，再调用 Inno Setup 7 编译 `dist/PersonalWorkbench_<版本>_windows_setup.exe` 并签名。向导可选择安装路径，提供中英文说明、可选桌面快捷方式和开机启动，以及“应用与功能”卸载入口；默认安装到当前用户目录，无需管理员权限。若 Release/ZIP 已更新，可加 `-SkipPackage` 直接从 `dist/windows/app/` 编译。旧版 `tool/package_windows_release.ps1 -Install` 仍用于固定路径的 ZIP 安装；已使用新向导安装时，应运行新版安装 EXE 升级。
+
+提交后自动钩子会校验现有安装。对于向导管理的安装，它会保留用户选定路径和快捷方式；首次启用请运行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tool\install_git_hooks.ps1
@@ -165,7 +170,7 @@ powershell -ExecutionPolicy Bypass -File .\tool\install_git_hooks.ps1
 - SQLite 数据库：由 `path_provider` 放在应用支持目录，文件名为 `personal_workbench.sqlite`。
 - 加密备份和 JSON 导出：应用文档目录下的 `PersonalWorkbench/` 文件夹。
 - Android APK：`build/app/outputs/flutter-apk/app-debug.apk` 或 `app-release.apk`；发布脚本还会更新 `dist/apk/` 下带版本号的侧载副本。
-- Windows Release：`build/windows/x64/runner/Release/`；`tool/build_windows.ps1` 会更新开发构建快捷方式，`tool/package_windows_release.ps1 -Install` 会生成 `dist/PersonalWorkbench_<版本>_windows.zip`，并将稳定安装目录及桌面/开始菜单快捷方式更新到最新版。安装器、快捷方式刷新脚本和验证器统一使用 Windows Known Folder API；桌面英文、开始菜单英文和开始菜单中文三个入口均指向 `%LOCALAPPDATA%\Programs\PersonalWorkbench\personal_workbench.exe`。
+- Windows Release：`build/windows/x64/runner/Release/`。推荐分发 `dist/PersonalWorkbench_<版本>_windows_setup.exe`；运行时可选安装路径。备用 ZIP 为 `dist/PersonalWorkbench_<版本>_windows.zip`，旧版固定路径安装脚本会将程序放到 `%LOCALAPPDATA%\Programs\PersonalWorkbench\`。构建与提交同步脚本不会覆盖新向导安装后选定的路径。
 
 ## 论文图像复现方法
 

@@ -2,11 +2,13 @@
 param(
     [string]$ProjectRoot,
     [switch]$RequireInstalled,
+    [switch]$SkipInstalled,
     [switch]$CleanStaleArtifacts
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\Get-PersonalWorkbenchInstall.ps1')
 
 if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     $ProjectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
@@ -24,8 +26,8 @@ $parts = $version -split '\+', 2
 $versionName = $parts[0]
 $versionCode = if ($parts.Count -eq 2) { $parts[1] } else { '1' }
 
-$installDirectory = Join-Path $env:LOCALAPPDATA 'Programs\PersonalWorkbench'
-$installedExe = Join-Path $installDirectory 'personal_workbench.exe'
+$installation = Get-PersonalWorkbenchInstall
+$installedExe = $installation.Executable
 $shell = New-Object -ComObject WScript.Shell
 
 function Assert-ShortcutTarget([string]$Path) {
@@ -40,24 +42,41 @@ function Assert-ShortcutTarget([string]$Path) {
     }
 }
 
-if ($RequireInstalled -or (Test-Path -LiteralPath $installedExe -PathType Leaf)) {
+if (-not $SkipInstalled -and ($RequireInstalled -or (Test-Path -LiteralPath $installedExe -PathType Leaf))) {
     if (-not (Test-Path -LiteralPath $installedExe -PathType Leaf)) {
         throw "Installed executable is missing: $installedExe"
     }
     $fileVersion = (Get-Item -LiteralPath $installedExe).VersionInfo.ProductVersion
-    if ($fileVersion -and -not $fileVersion.StartsWith($versionName, [System.StringComparison]::OrdinalIgnoreCase)) {
+    if ($RequireInstalled -and $fileVersion -and -not $fileVersion.StartsWith($versionName, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Installed executable version '$fileVersion' does not match canonical version '$versionName'."
     }
 
     $desktop = [Environment]::GetFolderPath('Desktop')
     $startMenu = [Environment]::GetFolderPath('Programs')
     $chineseName = -join ([char[]](0x4E2A, 0x4EBA, 0x5DE5, 0x4F5C, 0x53F0))
-    Assert-ShortcutTarget (Join-Path $desktop 'Personal Workbench.lnk')
-    Assert-ShortcutTarget (Join-Path $startMenu 'Personal Workbench.lnk')
-    Assert-ShortcutTarget (Join-Path $startMenu ($chineseName + '.lnk'))
+    if ($installation.ManagedByInstaller) {
+        foreach ($path in @(
+            (Join-Path $desktop 'Personal Workbench.lnk'),
+            (Join-Path $startMenu 'Personal Workbench.lnk'),
+            (Join-Path $startMenu ($chineseName + '.lnk'))
+        )) {
+            if (Test-Path -LiteralPath $path -PathType Leaf) {
+                Assert-ShortcutTarget $path
+            }
+        }
+    } else {
+        Assert-ShortcutTarget (Join-Path $desktop 'Personal Workbench.lnk')
+        Assert-ShortcutTarget (Join-Path $startMenu 'Personal Workbench.lnk')
+        Assert-ShortcutTarget (Join-Path $startMenu ($chineseName + '.lnk'))
+    }
 
     $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-    $startup = (Get-ItemProperty -Path $runKey -Name PersonalWorkbench -ErrorAction SilentlyContinue).PersonalWorkbench
+    $runProperties = Get-ItemProperty -LiteralPath $runKey -ErrorAction SilentlyContinue
+    $startup = if ($runProperties -and $runProperties.PSObject.Properties['PersonalWorkbench']) {
+        [string]$runProperties.PersonalWorkbench
+    } else {
+        $null
+    }
     if ($startup) {
         $startupTarget = [regex]::Match($startup, '^\s*"([^"]+)"|^\s*(\S+)').Groups | Where-Object { $_.Value -and $_.Name -in '1','2' } | Select-Object -First 1
         $startupPath = if ($startupTarget) { $startupTarget.Value } else { $startup }

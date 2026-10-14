@@ -1,0 +1,9 @@
+Personal Workbench setup notes
+
+Location: Choose an installation folder on the next page. The default is AppData\Local\Programs\PersonalWorkbench for the current user; administrator rights are not required.
+
+Options: You can add a desktop shortcut and start the app with Windows. Setup creates Start Menu shortcuts and a standard Apps & Features uninstall entry.
+
+Data: Updating or uninstalling the program does not intentionally delete user data or backups. When moving a previous ZIP-based installation to a custom folder, close the old app. Run the old uninstall script before this wizard if needed, then remove any unused old program copy.
+
+Publisher: This installer uses the project's local self-signed certificate. Windows may show an unknown publisher warning on computers that do not trust it.
