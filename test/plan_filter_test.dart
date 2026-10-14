@@ -117,6 +117,7 @@ Future<WorkbenchController> _controller() async {
 Widget _host(
   WorkbenchController controller, {
   TextScaler? textScaler,
+  bool disableAnimations = false,
 }) => MaterialApp(
   theme: AppTheme.light(),
   locale: const Locale('zh', 'CN'),
@@ -129,7 +130,10 @@ Widget _host(
   builder: (context, child) {
     final media = MediaQuery.of(context);
     return MediaQuery(
-      data: textScaler == null ? media : media.copyWith(textScaler: textScaler),
+      data: media.copyWith(
+        textScaler: textScaler ?? media.textScaler,
+        disableAnimations: disableAnimations,
+      ),
       child: child!,
     );
   },
@@ -200,6 +204,48 @@ void main() {
       '未来进行中',
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('filter results and batch toolbar use short local transitions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = await _controller();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(_host(controller));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('task-filter-status')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('已完成').last);
+    await tester.pump();
+    final resultFade = find.byKey(const ValueKey('task-results-fade'));
+    expect(tester.widget<Opacity>(resultFade).opacity, lessThan(1));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(tester.widget<Opacity>(resultFade).opacity, 1);
+
+    await tester.tap(find.text('选择任务'));
+    await tester.pump();
+    final batchFade = find.byKey(const ValueKey('task-batch-enter'));
+    expect(tester.widget<Opacity>(batchFade).opacity, lessThan(1));
+    await tester.pump(const Duration(milliseconds: 180));
+    expect(tester.widget<Opacity>(batchFade).opacity, 1);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.pumpWidget(_host(controller, disableAnimations: true));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('task-filter-status')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('已完成').last);
+    await tester.pump();
+    expect(tester.widget<Opacity>(resultFade).opacity, 1);
+    await tester.tap(find.text('选择任务'));
+    await tester.pump();
+    expect(tester.widget<Opacity>(batchFade).opacity, 1);
   });
 
   testWidgets('mobile filter panel collapses and selection remains available', (

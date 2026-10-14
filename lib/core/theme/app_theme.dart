@@ -1,112 +1,109 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-// ─── 色彩体系：个人工作台 · 柔壤图鉴 / 夜航工作室 ───
-// 浅色：植物、纸面与陶土成果；深色：靛蓝工作台、冷青操作与琥珀成果。
+// ─── 青玉柔光：浅色薄荷白 / 深色森林绿 ───
+// 与 jade-workbench-design-tokens.json v1.1 对应。正文工作面始终为实色。
 // 两套主题共享状态语义，页面只读取 ColorScheme / WorkbenchTokens。
 
 abstract final class AppColors {
-  // 命名约定：规范用语义名描述色板（新芽绿 sprout / 陶土 clay / 砖红 signal），
-  // 实现层沿用既有字段名以免大规模重命名。二者是同一令牌，对照见
-  // ORGANIC_UI_SPEC.md 第 4 节。全部色值经 tool/verify_colors.py 实算达标。
+  // 保留既有字段名供业务页面读取，色值映射到青玉柔光 v1.1。
 
   // ═══ 浅色 · 柔壤图鉴 ═══
-  static const lightCanvas = Color(0xFFF4F8F0);
-  static const lightNavigation = Color(0xFFFBFDF9);
-  static const lightSurface = Color(0xFFFFFFFF); // 纯白工作面
-  static const lightRaised = Color(0xFFFFFFFF); // 对话框 / 菜单 / 浮层
-  static const lightSubtle = Color(0xFFEDF5EA); // 分组 / 输入框
-  static const lightEmphasisSurface = Color(0xFFE2EFDF); // 选中与可展开层
-  static const lightInk = Color(0xFF203A29);
-  static const lightInkMuted = Color(0xFF4F6959);
-  static const lightInkFaint = Color(0xFF586F60); // 仅非关键信息
-  static const lightDivider = Color(0xFFE1EAE0);
-  static const lightPanelBorder = Color(0xFFCADCCB);
-  static const lightBorderStrong = Color(0xFF789B83); // 输入框轮廓 3.08:1
-  static const lightHeroStart = Color(0xFFE8F2E7);
-  static const lightHeroEnd = Color(0xFFF7F5EB);
-  static const lightOrbitTrack = Color(0xFFCBE5D1);
+  static const lightCanvas = Color(0xFFF1F6F0);
+  static const lightNavigation = Color(0xFFE9F0E8);
+  static const lightSurface = Color(0xFFFFFEFA);
+  static const lightRaised = Color(0xFFFFFDF6);
+  static const lightSubtle = Color(0xFFE5EEE6);
+  static const lightEmphasisSurface = Color(0xFFD9E9DD);
+  static const lightInk = Color(0xFF243D32);
+  // The spec's muted/faint swatches fall below 4.5:1 on emphasisSurface.
+  // Darken just these text roles so compact labels remain readable there.
+  static const lightInkMuted = Color(0xFF486152);
+  static const lightInkFaint = Color(0xFF516A5C);
+  static const lightDivider = Color(0xFFDCE5DC);
+  static const lightPanelBorder = Color(0xFFCEDDD1);
+  static const lightBorderStrong = Color(0xFF789183);
+  static const lightHeroStart = Color(0xFFE5F0E8);
+  static const lightHeroEnd = Color(0xFFF8F6EC);
+  static const lightOrbitTrack = Color(0xFFCDDFD1);
 
-  // 新芽绿 · 唯一行动色；在纸感画布和纯白工作面均通过正文对比度。
-  static const lightPrimary = Color(0xFF347340);
+  // 青玉绿 · 主行动色。
+  static const lightPrimary = Color(0xFF356954);
   static const lightOnPrimary = Color(0xFFFFFFFF);
-  static const lightPrimaryContainer = Color(0xFFE6F2E4);
-  static const lightPrimaryOnContainer = Color(0xFF1D4A27); // 8.82:1
+  static const lightPrimaryContainer = Color(0xFFDEEBE0);
+  static const lightPrimaryOnContainer = Color(0xFF244D38);
 
-  // 分类色层：8 类节点专用。浅色两两最小 ΔE00 为 14.7；标签和形状
-  // 同时表达语义，颜色不作唯一线索。
-  static const lightTeal = Color(0xFF0F6668); // 习惯
-  static const lightOlive = Color(0xFF8F931A); // 目标
-  // 嫩黄绿容器对（「今日必达」等强调标签）。文字对比度 5.20:1；
-  // 容器底与 primaryContainer 的 ΔE00 = 5.5，
-  // 落在「分类偏弱」区间，故 pill 一律带文字标签，不以底色单独承载语义。
-  static const lightOliveContainer = Color(0xFFF1F6DA);
-  static const lightOliveOnContainer = Color(0xFF5F6C15);
+  // 分类色层仍保留既有节点语义；标签和形状共同表达状态。
+  static const lightTeal = Color(0xFF426F70);
+  static const lightOlive = Color(0xFF5D6D40);
+  // 苔绿容器对供目标和习惯等长期状态使用。
+  static const lightOliveContainer = Color(0xFFEBEEDF);
+  static const lightOliveOnContainer = Color(0xFF40502D);
   static const lightViolet = Color(0xFF6B4A8C); // 触发器
-  // 奖励节点专用琥珀。不复用 lightReward：后者是语义成果色（陶土）。
-  static const lightAmber = Color(0xFFBB811B);
+  // 提醒节点用暖琥珀；成果使用暖陶。
+  static const lightAmber = Color(0xFF805923);
 
-  // 砖红 · 系统唯一红 6.76:1
-  static const lightSignal = Color(0xFF9E3A32);
-  static const lightSignalContainer = Color(0xFFF7DEDA);
-  static const lightSignalOnContainer = Color(0xFF5A1F19); // 9.98:1
+  // 危险与错误。
+  static const lightSignal = Color(0xFF9D443C);
+  static const lightSignalContainer = Color(0xFFF6E5DF);
+  static const lightSignalOnContainer = Color(0xFF612B26);
 
   // 陶土 · 成果与证据
-  static const lightReward = Color(0xFFA95D37);
-  static const lightRewardContainer = Color(0xFFF8E7D8);
-  static const lightRewardOnContainer = Color(0xFF4A2410); // 11.23:1
+  static const lightReward = Color(0xFF865D42);
+  static const lightRewardContainer = Color(0xFFF4E9DC);
+  static const lightRewardOnContainer = Color(0xFF4B3224);
 
-  // 靛蓝 · 中性提示 5.98:1
-  static const lightInfo = Color(0xFF3E6883);
-  static const lightInfoContainer = Color(0xFFDCE8F0);
-  static const lightInfoOnContainer = Color(0xFF1C3947); // 9.76:1
+  // 蓝灰 · 中性提示。
+  static const lightInfo = Color(0xFF346A7D);
+  static const lightInfoContainer = Color(0xFFE6F0F2);
+  static const lightInfoOnContainer = Color(0xFF244B59);
 
-  // 提醒节点中性 accent。由原暖灰 `#918783` 换为绿灰，与绿色基座同温；
-  // 压纯白 3.32:1，略高于 8 类节点色地板的 3.30:1（goal），不改变底线。
-  static const lightOutline = Color(0xFF7E9284);
+  // 输入和交互边界。
+  static const lightOutline = Color(0xFF789183);
 
-  // ═══ 深色 · 夜航工作室 ═══
-  static const darkCanvas = Color(0xFF10192B);
-  static const darkNavigation = Color(0xFF0B1525);
-  static const darkSurface = Color(0xFF19263C);
-  static const darkRaised = Color(0xFF23334B);
-  static const darkSubtle = Color(0xFF23334B);
-  static const darkEmphasisSurface = Color(0xFF2C4058);
-  static const darkInk = Color(0xFFEAF3F3);
-  static const darkInkMuted = Color(0xFFAABCC9);
-  static const darkInkFaint = Color(0xFF99AEBF);
-  static const darkDivider = Color(0xFF2A3B52);
-  static const darkPanelBorder = Color(0xFF334762);
-  static const darkBorderStrong = Color(0xFF55728D); // 输入框轮廓 3.02:1
-  static const darkHeroStart = Color(0xFF1A3450);
-  static const darkHeroEnd = Color(0xFF14233B);
-  static const darkOrbitTrack = Color(0xFF355465);
+  // ═══ 深色 · 森林绿分层 ═══
+  static const darkCanvas = Color(0xFF243A32);
+  static const darkNavigation = Color(0xFF20372F);
+  static const darkSurface = Color(0xFF2D463D);
+  static const darkRaised = Color(0xFF355147);
+  static const darkSubtle = Color(0xFF304B40);
+  static const darkEmphasisSurface = Color(0xFF3D5C4D);
+  static const darkInk = Color(0xFFEEF3E8);
+  // The dark emphasis surface needs brighter small-text roles for 4.5:1.
+  static const darkInkMuted = Color(0xFFD0DFD0);
+  static const darkInkFaint = Color(0xFFC1D2C3);
+  static const darkDivider = Color(0xFF405D50);
+  static const darkPanelBorder = Color(0xFF47665A);
+  static const darkBorderStrong = Color(0xFF77978A);
+  static const darkHeroStart = Color(0xFF3A584A);
+  static const darkHeroEnd = Color(0xFF294338);
+  static const darkOrbitTrack = Color(0xFF4D6B58);
 
-  static const darkPrimary = Color(0xFF83D0D1);
-  static const darkOnPrimary = Color(0xFF102333);
-  static const darkPrimaryContainer = Color(0xFF20444C);
-  static const darkPrimaryOnContainer = Color(0xFFD7F6F4);
+  static const darkPrimary = Color(0xFFB5D4B9);
+  static const darkOnPrimary = Color(0xFF1E382B);
+  static const darkPrimaryContainer = Color(0xFF3D5C4D);
+  static const darkPrimaryOnContainer = Color(0xFFEEF3E8);
 
-  static const darkTeal = Color(0xFF68C8A1);
-  static const darkOlive = Color(0xFFD4D864);
-  static const darkOliveContainer = Color(0xFF2B3312);
-  static const darkOliveOnContainer = Color(0xFFD4D864); // 8.71:1
+  static const darkTeal = Color(0xFFB6D2CF);
+  static const darkOlive = Color(0xFFC3CF9E);
+  static const darkOliveContainer = Color(0xFF4B573F);
+  static const darkOliveOnContainer = Color(0xFFE5ECCA);
   static const darkViolet = Color(0xFFC2A6E4);
-  static const darkAmber = Color(0xFFDBA657);
+  static const darkAmber = Color(0xFFE4C28F);
 
-  static const darkSignal = Color(0xFFE88C7E);
-  static const darkSignalContainer = Color(0xFF4C2A26);
-  static const darkSignalOnContainer = Color(0xFFF9D9D3);
+  static const darkSignal = Color(0xFFEDABA0);
+  static const darkSignalContainer = Color(0xFF5A3E39);
+  static const darkSignalOnContainer = Color(0xFFF8DDD7);
 
-  static const darkReward = Color(0xFFF1C17F);
-  static const darkRewardContainer = Color(0xFF493D39);
-  static const darkRewardOnContainer = Color(0xFFFAE9CC);
+  static const darkReward = Color(0xFFE1BEA3);
+  static const darkRewardContainer = Color(0xFF5C4C3F);
+  static const darkRewardOnContainer = Color(0xFFF8E8D7);
 
-  static const darkInfo = Color(0xFF93B7CF);
-  static const darkInfoContainer = Color(0xFF273B54);
-  static const darkInfoOnContainer = Color(0xFFC7DCE8);
+  static const darkInfo = Color(0xFFA8CDD7);
+  static const darkInfoContainer = Color(0xFF34515B);
+  static const darkInfoOnContainer = Color(0xFFE1F0F1);
 
-  static const darkOutline = Color(0xFFA9A9A7);
+  static const darkOutline = Color(0xFF77978A);
 }
 
 // ─── 导航断点；业务分栏还须检查实际内容区域与文字大小 ───
@@ -118,24 +115,29 @@ abstract final class AppBreakpoints {
 
 /// 容器宽度统一策略。宽屏工作区适度扩展，长文单独保持可读行长。
 abstract final class AppLayout {
-  static const workspaceMax = 1600.0;
-  static const formMax = 1120.0;
+  static const desktopNavExpanded = 216.0;
+  static const desktopNavCollapsed = 72.0;
+  static const workspaceMax = 1480.0;
+  static const formMax = 960.0;
   static const readingMax = 760.0;
-  static const todayMax = 1520.0;
-  static const todaySplitMin = 940.0;
+  static const todayMax = 1480.0;
+  static const todaySplitMin = 900.0;
   static const masterDetailMin = 880.0;
   static const columnGap = 24.0;
+  static const taskColumnMin = 540.0;
+  static const scheduleColumnMin = 320.0;
 }
 
 // ─── 圆角标尺（圆润有机）：外层工作面柔和，内层控件保持同心层级 ───
 // 同心圆角规则（硬约束）：内边距 P < 外层圆角 R 时，内层必须用 r = R − P。
 abstract final class AppRadius {
   static const xs = 8.0; // 小标签 / 复选框 / 色块
-  static const control = 12.0; // 按钮 / 输入框 / Chip / 列表选中底
+  static const control = 10.0; // 按钮 / 输入框 / Chip / 列表选中底
+  static const taskRow = 12.0;
   static const card = 16.0; // 卡片 / FAB / 菜单
-  static const panel = 20.0; // 主要工作面 / 证据块
-  static const dialog = 24.0; // 对话框
-  static const sheetTop = 28.0; // 底部弹层顶部角
+  static const panel = 16.0; // 主要工作面 / 证据块
+  static const dialog = 20.0; // 对话框
+  static const sheetTop = 20.0; // 底部弹层顶部角
   static const indicator = 12.0; // NavigationBar indicator / Snackbar
   static const tooltip = 8.0; // Tooltip
   static const pill = 999.0; // 短状态标签
@@ -169,6 +171,12 @@ abstract final class AppMotion {
   /// 淡入淡出、尺寸变化、Snackbar、弹层入场。
   static const standard = Duration(milliseconds: 180);
 
+  /// 任务和统计指标的数值变化。
+  static const progressUpdate = Duration(milliseconds: 240);
+
+  /// 任务离开列表时，周围卡片向空位收拢。
+  static const taskReflow = Duration(milliseconds: 160);
+
   /// 元素退场，短于入场以减少等待感。
   static const exit = Duration(milliseconds: 150);
 
@@ -194,8 +202,8 @@ abstract final class AppSpacing {
   static const xxxl = 56.0;
   // 页面横向边距
   static const pageCompact = 20.0;
-  static const pageMedium = 28.0;
-  static const pageWide = 36.0;
+  static const pageMedium = 24.0;
+  static const pageWide = 24.0;
 
   /// 移动端底部导航净空。
   ///
@@ -470,8 +478,68 @@ class WorkbenchTokens extends ThemeExtension<WorkbenchTokens> {
   }
 }
 
+/// Page accents are separate from feedback colors: they classify content, not
+/// success, warning or error. Keep a solid container behind readable labels.
+@immutable
+class JadeAccentPair {
+  const JadeAccentPair(this.color, this.container);
+
+  final Color color;
+  final Color container;
+
+  JadeAccentPair lerp(JadeAccentPair other, double t) => JadeAccentPair(
+    Color.lerp(color, other.color, t)!,
+    Color.lerp(container, other.container, t)!,
+  );
+}
+
+@immutable
+class JadeAccents extends ThemeExtension<JadeAccents> {
+  const JadeAccents({
+    required this.jade,
+    required this.teal,
+    required this.moss,
+    required this.clay,
+    required this.slate,
+  });
+
+  final JadeAccentPair jade;
+  final JadeAccentPair teal;
+  final JadeAccentPair moss;
+  final JadeAccentPair clay;
+  final JadeAccentPair slate;
+
+  @override
+  JadeAccents copyWith({
+    JadeAccentPair? jade,
+    JadeAccentPair? teal,
+    JadeAccentPair? moss,
+    JadeAccentPair? clay,
+    JadeAccentPair? slate,
+  }) => JadeAccents(
+    jade: jade ?? this.jade,
+    teal: teal ?? this.teal,
+    moss: moss ?? this.moss,
+    clay: clay ?? this.clay,
+    slate: slate ?? this.slate,
+  );
+
+  @override
+  JadeAccents lerp(JadeAccents? other, double t) {
+    if (other == null) return this;
+    return JadeAccents(
+      jade: jade.lerp(other.jade, t),
+      teal: teal.lerp(other.teal, t),
+      moss: moss.lerp(other.moss, t),
+      clay: clay.lerp(other.clay, t),
+      slate: slate.lerp(other.slate, t),
+    );
+  }
+}
+
 extension WorkbenchThemeContext on BuildContext {
   WorkbenchTokens get tokens => Theme.of(this).extension<WorkbenchTokens>()!;
+  JadeAccents get accents => Theme.of(this).extension<JadeAccents>()!;
 }
 
 abstract final class AppFonts {
@@ -521,7 +589,7 @@ TextStyle _displayStyle({
       : FontWeight.w600,
   color: color,
   letterSpacing: 0,
-  fontFamily: brightness == Brightness.light ? AppFonts.display : AppFonts.body,
+  fontFamily: AppFonts.display,
   fontFamilyFallback: const [
     AppFonts.body,
     'GoldenCjk',
@@ -535,6 +603,13 @@ abstract final class AppTheme {
   static ThemeData light() => _build(
     brightness: Brightness.light,
     canvas: AppColors.lightCanvas,
+    accents: const JadeAccents(
+      jade: JadeAccentPair(Color(0xFF356954), Color(0xFFDEEBE0)),
+      teal: JadeAccentPair(Color(0xFF426F70), Color(0xFFE2EDED)),
+      moss: JadeAccentPair(Color(0xFF5D6D40), Color(0xFFEBEEDF)),
+      clay: JadeAccentPair(Color(0xFF865D42), Color(0xFFF4E9DC)),
+      slate: JadeAccentPair(Color(0xFF58697C), Color(0xFFE8EDF2)),
+    ),
     tokens: const WorkbenchTokens(
       canvas: AppColors.lightCanvas,
       navigation: AppColors.lightNavigation,
@@ -545,12 +620,12 @@ abstract final class AppTheme {
       heroStart: AppColors.lightHeroStart,
       heroEnd: AppColors.lightHeroEnd,
       orbitTrack: AppColors.lightOrbitTrack,
-      panelRadius: 20,
+      panelRadius: AppRadius.panel,
       cardRadius: 16,
       panelBorder: AppColors.lightPanelBorder,
       borderStrong: AppColors.lightBorderStrong,
-      panelShadow: Color(0x0A14251A),
-      raisedShadow: Color(0x1F14251A),
+      panelShadow: Color(0x0A183B2E),
+      raisedShadow: Color(0x1F183B2E),
       focusRing: AppColors.lightPrimary,
       mutedText: AppColors.lightInkMuted,
       inkFaint: AppColors.lightInkFaint,
@@ -578,18 +653,14 @@ abstract final class AppTheme {
       onPrimary: AppColors.lightOnPrimary,
       primaryContainer: AppColors.lightPrimaryContainer,
       onPrimaryContainer: AppColors.lightPrimaryOnContainer,
-      // secondary 不参与本产品视觉：原 lightSecondary 与 primary 是同义冗余，
-      // 已删除。Material 要求该槽位非空，故指向 primary 族（无调用点依赖）。
-      secondary: AppColors.lightPrimary,
-      onSecondary: AppColors.lightOnPrimary,
-      secondaryContainer: AppColors.lightPrimaryContainer,
-      onSecondaryContainer: AppColors.lightPrimaryOnContainer,
-      // tertiary 原 = signal(红)，与 error 语义错位（凡当第三强调色用处都渲染成危险红）。
-      // 现独立为紫：vs signal ΔE 31.0，on/onContainer 对比度 7.04:1 / 10.47:1。
-      tertiary: AppColors.lightViolet,
+      secondary: AppColors.lightTeal,
+      onSecondary: Color(0xFFFFFFFF),
+      secondaryContainer: Color(0xFFE2EDED),
+      onSecondaryContainer: Color(0xFF294E4F),
+      tertiary: AppColors.lightReward,
       onTertiary: Color(0xFFFFFFFF),
-      tertiaryContainer: Color(0xFFEDE4F6),
-      onTertiaryContainer: Color(0xFF3E2755),
+      tertiaryContainer: AppColors.lightRewardContainer,
+      onTertiaryContainer: AppColors.lightRewardOnContainer,
       error: AppColors.lightSignal,
       onError: Color(0xFFFFFFFF),
       errorContainer: AppColors.lightSignalContainer,
@@ -600,8 +671,8 @@ abstract final class AppTheme {
       onSurfaceVariant: AppColors.lightInkMuted,
       outline: AppColors.lightOutline,
       outlineVariant: AppColors.lightDivider,
-      shadow: Color(0x14000000),
-      scrim: Color(0x66000000),
+      shadow: Color(0x14183B2E),
+      scrim: Color(0xFF183B2E),
       inverseSurface: AppColors.lightInk,
       onInverseSurface: AppColors.lightCanvas,
       inversePrimary: AppColors.darkPrimary,
@@ -611,6 +682,13 @@ abstract final class AppTheme {
   static ThemeData dark() => _build(
     brightness: Brightness.dark,
     canvas: AppColors.darkCanvas,
+    accents: const JadeAccents(
+      jade: JadeAccentPair(Color(0xFFB5D4B9), Color(0xFF3D5C4D)),
+      teal: JadeAccentPair(Color(0xFFB6D2CF), Color(0xFF3A5753)),
+      moss: JadeAccentPair(Color(0xFFC3CF9E), Color(0xFF4B573F)),
+      clay: JadeAccentPair(Color(0xFFE1BEA3), Color(0xFF5C4C3F)),
+      slate: JadeAccentPair(Color(0xFFC0CDDC), Color(0xFF465362)),
+    ),
     tokens: const WorkbenchTokens(
       canvas: AppColors.darkCanvas,
       navigation: AppColors.darkNavigation,
@@ -621,13 +699,13 @@ abstract final class AppTheme {
       heroStart: AppColors.darkHeroStart,
       heroEnd: AppColors.darkHeroEnd,
       orbitTrack: AppColors.darkOrbitTrack,
-      panelRadius: 18,
-      cardRadius: 14,
+      panelRadius: AppRadius.panel,
+      cardRadius: AppRadius.card,
       panelBorder: AppColors.darkPanelBorder,
       borderStrong: AppColors.darkBorderStrong,
       panelShadow: Color(0x47000000),
       raisedShadow: Color(0x66000000),
-      focusRing: AppColors.darkPrimary,
+      focusRing: Color(0xFFC2DEC4),
       mutedText: AppColors.darkInkMuted,
       inkFaint: AppColors.darkInkFaint,
       divider: AppColors.darkDivider,
@@ -654,14 +732,14 @@ abstract final class AppTheme {
       onPrimary: AppColors.darkOnPrimary,
       primaryContainer: AppColors.darkPrimaryContainer,
       onPrimaryContainer: AppColors.darkPrimaryOnContainer,
-      secondary: AppColors.darkPrimary,
+      secondary: AppColors.darkTeal,
       onSecondary: AppColors.darkOnPrimary,
-      secondaryContainer: AppColors.darkPrimaryContainer,
-      onSecondaryContainer: AppColors.darkPrimaryOnContainer,
-      tertiary: AppColors.darkViolet,
-      onTertiary: Color(0xFF2C1A40),
-      tertiaryContainer: Color(0xFF3B2A4F),
-      onTertiaryContainer: Color(0xFFE9DCF8),
+      secondaryContainer: Color(0xFF3A5753),
+      onSecondaryContainer: Color(0xFFE1EEEB),
+      tertiary: AppColors.darkReward,
+      onTertiary: AppColors.darkOnPrimary,
+      tertiaryContainer: AppColors.darkRewardContainer,
+      onTertiaryContainer: AppColors.darkRewardOnContainer,
       error: AppColors.darkSignal,
       onError: Color(0xFF3A1512),
       errorContainer: AppColors.darkSignalContainer,
@@ -672,8 +750,8 @@ abstract final class AppTheme {
       onSurfaceVariant: AppColors.darkInkMuted,
       outline: AppColors.darkOutline,
       outlineVariant: AppColors.darkDivider,
-      shadow: Colors.black,
-      scrim: Colors.black,
+      shadow: Color(0xFF183B2E),
+      scrim: Color(0xFF183B2E),
       inverseSurface: AppColors.lightSurface,
       onInverseSurface: AppColors.darkCanvas,
       inversePrimary: AppColors.lightPrimary,
@@ -685,6 +763,7 @@ abstract final class AppTheme {
     required Color canvas,
     required ColorScheme scheme,
     required WorkbenchTokens tokens,
+    required JadeAccents accents,
   }) {
     final isAndroid = defaultTargetPlatform == TargetPlatform.android;
     final base = ThemeData(
@@ -699,24 +778,23 @@ abstract final class AppTheme {
     );
 
     // ─── 字体排版层 ───
-    // H1: 28px Bold；H2: 22px SemiBold；H3: 18px SemiBold
-    // 正文: 15px；辅助: 13px，均交给平台系统字体渲染
+    // 展示标题只用于今日/专注；普通页面标题用 IBM Plex Sans SC。
     final textTheme = base.textTheme.copyWith(
       displayLarge: _displayStyle(
-        fontSize: 30,
-        height: 1.32,
+        fontSize: 28,
+        height: 1.3,
         brightness: brightness,
         color: scheme.onSurface,
       ),
-      headlineMedium: _displayStyle(
-        fontSize: 22,
-        height: 1.4,
-        brightness: brightness,
+      headlineMedium: _bodyStyle(
+        fontSize: 26,
+        height: 1.3,
+        fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
       titleLarge: _bodyStyle(
         fontSize: 18,
-        height: 1.5,
+        height: 1.45,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
@@ -742,18 +820,18 @@ abstract final class AppTheme {
       ),
       bodyMedium: _bodyStyle(
         fontSize: isAndroid ? 16 : 15,
-        height: 1.6,
+        height: 1.55,
         color: scheme.onSurface,
       ),
       bodySmall: _bodyStyle(
         fontSize: 13,
-        height: 1.5,
+        height: 1.45,
         color: scheme.onSurfaceVariant,
       ),
       labelLarge: _bodyStyle(
-        fontSize: 15,
+        fontSize: 14,
         height: 1.45,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w500,
         color: scheme.onSurface,
       ),
       labelMedium: _bodyStyle(
@@ -778,7 +856,7 @@ abstract final class AppTheme {
     );
 
     return base.copyWith(
-      extensions: [tokens],
+      extensions: [tokens, accents],
       textTheme: textTheme,
       iconTheme: IconThemeData(
         size: AppIconSize.md,
@@ -895,6 +973,7 @@ abstract final class AppTheme {
               minimumSize: Size(0, controlHeight),
               shape: shape,
               elevation: 0,
+              foregroundColor: scheme.onPrimary,
               alignment: Alignment.center,
             ).copyWith(
               animationDuration: AppMotion.micro,
@@ -1133,6 +1212,7 @@ abstract final class AppTheme {
         showCloseIcon: true,
         backgroundColor: tokens.raised,
         contentTextStyle: textTheme.bodyMedium,
+        actionTextColor: scheme.primary,
         closeIconColor: scheme.onSurface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.indicator),

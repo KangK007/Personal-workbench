@@ -10,20 +10,18 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  test('Android uses bundled logbook fonts with stable metrics', () {
+  test('Android uses bundled jade font roles with stable metrics', () {
     final androidTheme = _themeFor(TargetPlatform.android);
 
     final androidStyles = _appTextStyles(androidTheme.textTheme);
 
     expect(androidStyles.keys, isNotEmpty);
-    expect(androidTheme.textTheme.headlineMedium!.fontFamily, AppFonts.display);
+    expect(androidTheme.textTheme.displayLarge!.fontFamily, AppFonts.display);
     for (final entry in androidStyles.entries) {
       final name = entry.key;
       final android = entry.value;
 
-      if (name != 'headlineMedium') {
-        expect(android.fontFamily, AppFonts.body, reason: '$name font family');
-      }
+      expect(android.fontFamily, AppFonts.body, reason: '$name font family');
       expect(android.fontSize, isNotNull, reason: '$name font size');
       expect(android.height, isNotNull, reason: '$name line height');
       expect(android.fontWeight, isNotNull, reason: '$name weight');
@@ -31,12 +29,15 @@ void main() {
     }
   });
 
-  test('theme display treatment changes without changing reading font', () {
+  test('theme display weight changes without changing font roles', () {
     final day = AppTheme.light().textTheme;
     final night = AppTheme.dark().textTheme;
     expect(day.displayLarge!.fontFamily, AppFonts.display);
-    expect(night.displayLarge!.fontFamily, AppFonts.body);
+    expect(night.displayLarge!.fontFamily, AppFonts.display);
+    expect(day.displayLarge!.fontWeight, FontWeight.w500);
     expect(night.displayLarge!.fontWeight, FontWeight.w600);
+    expect(day.headlineMedium!.fontFamily, AppFonts.body);
+    expect(night.headlineMedium!.fontFamily, AppFonts.body);
     expect(day.bodyLarge!.fontFamily, AppFonts.body);
     expect(night.bodyLarge!.fontFamily, AppFonts.body);
   });
@@ -68,6 +69,32 @@ void main() {
     expect(text.style!.fontFamily, AppFonts.numeric);
     expect(text.style!.fontWeight, FontWeight.w500);
     expect(text.style!.fontFeatures, isNotEmpty);
+  });
+
+  testWidgets('page headers reserve the display face for short hero titles', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(
+          body: Column(
+            children: [
+              PageHeader(title: '项目'),
+              PageHeader(title: '专注', displayTitle: true),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(
+      tester.widget<Text>(find.text('项目')).style!.fontFamily,
+      AppFonts.body,
+    );
+    expect(
+      tester.widget<Text>(find.text('专注')).style!.fontFamily,
+      AppFonts.display,
+    );
   });
 }
 

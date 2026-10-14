@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/models/workspace_record.dart';
 import '../../core/theme/app_theme.dart';
+import 'jade_empty_art.dart';
 import 'solid_panel.dart';
 import 'workbench_layout.dart';
 
@@ -13,6 +14,60 @@ export 'workbench_layout.dart';
 void showWorkbenchSnackBar(BuildContext context, SnackBar snackBar) {
   final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
   messenger.showSnackBar(snackBar);
+}
+
+void showWorkbenchFeedback(
+  BuildContext context,
+  String message, {
+  SnackBarAction? action,
+}) {
+  showWorkbenchSnackBar(
+    context,
+    SnackBar(
+      showCloseIcon: action == null,
+      duration: action != null
+          ? MediaQuery.accessibleNavigationOf(context)
+                ? const Duration(minutes: 1)
+                : const Duration(seconds: 8)
+          : const Duration(seconds: 4),
+      content: action == null
+          ? Text(message)
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final compact =
+                    constraints.maxWidth < 512 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.5;
+                final text = Text(
+                  message,
+                  maxLines: compact ? 2 : null,
+                  overflow: compact ? TextOverflow.ellipsis : null,
+                  style: compact ? Theme.of(context).textTheme.bodySmall : null,
+                );
+                if (compact) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      text,
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: action,
+                      ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: text),
+                    const SizedBox(width: AppSpacing.sm),
+                    action,
+                  ],
+                );
+              },
+            ),
+    ),
+  );
 }
 
 /// 列表行统一图标底：为描边图标提供稳定尺寸、留白和主题色状态。
@@ -241,11 +296,13 @@ class UnsavedChangesGuard extends StatefulWidget {
     super.key,
     required this.hasChanges,
     required this.isBusy,
+    this.onSave,
     required this.child,
   });
 
   final bool Function() hasChanges;
   final bool Function() isBusy;
+  final Future<void> Function()? onSave;
   final Widget child;
 
   @override
@@ -262,29 +319,36 @@ class _UnsavedChangesGuardState extends State<UnsavedChangesGuard> {
       return;
     }
     _confirming = true;
-    final discard = await showWorkbenchDialog<bool>(
+    final choice = await showWorkbenchDialog<_DraftCloseChoice>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('放弃未保存的修改？'),
-        content: const Text('当前内容尚未保存。继续编辑可以保留这些修改。'),
+        title: const Text('保存修改？'),
+        content: const Text('当前内容尚未保存。可以现在保存、放弃修改，或继续编辑。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () =>
+                Navigator.pop(dialogContext, _DraftCloseChoice.continueEditing),
             child: const Text('继续编辑'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, _DraftCloseChoice.discard),
             child: const Text('放弃修改'),
           ),
+          if (widget.onSave != null)
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, _DraftCloseChoice.save),
+              child: const Text('保存'),
+            ),
         ],
       ),
     );
     _confirming = false;
-    if (mounted && discard == true && !widget.isBusy()) {
+    if (!mounted || widget.isBusy()) return;
+    if (choice == _DraftCloseChoice.save) {
+      await widget.onSave?.call();
+    } else if (choice == _DraftCloseChoice.discard) {
       Navigator.of(context).pop();
     }
   }
@@ -298,6 +362,8 @@ class _UnsavedChangesGuardState extends State<UnsavedChangesGuard> {
     child: widget.child,
   );
 }
+
+enum _DraftCloseChoice { save, discard, continueEditing }
 
 /// 数字滚动动画：进度百分比、XP、统计数值变化时平滑计数。
 class AnimatedNumber extends StatelessWidget {
@@ -584,6 +650,7 @@ class PageHeader extends StatelessWidget {
     this.subtitle,
     this.actions = const [],
     this.maxWidth = AppLayout.workspaceMax,
+    this.displayTitle = false,
   });
 
   final String title;
@@ -598,6 +665,7 @@ class PageHeader extends StatelessWidget {
   final String? subtitle;
   final List<Widget> actions;
   final double maxWidth;
+  final bool displayTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -642,9 +710,13 @@ class PageHeader extends StatelessWidget {
                       title,
                       maxLines: compact ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.displayLarge?.copyWith(
-                        fontSize: compact ? 24 : 30,
-                      ),
+                      style: displayTitle
+                          ? theme.textTheme.displayLarge?.copyWith(
+                              fontSize: compact ? 24 : 28,
+                            )
+                          : theme.textTheme.headlineMedium?.copyWith(
+                              fontSize: compact ? 24 : 26,
+                            ),
                     ),
                     if (subtitle != null)
                       Text(
@@ -1136,21 +1208,10 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final compact =
         WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final verticalPadding = compact ? AppSpacing.xxl : AppSpacing.xxxl;
-    final badge = ExcludeSemantics(
-      child: Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(context.tokens.panelRadius),
-          color: scheme.primaryContainer,
-        ),
-        child: Icon(icon, size: 28, color: scheme.onPrimaryContainer),
-      ),
-    );
+    final badge = JadeEmptyArt(icon: icon);
 
     Widget content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -1267,6 +1328,7 @@ class StatusPill extends StatelessWidget {
     this.icon,
     this.foreground,
     this.dense = false,
+    this.fontSize,
   });
 
   final String label;
@@ -1280,6 +1342,7 @@ class StatusPill extends StatelessWidget {
   /// 紧凑档：12px / w500 / 垂直内边距 3，保证元信息可读。
   /// 列表项元信息用它——一张卡上会并排 2–4 个标签，常规档会撑高卡片。
   final bool dense;
+  final double? fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -1314,7 +1377,7 @@ class StatusPill extends StatelessWidget {
                   softWrap: true,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: resolved,
-                    fontSize: dense ? 12 : null,
+                    fontSize: fontSize ?? (dense ? 12 : null),
                     fontWeight: dense ? FontWeight.w500 : FontWeight.w600,
                   ),
                 ),

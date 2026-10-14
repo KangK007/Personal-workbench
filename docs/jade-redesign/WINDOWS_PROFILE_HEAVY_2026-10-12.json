@@ -1,0 +1,146 @@
+{
+  "recordedAtUtc": "2026-10-12T13:10:36.611900Z",
+  "mode": "Windows Profile, isolated 600-task SQLite database",
+  "samples": [
+    {
+      "requestedWindowWidthPx": 1200,
+      "requestedWindowHeightPx": 900,
+      "actualWindowWidthPx": 1200,
+      "actualWindowHeightPx": 900,
+      "clientWidthPx": 1184,
+      "clientHeightPx": 861,
+      "dpi": 96,
+      "rssBytes": 302452736,
+      "uiFrames": {
+        "count": 7,
+        "medianMs": 27.83,
+        "p95Ms": 37.834,
+        "maxMs": 37.834,
+        "over16_67ms": 6
+      },
+      "rasterFrames": {
+        "count": 7,
+        "medianMs": 6.849,
+        "p95Ms": 27.546,
+        "maxMs": 27.546,
+        "over16_67ms": 1
+      },
+      "traceEventCount": 877
+    },
+    {
+      "requestedWindowWidthPx": 390,
+      "requestedWindowHeightPx": 844,
+      "actualWindowWidthPx": 390,
+      "actualWindowHeightPx": 844,
+      "clientWidthPx": 374,
+      "clientHeightPx": 805,
+      "dpi": 96,
+      "rssBytes": 300421120,
+      "uiFrames": {
+        "count": 2,
+        "medianMs": 0.419,
+        "p95Ms": 48.972,
+        "maxMs": 48.972,
+        "over16_67ms": 1
+      },
+      "rasterFrames": {
+        "count": 2,
+        "medianMs": 3.214,
+        "p95Ms": 18.185,
+        "maxMs": 18.185,
+        "over16_67ms": 1
+      },
+      "traceEventCount": 288
+    },
+    {
+      "requestedWindowWidthPx": 320,
+      "requestedWindowHeightPx": 568,
+      "actualWindowWidthPx": 320,
+      "actualWindowHeightPx": 568,
+      "clientWidthPx": 304,
+      "clientHeightPx": 529,
+      "dpi": 96,
+      "rssBytes": 304431104,
+      "uiFrames": {
+        "count": 13,
+        "medianMs": 0.403,
+        "p95Ms": 29.579,
+        "maxMs": 29.579,
+        "over16_67ms": 1
+      },
+      "rasterFrames": {
+        "count": 13,
+        "medianMs": 2.59,
+        "p95Ms": 17.284,
+        "maxMs": 17.284,
+        "over16_67ms": 1
+      },
+      "traceEventCount": 1463
+    },
+    {
+      "requestedWindowWidthPx": 800,
+      "requestedWindowHeightPx": 450,
+      "actualWindowWidthPx": 800,
+      "actualWindowHeightPx": 450,
+      "clientWidthPx": 784,
+      "clientHeightPx": 411,
+      "dpi": 96,
+      "rssBytes": 309428224,
+      "uiFrames": {
+        "count": 3,
+        "medianMs": 0.247,
+        "p95Ms": 29.479,
+        "maxMs": 29.479,
+        "over16_67ms": 1
+      },
+      "rasterFrames": {
+        "count": 3,
+        "medianMs": 2.493,
+        "p95Ms": 17.688,
+        "maxMs": 17.688,
+        "over16_67ms": 1
+      },
+      "traceEventCount": 353
+    },
+    {
+      "requestedWindowWidthPx": 1440,
+      "requestedWindowHeightPx": 900,
+      "actualWindowWidthPx": 1440,
+      "actualWindowHeightPx": 900,
+      "clientWidthPx": 1424,
+      "clientHeightPx": 861,
+      "dpi": 96,
+      "rssBytes": 335355904,
+      "uiFrames": {
+        "count": 7,
+        "medianMs": 28.58,
+        "p95Ms": 48.146,
+        "maxMs": 48.146,
+        "over16_67ms": 6
+      },
+      "rasterFrames": {
+        "count": 7,
+        "medianMs": 6.708,
+        "p95Ms": 15.109,
+        "maxMs": 15.109,
+        "over16_67ms": 0
+      },
+      "traceEventCount": 871
+    }
+  ],
+  "uiFrames": {
+    "count": 32,
+    "medianMs": 0.464,
+    "p95Ms": 48.146,
+    "maxMs": 48.972,
+    "over16_67ms": 15
+  },
+  "rasterFrames": {
+    "count": 32,
+    "medianMs": 5.469,
+    "p95Ms": 18.185,
+    "maxMs": 27.546,
+    "over16_67ms": 4
+  },
+  "traceEventCount": 3852
+}

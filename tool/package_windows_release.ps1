@@ -13,8 +13,13 @@ $Configuration = $Configuration.ToLowerInvariant()
 # 安全删除助手：垫片环境下 Remove-Item 会「报错但已生效」，
 # 故删除一律走状态校验式助手，避免构建死在产物复制之前。
 . (Join-Path $PSScriptRoot 'lib\Remove-Verified.ps1')
+. (Join-Path $PSScriptRoot 'lib\Test-LocalAuthenticode.ps1')
+. (Join-Path $PSScriptRoot 'lib\Get-PersonalWorkbenchInstall.ps1')
 
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+if ($Install.IsPresent -and (Get-PersonalWorkbenchInstall).ManagedByInstaller) {
+    throw 'This app is managed by the Setup EXE. Run the new installer to upgrade or choose a path.'
+}
 $buildScript = Join-Path $projectRoot 'tool\build_windows.ps1'
 $configurationDirectory = switch ($Configuration) {
     'debug' { 'Debug' }
@@ -114,7 +119,7 @@ if ($Configuration -eq 'release') {
         } else {
             ''
         }
-        if ($signature.Status -ne 'Valid' -or $actualThumbprint -ne $expectedThumbprint) {
+        if (-not (Test-LocalAuthenticodeSignature -Path $signedFile -ExpectedThumbprint $expectedThumbprint)) {
             throw "Windows distribution signature verification failed: $signedFile (status: $($signature.Status), thumbprint: $actualThumbprint)"
         }
     }
@@ -172,9 +177,11 @@ if ($Install.IsPresent) {
         throw "Windows installation failed with exit code $LASTEXITCODE"
     }
 } else {
-    $installedExecutable = Join-Path $env:LOCALAPPDATA 'Programs\PersonalWorkbench\personal_workbench.exe'
-    if (Test-Path -LiteralPath $installedExecutable -PathType Leaf) {
-        & (Join-Path $projectRoot 'tool\update_all_shortcuts.ps1') -TargetPath $installedExecutable
+    $installation = Get-PersonalWorkbenchInstall
+    if ($installation.ManagedByInstaller) {
+        Write-Output 'Installer-managed shortcuts remain at the selected installation directory.'
+    } elseif (Test-Path -LiteralPath $installation.Executable -PathType Leaf) {
+        & (Join-Path $projectRoot 'tool\update_all_shortcuts.ps1') -TargetPath $installation.Executable
         if ($LASTEXITCODE -ne 0) {
             throw "Restoring installed Windows shortcuts failed with exit code $LASTEXITCODE"
         }
@@ -189,6 +196,8 @@ $consistencyArguments = @(
 )
 if ($Install.IsPresent) {
     $consistencyArguments += '-RequireInstalled'
+} else {
+    $consistencyArguments += '-SkipInstalled'
 }
 & powershell.exe @consistencyArguments
 if ($LASTEXITCODE -ne 0) {

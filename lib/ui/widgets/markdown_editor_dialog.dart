@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../core/models/workspace_record.dart';
+import '../../core/theme/app_theme.dart';
 import '../../state/workbench_controller.dart';
+import 'attachment_panel.dart';
 import 'common.dart';
 import 'relation_picker_dialog.dart';
+import 'workbench_markdown_style.dart';
 
 Future<WorkspaceRecord?> showMarkdownNoteEditor(
   BuildContext context,
@@ -42,14 +46,20 @@ class _MarkdownNoteEditor extends StatefulWidget {
 class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
   late final TextEditingController titleController;
   late final TextEditingController bodyController;
+  final titleFocusNode = FocusNode(debugLabel: 'MarkdownNoteEditor.title');
+  final bodyFocusNode = FocusNode(debugLabel: 'MarkdownNoteEditor.body');
   late final Set<String> taskIds;
   late final Set<String> projectIds;
+  late final Set<String> goalIds;
+  late final Set<String> noteIds;
   final FocusNode relationFocusNode = FocusNode(
     debugLabel: 'MarkdownNoteEditor.relations',
   );
   bool preview = false;
   bool saving = false;
   String? error;
+  String previewText = '';
+  Timer? previewDebounce;
   late final String _initialSnapshot;
 
   String _snapshot() => jsonEncode([
@@ -57,15 +67,22 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
     bodyController.text,
     taskIds.toList()..sort(),
     projectIds.toList()..sort(),
+    goalIds.toList()..sort(),
+    noteIds.toList()..sort(),
   ]);
 
   @override
   void initState() {
     super.initState();
     titleController = TextEditingController(text: widget.note?.title ?? '');
+    titleController.addListener(_clearTitleError);
     bodyController = TextEditingController(text: widget.note?.body ?? '');
+    previewText = bodyController.text;
+    bodyController.addListener(_schedulePreview);
     taskIds = _ids(widget.note?.data['relatedTaskIds']);
     projectIds = _ids(widget.note?.data['relatedProjectIds']);
+    goalIds = _ids(widget.note?.data['relatedGoalIds']);
+    noteIds = _ids(widget.note?.data['relatedNoteIds']);
     if (widget.note == null && widget.initialProjectId != null) {
       projectIds.add(widget.initialProjectId!);
     }
@@ -74,124 +91,65 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
 
   @override
   void dispose() {
+    previewDebounce?.cancel();
+    bodyController.removeListener(_schedulePreview);
+    titleController.removeListener(_clearTitleError);
     titleController.dispose();
     bodyController.dispose();
+    titleFocusNode.dispose();
+    bodyFocusNode.dispose();
     relationFocusNode.dispose();
     super.dispose();
   }
 
+  void _schedulePreview() {
+    previewDebounce?.cancel();
+    previewDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (mounted && previewText != bodyController.text) {
+        setState(() => previewText = bodyController.text);
+      }
+    });
+  }
+
+  void _clearTitleError() {
+    if (error == '请填写笔记标题。' && titleController.text.trim().isNotEmpty) {
+      setState(() => error = null);
+    }
+  }
+
+  void _setPreview(bool value) {
+    previewDebounce?.cancel();
+    setState(() {
+      previewText = bodyController.text;
+      preview = value;
+    });
+    if (!value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) bodyFocusNode.requestFocus();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
     return UnsavedChangesGuard(
       hasChanges: () => _snapshot() != _initialSnapshot,
       isBusy: () => saving,
+      onSave: _save,
       child: AlertDialog(
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: size.width < 700 ? 8 : 24,
+          vertical: size.height < 600 ? 8 : 24,
+        ),
         title: Text(widget.note == null ? '新建笔记' : '编辑笔记'),
+        contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
         content: SizedBox(
-          width: 760,
-          height: MediaQuery.sizeOf(context).height * 0.72,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-              final minimumHeight = 400.0 * textScale.clamp(1.0, 1.5);
-              return SingleChildScrollView(
-                child: SizedBox(
-                  height: constraints.maxHeight < minimumHeight
-                      ? minimumHeight
-                      : constraints.maxHeight,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ExternalField(
-                        label: '标题',
-                        child: TextField(
-                          controller: titleController,
-                          autofocus: true,
-                          decoration: const InputDecoration(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SegmentedButton<bool>(
-                              segments: const [
-                                ButtonSegment(
-                                  value: false,
-                                  icon: Icon(Icons.edit_outlined),
-                                  label: Text('编辑'),
-                                ),
-                                ButtonSegment(
-                                  value: true,
-                                  icon: Icon(Icons.visibility_outlined),
-                                  label: Text('预览'),
-                                ),
-                              ],
-                              selected: {preview},
-                              onSelectionChanged: (value) =>
-                                  setState(() => preview = value.first),
-                            ),
-                          ),
-                          IconButton(
-                            focusNode: relationFocusNode,
-                            onPressed: () => _showRelations(context),
-                            tooltip: '关联任务和项目',
-                            icon: Badge(
-                              isLabelVisible:
-                                  taskIds.isNotEmpty || projectIds.isNotEmpty,
-                              label: Text(
-                                '${taskIds.length + projectIds.length}',
-                              ),
-                              child: const Icon(Icons.account_tree_outlined),
-                            ),
-                          ),
-                          if ((widget.note?.data['versions']
-                                      as List<dynamic>? ??
-                                  const [])
-                              .isNotEmpty)
-                            IconButton(
-                              onPressed: () => _showVersions(context),
-                              tooltip: '恢复正文版本',
-                              icon: const Icon(Icons.history_outlined),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (!preview) MarkdownToolbar(controller: bodyController),
-                      Expanded(
-                        child: preview
-                            ? Markdown(
-                                data: bodyController.text.isEmpty
-                                    ? '*暂无正文*'
-                                    : bodyController.text,
-                                selectable: true,
-                              )
-                            : TextField(
-                                controller: bodyController,
-                                expands: true,
-                                minLines: null,
-                                maxLines: null,
-                                textAlignVertical: TextAlignVertical.top,
-                                decoration: const InputDecoration(
-                                  hintText: '使用 Markdown 记录正文…',
-                                  alignLabelWithHint: true,
-                                ),
-                              ),
-                      ),
-                      if (error != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
+          width: size.width >= 1100 ? 1080 : AppLayout.readingMax,
+          height: (size.height * 0.72).clamp(260.0, 680.0),
+          child: AbsorbPointer(
+            absorbing: saving,
+            child: LayoutBuilder(builder: _content),
           ),
         ),
         actions: [
@@ -214,12 +172,170 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
     );
   }
 
+  Widget _content(BuildContext context, BoxConstraints constraints) {
+    final wide = constraints.maxWidth >= 900;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final minimumHeight = 400.0 * textScale.clamp(1.0, 1.5);
+    final errorStyle = TextStyle(color: Theme.of(context).colorScheme.error);
+    return SingleChildScrollView(
+      child: SizedBox(
+        height: constraints.maxHeight < minimumHeight
+            ? minimumHeight
+            : constraints.maxHeight,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ExternalField(
+              label: '标题',
+              child: TextField(
+                controller: titleController,
+                focusNode: titleFocusNode,
+                autofocus: true,
+                decoration: const InputDecoration(),
+              ),
+            ),
+            if (error == '请填写笔记标题。') ...[
+              const SizedBox(height: 4),
+              Text(error!, style: errorStyle),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (wide)
+                  Expanded(
+                    child: Text(
+                      '编辑与预览',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SegmentedButton<bool>(
+                        segments: const [
+                          ButtonSegment(
+                            value: false,
+                            icon: Icon(Icons.edit_outlined),
+                            label: Text('编辑'),
+                          ),
+                          ButtonSegment(
+                            value: true,
+                            icon: Icon(Icons.visibility_outlined),
+                            label: Text('预览'),
+                          ),
+                        ],
+                        selected: {preview},
+                        onSelectionChanged: (value) => _setPreview(value.first),
+                      ),
+                    ),
+                  ),
+                IconButton(
+                  focusNode: relationFocusNode,
+                  onPressed: () => _showRelations(context),
+                  tooltip: '关联记录',
+                  icon: Badge(
+                    isLabelVisible:
+                        taskIds.isNotEmpty ||
+                        projectIds.isNotEmpty ||
+                        goalIds.isNotEmpty ||
+                        noteIds.isNotEmpty,
+                    label: Text(
+                      '${taskIds.length + projectIds.length + goalIds.length + noteIds.length}',
+                    ),
+                    child: const Icon(Icons.account_tree_outlined),
+                  ),
+                ),
+                if ((widget.note?.data['versions'] as List<dynamic>? ??
+                        const [])
+                    .isNotEmpty)
+                  IconButton(
+                    onPressed: () => _showVersions(context),
+                    tooltip: '恢复正文版本',
+                    icon: const Icon(Icons.history_outlined),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (wide || !preview) ...[
+              MarkdownToolbar(controller: bodyController),
+              const SizedBox(height: 12),
+            ],
+            Expanded(
+              child: wide
+                  ? Row(
+                      children: [
+                        Expanded(child: _editorPane()),
+                        const SizedBox(width: 16),
+                        Expanded(child: _previewPane()),
+                      ],
+                    )
+                  : AnimatedSwitcher(
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
+                      child: preview ? _previewPane() : _editorPane(),
+                    ),
+            ),
+            if (error != null && error != '请填写笔记标题。') ...[
+              const SizedBox(height: 8),
+              Text(error!, style: errorStyle),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _editorPane() => TextField(
+    key: const ValueKey('markdown-edit-pane'),
+    controller: bodyController,
+    focusNode: bodyFocusNode,
+    expands: true,
+    minLines: null,
+    maxLines: null,
+    textAlignVertical: TextAlignVertical.top,
+    style: Theme.of(
+      context,
+    ).textTheme.bodyMedium?.copyWith(fontSize: 16, height: 1.65),
+    decoration: const InputDecoration(
+      hintText: '使用 Markdown 记录正文…',
+      alignLabelWithHint: true,
+    ),
+  );
+
+  Widget _previewPane() => ListView(
+    key: const ValueKey('markdown-preview-pane'),
+    padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+    children: [
+      MarkdownBody(
+        data: previewText.isEmpty ? '*暂无正文*' : previewText,
+        selectable: true,
+        styleSheet: workbenchMarkdownStyle(context),
+      ),
+      const SizedBox(height: 24),
+      if (widget.note != null)
+        AttachmentPanel(owner: widget.note!, controller: widget.controller)
+      else
+        Row(
+          children: [
+            const Icon(Icons.attach_file_outlined, size: 18),
+            const SizedBox(width: 8),
+            Text('保存后可添加附件', style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+    ],
+  );
+
   Future<void> _showRelations(BuildContext parentContext) async {
     final selection = await showRelationPickerDialog(
       context: parentContext,
       controller: widget.controller,
       initialTaskIds: taskIds,
       initialProjectIds: projectIds,
+      initialGoalIds: goalIds,
+      initialNoteIds: noteIds,
+      excludedNoteIds: {if (widget.note != null) widget.note!.id},
       returnFocusNode: relationFocusNode,
     );
     if (selection == null || !mounted) return;
@@ -230,6 +346,12 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
       projectIds
         ..clear()
         ..addAll(selection.projectIds);
+      goalIds
+        ..clear()
+        ..addAll(selection.goalIds);
+      noteIds
+        ..clear()
+        ..addAll(selection.noteIds);
     });
   }
 
@@ -271,17 +393,17 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
         ],
       ),
     );
-    if (selected == null) return;
-    setState(() {
-      bodyController.text = selected['body']?.toString() ?? '';
-      preview = false;
-    });
+    if (selected == null || !mounted) return;
+    bodyController.text = selected['body']?.toString() ?? '';
+    _setPreview(false);
   }
 
   Future<void> _save() async {
+    if (saving) return;
     final title = titleController.text.trim();
     if (title.isEmpty) {
       setState(() => error = '请填写笔记标题。');
+      titleFocusNode.requestFocus();
       return;
     }
     setState(() {
@@ -304,6 +426,8 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
       'recordType': 'markdownNote',
       'relatedTaskIds': taskIds.toList(),
       'relatedProjectIds': projectIds.toList(),
+      'relatedGoalIds': goalIds.toList(),
+      'relatedNoteIds': noteIds.toList(),
       'versions': versions,
     };
     final record = widget.note == null
@@ -325,7 +449,10 @@ class _MarkdownNoteEditorState extends State<_MarkdownNoteEditor> {
       } else {
         await widget.controller.updateRecord(record);
       }
-      if (mounted) Navigator.pop(context, record);
+      if (mounted) {
+        showWorkbenchSnackBar(context, const SnackBar(content: Text('笔记已保存')));
+        Navigator.pop(context, record);
+      }
     } catch (_) {
       if (mounted) {
         setState(() {

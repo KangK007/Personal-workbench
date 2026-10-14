@@ -105,6 +105,9 @@ void main() {
   ) async {
     final controller = _controller();
     addTearDown(controller.dispose);
+    await controller.addRecord(
+      WorkspaceRecord.create(kind: RecordKind.goal, title: '兼容入口共享的目标'),
+    );
     await controller.setAdvancedFeaturesEnabled(false);
 
     await tester.pumpWidget(
@@ -116,6 +119,8 @@ void main() {
     expect(find.text('协议'), findsOneWidget);
     expect(find.text('执行协议'), findsOneWidget);
     expect(find.text('目标与习惯'), findsNothing);
+    expect(find.text('兼容视图 · 目标内容与成长页同步'), findsOneWidget);
+    expect(find.text('兼容入口共享的目标'), findsOneWidget);
 
     await controller.setAdvancedFeaturesEnabled(true);
     await tester.pumpWidget(
@@ -127,6 +132,7 @@ void main() {
     expect(find.text('执行协议'), findsOneWidget);
     expect(find.text('判例'), findsOneWidget);
     expect(find.text('分析'), findsOneWidget);
+    expect(find.text('兼容入口共享的目标'), findsOneWidget);
 
     await controller.setAdvancedFeaturesEnabled(false);
     await tester.pumpWidget(
@@ -136,6 +142,58 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('判例'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(_host(ProtocolsPage(controller: controller)));
+    await tester.pumpAndSettle();
+    expect(find.text('兼容视图 · 目标内容与成长页同步'), findsNothing);
+    expect(find.text('兼容入口共享的目标'), findsNothing);
+    expect(find.text('执行协议'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('legacy habit link reuses habit records and keeps RSIP tab', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    await controller.addRecord(
+      WorkspaceRecord.create(kind: RecordKind.habit, title: '兼容入口共享的习惯'),
+    );
+
+    await tester.pumpWidget(
+      _host(
+        ProtocolsPage(controller: controller, initialTab: ProtocolTab.habits),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('兼容视图 · 习惯内容与成长页同步'), findsOneWidget);
+    expect(find.text('兼容入口共享的习惯'), findsOneWidget);
+    expect(find.text('近期记录'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await controller.setAdvancedFeaturesEnabled(false);
+    await tester.pumpWidget(
+      _host(
+        ProtocolsPage(controller: controller, initialTab: ProtocolTab.habits),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('兼容入口共享的习惯'), findsOneWidget);
+    expect(find.text('判例'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await controller.setAdvancedFeaturesEnabled(true);
+    await tester.pumpWidget(_host(ProtocolsPage(controller: controller)));
+    await tester.pumpAndSettle();
+    expect(find.text('兼容视图 · 习惯内容与成长页同步'), findsNothing);
+    await tester.tap(find.text('行为协议'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('这里配置最小行动、规则树与结算；日常打卡和本月事实矩阵请在成长 → 习惯中完成。'),
+      findsOneWidget,
+    );
+    expect(find.text('近期记录'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -230,6 +288,27 @@ void main() {
     );
     expect(editor.kind, RecordKind.task);
     expect(editor.initialScheduledFor, _now);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('compact growth keeps the monthly chart behind a disclosure', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.physicalSize = const Size(390, 568);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(_host(GrowthPage(controller: controller)));
+    await tester.pumpAndSettle();
+    expect(find.text('本月执行账本'), findsOneWidget);
+    expect(find.byKey(const ValueKey('growth-day:1')), findsNothing);
+    await tester.ensureVisible(find.text('本月执行账本'));
+    await tester.tap(find.text('本月执行账本'));
+    await tester.pumpAndSettle();
+    expect(find.text('左右滑动查看整月'), findsOneWidget);
+    expect(find.byKey(const ValueKey('growth-day:1')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

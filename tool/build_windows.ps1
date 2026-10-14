@@ -80,6 +80,7 @@ if ($sourceCopyExitCode -ge 8) {
     throw "Source staging failed with robocopy exit code $sourceCopyExitCode"
 }
 
+$buildInProjectRoot = $false
 Push-Location -LiteralPath $sourceCopy
 try {
     if ($Clean.IsPresent) {
@@ -123,6 +124,25 @@ try {
         throw "Plugin symlink pre-creation failed with exit code $LASTEXITCODE"
     }
 
+    # Some Windows sessions report the staged symlinks as existing while file
+    # opens through those links fail. CMake then cannot read plugin CMakeLists.
+    # Use the project checkout when the staged links cannot actually be read.
+    $pluginLinks = Join-Path $sourceCopy 'windows\flutter\ephemeral\.plugin_symlinks'
+    foreach ($link in Get-ChildItem -LiteralPath $pluginLinks -Directory -Force) {
+        $pluginCmake = Join-Path $link.FullName 'windows\CMakeLists.txt'
+        if (Test-Path -LiteralPath $pluginCmake -PathType Leaf) {
+            try {
+                $stream = [System.IO.File]::OpenRead($pluginCmake)
+                $stream.Dispose()
+            } catch {
+                Write-Warning 'Staged plugin links cannot be read by CMake; building from the project checkout.'
+                Set-Location -LiteralPath $projectRoot
+                $buildInProjectRoot = $true
+                break
+            }
+        }
+    }
+
     $buildArguments = @('build', 'windows', "--$Configuration", '--no-pub')
     if (-not [string]::IsNullOrWhiteSpace($DatabasePath)) {
         $buildArguments += "--dart-define=WORKBENCH_DATABASE_PATH=$DatabasePath"
@@ -142,20 +162,22 @@ $configurationDirectory = switch ($Configuration) {
 }
 $stagedBuild = Join-Path $sourceCopy 'build\windows\x64'
 $projectBuild = Join-Path $projectRoot 'build\windows\x64'
-New-Item -ItemType Directory -Force -Path $projectBuild | Out-Null
-& robocopy.exe $stagedBuild $projectBuild /MIR /R:2 /W:1 /NP /NFL /NDL /NJH /NJS |
-    Out-Null
-$artifactCopyExitCode = $LASTEXITCODE
-if ($artifactCopyExitCode -ge 8) {
-    if ($artifactCopyExitCode -band 8) {
-        $locked = Get-Process -Name 'personal_workbench' -ErrorAction SilentlyContinue
-        if ($locked) {
-            throw "Windows artifact copy failed (robocopy exit $artifactCopyExitCode): " +
-                'personal_workbench.exe is still running and locks the build output. ' +
-                'Close the running instance (or Stop-Process -Name personal_workbench) and rerun.'
+if (-not $buildInProjectRoot) {
+    New-Item -ItemType Directory -Force -Path $projectBuild | Out-Null
+    & robocopy.exe $stagedBuild $projectBuild /MIR /R:2 /W:1 /NP /NFL /NDL /NJH /NJS |
+        Out-Null
+    $artifactCopyExitCode = $LASTEXITCODE
+    if ($artifactCopyExitCode -ge 8) {
+        if ($artifactCopyExitCode -band 8) {
+            $locked = Get-Process -Name 'personal_workbench' -ErrorAction SilentlyContinue
+            if ($locked) {
+                throw "Windows artifact copy failed (robocopy exit $artifactCopyExitCode): " +
+                    'personal_workbench.exe is still running and locks the build output. ' +
+                    'Close the running instance (or Stop-Process -Name personal_workbench) and rerun.'
+            }
         }
+        throw "Windows artifact copy failed with robocopy exit code $artifactCopyExitCode"
     }
-    throw "Windows artifact copy failed with robocopy exit code $artifactCopyExitCode"
 }
 
 $executable = Join-Path $projectBuild (
@@ -178,18 +200,26 @@ if (-not (Test-Path -LiteralPath $executable)) {
 # update_all_shortcuts.ps1 内部已自带重试，能走到这里说明是持续性失败。
 $shortcutScript = Join-Path $projectRoot 'tool\update_all_shortcuts.ps1'
 $shortcutRefreshOk = $true
-try {
-    & $shortcutScript -TargetPath $executable
-} catch {
-    $shortcutRefreshOk = $false
-    Write-Warning (
-        'Shortcut refresh failed (non-fatal: the build itself succeeded): ' +
-        $_.Exception.Message
-    )
+. (Join-Path $PSScriptRoot 'lib\Get-PersonalWorkbenchInstall.ps1')
+$installerManaged = (Get-PersonalWorkbenchInstall).ManagedByInstaller
+if ($installerManaged) {
+    Write-Output 'Installer-managed shortcuts are left pointing at the selected installation directory.'
+} else {
+    try {
+        & $shortcutScript -TargetPath $executable
+    } catch {
+        $shortcutRefreshOk = $false
+        Write-Warning (
+            'Shortcut refresh failed (non-fatal: the build itself succeeded): ' +
+            $_.Exception.Message
+        )
+    }
 }
 
 Write-Output "Windows build completed: $executable"
-if ($shortcutRefreshOk) {
+if ($installerManaged) {
+    Write-Output 'Installer-managed software entry points were preserved.'
+} elseif ($shortcutRefreshOk) {
     Write-Output 'Software entry points refreshed: desktop + start menu.'
 } else {
     Write-Output (

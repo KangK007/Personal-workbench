@@ -50,6 +50,7 @@ class TaskRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final compact = WorkbenchViewport.sizeOf(context).width < 480;
     final project = controller.projectById(task.projectId);
     final relation =
         relationInfo ?? taskRelationInfo(task, controller.allRecords);
@@ -85,9 +86,11 @@ class TaskRow extends StatelessWidget {
               children: [
                 if (hierarchyDepth > 0)
                   SizedBox(
-                    width: (hierarchyDepth * _hierarchyIndentStep)
-                        .clamp(0, 176)
-                        .toDouble(),
+                    width: compact
+                        ? hierarchyDepth.clamp(0, 3) * 16.0
+                        : (hierarchyDepth * _hierarchyIndentStep)
+                              .clamp(0, 176)
+                              .toDouble(),
                     child: Align(
                       alignment: AlignmentDirectional.centerEnd,
                       child: Container(
@@ -99,7 +102,7 @@ class TaskRow extends StatelessWidget {
                   ),
                 if (hasChildren || hierarchyDepth > 0)
                   SizedBox.square(
-                    dimension: 40,
+                    dimension: hasChildren ? 44 : (compact ? 24 : 48),
                     child: hasChildren
                         ? IconButton(
                             onPressed: onToggleExpanded,
@@ -146,9 +149,58 @@ class TaskRow extends StatelessWidget {
                     selected: selected,
                     onSelectionChanged: onSelectionChanged,
                     onToggleDone: () async {
-                      await controller.toggleTaskDone(task);
-                      if (!task.isDone && commitmentIndex != null) {
-                        await WorkbenchFeedback.completion();
+                      final messenger = ScaffoldMessenger.maybeOf(context);
+                      final original = controller.latestRecordById(task);
+                      final completing = !original.isDone;
+                      try {
+                        await controller.toggleTaskDone(original);
+                        if (completing) {
+                          await WorkbenchFeedback.completion();
+                        }
+                        final updated = controller.latestRecordById(original);
+                        final definition = controller.taskDefinitionFor(
+                          original,
+                        );
+                        final recurring = definition != null
+                            ? TaskDefinition.fromRecord(definition).isRecurring
+                            : original.data['recurrence'] != null &&
+                                  original.data['recurrence'] != 'none';
+                        final canUndo =
+                            completing &&
+                            !original.hasCtdpProtocol &&
+                            !recurring;
+                        messenger?.hideCurrentSnackBar();
+                        messenger?.showSnackBar(
+                          SnackBar(
+                            content: Text(completing ? '任务已完成' : '任务已重新打开'),
+                            action: canUndo
+                                ? SnackBarAction(
+                                    label: '撤销',
+                                    onPressed: () async {
+                                      final current = controller
+                                          .latestRecordById(original);
+                                      if (!current.isDone ||
+                                          current.data['completedAt'] !=
+                                              updated.data['completedAt']) {
+                                        return;
+                                      }
+                                      await controller.toggleTaskDone(current);
+                                      if (original.status != WorkStatus.todo) {
+                                        await controller.setTaskStatus(
+                                          controller.latestRecordById(original),
+                                          original.status,
+                                        );
+                                      }
+                                    },
+                                  )
+                                : null,
+                          ),
+                        );
+                      } catch (_) {
+                        messenger?.hideCurrentSnackBar();
+                        messenger?.showSnackBar(
+                          const SnackBar(content: Text('任务状态更新失败，请重试')),
+                        );
                       }
                     },
                   ),
@@ -171,6 +223,8 @@ class TaskRow extends StatelessWidget {
                             duration: const Duration(milliseconds: 200),
                             curve: Curves.easeOut,
                             style: theme.textTheme.bodyLarge!.copyWith(
+                              fontSize: 15,
+                              height: 1.55,
                               // 完成态不画删除线：删除线降低中文可读性（规范 9）。
                               // 状态由「勾选形状 + 文字 + 颜色」三重表达。
                               decoration: TextDecoration.none,
@@ -242,85 +296,22 @@ class TaskRow extends StatelessWidget {
                           const SizedBox(height: 4),
                           _RelationLabel(relation: relation),
                         ],
-                        const SizedBox(height: 5),
-                        Wrap(
-                          spacing: dense ? 4 : 6,
-                          runSpacing: 4,
-                          children: [
-                            _Meta(
-                              icon: Icons.date_range_outlined,
-                              width: 265,
-                              label:
-                                  '安排 ${_dateLabel(task.scheduledFor, empty: '未安排')} → 截止 ${_dateLabel(task.dueAt, empty: '无截止')}',
-                            ),
-                            _Meta(
-                              icon: _statusIcon(task.status),
-                              width: 160,
-                              label: '状态 ${statusLabel(task.status)}',
-                            ),
-                            _Meta(
-                              icon: Icons.flag_outlined,
-                              width: 160,
-                              label: '优先级 ${_priorityLabel(task.priority)}',
-                            ),
-                            _Meta(
-                              icon: Icons.repeat_outlined,
-                              width: 160,
-                              label: '循环 ${_recurrenceLabel(task)}',
-                            ),
-                          ],
+                        _TaskRowMetadata(
+                          key: ValueKey('task-meta-${task.id}'),
+                          task: task,
+                          projectTitle: showProject ? project?.title : null,
+                          dense: dense,
                         ),
-                        if (task.estimatedMinutes > 0 ||
-                            task.hasCtdpProtocol ||
-                            (showProject && project != null)) ...[
-                          const SizedBox(height: 5),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: [
-                              if ((task.hasCtdpProtocol
-                                      ? task.ctdpSessionMinutes
-                                      : task.estimatedMinutes) >
-                                  0)
-                                _Meta(
-                                  icon: Icons.timelapse,
-                                  label:
-                                      '${task.hasCtdpProtocol ? task.ctdpSessionMinutes : task.estimatedMinutes} min',
-                                ),
-                              if (task.hasCtdpProtocol)
-                                _Meta(
-                                  icon: task.ctdpReservationPending
-                                      ? Icons.pending_actions_outlined
-                                      : Icons.link_outlined,
-                                  label: task.ctdpReservationPending
-                                      ? '预约中 · 主 #${task.ctdpChainCount} · 辅 #${task.ctdpAuxChainCount}'
-                                      : 'CTDP 主 #${task.ctdpChainCount} · 辅 #${task.ctdpAuxChainCount}',
-                                ),
-                              if (showProject && project != null)
-                                _Meta(
-                                  icon: Icons.folder_outlined,
-                                  label: project.title,
-                                ),
-                            ],
-                          ),
-                        ],
                       ],
                     ),
                   ),
                 ),
-                if (!selectionMode && !task.isDone && commitmentIndex == null)
+                if (!compact &&
+                    !selectionMode &&
+                    !task.isDone &&
+                    commitmentIndex == null)
                   IconButton(
-                    onPressed: () async {
-                      try {
-                        await controller.setFocusTask(task, !task.isFocus);
-                      } on FormatException catch (exception) {
-                        if (!context.mounted) return;
-                        showWorkbenchSnackBar(
-                          context,
-                          SnackBar(content: Text(exception.message.toString())),
-                        );
-                      }
-                    },
+                    onPressed: () => _handleAction(context, 'toggle_focus'),
                     tooltip: task.isFocus ? '移出今日重点' : '设为今日重点',
                     icon: Icon(
                       task.isFocus ? Icons.star : Icons.star_border,
@@ -334,6 +325,11 @@ class TaskRow extends StatelessWidget {
                     tooltip: '更多操作',
                     onSelected: (value) => _handleAction(context, value),
                     itemBuilder: (context) => [
+                      if (compact && !task.isDone && commitmentIndex == null)
+                        PopupMenuItem(
+                          value: 'toggle_focus',
+                          child: Text(task.isFocus ? '移出今日重点' : '设为今日重点'),
+                        ),
                       if (onStartFocus != null)
                         const PopupMenuItem(
                           value: 'focus',
@@ -431,6 +427,16 @@ class TaskRow extends StatelessWidget {
 
   Future<void> _handleAction(BuildContext context, String value) async {
     switch (value) {
+      case 'toggle_focus':
+        try {
+          await controller.setFocusTask(task, !task.isFocus);
+        } on FormatException catch (exception) {
+          if (!context.mounted) return;
+          showWorkbenchSnackBar(
+            context,
+            SnackBar(content: Text(exception.message.toString())),
+          );
+        }
       case 'focus':
         onStartFocus?.call();
       case 'ctdp_reserve':
@@ -523,6 +529,138 @@ class TaskRow extends StatelessWidget {
           ),
         );
     }
+  }
+}
+
+class _TaskRowMetadata extends StatefulWidget {
+  const _TaskRowMetadata({
+    super.key,
+    required this.task,
+    required this.projectTitle,
+    required this.dense,
+  });
+
+  final WorkspaceRecord task;
+  final String? projectTitle;
+  final bool dense;
+
+  @override
+  State<_TaskRowMetadata> createState() => _TaskRowMetadataState();
+}
+
+class _TaskRowMetadataState extends State<_TaskRowMetadata> {
+  bool expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final task = widget.task;
+    final time = task.scheduledFor != null
+        ? '安排 ${_dateLabel(task.scheduledFor, empty: '未安排')}'
+        : task.dueAt != null
+        ? '截止 ${_dateLabel(task.dueAt, empty: '无截止')}'
+        : '未安排时间';
+    final summary =
+        '$time · ${statusLabel(task.status)}'
+        '${widget.projectTitle == null ? '' : ' · ${widget.projectTitle}'}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final toggle = IconButton(
+              onPressed: () => setState(() => expanded = !expanded),
+              tooltip: expanded ? '收起任务详情' : '展开任务详情',
+              icon: Icon(
+                expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                size: 18,
+              ),
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            );
+            if (constraints.maxWidth < 88) {
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Semantics(hint: summary, child: toggle),
+              );
+            }
+            return Row(
+              children: [
+                Icon(
+                  Icons.schedule_outlined,
+                  size: AppIconSize.xs,
+                  color: context.tokens.mutedText,
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Tooltip(
+                    message: summary,
+                    child: Text(
+                      summary,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: context.tokens.mutedText,
+                      ),
+                    ),
+                  ),
+                ),
+                toggle,
+              ],
+            );
+          },
+        ),
+        if (expanded) ...[
+          Wrap(
+            spacing: widget.dense ? 4 : 6,
+            runSpacing: 4,
+            children: [
+              _Meta(
+                icon: Icons.date_range_outlined,
+                width: 265,
+                label:
+                    '安排 ${_dateLabel(task.scheduledFor, empty: '未安排')} → 截止 ${_dateLabel(task.dueAt, empty: '无截止')}',
+              ),
+              _Meta(
+                icon: _statusIcon(task.status),
+                width: 160,
+                label: '状态 ${statusLabel(task.status)}',
+              ),
+              _Meta(
+                icon: Icons.flag_outlined,
+                width: 160,
+                label: '优先级 ${_priorityLabel(task.priority)}',
+              ),
+              _Meta(
+                icon: Icons.repeat_outlined,
+                width: 160,
+                label: '循环 ${_recurrenceLabel(task)}',
+              ),
+              if ((task.hasCtdpProtocol
+                      ? task.ctdpSessionMinutes
+                      : task.estimatedMinutes) >
+                  0)
+                _Meta(
+                  icon: Icons.timelapse,
+                  label:
+                      '${task.hasCtdpProtocol ? task.ctdpSessionMinutes : task.estimatedMinutes} min',
+                ),
+              if (task.hasCtdpProtocol)
+                _Meta(
+                  icon: task.ctdpReservationPending
+                      ? Icons.pending_actions_outlined
+                      : Icons.link_outlined,
+                  label: task.ctdpReservationPending
+                      ? '预约中 · 主 #${task.ctdpChainCount} · 辅 #${task.ctdpAuxChainCount}'
+                      : 'CTDP 主 #${task.ctdpChainCount} · 辅 #${task.ctdpAuxChainCount}',
+                ),
+              if (widget.projectTitle != null)
+                _Meta(icon: Icons.folder_outlined, label: widget.projectTitle!),
+            ],
+          ),
+        ],
+      ],
+    );
   }
 }
 

@@ -36,12 +36,18 @@ class _MemoryDatabase extends AppDatabase {
   final Map<String, WorkspaceRecord> records = {};
   final Map<String, String> metadata = {};
   bool failNextThemeWrite = false;
+  bool failNextFocusWrite = false;
+  int? failNextBatchAtIndex;
 
   @override
   Future<void> saveRecord(
     WorkspaceRecord record, {
     bool markDirty = true,
   }) async {
+    if (record.kind == RecordKind.focusSession && failNextFocusWrite) {
+      failNextFocusWrite = false;
+      throw StateError('focus session write failed');
+    }
     records[_key(record)] = record.copyWith(
       syncState: markDirty ? SyncState.dirty : SyncState.clean,
       touch: false,
@@ -53,8 +59,21 @@ class _MemoryDatabase extends AppDatabase {
     Iterable<WorkspaceRecord> values, {
     bool markDirty = true,
   }) async {
-    for (final record in values) {
-      await saveRecord(record, markDirty: markDirty);
+    final snapshot = Map<String, WorkspaceRecord>.from(records);
+    try {
+      var index = 0;
+      for (final record in values) {
+        await saveRecord(record, markDirty: markDirty);
+        if (index++ == failNextBatchAtIndex) {
+          failNextBatchAtIndex = null;
+          throw StateError('batch write failed');
+        }
+      }
+    } catch (_) {
+      records
+        ..clear()
+        ..addAll(snapshot);
+      rethrow;
     }
   }
 
@@ -1129,11 +1148,11 @@ void main() {
       final semantics = tester.ensureSemantics();
 
       await tester.scrollUntilVisible(
-        find.text('夜间 · 夜航工作室'),
+        find.text('夜间 · 森林青玉'),
         300,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('夜间 · 夜航工作室'));
+      await tester.tap(find.text('夜间 · 森林青玉'));
       await tester.pump();
       expect(fixture.controller.themeMode, ThemeMode.dark);
 
@@ -1337,12 +1356,12 @@ void main() {
       ),
     );
     await tester.scrollUntilVisible(
-      find.text('夜间 · 夜航工作室'),
+      find.text('夜间 · 森林青玉'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('白天 · 柔壤图鉴'), findsOneWidget);
-    expect(find.text('夜间 · 夜航工作室'), findsOneWidget);
+    expect(find.text('白天 · 薄荷青玉'), findsOneWidget);
+    expect(find.text('夜间 · 森林青玉'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -1423,12 +1442,12 @@ void main() {
       return SettingsPage(controller: fixture.controller);
     });
     await tester.scrollUntilVisible(
-      find.text('白天 · 柔壤图鉴'),
+      find.text('白天 · 薄荷青玉'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     fixture.database.failNextThemeWrite = true;
-    await tester.tap(find.text('白天 · 柔壤图鉴'));
+    await tester.tap(find.text('白天 · 薄荷青玉'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(fixture.controller.themeMode, ThemeMode.system);
@@ -1666,12 +1685,92 @@ void main() {
         size: const Size(390, 700),
       );
       expect(find.text('工作周'), findsOneWidget);
+      expect(find.text('8月10日 星期一'), findsOneWidget);
       await tester.tap(find.text('周二'));
       await tester.pump();
+      expect(find.text('8月11日 星期二'), findsOneWidget);
       expect(find.text('这一天没有时间块'), findsOneWidget);
+      await tester.tap(find.byTooltip('下一周'));
+      await tester.pump();
+      expect(find.text('8月18日 星期二'), findsOneWidget);
+      await tester.tap(find.byTooltip('上一周'));
+      await tester.pump();
+      expect(find.text('8月11日 星期二'), findsOneWidget);
+      await tester.tap(find.byTooltip('回到本周'));
+      await tester.pump();
+      expect(find.text('8月10日 星期一'), findsOneWidget);
+      await _pump(
+        tester,
+        fixture.controller,
+        () => CalendarPage(
+          key: const ValueKey('weekend-calendar'),
+          controller: fixture.controller,
+          initialDate: DateTime(2026, 8, 9),
+        ),
+        size: const Size(390, 700),
+      );
+      expect(find.text('8月7日 星期五'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('week drag shows a snap target and can undo the move', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final task = _task('可拖动时间块', fixture.clock.value);
+    await fixture.controller.addRecord(task);
+    final original = DateTime(2026, 8, 10, 9);
+    await fixture.controller.createTimeBlock(
+      task: task,
+      start: original,
+      minutes: 25,
+    );
+    await _pump(
+      tester,
+      fixture.controller,
+      () => CalendarPage(controller: fixture.controller),
+      size: const Size(1200, 900),
+    );
+    final lanes = find.byType(DragTarget<WorkspaceRecord>);
+    expect(lanes, findsNWidgets(5));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('可拖动时间块').first),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    final targetLane = tester.getRect(lanes.at(1));
+    await gesture.moveTo(
+      Offset(targetLane.center.dx, targetLane.top + 5 * 46 + 8),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('week-drop-preview')), findsOneWidget);
+    await gesture.up();
+    await tester.pumpAndSettle();
+    final moved = fixture.controller.timeBlocks.single.scheduledFor!;
+    expect(moved.day, 11);
+    expect(moved.hour, inInclusiveRange(10, 12));
+    expect(moved.minute % 5, 0);
+    expect(fixture.controller.tasks.single.scheduledFor, moved);
+    await tester.tap(find.text('撤销'));
+    await tester.pumpAndSettle();
+    expect(fixture.controller.timeBlocks.single.scheduledFor, original);
+    expect(fixture.controller.tasks.single.scheduledFor, original);
+    await tester.tap(find.byTooltip('下一周'));
+    await tester.pump();
+    final weekFade = find.byKey(const ValueKey('week-content-fade'));
+    expect(tester.widget<Opacity>(weekFade).opacity, lessThan(1));
+    await tester.pump(const Duration(milliseconds: 180));
+    expect(tester.widget<Opacity>(weekFade).opacity, 1);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'focus completion accepts empty optional evidence without lifecycle errors',
@@ -1770,6 +1869,225 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('CTDP focus settlement rolls back and retry counts once', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(fixture.dispose);
+    addTearDown(() {
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+    });
+    final controller = fixture.controller;
+    final group = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: 'CTDP 组',
+      data: const {'protocol': 'ctdp', 'ctdpUnitType': 'group'},
+    );
+    final first = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '第一步',
+      parentId: group.id,
+      data: const {'protocol': 'ctdp', 'ctdpTrigger': '开始'},
+    );
+    final second = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '第二步',
+      parentId: group.id,
+      data: const {'protocol': 'ctdp', 'ctdpTrigger': '继续'},
+    );
+    await controller.addRecord(group);
+    await controller.addRecord(first);
+    await controller.addRecord(second);
+    await controller.startCtdpGroup(group);
+    await controller.completeCtdpRound(first, const Duration(minutes: 5));
+
+    fixture.database.failNextBatchAtIndex = 2;
+    Future<void> complete() => controller.completeFocusSession(
+      second,
+      const Duration(minutes: 8),
+      FocusMode.stopwatch,
+      sessionId: 'ctdp-retry-session',
+      description: '第二步已完成',
+    );
+    await expectLater(complete(), throwsStateError);
+    expect(controller.recordsOf(RecordKind.focusSession), isEmpty);
+    expect(
+      controller.ctdpTasks
+          .firstWhere((task) => task.id == second.id)
+          .ctdpChainCount,
+      0,
+    );
+    expect(
+      controller.ctdpTasks
+          .firstWhere((task) => task.id == group.id)
+          .ctdpChainCount,
+      0,
+    );
+    expect(
+      controller.protocolEvents.where(
+        (event) => event.data['action'] == 'group_completed',
+      ),
+      isEmpty,
+    );
+
+    await complete();
+    await complete();
+    expect(controller.recordsOf(RecordKind.focusSession), hasLength(1));
+    expect(
+      controller.ctdpTasks
+          .firstWhere((task) => task.id == second.id)
+          .ctdpChainCount,
+      1,
+    );
+    expect(
+      controller.ctdpTasks
+          .firstWhere((task) => task.id == group.id)
+          .ctdpChainCount,
+      1,
+    );
+    expect(
+      controller.protocolEvents.where(
+        (event) => event.data['action'] == 'round_completed',
+      ),
+      hasLength(2),
+    );
+    expect(
+      controller.protocolEvents.where(
+        (event) => event.data['action'] == 'group_completed',
+      ),
+      hasLength(1),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('early CTDP focus rule is applied only with saved settlement', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(fixture.dispose);
+    addTearDown(() {
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+    });
+    final controller = fixture.controller;
+    final task = _task(
+      '提前完成任务',
+      fixture.clock.value,
+      data: const {
+        'protocol': 'ctdp',
+        'ctdpTrigger': '开始',
+        'ctdpMinimumMinutes': 25,
+      },
+    );
+    await controller.addRecord(task);
+    final rule = await controller.createExceptionRule(
+      name: '已达成本轮目标',
+      description: '剩余时间可以提前结算',
+      ruleType: 'early_completion',
+      chainId: task.id,
+    );
+    Future<void> complete() => controller.completeFocusSession(
+      task,
+      const Duration(minutes: 5),
+      FocusMode.custom,
+      sessionId: 'early-ctdp-session',
+      earlyCompletion: true,
+      earlyCompletionRule: rule,
+      remaining: const Duration(minutes: 20),
+      description: '目标已完成',
+    );
+    fixture.database.failNextBatchAtIndex = 1;
+    await expectLater(complete(), throwsStateError);
+    expect(controller.recordsOf(RecordKind.focusSession), isEmpty);
+    expect(
+      controller.exceptionRules
+          .firstWhere((item) => item.id == rule.id)
+          .data['usageCount'],
+      0,
+    );
+    expect(
+      controller.protocolEvents.where(
+        (event) => event.data['action'] == 'early_completion_rule_used',
+      ),
+      isEmpty,
+    );
+
+    await complete();
+    await complete();
+    expect(controller.recordsOf(RecordKind.focusSession), hasLength(1));
+    expect(
+      controller.exceptionRules
+          .firstWhere((item) => item.id == rule.id)
+          .data['usageCount'],
+      1,
+    );
+    expect(
+      controller.protocolEvents.where(
+        (event) => event.data['action'] == 'early_completion_rule_used',
+      ),
+      hasLength(1),
+    );
+    expect(
+      controller.protocolEvents.where(
+        (event) => event.data['action'] == 'round_completed_early',
+      ),
+      hasLength(1),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('focus completion write failure retains evidence for retry', (
+    tester,
+  ) async {
+    final fixture = _fixture();
+    addTearDown(() {
+      fixture.dispose();
+      if (fixture.directory.existsSync()) {
+        fixture.directory.deleteSync(recursive: true);
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await _pump(
+      tester,
+      fixture.controller,
+      () => FocusPage(controller: fixture.controller, task: null),
+    );
+    await tester.tap(find.text('正计时'));
+    await tester.pump();
+    await tester.tap(find.text('开始专注'));
+    fixture.clock.value = fixture.clock.value.add(const Duration(seconds: 65));
+    fixture.controller.focusService.refresh();
+    await tester.pump();
+    await tester.tap(find.text('完成本次专注'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).first, '保存失败回归');
+    fixture.database.failNextFocusWrite = true;
+    await tester.tap(find.text('结算本轮'));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('专注记录保存失败，请检查记录后重试。'), findsOneWidget);
+    expect(find.byType(FocusCelebration), findsNothing);
+    expect(fixture.controller.recordsOf(RecordKind.focusSession), isEmpty);
+    final exit = tester.widget<IconButton>(find.byType(IconButton).first);
+    expect(exit.onPressed, isNotNull);
+    expect(fixture.controller.focusService.elapsed.inSeconds, greaterThan(0));
+    await tester.tap(find.text('完成本次专注'));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField).first).controller?.text,
+      '保存失败回归',
+    );
+    await tester.tap(find.text('结算本轮'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(fixture.controller.recordsOf(RecordKind.focusSession), hasLength(1));
+    expect(find.text('本次专注已记录'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'focus covers completion evidence and CTDP interruption choices',
     (tester) async {
@@ -1813,9 +2131,17 @@ void main() {
       await tester.enterText(find.byType(TextField).last, '记录结果');
       await tester.tap(find.text('结算本轮'));
       await tester.pump(const Duration(milliseconds: 100));
-      // 等待完成庆祝动画（约 1.85s）与弹层退场后再继续
-      await tester.pump(const Duration(milliseconds: 2000));
       await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(FocusCelebration), findsOneWidget);
+      expect(find.text('本次专注已记录'), findsOneWidget);
+      final completionRing = find.byKey(
+        const ValueKey('focus-completion-ring'),
+      );
+      expect(tester.widget<CircularProgressIndicator>(completionRing).value, 1);
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.byType(FocusCelebration), findsOneWidget);
+      await tester.tap(find.text('返回专注中心'));
+      await tester.pumpAndSettle();
       expect(find.byType(FocusCelebration), findsNothing);
       expect(
         fixture.controller.recordsOf(RecordKind.focusSession),

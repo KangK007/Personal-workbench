@@ -9,6 +9,7 @@ import '../../data/backup_service.dart';
 import '../../services/notification_service.dart';
 import '../../state/workbench_controller.dart';
 import '../widgets/common.dart';
+import '../widgets/sync_conflict_dialog.dart';
 
 String _reviewName(ReviewPeriodType type) => switch (type) {
   ReviewPeriodType.daily => '日回顾',
@@ -81,31 +82,7 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   _Section(
                     title: '任务与周期',
-                    children: [
-                      ListTile(
-                        leading: const _SettingsIcon(Icons.schedule_outlined),
-                        title: const Text('逻辑日分界'),
-                        subtitle: const Text('修改只影响今后生成的任务实例'),
-                        trailing: DropdownButton<int>(
-                          value: controller.logicalDayBoundaryHour,
-                          underline: const SizedBox.shrink(),
-                          items: [
-                            for (var hour = 0; hour <= 6; hour++)
-                              DropdownMenuItem(
-                                value: hour,
-                                child: Text(
-                                  '${hour.toString().padLeft(2, '0')}:00',
-                                ),
-                              ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              controller.setLogicalDayBoundaryHour(value);
-                            }
-                          },
-                        ),
-                      ),
-                    ],
+                    children: [_LogicalDayBoundaryTile(controller: controller)],
                   ),
                   if (windows) ...[
                     const SizedBox(height: 16),
@@ -582,8 +559,15 @@ class SettingsPage extends StatelessWidget {
 }
 
 // 保留本页名称兼容；视觉实现由共享 SurfaceIcon 统一。
-class _SettingsIcon extends SurfaceIcon {
-  const _SettingsIcon(super.icon, {super.color});
+class _SettingsIcon extends StatelessWidget {
+  const _SettingsIcon(this.icon, {this.color});
+
+  final IconData icon;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) =>
+      SurfaceIcon(icon, color: color ?? context.accents.slate.color);
 }
 
 class _AccentPreview extends StatelessWidget {
@@ -865,15 +849,15 @@ class _AppearanceSection extends StatelessWidget {
             builder: (context, constraints) {
               final day = _ThemeChoiceCard(
                 mode: ThemeMode.light,
-                title: '白天 · 柔壤图鉴',
-                subtitle: '植物、纸面与陶土成果',
+                title: '白天 · 薄荷青玉',
+                subtitle: '薄荷白纸面与青玉行动色',
                 selected: controller.themeMode == ThemeMode.light,
                 onTap: () => _selectTheme(context, ThemeMode.light),
               );
               final night = _ThemeChoiceCard(
                 mode: ThemeMode.dark,
-                title: '夜间 · 夜航工作室',
-                subtitle: '靛蓝、冷青与琥珀成果',
+                title: '夜间 · 森林青玉',
+                subtitle: '森林绿层次与柔和青玉高光',
                 selected: controller.themeMode == ThemeMode.dark,
                 onTap: () => _selectTheme(context, ThemeMode.dark),
               );
@@ -980,7 +964,7 @@ class _ExperimentalSection extends StatelessWidget {
             ListTile(
               leading: _SettingsIcon(Icons.palette_outlined),
               title: const Text('成果标记'),
-              subtitle: const Text('成果颜色随柔壤图鉴与夜航工作室切换'),
+              subtitle: const Text('成果颜色随薄荷青玉与森林青玉主题切换'),
               trailing: _AccentPreview(),
             ),
           ],
@@ -1019,6 +1003,74 @@ class _Section extends StatelessWidget {
   }
 }
 
+class _LogicalDayBoundaryTile extends StatelessWidget {
+  const _LogicalDayBoundaryTile({required this.controller});
+
+  final WorkbenchController controller;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+      final compact =
+          constraints.maxWidth < 330 ||
+          (textScale > 1.4 && constraints.maxWidth < 600);
+      final selector = DropdownButton<int>(
+        value: controller.logicalDayBoundaryHour,
+        underline: const SizedBox.shrink(),
+        items: [
+          for (var hour = 0; hour <= 6; hour++)
+            DropdownMenuItem(
+              value: hour,
+              child: Text('${hour.toString().padLeft(2, '0')}:00'),
+            ),
+        ],
+        onChanged: (value) {
+          if (value != null) controller.setLogicalDayBoundaryHour(value);
+        },
+      );
+      if (!compact) {
+        return ListTile(
+          leading: const _SettingsIcon(Icons.schedule_outlined),
+          title: const Text('逻辑日分界'),
+          subtitle: const Text('修改只影响今后生成的任务实例'),
+          trailing: selector,
+        );
+      }
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SettingsIcon(Icons.schedule_outlined),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '逻辑日分界',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      const Text('修改只影响今后生成的任务实例'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Align(alignment: Alignment.centerRight, child: selector),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 class _CloudSection extends StatefulWidget {
   const _CloudSection({required this.controller});
 
@@ -1031,12 +1083,21 @@ class _CloudSection extends StatefulWidget {
 class _CloudSectionState extends State<_CloudSection> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final emailFocusNode = FocusNode();
+  final passwordFocusNode = FocusNode();
   bool busy = false;
+  bool? authenticatingSignIn;
+  bool passwordVisible = false;
+  String? emailError;
+  String? passwordError;
+  String? authMessage;
 
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    emailFocusNode.dispose();
+    passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -1044,92 +1105,135 @@ class _CloudSectionState extends State<_CloudSection> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final signedIn = controller.signedInEmail != null;
-    final syncFailed = controller.syncPhase == SyncPhase.error;
-    final syncing = controller.syncPhase == SyncPhase.syncing;
     return _Section(
       title: '账号与同步',
       children: [
         if (!controller.cloudConfigured)
-          const ListTile(
-            leading: _SettingsIcon(Icons.cloud_off_outlined),
-            title: Text('当前为纯本地模式'),
-            subtitle: Text('配置 Supabase 环境参数后可启用跨端同步'),
-          )
-        else if (signedIn) ...[
-          ListTile(
-            leading: _SettingsIcon(
-              syncFailed
-                  ? Icons.cloud_off_outlined
-                  : syncing
-                  ? Icons.cloud_sync_outlined
-                  : Icons.cloud_done_outlined,
-              color: syncFailed ? Theme.of(context).colorScheme.error : null,
-            ),
-            title: Text(controller.signedInEmail!),
-            subtitle: Semantics(
-              liveRegion: true,
-              label: '同步状态：${controller.syncMessage}',
-              child: ExcludeSemantics(child: Text(controller.syncMessage)),
-            ),
-            trailing: FilledButton.tonalIcon(
-              onPressed: busy ? null : _sync,
-              icon: busy
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(syncFailed ? Icons.refresh : Icons.sync),
-              label: Text(syncFailed ? '重试同步' : '立即同步'),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16, bottom: 12),
-              child: TextButton(
-                onPressed: busy ? null : _signOut,
-                child: const Text('退出账号'),
-              ),
-            ),
-          ),
-        ] else ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Column(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ExternalField(
-                  label: '邮箱',
-                  child: TextField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(),
-                  ),
+                _SettingsIcon(
+                  Icons.cloud_off_outlined,
+                  color: context.accents.teal.color,
                 ),
-                const SizedBox(height: 10),
-                ExternalField(
-                  label: '密码',
-                  child: TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '当前为纯本地模式',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        '启用跨端同步需要在启动配置中提供 SUPABASE_URL 和 SUPABASE_ANON_KEY。配置完成前，本地数据仍可使用。',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(fontSize: 13),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
+          )
+        else if (signedIn) ...[
+          _signedInContent(context, controller),
+        ] else ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextButton(
-                  onPressed: busy ? null : () => _authenticate(false),
-                  child: const Text('注册'),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: _SettingsIcon(Icons.spa_outlined),
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: busy ? null : () => _authenticate(true),
-                  child: const Text('登录'),
+                const SizedBox(height: AppSpacing.md),
+                ExternalField(
+                  label: '邮箱',
+                  child: TextField(
+                    controller: emailController,
+                    focusNode: emailFocusNode,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    onChanged: (_) => setState(() {
+                      emailError = null;
+                      authMessage = null;
+                    }),
+                    decoration: InputDecoration(errorText: emailError),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ExternalField(
+                  label: '密码',
+                  child: TextField(
+                    controller: passwordController,
+                    focusNode: passwordFocusNode,
+                    obscureText: !passwordVisible,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) {
+                      if (!busy) _authenticate(true);
+                    },
+                    onChanged: (_) => setState(() {
+                      passwordError = null;
+                      authMessage = null;
+                    }),
+                    decoration: InputDecoration(
+                      errorText: passwordError,
+                      suffixIcon: IconButton(
+                        tooltip: passwordVisible ? '隐藏密码' : '显示密码',
+                        onPressed: () =>
+                            setState(() => passwordVisible = !passwordVisible),
+                        icon: Icon(
+                          passwordVisible
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (authMessage != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      authMessage!,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(fontSize: 13),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.xl),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    TextButton(
+                      onPressed: busy ? null : () => _authenticate(false),
+                      child: Text(
+                        busy && authenticatingSignIn == false ? '注册中…' : '注册',
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: busy ? null : () => _authenticate(true),
+                      icon: busy && authenticatingSignIn == true
+                          ? const SizedBox.square(
+                              dimension: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.login_outlined),
+                      label: Text(
+                        busy && authenticatingSignIn == true ? '登录中…' : '登录',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1139,25 +1243,197 @@ class _CloudSectionState extends State<_CloudSection> {
     );
   }
 
+  Widget _signedInContent(
+    BuildContext context,
+    WorkbenchController controller,
+  ) {
+    final phase = controller.syncPhase;
+    final syncing = phase == SyncPhase.syncing;
+    final failed = phase == SyncPhase.error;
+    final icon = switch (phase) {
+      SyncPhase.syncing => Icons.cloud_sync_outlined,
+      SyncPhase.success => Icons.cloud_done_outlined,
+      SyncPhase.error => Icons.cloud_off_outlined,
+      _ => Icons.cloud_queue_outlined,
+    };
+    final accent = failed
+        ? Theme.of(context).colorScheme.error
+        : context.accents.teal.color;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SettingsIcon(icon, color: accent),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      controller.signedInEmail!,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      softWrap: true,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Semantics(
+                      liveRegion: true,
+                      label: '同步状态：${controller.syncMessage}',
+                      child: ExcludeSemantics(
+                        child: Text(
+                          controller.syncMessage,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.copyWith(fontSize: 13),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      controller.lastSuccessfulSyncAt == null
+                          ? '本次启动尚未成功同步'
+                          : '本次启动最近同步：${formatDateTime(controller.lastSuccessfulSyncAt!)}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: 13,
+                        fontFamily: AppFonts.numeric,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (syncing) ...[
+            const SizedBox(height: AppSpacing.md),
+            const LinearProgressIndicator(),
+          ],
+          const SizedBox(height: AppSpacing.xl),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              TextButton(
+                onPressed: busy || syncing ? null : _signOut,
+                child: const Text('退出账号'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: busy || syncing ? null : _sync,
+                icon: busy || syncing
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(failed ? Icons.refresh : Icons.sync),
+                label: Text(failed ? '重试同步' : '立即同步'),
+              ),
+            ],
+          ),
+          if (controller.syncConflictCopies.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xl),
+            Divider(color: context.tokens.divider),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              '待处理同步冲突 ${controller.syncConflictCopies.length} 项',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final copy in controller.syncConflictCopies) ...[
+              LogSurface(
+                accent: context.accents.teal.color,
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      copy.title,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    const Text('本地修改已另存为冲突副本，请对照云端当前版本。'),
+                    const SizedBox(height: AppSpacing.md),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton.tonalIcon(
+                        onPressed: busy
+                            ? null
+                            : () async {
+                                final resolved = await showSyncConflictDialog(
+                                  context: context,
+                                  controller: controller,
+                                  conflictCopy: copy,
+                                );
+                                if (!mounted || !context.mounted || !resolved) {
+                                  return;
+                                }
+                                setState(() {});
+                                showWorkbenchSnackBar(
+                                  context,
+                                  const SnackBar(content: Text('同步冲突已解决')),
+                                );
+                              },
+                        icon: const Icon(Icons.compare_arrows_outlined),
+                        label: const Text('对照并解决'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _authenticate(bool signIn) async {
-    setState(() => busy = true);
+    if (busy) return;
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    final validEmail = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+    if (!validEmail || password.isEmpty) {
+      setState(() {
+        emailError = validEmail ? null : '请输入有效邮箱。';
+        passwordError = password.isEmpty ? '请输入密码。' : null;
+      });
+      (validEmail ? passwordFocusNode : emailFocusNode).requestFocus();
+      return;
+    }
+    setState(() {
+      busy = true;
+      authenticatingSignIn = signIn;
+      emailError = null;
+      passwordError = null;
+      authMessage = null;
+    });
     try {
       if (signIn) {
-        await widget.controller.signIn(
-          emailController.text,
-          passwordController.text,
-        );
+        await widget.controller.signIn(email, password);
       } else {
-        await widget.controller.signUp(
-          emailController.text,
-          passwordController.text,
-        );
+        await widget.controller.signUp(email, password);
       }
-      if (mounted) _message(context, widget.controller.syncMessage);
-    } catch (error) {
-      if (mounted) _message(context, '$error');
+      if (mounted) setState(() => authMessage = widget.controller.syncMessage);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => passwordError = signIn
+              ? '登录失败，请检查账号、密码或网络后重试。'
+              : '注册失败，请检查账号、密码或网络后重试。',
+        );
+        passwordFocusNode.requestFocus();
+      }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() {
+          busy = false;
+          authenticatingSignIn = null;
+        });
+      }
     }
   }
 

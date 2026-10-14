@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'jade_icon.dart';
 
 /// 移动端底栏单项（方案 C 规格）。
 @immutable
@@ -11,11 +12,13 @@ class MobileBottomBarItem {
     required this.icon,
     required this.selectedIcon,
     required this.label,
+    this.glyph,
   });
 
   final IconData icon;
   final IconData selectedIcon;
   final String label;
+  final JadeGlyph? glyph;
 }
 
 /// 移动端底部导航。
@@ -104,11 +107,18 @@ class _MobileBottomBarTile extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  selected ? item.selectedIcon : item.icon,
-                  size: AppIconSize.sm,
-                  color: color,
-                ),
+                item.glyph == null
+                    ? Icon(
+                        selected ? item.selectedIcon : item.icon,
+                        size: AppIconSize.sm,
+                        color: color,
+                      )
+                    : JadeIcon(
+                        glyph: item.glyph!,
+                        size: AppIconSize.sm,
+                        color: color,
+                        monochrome: true,
+                      ),
                 const SizedBox(height: 3),
                 Text(
                   item.label,

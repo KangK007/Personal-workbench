@@ -1,6 +1,6 @@
 # 双主题插画资源清单
 
-生产文件位于 `assets/illustrations/day/` 与 `assets/illustrations/night/`，均为透明背景、无文字的 WebP。UI 中的标题、数字、状态、按钮和图表由 Flutter 原生控件绘制。生产资源总计 **1,868,718 字节（约 1.87 MB）**。`WorkbenchIllustration` 根据实际亮度选择版本、指定稳定宽高和解码宽度，并从无障碍树中排除装饰图像。
+**历史方案记录。** 当前「青玉柔光」页面已用代码绘制的纸页叶片图形替代以下 WebP，应用资源清单不再打包它们；现行清单见 [`jade-redesign/ASSET_MANIFEST.md`](jade-redesign/ASSET_MANIFEST.md)。原双主题文件位于 `assets/illustrations/day/` 与 `assets/illustrations/night/`，均为透明背景、无文字的 WebP，当时总计 **1,868,718 字节（约 1.87 MB）**。下表记录旧版素材与使用位置，不代表当前运行界面。
 
 | 主题组 | 白天 / 夜间体积 | 导出尺寸 | 使用位置 |
 | --- | ---: | --- | --- |
@@ -12,7 +12,7 @@
 | `review` | 210 / 147 KB | 1100×762 / 1100×761 | 日周月回顾事实卡 |
 | `growth` | 127 / 162 KB | 1100×761 | 成长证据引导面 |
 
-`today` 与 `project` 使用本项目此前已选定的双主题原画；原始 PNG 位于 `design_preview/theme_concepts/assets/green/` 和 `night/`。其余五组由图像生成能力为本项目生成，原始 PNG 位于 `design_preview/theme_concepts/assets/generated/day/` 和 `night/`。所有生产 WebP 都由 `python tool/optimize_illustrations.py` 从原画导出，长边限制为 1100 像素；`test/illustration_asset_test.dart` 验证全部 14 张均可解码。原画保留在设计预览目录用于将来调整，应用包只包含压缩后的 WebP。
+`today` 与 `project` 使用本项目此前已选定的双主题原画；原始 PNG 位于 `design_preview/theme_concepts/assets/green/` 和 `night/`。其余五组由图像生成能力为本项目生成，原始 PNG 位于 `design_preview/theme_concepts/assets/generated/day/` 和 `night/`。旧 WebP 由 `python tool/optimize_illustrations.py` 从原画导出，长边限制为 1100 像素；原画与压缩图均保留在仓库供以后对照，当前应用包不再包含这些 WebP。
 
 插画用于帮助识别业务领域，不承担唯一信息；时间线、进度、关系、统计和国策节点颜色仍直接根据控制器数据渲染。
 

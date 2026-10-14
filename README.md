@@ -2,7 +2,7 @@
 
 > 当前项目结构、文件职责、冗余文件判定和文档同步口径见 [项目全量审查与文件说明](PROJECT_REVIEW.md)。
 
-个人工作台 0.2 是一款面向知识工作者的本地优先 Flutter 应用。它把“快速收集、项目规划、安排今天、专注执行、知识沉淀、回顾、目标与行为追踪”放在一条可验证的工作流中，并融合了 SelfControl 的 Windows 自律限制能力。界面提供「柔壤图鉴」浅色主题与「夜航工作室」深色主题：植物与纸面适合白天规划，深靛蓝工作台与冷青时间轨道适合夜间阅读。主题可手动选择或跟随系统；统计和时间图形始终读取真实记录。
+个人工作台 0.2 是一款面向知识工作者的本地优先 Flutter 应用。它把“快速收集、项目规划、安排今天、专注执行、知识沉淀、回顾、目标与行为追踪”放在一条可验证的工作流中，并融合了 SelfControl 的 Windows 自律限制能力。界面采用「青玉柔光」：浅色为薄荷白与青玉绿，深色为分层森林绿；主题可手动选择或跟随系统，统计和时间图形始终读取真实记录。改版逐页状态、素材与截图见 [49 项实施矩阵](docs/jade-redesign/REQUIREMENT_MATRIX.md)、[素材清单](docs/jade-redesign/ASSET_MANIFEST.md)和[验证记录](docs/jade-redesign/VERIFICATION.md)。
 
 ## 详细使用指南
 
@@ -38,7 +38,7 @@ lib/
   ui/pages/          今日、任务、项目、专注、自律、笔记、回顾、国策、设置及 Android 兼容页面
   ui/widgets/        日期刻度带、日志表面、任务行、快速收集、记录编辑、全局搜索等通用界面
 assets/branding/     应用图标源文件和主图标
-assets/illustrations/双主题领域插画（WebP，文字与数据仍由 Flutter 绘制）
+assets/illustrations/旧版双主题 WebP 源文件（当前界面使用代码绘制的纸页与叶片图形，旧图不打包）
 android/             Android 应用清单和构建配置
 windows/             Windows 原生进程、托盘、通知、快捷方式和 hosts 受管能力
 packaging/windows/   Windows 安装与独立 hosts 恢复脚本
@@ -81,7 +81,10 @@ flutter run -d android
 # Windows Release 构建；完成后自动刷新桌面快捷方式
 powershell -ExecutionPolicy Bypass -File .\tool\build_windows.ps1 -Configuration release
 
-# 生成可分发 Windows 安装包，并安装到稳定目录后刷新桌面/开始菜单快捷方式
+# 生成带路径选择、安装说明和卸载入口的 Windows 安装向导 EXE（需要 Inno Setup 7）
+powershell -ExecutionPolicy Bypass -File .\tool\build_windows_installer.ps1
+
+# 兼容旧版的 ZIP 安装包；-Install 会直接安装到默认目录
 powershell -ExecutionPolicy Bypass -File .\tool\package_windows_release.ps1 -Configuration release -Install
 
 # Android 调试 APK（兼容中文工作区路径）
@@ -116,6 +119,11 @@ keyPassword=<本地保存的密钥密码>
 `apksigner` 验证签名；只有验证通过才会复制到项目 `build/` 目录。密钥库及密码应另行
 安全备份，不能只保存在项目工作区。
 
+若只需生成 Windows 本地安装包，可先运行 `tool/setup_local_signing.ps1 -WindowsOnly`；
+它不会新建 Android 发布密钥。Windows 自签名包校验要求文件签名与本机配置的证书
+指纹一致；在没有公共 CA 的机器上，只允许证书链的唯一错误为自签根未受信任，文件
+内容哈希不匹配仍会拒绝。正式 Android 更新必须继续使用此前发布版本的同一密钥。
+
 Windows 和 Android 构建脚本会把源码镜像到 `%LOCALAPPDATA%\PersonalWorkbenchBuild\` 下的纯 ASCII 暂存目录，再从该副本构建，规避中文工作区路径导致的 Gradle/MSBuild 编码问题。`build/`、`dist/`、`.git/` 等生成内容不会进入暂存副本；构建结果会复制回项目的标准输出目录。Android 脚本还会为 JDK/Gradle 使用短临时路径，避免 Windows AF_UNIX 回环通道的路径长度限制。Release 仅在签名验证通过后复制 APK。如需强制清理构建缓存，可增加 `-Clean` 参数。Android 脚本默认使用本机缓存的 Gradle 8.14 离线构建；新机器首次使用或缓存缺失时追加 `-Online` 下载 Gradle/插件依赖。脚本会加载 `tool/gradle_plugin_mirror.init.gradle`，在 Gradle Plugin Portal 重定向受限时使用镜像。
 
 中文字体（LXGW 文楷、IBM Plex Sans SC）已经过 `tool/subset_fonts.py` 子集化：裁掉韩文等本项目用不到的字形，保留 CJK 基本区与扩展 A 全量，用户输入的生僻中文字仍可正常显示。如需恢复原字体或调整字符集，运行 `python tool\subset_fonts.py --restore` 后修改脚本中的 `UNICODE_RANGES` 再重新执行。
@@ -147,7 +155,9 @@ Windows 侧栏按真实页面组织层级：任务和项目展开后显示各自
 
 ### 版本与入口一致性
 
-`pubspec.yaml` 的 `version` 是唯一版本源。每次发布使用 `tool/package_windows_release.ps1 -Install`；它会构建当前版本、安装到稳定目录、刷新桌面/开始菜单快捷方式和开机启动项，并执行 `tool/verify_release_consistency.ps1`。提交后自动钩子也会刷新现有安装的快捷方式并执行校验；首次启用请运行：
+`pubspec.yaml` 的 `version` 是唯一版本源。Windows 正式安装向导由 `tool/build_windows_installer.ps1` 生成，它会先构建并校验 Release/ZIP，再调用 Inno Setup 7 编译 `dist/PersonalWorkbench_<版本>_windows_setup.exe` 并签名。向导可选择安装路径，提供中英文说明、可选桌面快捷方式和开机启动，以及“应用与功能”卸载入口；默认安装到当前用户目录，无需管理员权限。若 Release/ZIP 已更新，可加 `-SkipPackage` 直接从 `dist/windows/app/` 编译。旧版 `tool/package_windows_release.ps1 -Install` 仍用于固定路径的 ZIP 安装；已使用新向导安装时，应运行新版安装 EXE 升级。
+
+提交后自动钩子会校验现有安装。对于向导管理的安装，它会保留用户选定路径和快捷方式；首次启用请运行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tool\install_git_hooks.ps1
@@ -160,7 +170,7 @@ powershell -ExecutionPolicy Bypass -File .\tool\install_git_hooks.ps1
 - SQLite 数据库：由 `path_provider` 放在应用支持目录，文件名为 `personal_workbench.sqlite`。
 - 加密备份和 JSON 导出：应用文档目录下的 `PersonalWorkbench/` 文件夹。
 - Android APK：`build/app/outputs/flutter-apk/app-debug.apk` 或 `app-release.apk`；发布脚本还会更新 `dist/apk/` 下带版本号的侧载副本。
-- Windows Release：`build/windows/x64/runner/Release/`；`tool/build_windows.ps1` 会更新开发构建快捷方式，`tool/package_windows_release.ps1 -Install` 会生成 `dist/PersonalWorkbench_<版本>_windows.zip`，并将稳定安装目录及桌面/开始菜单快捷方式更新到最新版。安装器、快捷方式刷新脚本和验证器统一使用 Windows Known Folder API；桌面英文、开始菜单英文和开始菜单中文三个入口均指向 `%LOCALAPPDATA%\Programs\PersonalWorkbench\personal_workbench.exe`。
+- Windows Release：`build/windows/x64/runner/Release/`。推荐分发 `dist/PersonalWorkbench_<版本>_windows_setup.exe`；运行时可选安装路径。备用 ZIP 为 `dist/PersonalWorkbench_<版本>_windows.zip`，旧版固定路径安装脚本会将程序放到 `%LOCALAPPDATA%\Programs\PersonalWorkbench\`。构建与提交同步脚本不会覆盖新向导安装后选定的路径。
 
 ## 论文图像复现方法
 

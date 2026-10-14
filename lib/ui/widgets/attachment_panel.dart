@@ -335,6 +335,10 @@ class _AttachmentTileState extends State<_AttachmentTile> {
                     file,
                     width: 48,
                     height: 48,
+                    cacheWidth: (48 * MediaQuery.devicePixelRatioOf(context))
+                        .ceil(),
+                    cacheHeight: (48 * MediaQuery.devicePixelRatioOf(context))
+                        .ceil(),
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => const Tooltip(
                       message: '图片无法显示，请检查原文件',

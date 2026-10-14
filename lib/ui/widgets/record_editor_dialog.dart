@@ -8,6 +8,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../state/workbench_controller.dart';
 import 'common.dart';
+import 'project_icons.dart';
+import 'relation_picker_dialog.dart';
 
 Future<WorkspaceRecord?> showRecordEditor(
   BuildContext context,
@@ -66,6 +68,10 @@ class RecordEditorDialog extends StatefulWidget {
 }
 
 class _RecordEditorDialogState extends State<RecordEditorDialog> {
+  final titleFocusNode = FocusNode();
+  final urlFocusNode = FocusNode();
+  final ctdpTriggerFocusNode = FocusNode();
+  final rsipMinimumFocusNode = FocusNode();
   late final TextEditingController titleController;
   late final TextEditingController bodyController;
   late final TextEditingController tagsController;
@@ -89,6 +95,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
   late String frequency;
   late int priority;
   late bool favorite;
+  late String projectIconKey;
   late bool protocolEnabled;
   late bool ctdpDurationless;
   late bool rsipUseTimer;
@@ -100,6 +107,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
   String? projectId;
   String? rsipParentId;
   String? ctdpParentId;
+  final Set<String> relatedTaskIds = <String>{};
   bool saving = false;
   late bool showMoreOptions;
   bool showTitleError = false;
@@ -135,6 +143,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
     frequency,
     priority,
     favorite,
+    projectIconKey,
     protocolEnabled,
     ctdpDurationless,
     rsipUseTimer,
@@ -146,11 +155,13 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
     projectId,
     rsipParentId,
     ctdpParentId,
+    relatedTaskIds.toList()..sort(),
   ]);
 
   Widget _protectDraft(Widget child) => UnsavedChangesGuard(
     hasChanges: () => _snapshot() != _initialSnapshot,
     isBusy: () => saving,
+    onSave: _save,
     child: child,
   );
 
@@ -226,6 +237,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
     frequency = record?.data['frequency']?.toString() ?? 'daily';
     priority = record?.priority ?? 0;
     favorite = record?.favorite ?? false;
+    projectIconKey = ProjectIcons.forKey(record?.data['projectIcon']).key;
     protocolEnabled = record != null
         ? (isTask
               ? record.hasCtdpProtocol
@@ -251,6 +263,11 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
             )
             .toSet();
     projectId = record?.projectId ?? widget.initialProjectId;
+    relatedTaskIds.addAll(
+      (record?.data['relatedTaskIds'] as List<dynamic>? ?? const []).map(
+        (value) => value.toString(),
+      ),
+    );
     rsipParentId = record?.parentId ?? widget.initialParentId;
     final candidateCtdpParent = record?.parentId ?? widget.initialParentId;
     ctdpParentId =
@@ -269,6 +286,10 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
 
   @override
   void dispose() {
+    titleFocusNode.dispose();
+    urlFocusNode.dispose();
+    ctdpTriggerFocusNode.dispose();
+    rsipMinimumFocusNode.dispose();
     titleController.dispose();
     bodyController.dispose();
     tagsController.dispose();
@@ -311,6 +332,31 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
         );
       },
     );
+  }
+
+  Future<void> _pickMilestoneTasks() async {
+    final allowed = projectId == null
+        ? null
+        : <String>{
+            ...widget.controller
+                .projectTasks(projectId!)
+                .map((task) => task.id),
+            ...relatedTaskIds,
+          };
+    final selection = await showRelationPickerDialog(
+      context: context,
+      controller: widget.controller,
+      initialTaskIds: relatedTaskIds,
+      initialProjectIds: const [],
+      tasksOnly: true,
+      allowedTaskIds: allowed,
+    );
+    if (selection == null || !mounted) return;
+    setState(() {
+      relatedTaskIds
+        ..clear()
+        ..addAll(selection.taskIds);
+    });
   }
 
   @override
@@ -366,6 +412,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
             label: '标题',
             child: TextField(
               controller: titleController,
+              focusNode: titleFocusNode,
               autofocus: true,
               inputFormatters: [LengthLimitingTextInputFormatter(200)],
               textInputAction: TextInputAction.next,
@@ -422,6 +469,31 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
               decoration: InputDecoration(alignLabelWithHint: true),
             ),
           ),
+          if (widget.kind == RecordKind.project) ...[
+            const SizedBox(height: 12),
+            ExternalField(
+              label: '项目图标',
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  key: const ValueKey('project-icon-options'),
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    for (final option in ProjectIcons.options)
+                      ChoiceChip(
+                        key: ValueKey('project-icon-${option.key}'),
+                        avatar: Icon(option.icon, size: AppIconSize.sm),
+                        label: Text(option.label),
+                        selected: projectIconKey == option.key,
+                        onSelected: (_) =>
+                            setState(() => projectIconKey = option.key),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (isTask || isHabit) ...[
             const SizedBox(height: 8),
             if (showMoreOptions &&
@@ -461,6 +533,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
               label: '网页或云盘链接',
               child: TextField(
                 controller: urlController,
+                focusNode: urlFocusNode,
                 keyboardType: TextInputType.url,
                 inputFormatters: [LengthLimitingTextInputFormatter(2048)],
                 onChanged: (_) {
@@ -470,13 +543,15 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
               ),
             ),
           ],
-          if (showMoreOptions &&
-              (isTask || widget.kind == RecordKind.note || isLink)) ...[
+          if (isMilestone ||
+              (showMoreOptions &&
+                  (isTask || widget.kind == RecordKind.note || isLink))) ...[
             const SizedBox(height: 12),
             ExternalField(
               label: '关联项目',
               child: DropdownButtonFormField<String?>(
                 initialValue: projectId,
+                isExpanded: true,
                 decoration: const InputDecoration(),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('不关联项目')),
@@ -491,6 +566,37 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
                   ),
                 ],
                 onChanged: (value) => setState(() => projectId = value),
+              ),
+            ),
+          ],
+          if (isMilestone) ...[
+            const SizedBox(height: 12),
+            ExternalField(
+              label: '关联任务',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _pickMilestoneTasks,
+                    icon: const Icon(Icons.checklist_outlined),
+                    label: Text('选择关联任务（${relatedTaskIds.length}）'),
+                  ),
+                  if (relatedTaskIds.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        widget.controller.tasks
+                            .where((task) => relatedTaskIds.contains(task.id))
+                            .map((task) => task.title)
+                            .join('、'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.tokens.mutedText,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
@@ -717,6 +823,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
                 label: '触发标志',
                 child: TextField(
                   controller: ctdpTriggerController,
+                  focusNode: ctdpTriggerFocusNode,
                   onChanged: (_) {
                     if (showCtdpTriggerError) {
                       setState(() => showCtdpTriggerError = false);
@@ -850,6 +957,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
                 label: '最小动作',
                 child: TextField(
                   controller: rsipMinimumController,
+                  focusNode: rsipMinimumFocusNode,
                   onChanged: (_) {
                     if (showRsipMinimumError) {
                       setState(() => showRsipMinimumError = false);
@@ -1136,6 +1244,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
   }
 
   Future<void> _save() async {
+    if (saving) return;
     final title = titleController.text.trim();
     final url = urlController.text.trim();
     final missingCtdpTrigger =
@@ -1152,10 +1261,21 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
         showRsipMinimumError = missingRsipMinimum;
         formError = null;
       });
+      final firstError = title.isEmpty
+          ? titleFocusNode
+          : missingCtdpTrigger
+          ? ctdpTriggerFocusNode
+          : rsipMinimumFocusNode;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) firstError.requestFocus();
+      });
       return;
     }
     if (isLink && !_isWebUrl(url)) {
       setState(() => formError = '请输入以 http:// 或 https:// 开头的有效链接');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) urlFocusNode.requestFocus();
+      });
       return;
     }
     final createsRsipNode =
@@ -1179,6 +1299,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
         .toList();
     final data = {
       ...?widget.record?.data,
+      if (widget.kind == RecordKind.project) 'projectIcon': projectIconKey,
       if (isTask) 'priority': priority,
       if (isTask)
         'estimatedMinutes': int.tryParse(estimateController.text.trim()) ?? 0,
@@ -1194,6 +1315,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
       if (isTask) 'recordType': widget.record?.data['recordType'],
       if (isHabit) 'frequency': frequency,
       if (isLink) 'url': url,
+      if (isMilestone) 'relatedTaskIds': relatedTaskIds.toList()..sort(),
       if (isTask && protocolEnabled) ...{
         'protocol': 'ctdp',
         'ctdpUnitType': ctdpUnitType,

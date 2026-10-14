@@ -37,6 +37,7 @@ class TaskHierarchyEntry {
     required this.hasChildren,
     required this.expanded,
     required this.relation,
+    this.canDrill = false,
   });
 
   final WorkspaceRecord task;
@@ -44,12 +45,15 @@ class TaskHierarchyEntry {
   final bool hasChildren;
   final bool expanded;
   final TaskRelationInfo relation;
+  final bool canDrill;
 }
 
 List<TaskHierarchyEntry> buildTaskHierarchy({
   required List<WorkspaceRecord> visibleTasks,
   required Iterable<WorkspaceRecord> allRecords,
   Set<String> collapsedIds = const {},
+  String? rootTaskId,
+  int? maxDepth,
 }) {
   final allTasks = <String, WorkspaceRecord>{
     for (final record in allRecords)
@@ -95,7 +99,9 @@ List<TaskHierarchyEntry> buildTaskHierarchy({
   void append(WorkspaceRecord task, int depth, List<String> parentPath) {
     if (!emitted.add(task.id)) return;
     final directChildren = children[task.id] ?? const <WorkspaceRecord>[];
-    final expanded = !collapsedIds.contains(task.id);
+    final canDrill =
+        directChildren.isNotEmpty && maxDepth != null && depth >= maxDepth;
+    final expanded = !collapsedIds.contains(task.id) && !canDrill;
     final relation = _relationFor(
       task,
       visibleById: visibleById,
@@ -110,6 +116,7 @@ List<TaskHierarchyEntry> buildTaskHierarchy({
         hasChildren: directChildren.isNotEmpty,
         expanded: expanded,
         relation: relation,
+        canDrill: canDrill,
       ),
     );
     if (!expanded) return;
@@ -118,10 +125,26 @@ List<TaskHierarchyEntry> buildTaskHierarchy({
     }
   }
 
-  for (final root in roots) {
+  final selectedRoot = visibleById[rootTaskId];
+  for (final root in selectedRoot == null ? roots : [selectedRoot]) {
     append(root, 0, const []);
   }
   return result;
+}
+
+List<WorkspaceRecord> taskHierarchyPath(
+  String taskId,
+  Iterable<WorkspaceRecord> tasks,
+) {
+  final byId = {for (final task in tasks) task.id: task};
+  final path = <WorkspaceRecord>[];
+  final visited = <String>{};
+  WorkspaceRecord? current = byId[taskId];
+  while (current != null && !current.isDeleted && visited.add(current.id)) {
+    path.insert(0, current);
+    current = byId[current.parentId];
+  }
+  return path;
 }
 
 TaskRelationInfo taskRelationInfo(

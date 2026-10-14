@@ -28,12 +28,17 @@ String _key(WorkspaceRecord record) => '${record.kind.name}:${record.id}';
 
 class _MemoryDatabase extends AppDatabase {
   final Map<String, WorkspaceRecord> records = {};
+  bool failNextRecordSave = false;
 
   @override
   Future<void> saveRecord(
     WorkspaceRecord record, {
     bool markDirty = true,
   }) async {
+    if (failNextRecordSave) {
+      failNextRecordSave = false;
+      throw StateError('record write failed');
+    }
     records[_key(record)] = record;
   }
 
@@ -43,9 +48,9 @@ class _MemoryDatabase extends AppDatabase {
 
 final _now = DateTime(2026, 8, 9, 10);
 
-Future<WorkbenchController> _createController() async {
+Future<WorkbenchController> _createController({AppDatabase? database}) async {
   final controller = WorkbenchController(
-    database: _MemoryDatabase(),
+    database: database ?? _MemoryDatabase(),
     backupService: BackupService(),
     searchService: SearchService(),
     focusService: FocusService(),
@@ -169,6 +174,150 @@ Future<void> _pumpPage(WidgetTester tester, Widget page) async {
 }
 
 void main() {
+  testWidgets('inbox quick input keeps a draft after a failed save', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 200);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetViewInsets);
+    final database = _MemoryDatabase();
+    final controller = await _createController(database: database);
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _host(
+        InboxPage(controller: controller, showHeader: false),
+        textScaler: const TextScaler.linear(2),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final input = find.byKey(const ValueKey('inbox-quick-input'));
+    expect(input, findsOneWidget);
+    await tester.enterText(input, '复核实验数据');
+    database.failNextRecordSave = true;
+    await tester.tap(find.byTooltip('记录任务'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(input).controller!.text, '复核实验数据');
+    expect(find.textContaining('保存失败'), findsOneWidget);
+    expect(
+      controller.inboxRecords.any((record) => record.title == '复核实验数据'),
+      isFalse,
+    );
+
+    await tester.tap(find.byTooltip('记录任务'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(input).controller!.text, isEmpty);
+    expect(
+      controller.inboxRecords.any((record) => record.title == '复核实验数据'),
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  final inboxMotionVariant = ValueVariant<bool>({false, true});
+  testWidgets(
+    'inbox organization can retry shrink and undo without losing data',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(320, 568);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final database = _MemoryDatabase();
+      final controller = await _createController(database: database);
+      addTearDown(controller.dispose);
+      final link = controller.inboxRecords.firstWhere(
+        (record) => record.kind == RecordKind.link,
+      );
+      await tester.pumpWidget(
+        _host(
+          Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(disableAnimations: inboxMotionVariant.currentValue!),
+              child: InboxPage(controller: controller, showHeader: false),
+            ),
+          ),
+          textScaler: const TextScaler.linear(2),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final motion = find.byKey(ValueKey('inbox-motion-${link.id}'));
+      final opacity = find
+          .descendant(of: motion, matching: find.byType(Opacity))
+          .first;
+      expect(tester.widget<Opacity>(opacity).opacity, 1);
+      final menu = find.descendant(
+        of: find.widgetWithText(ListTile, link.title),
+        matching: find.byType(PopupMenuButton<String>),
+      );
+      await tester.ensureVisible(menu);
+      await tester.pumpAndSettle();
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      database.failNextRecordSave = true;
+      await tester.tap(find.text('整理完成'));
+      await tester.pumpAndSettle();
+      expect(find.text('整理失败，请重试。'), findsOneWidget);
+      expect(
+        controller.inboxRecords.any((record) => record.id == link.id),
+        isTrue,
+      );
+      expect(tester.widget<Opacity>(opacity).opacity, 1);
+      await tester.tap(find.text('重试'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+      if (inboxMotionVariant.currentValue!) {
+        expect(motion, findsNothing);
+      } else {
+        expect(tester.widget<Opacity>(opacity).opacity, inExclusiveRange(0, 1));
+        expect(
+          tester
+              .widget<IgnorePointer>(
+                find
+                    .descendant(
+                      of: motion,
+                      matching: find.byType(IgnorePointer),
+                    )
+                    .first,
+              )
+              .ignoring,
+          isTrue,
+        );
+        expect(
+          tester
+              .widget<ExcludeSemantics>(
+                find
+                    .descendant(
+                      of: motion,
+                      matching: find.byType(ExcludeSemantics),
+                    )
+                    .first,
+              )
+              .excluding,
+          isTrue,
+        );
+      }
+      await tester.pumpAndSettle();
+      expect(controller.latestRecordById(link).data['inbox'], isFalse);
+      expect(motion, findsNothing);
+      await tester.tap(find.text('撤销'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      if (!inboxMotionVariant.currentValue!) {
+        expect(tester.widget<Opacity>(opacity).opacity, inExclusiveRange(0, 1));
+      }
+      await tester.pumpAndSettle();
+      expect(tester.widget<Opacity>(opacity).opacity, 1);
+      expect(controller.latestRecordById(link).data['inbox'], isTrue);
+      expect(controller.latestRecordById(link).body, link.body);
+      expect(tester.takeException(), isNull);
+    },
+    variant: inboxMotionVariant,
+  );
+
   testWidgets(
     'record pages keep reading and period controls usable at 320dp and 200% text',
     (tester) async {
@@ -476,4 +625,62 @@ void main() {
     expect(find.byType(SearchBar), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'global search can reuse and clear recent queries in a short window',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(320, 568);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetViewInsets);
+      final controller = await _createController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        _host(
+          Builder(
+            builder: (context) => Center(
+              child: FilledButton(
+                onPressed: () => showGlobalSearch(context, controller),
+                child: const Text('打开搜索'),
+              ),
+            ),
+          ),
+          textScaler: const TextScaler.linear(2),
+        ),
+      );
+      await tester.tap(find.text('打开搜索'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(SearchBar), 'Daily review');
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.tap(find.text('Daily review').last);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.tap(find.text('关闭').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('关闭'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('打开搜索'));
+      await tester.pumpAndSettle();
+      expect(find.text('最近搜索'), findsOneWidget);
+      expect(find.text('Daily review'), findsOneWidget);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 200);
+      await tester.pumpAndSettle();
+      expect(tester.getBottomLeft(find.text('清除记录')).dy, lessThan(368));
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Daily review'));
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('recent-searches')), findsNothing);
+      await tester.tap(find.byTooltip('清空搜索'));
+      await tester.pump();
+      await tester.tap(find.text('清除记录'));
+      await tester.pump();
+      expect(find.text('输入关键词开始搜索'), findsOneWidget);
+      expect(controller.recentSearchQueries, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

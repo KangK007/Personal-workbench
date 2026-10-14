@@ -9,6 +9,7 @@ import '../widgets/common.dart';
 import '../widgets/attachment_panel.dart';
 import '../widgets/ink_decoration.dart';
 import '../widgets/markdown_editor_dialog.dart';
+import '../widgets/workbench_markdown_style.dart';
 import '../widgets/workbench_illustration.dart';
 
 class NotesPage extends StatefulWidget {
@@ -39,7 +40,7 @@ class _NotesPageState extends State<NotesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final notes = widget.controller.notes.toList()
+    final notes = widget.controller.notes.where(_isEditableNote).toList()
       ..sort((a, b) {
         if (a.favorite != b.favorite) return a.favorite ? -1 : 1;
         return b.updatedAt.compareTo(a.updatedAt);
@@ -119,11 +120,6 @@ class _NotesPageState extends State<NotesPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const WorkbenchIllustration(
-                          kind: WorkbenchIllustrationKind.notes,
-                          width: 190,
-                          height: 120,
-                        ),
                         EmptyState(
                           icon: Icons.note_alt_outlined,
                           title: '还没有笔记',
@@ -156,12 +152,18 @@ class _NotesPageState extends State<NotesPage> {
                         AppLayout.masterDetailMin * textScale.clamp(1, 1.5);
                     if (!desktop) {
                       if (mobileReading && selected != null) {
-                        return _NoteReader(
-                          note: selected,
-                          controller: widget.controller,
-                          onBack: () => setState(() => mobileReading = false),
-                          onEdit: () => _editNote(selected),
-                          onDelete: () => _moveNoteToTrash(selected, notes),
+                        return AnimatedSwitcher(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 180),
+                          child: _NoteReader(
+                            key: ValueKey(selected.id),
+                            note: selected,
+                            controller: widget.controller,
+                            onBack: () => setState(() => mobileReading = false),
+                            onEdit: () => _editNote(selected),
+                            onDelete: () => _moveNoteToTrash(selected, notes),
+                          ),
                         );
                       }
                       return _NoteIndex(
@@ -171,7 +173,7 @@ class _NotesPageState extends State<NotesPage> {
                             .where((note) => note.favorite)
                             .length,
                         linkedCount: notes
-                            .where((note) => note.projectId != null)
+                            .where((note) => _noteProjectIds(note).isNotEmpty)
                             .length,
                         selectedId: selected?.id,
                         onSelected: (note) => setState(() {
@@ -197,7 +199,9 @@ class _NotesPageState extends State<NotesPage> {
                                   .where((note) => note.favorite)
                                   .length,
                               linkedCount: notes
-                                  .where((note) => note.projectId != null)
+                                  .where(
+                                    (note) => _noteProjectIds(note).isNotEmpty,
+                                  )
                                   .length,
                               selectedId: selected?.id,
                               onSelected: (note) =>
@@ -208,11 +212,18 @@ class _NotesPageState extends State<NotesPage> {
                           ),
                           const VerticalDivider(),
                           Expanded(
-                            child: _NoteReader(
-                              note: selected!,
-                              controller: widget.controller,
-                              onEdit: () => _editNote(selected),
-                              onDelete: () => _moveNoteToTrash(selected, notes),
+                            child: AnimatedSwitcher(
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 180),
+                              child: _NoteReader(
+                                key: ValueKey(selected!.id),
+                                note: selected,
+                                controller: widget.controller,
+                                onEdit: () => _editNote(selected),
+                                onDelete: () =>
+                                    _moveNoteToTrash(selected, notes),
+                              ),
                             ),
                           ),
                         ],
@@ -288,6 +299,31 @@ class _NotesPageState extends State<NotesPage> {
   }
 }
 
+bool _isEditableNote(WorkspaceRecord note) =>
+    note.data['recordType'] != 'periodReview' &&
+    note.data['recordType'] != 'restrictionLogArchive';
+
+Set<String> _noteProjectIds(WorkspaceRecord note) => {
+  if (note.projectId != null) note.projectId!,
+  if (note.data['relatedProjectIds'] is List)
+    for (final id in note.data['relatedProjectIds'] as List)
+      if (id is String && id.isNotEmpty) id,
+};
+
+String _noteExcerpt(String markdown) => markdown
+    .split('\n')
+    .map(
+      (line) => line.trim().replaceFirst(RegExp(r'^(?:#{1,6}|>|[-*+])\s+'), ''),
+    )
+    .where((line) => line.isNotEmpty)
+    .join(' ')
+    .replaceAllMapped(
+      RegExp(r'!?\[([^\]]+)\]\([^)]+\)'),
+      (match) => match.group(1)!,
+    )
+    .replaceAll('`', '')
+    .trim();
+
 class _NoteIndex extends StatelessWidget {
   const _NoteIndex({
     required this.notes,
@@ -311,6 +347,7 @@ class _NoteIndex extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final clay = context.accents.clay;
     return ListView.separated(
       key: const PageStorageKey('notes-index'),
       padding: const EdgeInsets.fromLTRB(
@@ -351,6 +388,8 @@ class _NoteIndex extends StatelessWidget {
                     StatusPill(
                       label: '$totalCount 篇笔记',
                       icon: Icons.menu_book_outlined,
+                      color: clay.container,
+                      foreground: clay.color,
                     ),
                     StatusPill(
                       label: '$favoriteCount 篇收藏',
@@ -370,15 +409,11 @@ class _NoteIndex extends StatelessWidget {
         final selected = note.id == selectedId;
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: selected
-                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
-                : Colors.transparent,
+            color: selected ? clay.container : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.control),
             border: Border(
               left: BorderSide(
-                color: selected
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.transparent,
+                color: selected ? clay.color : Colors.transparent,
                 width: 2,
               ),
             ),
@@ -389,6 +424,7 @@ class _NoteIndex extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: ListTile(
               selected: selected,
+              selectedColor: clay.color,
               title: Text(
                 note.title,
                 maxLines: 2,
@@ -397,7 +433,7 @@ class _NoteIndex extends StatelessWidget {
               subtitle: Text(
                 note.body.isEmpty
                     ? formatDateTime(note.updatedAt)
-                    : note.body.replaceAll('\n', ' '),
+                    : _noteExcerpt(note.body),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -430,6 +466,7 @@ class _NoteIndex extends StatelessWidget {
 
 class _NoteReader extends StatelessWidget {
   const _NoteReader({
+    super.key,
     required this.note,
     required this.controller,
     this.onBack,
@@ -445,6 +482,75 @@ class _NoteReader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compactActions =
+        WorkbenchViewport.sizeOf(context).width < 520 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.5;
+    final projectIds = _noteProjectIds(note);
+    final projectTitles = [
+      for (final id in projectIds)
+        controller.projects
+                .where((project) => project.id == id)
+                .firstOrNull
+                ?.title ??
+            '已关联项目',
+    ];
+    final extraRelations = <({String title, RecordKind kind})>[];
+    for (final entry in const {
+      'relatedTaskIds': RecordKind.task,
+      'relatedGoalIds': RecordKind.goal,
+      'relatedNoteIds': RecordKind.note,
+    }.entries) {
+      final ids = note.data[entry.key];
+      if (ids is! List) continue;
+      final index = {
+        for (final record in controller.recordsOf(entry.value))
+          record.id: record.title,
+      };
+      for (final id in ids.whereType<String>().toSet()) {
+        extraRelations.add((
+          title: index[id] ?? '已移除${entry.value.label}',
+          kind: entry.value,
+        ));
+      }
+    }
+    final actions = Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        IconButton(
+          onPressed: () =>
+              controller.updateRecord(note.copyWith(favorite: !note.favorite)),
+          tooltip: note.favorite ? '取消收藏' : '收藏',
+          icon: AnimatedSwitcher(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 120),
+            child: Icon(
+              note.favorite ? Icons.star : Icons.star_border,
+              key: ValueKey(note.favorite),
+              color: note.favorite ? context.tokens.reward : null,
+            ),
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: onEdit,
+          icon: const Icon(Icons.edit_outlined),
+          label: const Text('编辑'),
+        ),
+        IconButton(
+          onPressed: onDelete,
+          tooltip: '移入回收站',
+          icon: const Icon(Icons.delete_outline),
+        ),
+      ],
+    );
+    final title = Text(
+      note.title,
+      style: theme.textTheme.titleLarge?.copyWith(fontSize: 20),
+    );
+    final readingStyle = workbenchMarkdownStyle(context);
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppLayout.readingMax),
@@ -462,37 +568,18 @@ class _NoteReader extends StatelessWidget {
               ),
               const SizedBox(height: 12),
             ],
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    note.title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => controller.updateRecord(
-                    note.copyWith(favorite: !note.favorite),
-                  ),
-                  tooltip: note.favorite ? '取消收藏' : '收藏',
-                  icon: Icon(
-                    note.favorite ? Icons.star : Icons.star_border,
-                    color: note.favorite ? context.tokens.reward : null,
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('编辑'),
-                ),
-                IconButton(
-                  onPressed: onDelete,
-                  tooltip: '移入回收站',
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
+            if (compactActions) ...[
+              title,
+              const SizedBox(height: 8),
+              actions,
+            ] else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: title),
+                  actions,
+                ],
+              ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -502,15 +589,12 @@ class _NoteReader extends StatelessWidget {
                   label: '更新 ${formatDateTime(note.updatedAt)}',
                   icon: Icons.schedule_outlined,
                 ),
-                if (note.projectId != null)
+                for (final projectTitle in projectTitles)
+                  StatusPill(label: projectTitle, icon: Icons.folder_outlined),
+                for (final relation in extraRelations)
                   StatusPill(
-                    label:
-                        controller.projects
-                            .where((project) => project.id == note.projectId)
-                            .firstOrNull
-                            ?.title ??
-                        '已关联项目',
-                    icon: Icons.folder_outlined,
+                    label: relation.title,
+                    icon: iconForKind(relation.kind),
                   ),
                 if (note.favorite)
                   StatusPill(
@@ -527,6 +611,7 @@ class _NoteReader extends StatelessWidget {
             MarkdownBody(
               data: note.body.isEmpty ? '*暂无正文*' : note.body,
               selectable: true,
+              styleSheet: readingStyle,
             ),
             const SizedBox(height: 24),
             AttachmentPanel(owner: note, controller: controller),

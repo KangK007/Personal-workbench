@@ -227,6 +227,7 @@ class WorkspaceRecord {
   });
 
   factory WorkspaceRecord.create({
+    String? id,
     required RecordKind kind,
     required String title,
     String body = '',
@@ -241,7 +242,7 @@ class WorkspaceRecord {
   }) {
     final now = DateTime.now();
     return WorkspaceRecord(
-      id: newRecordId(),
+      id: id ?? newRecordId(),
       kind: kind,
       title: title.trim(),
       body: body.trim(),

@@ -120,77 +120,93 @@ class _PoliciesPageState extends State<PoliciesPage> {
     ),
   ];
 
-  Widget _compactActions() => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      IconButton(
-        tooltip: '新建国策组',
-        onPressed: () => _showGroupEditor(),
-        icon: const Icon(Icons.create_new_folder_outlined),
-      ),
-      IconButton(
-        tooltip: '拆分目标',
-        onPressed: _showSplitDialog,
-        icon: const Icon(Icons.call_split_outlined),
-      ),
-      IconButton(
-        tooltip: '添加国策',
-        onPressed: () => _showNodeEditor(),
-        icon: const Icon(Icons.add),
-      ),
-    ],
+  Widget _compactActions() => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact =
+          WorkbenchViewport.sizeOf(context).width < 500 ||
+          MediaQuery.textScalerOf(context).scale(14) > 20;
+      if (compact) {
+        return PopupMenuButton<String>(
+          tooltip: '国策操作',
+          icon: const Icon(Icons.more_horiz),
+          onSelected: (action) {
+            switch (action) {
+              case 'group':
+                _showGroupEditor();
+              case 'split':
+                _showSplitDialog();
+              case 'node':
+                _showNodeEditor();
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: 'group', child: Text('新建国策组')),
+            PopupMenuItem(value: 'split', child: Text('拆分目标')),
+            PopupMenuItem(value: 'node', child: Text('添加国策')),
+          ],
+        );
+      }
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: '新建国策组',
+            onPressed: () => _showGroupEditor(),
+            icon: const Icon(Icons.create_new_folder_outlined),
+          ),
+          IconButton(
+            tooltip: '拆分目标',
+            onPressed: _showSplitDialog,
+            icon: const Icon(Icons.call_split_outlined),
+          ),
+          IconButton(
+            tooltip: '添加国策',
+            onPressed: () => _showNodeEditor(),
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      );
+    },
   );
 
-  Widget _policyTabs({Color? dividerColor}) => TabBar(
-    isScrollable: true,
-    dividerColor: dividerColor,
-    labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-    tabs: const [
-      Tab(
-        height: 48,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.account_tree_outlined, size: 20),
-            SizedBox(width: 6),
-            Text('国策树'),
-          ],
-        ),
-      ),
-      Tab(
-        height: 48,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inventory_2_outlined, size: 20),
-            SizedBox(width: 6),
-            Text('国策库'),
-          ],
-        ),
-      ),
-      Tab(
-        height: 48,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.history_outlined, size: 20),
-            SizedBox(width: 6),
-            Text('轮次历史'),
-          ],
-        ),
-      ),
-      Tab(
-        height: 48,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.analytics_outlined, size: 20),
-            SizedBox(width: 6),
-            Text('高级分析'),
-          ],
-        ),
-      ),
-    ],
+  Widget _policyTabs({Color? dividerColor}) => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxWidth < 420;
+      final iconOnly =
+          compact && MediaQuery.textScalerOf(context).scale(14) > 20;
+      const tabs = [
+        (PolicyTab.tree, Icons.account_tree_outlined, '国策树', '树'),
+        (PolicyTab.library, Icons.inventory_2_outlined, '国策库', '库'),
+        (PolicyTab.history, Icons.history_outlined, '轮次历史', '历史'),
+        (PolicyTab.analytics, Icons.analytics_outlined, '高级分析', '分析'),
+      ];
+      return TabBar(
+        isScrollable: !compact,
+        dividerColor: dividerColor,
+        labelPadding: EdgeInsets.symmetric(horizontal: compact ? 2 : 12),
+        tabs: [
+          for (final (tab, icon, label, shortLabel) in tabs)
+            Tab(
+              key: ValueKey('policy-tab-${tab.name}'),
+              height: 48,
+              child: Tooltip(
+                message: label,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 20),
+                    if (!iconOnly) ...[
+                      SizedBox(width: compact ? 4 : 6),
+                      Text(compact ? shortLabel : label),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
+      );
+    },
   );
 
   Widget _tree() {
@@ -225,13 +241,13 @@ class _PoliciesPageState extends State<PoliciesPage> {
       children: [
         if (nodes.isNotEmpty) ...[
           LogSurface(
-            accent: Theme.of(context).colorScheme.primary,
+            accent: context.accents.moss.color,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 Icon(
                   Icons.account_tree_outlined,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: context.accents.moss.color,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -332,7 +348,9 @@ class _PoliciesPageState extends State<PoliciesPage> {
               child: WorkbenchDiagramViewport(
                 canvasSize: Size(canvasWidth, canvasHeight),
                 child: Align(
-                  alignment: Alignment.bottomCenter,
+                  alignment: maxDepth == 0
+                      ? Alignment.center
+                      : Alignment.bottomCenter,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -721,9 +739,11 @@ class _PoliciesPageState extends State<PoliciesPage> {
     final visibleArchived = archived.where(matches).toList();
     final showActive = _libraryScope != 'archived';
     final showArchived = _libraryScope != 'active';
-    final narrow = WorkbenchViewport.sizeOf(context).width < 390;
-
-    Widget nodeRow(RsipNode node, {required bool isArchived}) {
+    Widget nodeRow(
+      RsipNode node, {
+      required bool isArchived,
+      required bool compactActions,
+    }) {
       final group = widget.controller.rsipNodeGroups
           .where((value) => value.record.id == node.groupId)
           .firstOrNull;
@@ -745,7 +765,10 @@ class _PoliciesPageState extends State<PoliciesPage> {
               horizontal: AppSpacing.md,
               vertical: AppSpacing.xs,
             ),
-            leading: SurfaceIcon(_typeIcon(node.type)),
+            leading: SurfaceIcon(
+              _typeIcon(node.type),
+              color: context.accents.moss.color,
+            ),
             title: Text(node.record.title),
             subtitle: Text(
               '${_typeLabel(node.type)} · ${node.stage} · '
@@ -760,7 +783,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
             ),
             isThreeLine: true,
             trailing: isArchived
-                ? narrow
+                ? compactActions
                       ? IconButton(
                           tooltip: '恢复 ${node.record.title}',
                           onPressed: () => _restoreNode(node.record),
@@ -772,7 +795,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
                           label: const Text('恢复'),
                         )
                 : Builder(
-                    builder: (tabContext) => narrow
+                    builder: (tabContext) => compactActions
                         ? IconButton(
                             tooltip: '在树中查看 ${node.record.title}',
                             onPressed: () => DefaultTabController.of(
@@ -792,85 +815,144 @@ class _PoliciesPageState extends State<PoliciesPage> {
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        6,
-        20,
-        AppSpacing.bottomNavClearance,
+    final header = <Widget>[
+      const SectionHeading(title: '国策文库', scale: '索引'),
+      Text(
+        '在用 ${active.length} · 已归档 ${archived.length}',
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
       ),
-      children: [
-        const SectionHeading(title: '国策文库', scale: '索引'),
-        Text(
-          '在用 ${active.length} · 已归档 ${archived.length}',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+      const SizedBox(height: AppSpacing.md),
+      ExternalField(
+        label: '搜索标题、规则或归档原因',
+        child: TextField(
+          key: const ValueKey('policy-library-search'),
+          controller: _librarySearchController,
+          onChanged: (value) => setState(() => _libraryQuery = value),
+          decoration: const InputDecoration(prefixIcon: Icon(Icons.search)),
         ),
-        const SizedBox(height: AppSpacing.md),
-        ExternalField(
-          label: '搜索标题、规则或归档原因',
-          child: TextField(
-            key: const ValueKey('policy-library-search'),
-            controller: _librarySearchController,
-            onChanged: (value) => setState(() => _libraryQuery = value),
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.search)),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xs,
+        children: [
+          for (final (scope, label, count) in [
+            ('all', '全部', nodes.length),
+            ('active', '在用', active.length),
+            ('archived', '归档', archived.length),
+          ])
+            FilterChip(
+              label: Text('$label $count'),
+              selected: _libraryScope == scope,
+              onSelected: (_) => setState(() => _libraryScope = scope),
+            ),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.md),
+      if (nodes.isEmpty)
+        EmptyState(
+          icon: Icons.inventory_2_outlined,
+          title: '国策库为空',
+          message: '创建国策后，在用与归档的规则会集中出现在这里。',
+          action: FilledButton.icon(
+            onPressed: () => _showNodeEditor(),
+            icon: const Icon(Icons.add),
+            label: const Text('添加国策'),
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.xs,
+      if (nodes.isNotEmpty &&
+          (!showActive || visibleActive.isEmpty) &&
+          (!showArchived || visibleArchived.isEmpty))
+        EmptyState(
+          icon: Icons.manage_search_outlined,
+          title: '没有匹配的国策',
+          message: '试试其他关键词，或切换“全部”查看完整文库。',
+          action: TextButton(
+            onPressed: () => setState(() {
+              _librarySearchController.clear();
+              _libraryQuery = '';
+              _libraryScope = 'all';
+            }),
+            child: const Text('查看全部'),
+          ),
+        ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth - 40;
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final minCardWidth = 260 * textScale.clamp(1.0, 1.4);
+        final columns =
+            ((availableWidth + AppSpacing.md) / (minCardWidth + AppSpacing.md))
+                .floor()
+                .clamp(1, 3);
+        final cardWidth =
+            (availableWidth - (columns - 1) * AppSpacing.md) / columns;
+        final compactActions = cardWidth < 400 || textScale > 1.3;
+        final activeCount = showActive ? visibleActive.length : 0;
+        final archivedCount = showArchived ? visibleArchived.length : 0;
+        final activeRows = (activeCount + columns - 1) ~/ columns;
+        final archivedRows = (archivedCount + columns - 1) ~/ columns;
+
+        Widget cardRow(
+          List<RsipNode> items,
+          int rowIndex, {
+          required bool isArchived,
+        }) => Row(
+          key: ValueKey(
+            'policy-library-row-${isArchived ? 'archived' : 'active'}-$rowIndex',
+          ),
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final (scope, label, count) in [
-              ('all', '全部', nodes.length),
-              ('active', '在用', active.length),
-              ('archived', '归档', archived.length),
-            ])
-              FilterChip(
-                label: Text('$label $count'),
-                selected: _libraryScope == scope,
-                onSelected: (_) => setState(() => _libraryScope = scope),
+            for (var column = 0; column < columns; column++) ...[
+              if (column > 0) const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: rowIndex * columns + column < items.length
+                    ? nodeRow(
+                        items[rowIndex * columns + column],
+                        isArchived: isArchived,
+                        compactActions: compactActions,
+                      )
+                    : const SizedBox.shrink(),
               ),
+            ],
           ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        if (nodes.isEmpty)
-          EmptyState(
-            icon: Icons.inventory_2_outlined,
-            title: '国策库为空',
-            message: '创建国策后，在用与归档的规则会集中出现在这里。',
-            action: FilledButton.icon(
-              onPressed: () => _showNodeEditor(),
-              icon: const Icon(Icons.add),
-              label: const Text('添加国策'),
-            ),
+        );
+
+        return ListView.builder(
+          key: const PageStorageKey('policy-library-scroll'),
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            6,
+            20,
+            AppSpacing.bottomNavClearance,
           ),
-        if (nodes.isNotEmpty &&
-            (!showActive || visibleActive.isEmpty) &&
-            (!showArchived || visibleArchived.isEmpty))
-          EmptyState(
-            icon: Icons.manage_search_outlined,
-            title: '没有匹配的国策',
-            message: '试试其他关键词，或切换“全部”查看完整文库。',
-            action: TextButton(
-              onPressed: () => setState(() {
-                _librarySearchController.clear();
-                _libraryQuery = '';
-                _libraryScope = 'all';
-              }),
-              child: const Text('查看全部'),
-            ),
-          ),
-        if (showActive && visibleActive.isNotEmpty) ...[
-          SectionHeading(title: '在用国策', scale: '${visibleActive.length} 条'),
-          for (final node in visibleActive) nodeRow(node, isArchived: false),
-        ],
-        if (showArchived && visibleArchived.isNotEmpty) ...[
-          SectionHeading(title: '已归档国策', scale: '${visibleArchived.length} 条'),
-          for (final node in visibleArchived) nodeRow(node, isArchived: true),
-        ],
-      ],
+          itemCount:
+              header.length +
+              (activeRows == 0 ? 0 : activeRows + 1) +
+              (archivedRows == 0 ? 0 : archivedRows + 1),
+          itemBuilder: (context, index) {
+            if (index < header.length) return header[index];
+            index -= header.length;
+            if (activeRows > 0) {
+              if (index == 0) {
+                return SectionHeading(title: '在用国策', scale: '$activeCount 条');
+              }
+              index--;
+              if (index < activeRows) {
+                return cardRow(visibleActive, index, isArchived: false);
+              }
+              index -= activeRows;
+            }
+            if (index == 0) {
+              return SectionHeading(title: '已归档国策', scale: '$archivedCount 条');
+            }
+            return cardRow(visibleArchived, index - 1, isArchived: true);
+          },
+        );
+      },
     );
   }
 
@@ -937,7 +1019,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
       return DecoratedBox(
         decoration: BoxDecoration(
           border: Border(
-            left: BorderSide(color: context.tokens.orbitTrack, width: 2),
+            left: BorderSide(color: context.accents.clay.color, width: 2),
           ),
         ),
         child: ExpansionTile(
@@ -946,7 +1028,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
             _executionIcon(execution.status),
             color: execution.status == RsipExecutionStatus.violated
                 ? Theme.of(context).colorScheme.error
-                : Theme.of(context).colorScheme.primary,
+                : context.accents.clay.color,
           ),
           title: Text(execution.record.title),
           subtitle: Text(
@@ -976,47 +1058,46 @@ class _PoliciesPageState extends State<PoliciesPage> {
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        6,
-        20,
-        AppSpacing.bottomNavClearance,
+    final header = <Widget>[
+      const SectionHeading(title: '轮次时间线', scale: '审计'),
+      Text(
+        '展开轮次查看结算，再展开条目核对原因与来源。',
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
       ),
-      children: [
-        const SectionHeading(title: '轮次时间线', scale: '审计'),
-        Text(
-          '展开轮次查看结算，再展开条目核对原因与来源。',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+      const SizedBox(height: AppSpacing.md),
+      if (runs.isEmpty)
+        const EmptyState(
+          icon: Icons.history_outlined,
+          title: '还没有轮次记录',
+          message: '创建或恢复第一个活动节点后自动开始一轮。',
         ),
-        const SizedBox(height: AppSpacing.md),
-        if (runs.isEmpty)
-          const EmptyState(
-            icon: Icons.history_outlined,
-            title: '还没有轮次记录',
-            message: '创建或恢复第一个活动节点后自动开始一轮。',
+    ];
+
+    Widget runCard(RsipRunRecord run) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: LogSurface(
+        accent: context.accents.clay.color,
+        child: ExpansionTile(
+          key: PageStorageKey('policy-run-${run.record.id}'),
+          initiallyExpanded: run.endedAt == null,
+          leading: Icon(
+            run.endedAt == null
+                ? Icons.play_circle_outline
+                : Icons.stop_circle_outlined,
+            color: context.accents.clay.color,
           ),
-        for (final run in runs)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: LogSurface(
-              child: ExpansionTile(
-                key: PageStorageKey('policy-run-${run.record.id}'),
-                initiallyExpanded: run.endedAt == null,
-                leading: Icon(
-                  run.endedAt == null
-                      ? Icons.play_circle_outline
-                      : Icons.stop_circle_outlined,
-                ),
-                title: Text(
-                  '第 ${run.runNumber} 轮 · ${run.endedAt == null ? '进行中' : '已结束'}',
-                ),
-                subtitle: Text(
-                  '${formatDateTime(run.startedAt)} 开始 · 峰值 ${run.peakNodeCount} 节点'
-                  '${run.endedAt == null ? '' : ' · 持续 ${run.durationDays} 天'}',
-                ),
+          title: Text(
+            '第 ${run.runNumber} 轮 · ${run.endedAt == null ? '进行中' : '已结束'}',
+          ),
+          subtitle: Text(
+            '${formatDateTime(run.startedAt)} 开始 · 峰值 ${run.peakNodeCount} 节点'
+            '${run.endedAt == null ? '' : ' · 持续 ${run.durationDays} 天'}',
+          ),
+          children: [
+            Builder(
+              builder: (context) => Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -1056,12 +1137,31 @@ class _PoliciesPageState extends State<PoliciesPage> {
                 ],
               ),
             ),
-          ),
-        if (unassigned.isNotEmpty) ...[
-          const SectionHeading(title: '未归属轮次的记录'),
-          for (final execution in unassigned) executionTile(execution),
-        ],
-      ],
+          ],
+        ),
+      ),
+    );
+
+    return ListView.builder(
+      key: const PageStorageKey('policy-history-scroll'),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        6,
+        20,
+        AppSpacing.bottomNavClearance,
+      ),
+      itemCount:
+          header.length +
+          runs.length +
+          (unassigned.isEmpty ? 0 : unassigned.length + 1),
+      itemBuilder: (context, index) {
+        if (index < header.length) return header[index];
+        index -= header.length;
+        if (index < runs.length) return runCard(runs[index]);
+        index -= runs.length;
+        if (index == 0) return const SectionHeading(title: '未归属轮次的记录');
+        return executionTile(unassigned[index - 1]);
+      },
     );
   }
 
@@ -1115,11 +1215,11 @@ class _PoliciesPageState extends State<PoliciesPage> {
       ),
     );
     final scheme = Theme.of(context).colorScheme;
-    final barWidth = MediaQuery.textScalerOf(
+    final minimumBarWidth = MediaQuery.textScalerOf(
       context,
     ).scale(48).clamp(68.0, 112.0).toDouble();
 
-    Widget dayBar(DateTime day) {
+    Widget dayBar(DateTime day, double barWidth) {
       final key = dayKey(day);
       final done = executedByDay[key] ?? 0;
       final missed = violatedByDay[key] ?? 0;
@@ -1144,7 +1244,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    bar(done, scheme.primary),
+                    bar(done, context.accents.slate.color),
                     const SizedBox(width: 4),
                     bar(missed, scheme.error),
                   ],
@@ -1194,6 +1294,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
           )
         else
           LogSurface(
+            accent: context.accents.slate.color,
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1216,9 +1317,24 @@ class _PoliciesPageState extends State<PoliciesPage> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(children: [for (final day in days) dayBar(day)]),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final barWidth = math
+                        .max(
+                          minimumBarWidth,
+                          constraints.maxWidth / days.length,
+                        )
+                        .clamp(minimumBarWidth, 112.0)
+                        .toDouble();
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final day in days) dayBar(day, barWidth),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(

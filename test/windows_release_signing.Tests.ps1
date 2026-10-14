@@ -1,6 +1,8 @@
 $distributionRoot = Join-Path $PSScriptRoot '..\dist\windows'
 $statePath = Join-Path $env:LOCALAPPDATA 'PersonalWorkbenchSigning\signing-state.json'
 $expectedThumbprint = (Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json).windowsThumbprint
+. (Join-Path $PSScriptRoot '..\tool\lib\Test-LocalAuthenticode.ps1')
+Add-Type -AssemblyName System.Security
 $signableExtensions = @('.exe', '.dll', '.ps1')
 $signableFiles = @(
     Get-ChildItem -LiteralPath $distributionRoot -Recurse -File -ErrorAction SilentlyContinue |
@@ -24,13 +26,23 @@ Describe 'Windows release package Authenticode signatures' {
                 } else {
                     ''
                 }
-                if ($signature.Status -ne 'Valid' -or $actualThumbprint -ne $expectedThumbprint) {
+                if (-not (Test-LocalAuthenticodeSignature -Path $file.FullName -ExpectedThumbprint $expectedThumbprint)) {
                     '{0}: status={1}, thumbprint={2}' -f $file.FullName, $signature.Status, $actualThumbprint
                 }
             }
         )
 
         $invalidFiles | Should BeNullOrEmpty
+    }
+
+    It 'rejects a signed library after its bytes change' {
+        $source = $signableFiles | Where-Object { $_.Extension -eq '.dll' } | Select-Object -First 1
+        $copy = Join-Path $TestDrive 'changed.dll'
+        Copy-Item -LiteralPath $source.FullName -Destination $copy
+        $bytes = [System.IO.File]::ReadAllBytes($copy)
+        $bytes[128] = $bytes[128] -bxor 1
+        [System.IO.File]::WriteAllBytes($copy, $bytes)
+        (Test-LocalAuthenticodeSignature -Path $copy -ExpectedThumbprint $expectedThumbprint) | Should Be $false
     }
 
     It 'provides a detached CMS signature for the complete Windows ZIP package' {

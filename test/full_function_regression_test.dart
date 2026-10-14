@@ -195,6 +195,10 @@ void main() {
         minutes: 900,
       );
       expect(controller.timeBlocks.single.data['durationMinutes'], 720);
+      expect(
+        controller.tasks.single.scheduledFor,
+        _now.add(const Duration(hours: 1)),
+      );
 
       await controller.completeFocusSession(
         controller.tasks.single,

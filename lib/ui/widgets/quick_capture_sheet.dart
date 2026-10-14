@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -104,6 +107,7 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
   };
 
   final textController = TextEditingController();
+  final inputFocusNode = FocusNode(debugLabel: 'QuickCapture.input');
   late RecordKind kind;
   bool saving = false;
   String? errorMessage;
@@ -121,6 +125,7 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
   @override
   void dispose() {
     textController.dispose();
+    inputFocusNode.dispose();
     super.dispose();
   }
 
@@ -179,6 +184,7 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
           // ─── 输入卡：这一屏的主角 ───
           _CaptureInputCard(
             controller: textController,
+            focusNode: inputFocusNode,
             hint: kind == RecordKind.task ? '例如：整理本周实验记录' : '记下这一条…',
             charCount: textController.text.characters.length,
             onChanged: (_) => setState(() => errorMessage = null),
@@ -257,6 +263,7 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
           scheduledFor != widget.initialScheduledFor ||
           projectId != widget.initialProjectId,
       isBusy: () => saving,
+      onSave: _save,
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.viewInsetsOf(context).bottom,
@@ -338,29 +345,37 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
   }
 
   Future<void> _pickProject() async {
-    final projects = widget.controller.projects;
     final chosen = await showWorkbenchDialog<String>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('关联项目'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, ''),
-            child: const Text('不关联项目'),
-          ),
-          for (final project in projects)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, project.id),
-              child: Text(project.title),
+      builder: (context) {
+        final media = MediaQuery.of(context);
+        return Dialog(
+          insetPadding: EdgeInsets.all(media.size.width < 600 ? 8 : 20),
+          child: SizedBox(
+            width: 520,
+            height: math.min(
+              600,
+              math.max(160, media.size.height - media.viewInsets.bottom - 32),
             ),
-        ],
-      ),
+            child: _QuickProjectPicker(
+              projects: widget.controller.projects,
+              selectedId: projectId,
+            ),
+          ),
+        );
+      },
     );
     if (chosen == null || !mounted) return;
     setState(() => projectId = chosen.isEmpty ? null : chosen);
   }
 
   Future<void> _save() async {
+    if (saving) return;
+    if (textController.text.trim().isEmpty) {
+      setState(() => errorMessage = '请先输入标题。');
+      inputFocusNode.requestFocus();
+      return;
+    }
     setState(() {
       saving = true;
       errorMessage = null;
@@ -382,6 +397,7 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
     } on FormatException catch (exception) {
       if (!mounted) return;
       setState(() => errorMessage = exception.message.toString());
+      inputFocusNode.requestFocus();
     } catch (error, stackTrace) {
       debugPrint('Quick capture failed: $error\n$stackTrace');
       if (!mounted) return;
@@ -395,6 +411,7 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
     final title = textController.text.trim();
     if (title.isEmpty) {
       setState(() => errorMessage = '请先输入标题。');
+      inputFocusNode.requestFocus();
       return;
     }
     final result = await showRecordEditor(
@@ -407,6 +424,129 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
       initialStatus: widget.initialStatus,
     );
     if (result != null && mounted) Navigator.pop(context);
+  }
+}
+
+class _QuickProjectPicker extends StatefulWidget {
+  const _QuickProjectPicker({required this.projects, this.selectedId});
+
+  final List<WorkspaceRecord> projects;
+  final String? selectedId;
+
+  @override
+  State<_QuickProjectPicker> createState() => _QuickProjectPickerState();
+}
+
+class _QuickProjectPickerState extends State<_QuickProjectPicker> {
+  final searchController = TextEditingController();
+  Timer? debounce;
+  String query = '';
+  int visibleCount = 40;
+
+  @override
+  void dispose() {
+    debounce?.cancel();
+    searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = query.isEmpty
+        ? widget.projects
+        : widget.projects
+              .where((project) => project.title.toLowerCase().contains(query))
+              .toList();
+    final shown = math.min(visibleCount, filtered.length);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '关联项目',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                tooltip: '关闭',
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: TextField(
+            controller: searchController,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: '搜索项目',
+            ),
+            onChanged: (value) {
+              debounce?.cancel();
+              debounce = Timer(const Duration(milliseconds: 180), () {
+                if (!mounted) return;
+                setState(() {
+                  query = value.trim().toLowerCase();
+                  visibleCount = 40;
+                });
+              });
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Divider(height: 1),
+        Expanded(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification.metrics.extentAfter < 160 &&
+                  visibleCount < filtered.length) {
+                setState(() => visibleCount += 40);
+              }
+              return false;
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
+              itemCount: shown + 1 + (query.isNotEmpty && shown == 0 ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return ListTile(
+                    leading: const Icon(Icons.folder_off_outlined),
+                    title: const Text('不关联项目'),
+                    selected: widget.selectedId == null,
+                    onTap: () => Navigator.pop(context, ''),
+                  );
+                }
+                if (shown == 0) {
+                  return const ListTile(
+                    leading: Icon(Icons.search_off_outlined),
+                    title: Text('没有匹配项目'),
+                  );
+                }
+                final project = filtered[index - 1];
+                return ListTile(
+                  leading: const Icon(Icons.folder_outlined),
+                  title: Text(
+                    project.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  selected: project.id == widget.selectedId,
+                  trailing: project.id == widget.selectedId
+                      ? const Icon(Icons.check)
+                      : null,
+                  onTap: () => Navigator.pop(context, project.id),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -438,6 +578,7 @@ class _FieldLabel extends StatelessWidget {
 class _CaptureInputCard extends StatelessWidget {
   const _CaptureInputCard({
     required this.controller,
+    required this.focusNode,
     required this.hint,
     required this.charCount,
     required this.onChanged,
@@ -446,6 +587,7 @@ class _CaptureInputCard extends StatelessWidget {
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final String hint;
   final int charCount;
   final ValueChanged<String> onChanged;
@@ -482,6 +624,7 @@ class _CaptureInputCard extends StatelessWidget {
         children: [
           TextField(
             controller: controller,
+            focusNode: focusNode,
             autofocus: true,
             minLines: 2,
             maxLines: 6,

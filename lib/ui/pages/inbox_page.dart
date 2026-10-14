@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -35,9 +37,133 @@ class _InboxPageState extends State<InboxPage> {
   bool _selectionMode = false;
   String? _selectionAnchorId;
   final Set<String> _collapsedTaskIds = <String>{};
+  late List<WorkspaceRecord> _lastRecords;
+  final Set<String> _incomingIds = {};
+  final Map<String, ({WorkspaceRecord record, int position})> _exiting = {};
+  final Map<String, Timer> _entryTimers = {};
+  final Map<String, Timer> _exitTimers = {};
+  bool _reducedMotion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastRecords = widget.controller.inboxRecords;
+    widget.controller.addListener(_recordsChanged);
+  }
+
+  @override
+  void didUpdateWidget(InboxPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_recordsChanged);
+      _clearMotion();
+      _lastRecords = widget.controller.inboxRecords;
+      widget.controller.addListener(_recordsChanged);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (_reducedMotion) _clearMotion();
+  }
+
+  void _clearMotion() {
+    for (final timer in [..._entryTimers.values, ..._exitTimers.values]) {
+      timer.cancel();
+    }
+    _entryTimers.clear();
+    _exitTimers.clear();
+    _incomingIds.clear();
+    _exiting.clear();
+  }
+
+  void _recordsChanged() {
+    final next = widget.controller.inboxRecords;
+    if (!mounted || listEquals(next, _lastRecords)) return;
+    final previousIds = _lastRecords.map((record) => record.id).toSet();
+    final nextIds = next.map((record) => record.id).toSet();
+    if (!_reducedMotion) {
+      for (final record in next) {
+        _exitTimers.remove(record.id)?.cancel();
+        _exiting.remove(record.id);
+        if (!previousIds.contains(record.id)) {
+          _incomingIds.add(record.id);
+          _entryTimers.remove(record.id)?.cancel();
+          _entryTimers[record.id] = Timer(AppMotion.standard, () {
+            _entryTimers.remove(record.id);
+            _incomingIds.remove(record.id);
+          });
+        }
+      }
+      for (var index = 0; index < _lastRecords.length; index++) {
+        final record = _lastRecords[index];
+        if (nextIds.contains(record.id)) continue;
+        _exiting[record.id] = (record: record, position: index);
+        _entryTimers.remove(record.id)?.cancel();
+        _incomingIds.remove(record.id);
+        _exitTimers.remove(record.id)?.cancel();
+        _exitTimers[record.id] = Timer(const Duration(milliseconds: 160), () {
+          _exitTimers.remove(record.id);
+          if (mounted) setState(() => _exiting.remove(record.id));
+        });
+      }
+    }
+    setState(() => _lastRecords = next);
+  }
+
+  Future<void> _organizeRecord(WorkspaceRecord record) async {
+    try {
+      final current = widget.controller.latestRecordById(record);
+      await widget.controller.updateRecord(current.withData('inbox', false));
+      if (!mounted) return;
+      showWorkbenchFeedback(
+        context,
+        '已整理',
+        action: SnackBarAction(
+          label: '撤销',
+          onPressed: () => _undoOrganization(record),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showWorkbenchFeedback(
+        context,
+        '整理失败，请重试。',
+        action: SnackBarAction(
+          label: '重试',
+          onPressed: () => _organizeRecord(record),
+        ),
+      );
+    }
+  }
+
+  Future<void> _undoOrganization(WorkspaceRecord record) async {
+    try {
+      final current = widget.controller.latestRecordById(record);
+      if (current.isDeleted) throw const FormatException('记录已在回收站，无法撤销整理。');
+      await widget.controller.updateRecord(current.withData('inbox', true));
+      if (mounted) showWorkbenchFeedback(context, '已撤销整理');
+    } on FormatException catch (error) {
+      if (mounted) showWorkbenchFeedback(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      showWorkbenchFeedback(
+        context,
+        '撤销失败，请重试。',
+        action: SnackBarAction(
+          label: '重试',
+          onPressed: () => _undoOrganization(record),
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
+    widget.controller.removeListener(_recordsChanged);
+    _clearMotion();
     _focusNode.dispose();
     super.dispose();
   }
@@ -45,6 +171,12 @@ class _InboxPageState extends State<InboxPage> {
   @override
   Widget build(BuildContext context) {
     final records = widget.controller.inboxRecords;
+    final presented = [...records];
+    final exiting = _exiting.values.toList()
+      ..sort((a, b) => a.position.compareTo(b.position));
+    for (final item in exiting) {
+      presented.insert(item.position.clamp(0, presented.length), item.record);
+    }
     final visibleTasks = records
         .where((record) => record.kind == RecordKind.task)
         .toList(growable: false);
@@ -52,23 +184,27 @@ class _InboxPageState extends State<InboxPage> {
         .where((task) => _selectedIds.contains(task.id))
         .toList(growable: false);
     final entries = buildTaskHierarchy(
-      visibleTasks: visibleTasks,
+      visibleTasks: presented
+          .where((record) => record.kind == RecordKind.task)
+          .toList(),
       allRecords: widget.controller.allRecords,
       collapsedIds: _collapsedTaskIds,
     );
     final displayRecords = <WorkspaceRecord>[];
     final emittedTaskIds = <String>{};
     final entryById = {for (final entry in entries) entry.task.id: entry};
-    for (final record in records) {
+    final entryIndexById = <String, int>{
+      for (var index = 0; index < entries.length; index++)
+        entries[index].task.id: index,
+    };
+    for (final record in presented) {
       if (record.kind != RecordKind.task) {
         displayRecords.add(record);
         continue;
       }
       if (emittedTaskIds.contains(record.id)) continue;
-      final entryIndex = entries.indexWhere(
-        (entry) => entry.task.id == record.id,
-      );
-      if (entryIndex < 0) continue;
+      final entryIndex = entryIndexById[record.id];
+      if (entryIndex == null) continue;
       final entry = entries[entryIndex];
       if (entry.depth > 0 &&
           entry.task.parentId != null &&
@@ -158,9 +294,11 @@ class _InboxPageState extends State<InboxPage> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                 child: _InboxIntakePanel(
+                  controller: widget.controller,
                   records: records,
                   onCapture: () => showQuickCapture(context, widget.controller),
                   showCaptureAction: !widget.showHeader,
+                  onSaved: () => setState(() {}),
                 ),
               ),
             ),
@@ -193,11 +331,10 @@ class _InboxPageState extends State<InboxPage> {
                           separatorBuilder: (_, _) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final record = displayRecords[index];
+                            Widget child;
                             if (record.kind == RecordKind.task) {
-                              final entry = entries.firstWhere(
-                                (candidate) => candidate.task.id == record.id,
-                              );
-                              return Card(
+                              final entry = entryById[record.id]!;
+                              child = Card(
                                 child: TaskRow(
                                   task: record,
                                   controller: widget.controller,
@@ -220,10 +357,44 @@ class _InboxPageState extends State<InboxPage> {
                                       ),
                                 ),
                               );
+                            } else {
+                              child = _CaptureRow(
+                                record: record,
+                                controller: widget.controller,
+                                onOrganize: () => _organizeRecord(record),
+                              );
                             }
-                            return _CaptureRow(
-                              record: record,
-                              controller: widget.controller,
+                            final removing = _exiting.containsKey(record.id);
+                            final entering = _incomingIds.contains(record.id);
+                            return TweenAnimationBuilder<double>(
+                              key: ValueKey('inbox-motion-${record.id}'),
+                              tween: Tween(
+                                begin: entering ? 0 : 1,
+                                end: removing ? 0 : 1,
+                              ),
+                              duration: _reducedMotion
+                                  ? Duration.zero
+                                  : removing
+                                  ? const Duration(milliseconds: 160)
+                                  : entering
+                                  ? AppMotion.standard
+                                  : Duration.zero,
+                              builder: (context, value, child) => IgnorePointer(
+                                ignoring: removing,
+                                child: ExcludeSemantics(
+                                  excluding: removing,
+                                  child: Opacity(
+                                    opacity: value,
+                                    child: ClipRect(
+                                      child: Align(
+                                        heightFactor: value,
+                                        child: child,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              child: child,
                             );
                           },
                         ),
@@ -274,105 +445,227 @@ class _InboxPageState extends State<InboxPage> {
   });
 }
 
-class _InboxIntakePanel extends StatelessWidget {
+class _InboxIntakePanel extends StatefulWidget {
   const _InboxIntakePanel({
+    required this.controller,
     required this.records,
     required this.onCapture,
     required this.showCaptureAction,
+    required this.onSaved,
   });
 
+  final WorkbenchController controller;
   final List<WorkspaceRecord> records;
   final VoidCallback onCapture;
   final bool showCaptureAction;
+  final VoidCallback onSaved;
+
+  @override
+  State<_InboxIntakePanel> createState() => _InboxIntakePanelState();
+}
+
+class _InboxIntakePanelState extends State<_InboxIntakePanel> {
+  final _textController = TextEditingController();
+  final _focusNode = FocusNode(debugLabel: 'Inbox.quickTask');
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    final text = _textController.text.trim();
+    if (text.isEmpty) {
+      setState(() => _error = '请先写下任务。');
+      _focusNode.requestFocus();
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.controller.quickCapture(kind: RecordKind.task, text: text);
+      if (!mounted) return;
+      _textController.clear();
+      widget.onSaved();
+      showWorkbenchSnackBar(context, const SnackBar(content: Text('任务已放入收集箱')));
+    } on FormatException catch (exception) {
+      if (!mounted) return;
+      setState(() => _error = exception.message.toString());
+      _focusNode.requestFocus();
+    } catch (error, stackTrace) {
+      debugPrint('Inbox quick task failed: $error\n$stackTrace');
+      if (!mounted) return;
+      setState(() => _error = '保存失败，内容仍保留在输入框中，请稍后重试。');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = context.tokens;
-    final tasks = records
+    final tasks = widget.records
         .where((record) => record.kind == RecordKind.task)
         .length;
-    final notes = records
+    final notes = widget.records
         .where((record) => record.kind == RecordKind.note)
         .length;
-    final links = records
+    final links = widget.records
         .where((record) => record.kind == RecordKind.link)
         .length;
-    final other = records.length - tasks - notes - links;
-    return SolidPanel(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Row(
-        children: [
-          WorkbenchIllustration(
-            kind: WorkbenchIllustrationKind.capture,
-            width: WorkbenchViewport.sizeOf(context).width < 600 ? 64 : 88,
-            height: WorkbenchViewport.sizeOf(context).width < 600 ? 64 : 88,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  records.isEmpty ? '思路有了就记下来' : '待归位 ${records.length} 项',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '先收集，再安排到任务、项目或资料。',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: tokens.mutedText,
-                  ),
-                ),
-                if (records.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Wrap(
-                    spacing: AppSpacing.md,
-                    runSpacing: AppSpacing.xs,
-                    children: [
-                      _InboxKindCount(
-                        icon: Icons.check_box_outlined,
-                        label: '任务',
-                        count: tasks,
-                      ),
-                      _InboxKindCount(
-                        icon: Icons.note_alt_outlined,
-                        label: '笔记',
-                        count: notes,
-                      ),
-                      _InboxKindCount(
-                        icon: Icons.link_outlined,
-                        label: '链接',
-                        count: links,
-                      ),
-                      if (other > 0)
-                        _InboxKindCount(
-                          icon: Icons.layers_outlined,
-                          label: '其他',
-                          count: other,
+    final other = widget.records.length - tasks - notes - links;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.maxWidth < 520 ||
+            MediaQuery.textScalerOf(context).scale(14) > 21;
+        return SolidPanel(
+          accent: context.accents.clay.color,
+          padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  if (compact)
+                    Icon(
+                      Icons.move_to_inbox_outlined,
+                      size: 24,
+                      color: context.accents.clay.color,
+                    )
+                  else
+                    WorkbenchIllustration(
+                      kind: WorkbenchIllustrationKind.capture,
+                      width: 64,
+                      height: 64,
+                    ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            Text(
+                              widget.records.isEmpty ? '思路有了就记下来' : '待归位',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            if (widget.records.isNotEmpty)
+                              Container(
+                                constraints: const BoxConstraints(minWidth: 24),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: context.accents.clay.container,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.pill,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${widget.records.length}',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: context.accents.clay.color,
+                                    fontFamily: AppFonts.numeric,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
+                        if (!compact) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            '先收集，再安排到任务、项目或资料。',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: tokens.mutedText,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
+                  if (widget.showCaptureAction)
+                    IconButton(
+                      tooltip: '更多收集方式',
+                      onPressed: widget.onCapture,
+                      icon: const Icon(Icons.add),
+                    ),
                 ],
-                if (showCaptureAction &&
-                    WorkbenchViewport.sizeOf(context).width < 520)
-                  TextButton.icon(
-                    onPressed: onCapture,
-                    icon: const Icon(Icons.add, size: AppIconSize.xs),
-                    label: const Text('快速记录'),
-                  ),
+              ),
+              if (!compact && widget.records.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    _InboxKindCount(
+                      icon: Icons.check_box_outlined,
+                      label: '任务',
+                      count: tasks,
+                    ),
+                    _InboxKindCount(
+                      icon: Icons.note_alt_outlined,
+                      label: '笔记',
+                      count: notes,
+                    ),
+                    _InboxKindCount(
+                      icon: Icons.link_outlined,
+                      label: '链接',
+                      count: links,
+                    ),
+                    if (other > 0)
+                      _InboxKindCount(
+                        icon: Icons.layers_outlined,
+                        label: '其他',
+                        count: other,
+                      ),
+                  ],
+                ),
               ],
-            ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                key: const ValueKey('inbox-quick-input'),
+                controller: _textController,
+                focusNode: _focusNode,
+                readOnly: _saving,
+                textInputAction: TextInputAction.done,
+                style: theme.textTheme.bodyLarge,
+                decoration: InputDecoration(
+                  hintText: '写下待整理的任务…',
+                  errorText: _error,
+                  prefixIcon: const Icon(Icons.add_task_outlined),
+                  suffixIcon: IconButton(
+                    tooltip: '记录任务',
+                    onPressed: _saving ? null : _save,
+                    icon: _saving
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.arrow_forward),
+                  ),
+                ),
+                onChanged: (_) {
+                  if (_error != null) setState(() => _error = null);
+                },
+                onSubmitted: (_) => _save(),
+              ),
+            ],
           ),
-          if (showCaptureAction &&
-              WorkbenchViewport.sizeOf(context).width >= 520)
-            TextButton.icon(
-              onPressed: onCapture,
-              icon: const Icon(Icons.add),
-              label: const Text('快速记录'),
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -407,10 +700,15 @@ class _InboxKindCount extends StatelessWidget {
 }
 
 class _CaptureRow extends StatelessWidget {
-  const _CaptureRow({required this.record, required this.controller});
+  const _CaptureRow({
+    required this.record,
+    required this.controller,
+    required this.onOrganize,
+  });
 
   final WorkspaceRecord record;
   final WorkbenchController controller;
+  final Future<void> Function() onOrganize;
 
   @override
   Widget build(BuildContext context) {
@@ -440,6 +738,8 @@ class _CaptureRow extends StatelessWidget {
                 kind: record.kind,
                 record: record,
               );
+            } else if (value == 'organize') {
+              await onOrganize();
             } else {
               await controller.moveToTrash(record);
               if (!context.mounted) return;
@@ -457,6 +757,7 @@ class _CaptureRow extends StatelessWidget {
           },
           itemBuilder: (context) => const [
             PopupMenuItem(value: 'edit', child: Text('编辑')),
+            PopupMenuItem(value: 'organize', child: Text('整理完成')),
             PopupMenuItem(value: 'trash', child: Text('移入回收站')),
           ],
         ),

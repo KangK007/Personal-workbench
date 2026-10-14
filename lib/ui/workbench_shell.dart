@@ -24,6 +24,7 @@ import 'pages/restriction_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/today_page.dart';
 import 'widgets/global_search_dialog.dart';
+import 'widgets/jade_icon.dart';
 import 'widgets/common.dart';
 import 'widgets/ink_decoration.dart';
 import 'widgets/mobile_bottom_bar.dart';
@@ -262,19 +263,25 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           Row(
             children: [
               AnimatedContainer(
-                width: collapsed ? 80 : 236,
+                width: collapsed
+                    ? AppLayout.desktopNavCollapsed
+                    : AppLayout.desktopNavExpanded,
                 duration: MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
-                    : const Duration(milliseconds: 300),
+                    : AppMotion.standard,
                 curve: Curves.easeOut,
                 // Keep expanded labels at their final width while the outer
-                // rail animates; laying them out in the intermediate 80px
+                // rail animates; laying them out at an intermediate width
                 // width would overflow ListTile during window expansion.
                 child: ClipRect(
                   child: OverflowBox(
                     alignment: AlignmentDirectional.centerStart,
-                    minWidth: collapsed ? 80 : 236,
-                    maxWidth: collapsed ? 80 : 236,
+                    minWidth: collapsed
+                        ? AppLayout.desktopNavCollapsed
+                        : AppLayout.desktopNavExpanded,
+                    maxWidth: collapsed
+                        ? AppLayout.desktopNavCollapsed
+                        : AppLayout.desktopNavExpanded,
                     child: _DesktopNavigation(
                       selected: section,
                       collapsed: collapsed,
@@ -339,8 +346,8 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     final windowSize = MediaQuery.sizeOf(context);
     final useToolbarAdd =
         _shouldShowPersistentAdd &&
-        windowSize.height < AppBreakpoints.compactHeight &&
-        windowSize.width > windowSize.height;
+        windowSize.height < AppBreakpoints.compactHeight;
+    final useOverflowActions = windowSize.width < 360;
     final primary = _mobilePrimaryFor(section);
     final navigationIndex = primary == null
         ? -1
@@ -450,7 +457,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                 tooltip: '快速新增',
                 icon: const Icon(Icons.add),
               ),
-            if (isTodayDestination)
+            if (isTodayDestination && !useOverflowActions)
               IconButton(
                 onPressed: () => _select(WorkbenchSection.reviewDaily),
                 tooltip: '记录',
@@ -468,13 +475,29 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
               icon: const Icon(Icons.search),
             ),
             // 头像 = 身份入口，落点是「设置」（别名在那里维护）。
-            if (isTodayDestination)
+            if (isTodayDestination && !useOverflowActions)
               Padding(
                 padding: const EdgeInsets.only(left: 2, right: 12),
                 child: _MobileIdentityAvatar(
                   alias: widget.controller.profileAlias,
                   onTap: () => _select(WorkbenchSection.settings),
                 ),
+              ),
+            if (isTodayDestination && useOverflowActions)
+              PopupMenuButton<WorkbenchSection>(
+                tooltip: '更多操作',
+                icon: const Icon(Icons.more_horiz),
+                onSelected: _select,
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: WorkbenchSection.reviewDaily,
+                    child: Text('记录'),
+                  ),
+                  PopupMenuItem(
+                    value: WorkbenchSection.settings,
+                    child: Text('设置'),
+                  ),
+                ],
               ),
           ],
           flexibleSpace: DecoratedBox(
@@ -542,21 +565,25 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                   icon: Icons.today_outlined,
                   selectedIcon: Icons.today,
                   label: '今日',
+                  glyph: JadeGlyph.today,
                 ),
                 MobileBottomBarItem(
                   icon: Icons.event_note_outlined,
                   selectedIcon: Icons.event_note,
                   label: '计划',
+                  glyph: JadeGlyph.plan,
                 ),
                 MobileBottomBarItem(
                   icon: Icons.timer_outlined,
                   selectedIcon: Icons.timer,
                   label: '执行',
+                  glyph: JadeGlyph.execute,
                 ),
                 MobileBottomBarItem(
                   icon: Icons.trending_up_outlined,
                   selectedIcon: Icons.trending_up,
                   label: '成长',
+                  glyph: JadeGlyph.growth,
                 ),
               ],
             ),
@@ -672,6 +699,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       onOpenInbox: () => _select(WorkbenchSection.tasksInbox),
       onOpenReview: () => _select(WorkbenchSection.reviewDaily),
       onOpenHabits: () => _select(WorkbenchSection.habits),
+      onOpenFocus: () => _select(WorkbenchSection.focus),
     ),
     WorkbenchSection.tasksAll => _planPage(value, PlanTab.all),
     WorkbenchSection.tasksInbox => InboxPage(
@@ -958,6 +986,31 @@ const _navigationTree = [
     Icons.settings_outlined,
   ),
 ];
+
+JadeGlyph? _coreGlyphFor(_NavigationNode node) {
+  if (node.id != null) {
+    return switch (node.id) {
+      'plan' => JadeGlyph.plan,
+      'record' => JadeGlyph.records,
+      'execute' => JadeGlyph.execute,
+      'growth' => JadeGlyph.growth,
+      _ => null,
+    };
+  }
+  return switch (node.section) {
+    WorkbenchSection.today => JadeGlyph.today,
+    WorkbenchSection.projectsOverview => JadeGlyph.projects,
+    WorkbenchSection.settings => JadeGlyph.settings,
+    _ => null,
+  };
+}
+
+Widget _navigationIcon(_NavigationNode node, {double size = AppIconSize.md}) {
+  final glyph = _coreGlyphFor(node);
+  return glyph == null
+      ? Icon(node.icon, size: size)
+      : JadeIcon(glyph: glyph, size: size);
+}
 
 List<_NavigationNode> _availableNavigationChildren(_NavigationNode node) =>
     node.children;
@@ -1272,7 +1325,7 @@ class _DesktopNavigation extends StatelessWidget {
           message: node.label,
           child: IconButton(
             onPressed: () => _showGroupMenu(context, node),
-            icon: Icon(node.icon),
+            icon: _navigationIcon(node),
             color: containsSelected
                 ? Theme.of(context).colorScheme.primary
                 : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1325,7 +1378,7 @@ class _DesktopNavigation extends StatelessWidget {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               selected: containsSelected,
               selectedColor: Theme.of(context).colorScheme.primary,
-              leading: Icon(node.icon, size: AppIconSize.sm),
+              leading: _navigationIcon(node),
               title: Text(
                 node.label,
                 style: TextStyle(
@@ -1387,7 +1440,7 @@ class _DesktopNavigation extends StatelessWidget {
           message: node.label,
           child: IconButton(
             onPressed: () => onSelected(value),
-            icon: Icon(node.icon),
+            icon: _navigationIcon(node),
             color: isSelected
                 ? theme.colorScheme.primary
                 : theme.colorScheme.onSurfaceVariant,
@@ -1433,7 +1486,10 @@ class _DesktopNavigation extends StatelessWidget {
                   : theme.colorScheme.onSurfaceVariant,
               leading: Padding(
                 padding: EdgeInsets.only(left: nested ? 16 : 0),
-                child: Icon(node.icon, size: AppIconSize.sm),
+                child: _navigationIcon(
+                  node,
+                  size: nested ? AppIconSize.sm : AppIconSize.md,
+                ),
               ),
               title: Text(
                 node.label,
@@ -1529,7 +1585,7 @@ class _MobileNavigationGroup extends StatelessWidget {
     return ExpansionTile(
       key: ValueKey('navigation-group:${node.id}'),
       initiallyExpanded: controller.navigationGroupExpanded(node.id!),
-      leading: Icon(node.icon),
+      leading: _navigationIcon(node),
       title: Text(node.label),
       onExpansionChanged: (expanded) {
         controller.setNavigationGroupExpanded(node.id!, expanded);

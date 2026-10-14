@@ -511,6 +511,10 @@ Future<void> _pumpGolden(
   tester.view.physicalSize = size;
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.view.resetPhysicalSize);
+  // Start each capture with a fresh MaterialApp so an animated theme switch
+  // cannot leave the previous snapshot's colors in the new frame.
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
   await tester.pumpWidget(_host(child, dark: dark));
   await tester.pump(const Duration(milliseconds: 600));
   await _resolveVisibleImages(tester);
@@ -771,6 +775,36 @@ void main() {
       dark: true,
       captureFinder: find.byType(Scaffold).last,
     );
+  });
+
+  testWidgets('Shell adapts across the compact breakpoint and short windows', (
+    tester,
+  ) async {
+    for (final size in const [
+      Size(320, 568),
+      Size(390, 568),
+      Size(767, 900),
+      Size(768, 900),
+      Size(800, 450),
+      Size(1200, 900),
+      Size(1440, 900),
+    ]) {
+      final dimensions = '${size.width.toInt()}x${size.height.toInt()}';
+      for (final dark in [false, true]) {
+        await _pumpGolden(
+          tester,
+          WorkbenchShell(
+            controller: fixture.controller,
+            enableSystemHotkey: false,
+          ),
+          size: size,
+          fileName: 'shell_${dark ? 'dark' : 'light'}_$dimensions',
+          dark: dark,
+          captureFinder: find.byType(Scaffold).last,
+        );
+        expect(tester.takeException(), isNull);
+      }
+    }
   });
 
   testWidgets('Wide shell unstarted today light', (tester) async {

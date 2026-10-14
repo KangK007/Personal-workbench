@@ -92,7 +92,14 @@ void main() {
         await tester.tap(find.widgetWithText(TextButton, '取消'));
       }
       await tester.pumpAndSettle();
-      expect(find.text('放弃未保存的修改？'), findsOneWidget);
+      expect(find.text('保存修改？'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog).last,
+          matching: find.widgetWithText(FilledButton, '保存'),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.text('继续编辑'));
       await tester.pumpAndSettle();
       expect(
@@ -105,11 +112,63 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       }
       await tester.pumpAndSettle();
-      expect(find.text('放弃未保存的修改？'), findsOneWidget);
+      expect(find.text('保存修改？'), findsOneWidget);
       await tester.tap(find.text('放弃修改'));
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('record saves from the unsaved-close prompt', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = WorkbenchController(
+      database: _MemoryDatabase(),
+      backupService: BackupService(),
+      searchService: SearchService(),
+      focusService: FocusService(),
+      notificationService: NotificationService(),
+      shareCaptureService: ShareCaptureService(),
+      syncService: SupabaseSyncService(null),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        locale: const Locale('zh', 'CN'),
+        supportedLocales: const [Locale('zh', 'CN')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () =>
+                  showRecordEditor(context, controller, kind: RecordKind.task),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '从关闭提示保存');
+    await tester.tap(find.widgetWithText(TextButton, '取消'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '保存'));
+    await tester.pumpAndSettle();
+    expect(find.text('保存修改？'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
+    expect(
+      controller.allRecords.any((record) => record.title == '从关闭提示保存'),
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

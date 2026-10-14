@@ -26,6 +26,8 @@ class GrowthPage extends StatelessWidget {
     final snapshot = controller.growthSnapshot;
     final gameEnabled = controller.gameFeaturesEnabled;
     final ledgerNow = (now ?? controller.currentTime()).toLocal();
+    final compact =
+        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     return Column(
       children: [
         if (showHeader)
@@ -62,12 +64,41 @@ class GrowthPage extends StatelessWidget {
                     ),
                   ),
                 ),
-              SectionHeading(
-                title: '本月执行账本',
-                scale:
-                    '${ledgerNow.year}-${ledgerNow.month.toString().padLeft(2, '0')}',
-              ),
-              _ActivityLedger(controller: controller, now: ledgerNow),
+              if (compact)
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: ExpansionTile(
+                    key: PageStorageKey(
+                      'growth-ledger-${ledgerNow.year}-${ledgerNow.month}',
+                    ),
+                    leading: const Icon(Icons.grid_on_outlined),
+                    title: const Text('本月执行账本'),
+                    subtitle: Text(
+                      '${ledgerNow.year}-${ledgerNow.month.toString().padLeft(2, '0')} · 展开整月记录',
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '左右滑动查看整月',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: context.tokens.mutedText),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _ActivityLedger(controller: controller, now: ledgerNow),
+                    ],
+                  ),
+                )
+              else ...[
+                SectionHeading(
+                  title: '本月执行账本',
+                  scale:
+                      '${ledgerNow.year}-${ledgerNow.month.toString().padLeft(2, '0')}',
+                ),
+                _ActivityLedger(controller: controller, now: ledgerNow),
+              ],
               if (gameEnabled) ...[
                 const SectionHeading(
                   title: '里程碑印章',
@@ -110,6 +141,7 @@ class _GrowthOpening extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final moss = context.accents.moss;
     final compact =
         WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     final copy = Column(
@@ -119,7 +151,7 @@ class _GrowthOpening extends StatelessWidget {
         Text(
           '成长证据',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: Theme.of(context).colorScheme.primary,
+            color: moss.color,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -142,7 +174,7 @@ class _GrowthOpening extends StatelessWidget {
               value: snapshot.levelProgress.clamp(0, 1),
               minHeight: 6,
               backgroundColor: tokens.orbitTrack,
-              color: Theme.of(context).colorScheme.primary,
+              color: moss.color,
             ),
           ),
         ],
@@ -667,10 +699,6 @@ class _ActivityLedger extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact =
-        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
-    final cellSize = compact ? 16.0 : 14.0;
-    final cellSlot = cellSize + 4;
     const categories = [
       ('承诺', 'commitment'),
       ('专注', 'focus'),
@@ -684,58 +712,95 @@ class _ActivityLedger extends StatelessWidget {
       daysInMonth,
       (index) => monthStart.add(Duration(days: index)),
     );
+    final plannedDays = <String>{
+      for (final plan in controller.recordsOf(RecordKind.dailyPlan))
+        if (plan.data['dayKey'] is String) plan.data['dayKey'] as String,
+    };
+    final xpByDayAndCategory = <(String, String), int>{};
+    for (final event in controller.growthEvents) {
+      final dayKey = event.data['dayKey'];
+      final category = event.data['category'];
+      if (dayKey is! String || category is! String) continue;
+      final key = (dayKey, category);
+      xpByDayAndCategory[key] =
+          (xpByDayAndCategory[key] ?? 0) +
+          ((event.data['xp'] as num?)?.toInt() ?? 0);
+    }
     return LogSurface(
       padding: const EdgeInsets.all(14),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cellSlot = ((constraints.maxWidth - 54) / daysInMonth)
+              .clamp(20.0, 40.0)
+              .toDouble();
+          final cellSize = cellSlot - 4;
+          return SingleChildScrollView(
+            key: PageStorageKey(
+              'growth-ledger-scroll-${now.year}-${now.month}',
+            ),
+            scrollDirection: Axis.horizontal,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(width: 54),
-                for (final day in days)
-                  SizedBox(
-                    width: cellSlot,
-                    child: Center(
-                      child: NumericText(
-                        '${day.day}',
+                Row(
+                  children: [
+                    const SizedBox(width: 54),
+                    for (final day in days)
+                      SizedBox(
                         key: ValueKey('growth-day:${day.day}'),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: context.tokens.mutedText,
+                        width: cellSlot,
+                        child: Center(
+                          child: NumericText(
+                            '${day.day}',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: context.tokens.mutedText),
+                          ),
                         ),
                       ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                for (final category in categories)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 7),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 54,
+                          child: Text(
+                            category.$1,
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                        ),
+                        for (final day in days)
+                          _ActivityCell(
+                            state: _stateFor(
+                              controller,
+                              category.$2,
+                              day,
+                              plannedDays,
+                              xpByDayAndCategory,
+                            ),
+                            size: cellSize,
+                          ),
+                      ],
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 6),
-            for (final category in categories)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 7),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 54,
-                      child: Text(
-                        category.$1,
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                    ),
-                    for (final day in days)
-                      _ActivityCell(
-                        state: _stateFor(controller, category.$2, day),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  int _stateFor(WorkbenchController controller, String category, DateTime day) {
+  int _stateFor(
+    WorkbenchController controller,
+    String category,
+    DateTime day,
+    Set<String> plannedDays,
+    Map<(String, String), int> xpByDayAndCategory,
+  ) {
     final logicalDayAnchor = DateTime(
       day.year,
       day.month,
@@ -743,35 +808,24 @@ class _ActivityLedger extends StatelessWidget {
       controller.logicalDayBoundaryHour,
     );
     final key = controller.growthService.dayKey(logicalDayAnchor);
-    final planned = controller
-        .recordsOf(RecordKind.dailyPlan)
-        .any((plan) => plan.data['dayKey'] == key);
-    final xp = controller.growthEvents
-        .where(
-          (event) =>
-              event.data['dayKey'] == key && event.data['category'] == category,
-        )
-        .fold<int>(
-          0,
-          (sum, event) => sum + ((event.data['xp'] as num?)?.toInt() ?? 0),
-        );
+    final planned = plannedDays.contains(key);
+    final xp = xpByDayAndCategory[(key, category)] ?? 0;
     if (xp > 0) return 2;
     return planned ? 1 : 0;
   }
 }
 
 class _ActivityCell extends StatelessWidget {
-  const _ActivityCell({required this.state});
+  const _ActivityCell({required this.state, required this.size});
   final int state;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    final compact =
-        WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
-    final cellSize = compact ? 16.0 : 14.0;
+    final moss = context.accents.moss;
     final color = switch (state) {
-      2 => Theme.of(context).colorScheme.primary,
-      1 => context.tokens.info,
+      2 => moss.color,
+      1 => moss.container,
       _ => context.tokens.divider,
     };
     return Semantics(
@@ -781,8 +835,8 @@ class _ActivityCell extends StatelessWidget {
         _ => '未计划',
       },
       child: Container(
-        width: cellSize,
-        height: cellSize,
+        width: size,
+        height: size,
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           color: state == 0 ? Colors.transparent : color,
@@ -792,8 +846,8 @@ class _ActivityCell extends StatelessWidget {
         child: state == 2
             ? Icon(
                 Icons.check,
-                size: compact ? 10 : 9,
-                color: Theme.of(context).colorScheme.onPrimary,
+                size: size < 20 ? 10 : 14,
+                color: bestContrastingText(moss.color),
               )
             : null,
       ),

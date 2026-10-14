@@ -84,6 +84,7 @@ class _TaskGroupEditorDialogState extends State<TaskGroupEditorDialog> {
     return UnsavedChangesGuard(
       hasChanges: () => _snapshot() != _initialSnapshot,
       isBusy: () => saving,
+      onSave: _save,
       child: AlertDialog(
         title: Text(widget.group == null ? '新建任务群' : '编辑任务群'),
         content: SizedBox(

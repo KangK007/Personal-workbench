@@ -127,8 +127,9 @@ class _HabitOverview extends StatelessWidget {
         )
         .length;
     final tokens = context.tokens;
+    final moss = context.accents.moss;
     return LogSurface(
-      accent: Theme.of(context).colorScheme.primary,
+      accent: moss.color,
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +151,8 @@ class _HabitOverview extends StatelessWidget {
           LinearProgressIndicator(
             value: habits.isEmpty ? 0 : completed / habits.length,
             minHeight: 6,
-            backgroundColor: tokens.orbitTrack,
+            color: moss.color,
+            backgroundColor: moss.container,
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
@@ -184,10 +186,21 @@ class _HabitMatrix extends StatelessWidget {
       (index) => calendarMonthStart.add(Duration(days: index)),
     );
     final calendarToday = DateTime(now.year, now.month, now.day);
-    return Column(
-      children: [
-        for (final habit in habits)
-          Padding(
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: (WorkbenchViewport.sizeOf(context).height * 0.65).clamp(
+          240.0,
+          680.0,
+        ),
+      ),
+      child: ListView.builder(
+        key: const PageStorageKey('habit-matrix-scroll'),
+        primary: false,
+        shrinkWrap: true,
+        itemCount: habits.length,
+        itemBuilder: (context, index) {
+          final habit = habits[index];
+          return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Card(
               clipBehavior: Clip.antiAlias,
@@ -224,8 +237,9 @@ class _HabitMatrix extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-      ],
+          );
+        },
+      ),
     );
   }
 }
@@ -250,24 +264,25 @@ class _HabitMonthStrip extends StatefulWidget {
 
 class _HabitMonthStripState extends State<_HabitMonthStrip> {
   static const _dayWidth = 48.0;
-  late final ScrollController _scrollController = ScrollController(
-    initialScrollOffset: _todayOffset,
-  );
+  final ScrollController _scrollController = ScrollController();
+  bool _showFullMonth = false;
+  String? _lastLayoutKey;
 
-  double get _todayOffset =>
-      (widget.today.day - 3).clamp(0, widget.days.length - 1).toDouble() *
-      _dayWidth;
+  void _alignToday({required bool compact}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final maximum = _scrollController.position.maxScrollExtent;
+      final target = compact && !_showFullMonth
+          ? maximum
+          : (widget.today.day - 3).clamp(0, widget.days.length - 1) * _dayWidth;
+      _scrollController.jumpTo(target.clamp(0, maximum).toDouble());
+    });
+  }
 
   @override
   void didUpdateWidget(covariant _HabitMonthStrip oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.today == widget.today) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      _scrollController.jumpTo(
-        _todayOffset.clamp(0, _scrollController.position.maxScrollExtent),
-      );
-    });
+    if (oldWidget.today != widget.today) _lastLayoutKey = null;
   }
 
   @override
@@ -278,67 +293,104 @@ class _HabitMonthStripState extends State<_HabitMonthStrip> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '左右滑动查看整月 · 今天可点按修改',
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: context.tokens.mutedText),
-        ),
-        const SizedBox(height: 4),
-        Scrollbar(
-          controller: _scrollController,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Column(
-                children: [
-                  Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 640;
+        final days = compact && !_showFullMonth
+            ? List.generate(
+                14,
+                (index) => widget.today.subtract(Duration(days: 13 - index)),
+              )
+            : widget.days;
+        final layoutKey =
+            '${compact}_${_showFullMonth}_${widget.today.year}-${widget.today.month}-${widget.today.day}';
+        if (_lastLayoutKey != layoutKey) {
+          _lastLayoutKey = layoutKey;
+          _alignToday(compact: compact);
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  compact && !_showFullMonth
+                      ? '近两周 · 今天可点按修改'
+                      : '左右滑动查看整月 · 今天可点按修改',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: context.tokens.mutedText,
+                  ),
+                ),
+                if (compact)
+                  TextButton.icon(
+                    onPressed: () =>
+                        setState(() => _showFullMonth = !_showFullMonth),
+                    icon: Icon(
+                      _showFullMonth ? Icons.expand_less : Icons.expand_more,
+                    ),
+                    label: Text(_showFullMonth ? '收起整月' : '展开整月'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
                     children: [
-                      for (final day in widget.days)
-                        SizedBox.square(
-                          dimension: _dayWidth,
-                          child: Center(
-                            child: NumericText(
-                              '${day.day}',
-                              key: ValueKey(
-                                'habit-day:${widget.habit.id}:${day.day}',
+                      Row(
+                        children: [
+                          for (final day in days)
+                            SizedBox.square(
+                              dimension: _dayWidth,
+                              child: Center(
+                                child: NumericText(
+                                  '${day.day}',
+                                  key: ValueKey(
+                                    'habit-day:${widget.habit.id}:${day.year}-${day.month}-${day.day}',
+                                  ),
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: context.tokens.mutedText,
+                                      ),
+                                ),
                               ),
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: context.tokens.mutedText),
                             ),
-                          ),
-                        ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          for (final day in days)
+                            _HabitCell(
+                              label:
+                                  '${widget.habit.title}，${day.month}月${day.day}日',
+                              status: widget.controller
+                                  .habitLogForDay(widget.habit.id, day)
+                                  ?.status,
+                              isToday: isSameDay(day, widget.today),
+                              onTap: isSameDay(day, widget.today)
+                                  ? () => _editToday(context)
+                                  : null,
+                            ),
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      for (final day in widget.days)
-                        _HabitCell(
-                          label:
-                              '${widget.habit.title}，${day.month}月${day.day}日',
-                          status: widget.controller
-                              .habitLogForDay(widget.habit.id, day)
-                              ?.status,
-                          isToday: isSameDay(day, widget.today),
-                          onTap: isSameDay(day, widget.today)
-                              ? () => _editToday(context)
-                              : null,
-                        ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -563,9 +615,9 @@ class _HabitCell extends StatelessWidget {
     // 未记录格用 mutedText@35% 描边，保证与面板底 ≥1.15:1 的可辨识对比度。
     final unrecordedBorder = context.tokens.mutedText.withValues(alpha: 0.35);
     final color = switch (status) {
-      WorkStatus.done => Theme.of(context).colorScheme.primary,
+      WorkStatus.done => context.accents.moss.color,
       WorkStatus.skipped => context.tokens.reward,
-      WorkStatus.failed => Theme.of(context).colorScheme.error,
+      WorkStatus.failed => context.accents.clay.color,
       _ => unrecordedBorder,
     };
     return Semantics(
@@ -606,7 +658,7 @@ class _HabitCell extends StatelessWidget {
                     ? Icon(
                         Icons.check,
                         size: compact ? 10 : 9,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: bestContrastingText(context.accents.moss.color),
                       )
                     : status == WorkStatus.skipped
                     ? Icon(
@@ -618,7 +670,7 @@ class _HabitCell extends StatelessWidget {
                     ? Icon(
                         Icons.close,
                         size: compact ? 10 : 9,
-                        color: Theme.of(context).colorScheme.onError,
+                        color: bestContrastingText(context.accents.clay.color),
                       )
                     : null,
               ),
@@ -658,9 +710,9 @@ class _Legend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (state) {
-      WorkStatus.done => Theme.of(context).colorScheme.primary,
+      WorkStatus.done => context.accents.moss.color,
       WorkStatus.skipped => context.tokens.reward,
-      WorkStatus.failed => Theme.of(context).colorScheme.error,
+      WorkStatus.failed => context.accents.clay.color,
       _ => context.tokens.divider,
     };
     return Row(

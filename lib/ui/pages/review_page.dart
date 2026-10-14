@@ -54,6 +54,8 @@ class _ReviewPageState extends State<ReviewPage> {
   );
   final Set<String> relatedTaskIds = {};
   final Set<String> relatedProjectIds = {};
+  final Set<String> relatedGoalIds = {};
+  final Set<String> relatedNoteIds = {};
   WorkspaceRecord? existing;
   WorkspaceRecord? legacyDiary;
   bool legacyNoticeVisible = true;
@@ -182,6 +184,12 @@ class _ReviewPageState extends State<ReviewPage> {
     relatedProjectIds
       ..clear()
       ..addAll(_ids(existing?.data['relatedProjectIds']));
+    relatedGoalIds
+      ..clear()
+      ..addAll(_ids(existing?.data['relatedGoalIds']));
+    relatedNoteIds
+      ..clear()
+      ..addAll(_ids(existing?.data['relatedNoteIds']));
     preview = false;
     _savedDraftSignature = _draftSignature;
   }
@@ -195,6 +203,8 @@ class _ReviewPageState extends State<ReviewPage> {
     mood,
     [...relatedTaskIds]..sort(),
     [...relatedProjectIds]..sort(),
+    [...relatedGoalIds]..sort(),
+    [...relatedNoteIds]..sort(),
   ]);
 
   Future<bool> _confirmLeaveDraft({bool includeHiddenDraft = false}) async {
@@ -468,13 +478,15 @@ class _ReviewPageState extends State<ReviewPage> {
                 final relationButton = IconButton(
                   focusNode: relationFocusNode,
                   onPressed: editable ? _showRelations : null,
-                  tooltip: '关联任务和项目',
+                  tooltip: '关联记录',
                   icon: Badge(
                     isLabelVisible:
                         relatedTaskIds.isNotEmpty ||
-                        relatedProjectIds.isNotEmpty,
+                        relatedProjectIds.isNotEmpty ||
+                        relatedGoalIds.isNotEmpty ||
+                        relatedNoteIds.isNotEmpty,
                     label: Text(
-                      '${relatedTaskIds.length + relatedProjectIds.length}',
+                      '${relatedTaskIds.length + relatedProjectIds.length + relatedGoalIds.length + relatedNoteIds.length}',
                     ),
                     child: const Icon(Icons.account_tree_outlined),
                   ),
@@ -804,6 +816,12 @@ class _ReviewPageState extends State<ReviewPage> {
     final relatedProjects = _ids(
       review.data['relatedProjectIds'],
     ).map(_findRecord).whereType<WorkspaceRecord>().toList(growable: false);
+    final relatedGoals = _ids(
+      review.data['relatedGoalIds'],
+    ).map(_findRecord).whereType<WorkspaceRecord>().toList(growable: false);
+    final relatedNotes = _ids(
+      review.data['relatedNoteIds'],
+    ).map(_findRecord).whereType<WorkspaceRecord>().toList(growable: false);
     final snapshot = review.data['snapshot'];
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -904,6 +922,22 @@ class _ReviewPageState extends State<ReviewPage> {
           icon: Icons.folder_outlined,
           records: relatedProjects,
         ),
+        if (relatedGoals.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _PreviewRelations(
+            title: '关联目标',
+            icon: Icons.flag_outlined,
+            records: relatedGoals,
+          ),
+        ],
+        if (relatedNotes.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _PreviewRelations(
+            title: '关联笔记',
+            icon: Icons.note_alt_outlined,
+            records: relatedNotes,
+          ),
+        ],
         const SizedBox(height: 16),
         _ReadOnlyAttachments(owner: review, controller: controller),
       ],
@@ -975,6 +1009,8 @@ class _ReviewPageState extends State<ReviewPage> {
         body: bodyController.text,
         relatedTaskIds: relatedTaskIds,
         relatedProjectIds: relatedProjectIds,
+        relatedGoalIds: relatedGoalIds,
+        relatedNoteIds: relatedNoteIds,
         title: type == ReviewPeriodType.daily ? titleController.text : null,
         mood: type == ReviewPeriodType.daily ? mood : null,
         completedToday: type == ReviewPeriodType.daily
@@ -1225,6 +1261,8 @@ class _ReviewPageState extends State<ReviewPage> {
       controller: controller,
       initialTaskIds: relatedTaskIds,
       initialProjectIds: relatedProjectIds,
+      initialGoalIds: relatedGoalIds,
+      initialNoteIds: relatedNoteIds,
       returnFocusNode: relationFocusNode,
     );
     if (selection == null || !mounted) return;
@@ -1235,6 +1273,12 @@ class _ReviewPageState extends State<ReviewPage> {
       relatedProjectIds
         ..clear()
         ..addAll(selection.projectIds);
+      relatedGoalIds
+        ..clear()
+        ..addAll(selection.goalIds);
+      relatedNoteIds
+        ..clear()
+        ..addAll(selection.noteIds);
     });
   }
 
@@ -1281,14 +1325,17 @@ class _PeriodEvidence extends StatelessWidget {
   final ReviewPeriod period;
   final ReviewSnapshot snapshot;
 
-  int _completedOn(DateTime day) => snapshot.taskFacts.where((fact) {
-    final at = fact.completedAt?.toLocal();
-    return fact.status == WorkStatus.done &&
-        at != null &&
-        at.year == day.year &&
-        at.month == day.month &&
-        at.day == day.day;
-  }).length;
+  Map<DateTime, int> _completedByDay() {
+    final completed = <DateTime, int>{};
+    for (final fact in snapshot.taskFacts) {
+      if (fact.status != WorkStatus.done) continue;
+      final at = fact.completedAt?.toLocal();
+      if (at == null) continue;
+      final day = DateTime(at.year, at.month, at.day);
+      completed.update(day, (count) => count + 1, ifAbsent: () => 1);
+    }
+    return completed;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1300,6 +1347,10 @@ class _PeriodEvidence extends StatelessWidget {
       ReviewPeriodType.yearly => '期间记录',
     };
     final completed = snapshot.count(WorkStatus.done);
+    final completedByDay = switch (period.type) {
+      ReviewPeriodType.weekly || ReviewPeriodType.monthly => _completedByDay(),
+      _ => const <DateTime, int>{},
+    };
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1351,8 +1402,11 @@ class _PeriodEvidence extends StatelessWidget {
             const SizedBox(height: 8),
             switch (period.type) {
               ReviewPeriodType.daily => _buildDaily(context, completed),
-              ReviewPeriodType.weekly => _buildWeekly(context),
-              ReviewPeriodType.monthly => _buildMonthly(context),
+              ReviewPeriodType.weekly => _buildWeekly(context, completedByDay),
+              ReviewPeriodType.monthly => _buildMonthly(
+                context,
+                completedByDay,
+              ),
               ReviewPeriodType.yearly => Text(
                 '历史期间只读',
                 style: Theme.of(context).textTheme.bodyMedium,
@@ -1366,42 +1420,61 @@ class _PeriodEvidence extends StatelessWidget {
 
   Widget _buildDaily(BuildContext context, int completed) {
     final total = snapshot.taskFacts.length;
-    return Row(
-      children: [
-        SizedBox.square(
-          dimension: 68,
-          child: Stack(
-            alignment: Alignment.center,
+    final clay = context.accents.clay;
+    final ring = SizedBox.square(
+      dimension: 68,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.square(
+            dimension: 68,
+            child: CircularProgressIndicator(
+              value: total == 0 ? 0 : completed / total,
+              strokeWidth: 5,
+              backgroundColor: clay.container,
+              color: clay.color,
+            ),
+          ),
+          NumericText(
+            '${period.start.day}',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+        ],
+      ),
+    );
+    final summary = Text(
+      total == 0
+          ? '今天尚无可结算任务，可直接记录收获与下一步。'
+          : '已完成 $completed / $total 项期间任务；其余状态见下方事实快照。',
+      style: Theme.of(context).textTheme.bodyMedium,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final stacked = constraints.maxWidth - 82 < 220 * textScale;
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox.square(
-                dimension: 68,
-                child: CircularProgressIndicator(
-                  value: total == 0 ? 0 : completed / total,
-                  strokeWidth: 5,
-                  backgroundColor: context.tokens.orbitTrack,
-                ),
-              ),
-              NumericText(
-                '${period.start.day}',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+              ring,
+              const SizedBox(height: AppSpacing.sm),
+              summary,
             ],
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Text(
-            total == 0
-                ? '今天尚无可结算任务，可直接记录收获与下一步。'
-                : '已完成 $completed / $total 项期间任务；其余状态见下方事实快照。',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ),
-      ],
+          );
+        }
+        return Row(
+          children: [
+            ring,
+            const SizedBox(width: 14),
+            Expanded(child: summary),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildWeekly(BuildContext context) {
+  Widget _buildWeekly(BuildContext context, Map<DateTime, int> completedByDay) {
+    final clay = context.accents.clay;
     final days = List.generate(
       7,
       (index) => DateTime(
@@ -1410,12 +1483,15 @@ class _PeriodEvidence extends StatelessWidget {
         period.start.day + index,
       ),
     );
-    final values = [for (final day in days) _completedOn(day)];
+    final values = [for (final day in days) completedByDay[day] ?? 0];
     final largest = values.fold<int>(
       1,
       (max, value) => value > max ? value : max,
     );
     const weekday = ['一', '二', '三', '四', '五', '六', '日'];
+    if (values.every((value) => value == 0)) {
+      return const Text('这一周尚无完成记录；期间任务与状态仍列在下方。');
+    }
     return SizedBox(
       height: 86,
       child: Row(
@@ -1433,22 +1509,20 @@ class _PeriodEvidence extends StatelessWidget {
                       Expanded(
                         child: Align(
                           alignment: Alignment.bottomCenter,
-                          child: FractionallySizedBox(
-                            widthFactor: 0.72,
-                            heightFactor: values[index] == 0
-                                ? 0.07
-                                : values[index] / largest,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: values[index] == 0
-                                    ? context.tokens.orbitTrack
-                                    : Theme.of(context).colorScheme.primary,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.xs,
+                          child: values[index] == 0
+                              ? const SizedBox.shrink()
+                              : FractionallySizedBox(
+                                  widthFactor: 0.72,
+                                  heightFactor: values[index] / largest,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: clay.color,
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.xs,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -1468,7 +1542,10 @@ class _PeriodEvidence extends StatelessWidget {
     );
   }
 
-  Widget _buildMonthly(BuildContext context) {
+  Widget _buildMonthly(
+    BuildContext context,
+    Map<DateTime, int> completedByDay,
+  ) {
     final first = DateTime(period.start.year, period.start.month);
     final daysInMonth = DateTime(first.year, first.month + 1, 0).day;
     final leading = first.weekday - 1;
@@ -1507,6 +1584,7 @@ class _PeriodEvidence extends StatelessWidget {
                               first.month,
                               slot - leading + 1,
                             ),
+                            completedByDay,
                           ),
                   ),
               ],
@@ -1516,39 +1594,85 @@ class _PeriodEvidence extends StatelessWidget {
         const SizedBox(height: 4),
         Align(
           alignment: Alignment.centerLeft,
-          child: Text(
-            '实心标记代表当天有完成记录。',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: context.tokens.mutedText),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            children: [
+              for (final entry in <(Color, String)>[
+                (context.accents.moss.container, '1 项'),
+                (context.accents.moss.color.withValues(alpha: 0.36), '2 项'),
+                (context.accents.moss.color, '3 项以上'),
+              ])
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 11,
+                      height: 11,
+                      decoration: BoxDecoration(
+                        color: entry.$1,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      entry.$2,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.tokens.mutedText,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _monthDay(BuildContext context, DateTime day) {
-    final count = _completedOn(day);
+  Widget _monthDay(
+    BuildContext context,
+    DateTime day,
+    Map<DateTime, int> completedByDay,
+  ) {
+    final count = completedByDay[day] ?? 0;
+    final moss = context.accents.moss;
+    final fill = count == 0
+        ? Colors.transparent
+        : count == 1
+        ? moss.container
+        : count == 2
+        ? moss.color.withValues(alpha: 0.36)
+        : moss.color;
     return Semantics(
       label: '${day.month}月${day.day}日完成 $count 项',
       child: Padding(
         padding: const EdgeInsets.all(2),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: count == 0
-                ? Colors.transparent
-                : Theme.of(context).colorScheme.primaryContainer,
+            color: fill,
             borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
-          child: Center(
-            child: ExcludeSemantics(
-              child: Text(
-                '${day.day}',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: count == 0
-                      ? context.tokens.mutedText
-                      : Theme.of(context).colorScheme.onPrimaryContainer,
-                  fontWeight: count == 0 ? FontWeight.w400 : FontWeight.w700,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Center(
+              child: ExcludeSemantics(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${day.day}',
+                    maxLines: 1,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: count == 0
+                          ? context.tokens.mutedText
+                          : count >= 3
+                          ? bestContrastingText(moss.color)
+                          : Theme.of(context).colorScheme.onSurface,
+                      fontWeight: count == 0
+                          ? FontWeight.w400
+                          : FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ),

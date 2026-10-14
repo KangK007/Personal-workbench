@@ -15,6 +15,8 @@ import 'state/workbench_controller.dart';
 import 'ui/workbench_shell.dart';
 import 'ui/widgets/common.dart';
 import 'ui/widgets/ink_decoration.dart';
+import 'ui/widgets/jade_botanical_edge.dart';
+import 'ui/widgets/solid_panel.dart';
 
 TextScaler workbenchTextScaler(TextScaler scaler) =>
     scaler.clamp(minScaleFactor: 1.0, maxScaleFactor: 2.0);
@@ -33,12 +35,57 @@ class PersonalWorkbenchApp extends StatefulWidget {
   State<PersonalWorkbenchApp> createState() => _PersonalWorkbenchAppState();
 }
 
-class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp> {
+class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp>
+    with WidgetsBindingObserver {
   late final WorkbenchController controller;
+  bool _retryingInitialization = false;
+  bool _initializationRetryAttempted = false;
+  String? _lastInitializationError;
+  String? _unhandledInitializationError;
+
+  Future<void> _retryInitialization() async {
+    if (_retryingInitialization) return;
+    setState(() {
+      _lastInitializationError =
+          _unhandledInitializationError ?? controller.error;
+      _unhandledInitializationError = null;
+      _retryingInitialization = true;
+      _initializationRetryAttempted = false;
+    });
+    try {
+      await controller.initialize();
+    } catch (exception) {
+      if (!mounted) return;
+      setState(() {
+        _unhandledInitializationError = '初始化重试失败：$exception';
+        _retryingInitialization = false;
+        _initializationRetryAttempted = true;
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _retryingInitialization = false;
+      _initializationRetryAttempted = controller.error != null;
+      _lastInitializationError = controller.error;
+    });
+  }
+
+  Future<void> _initializeOnLaunch() async {
+    try {
+      await controller.initialize();
+    } catch (exception) {
+      if (!mounted) return;
+      setState(() {
+        _unhandledInitializationError = '初始化失败：$exception';
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     controller = WorkbenchController(
       database: AppDatabase(overridePath: widget.databasePath),
       backupService: BackupService(),
@@ -48,7 +95,12 @@ class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp> {
       shareCaptureService: ShareCaptureService(),
       syncService: SupabaseSyncService(widget.supabaseClient),
     );
-    controller.initialize();
+    _initializeOnLaunch();
+  }
+
+  @override
+  void didChangeAccessibilityFeatures() {
+    setState(() {});
   }
 
   @override
@@ -62,8 +114,16 @@ class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp> {
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: controller.themeMode,
-          // Avoid animating every surface at once when the user changes theme.
-          themeAnimationDuration: Duration.zero,
+          themeAnimationDuration: const Duration(milliseconds: 180),
+          themeAnimationCurve: Curves.easeOutCubic,
+          themeAnimationStyle:
+              WidgetsBinding
+                  .instance
+                  .platformDispatcher
+                  .accessibilityFeatures
+                  .disableAnimations
+              ? AnimationStyle.noAnimation
+              : null,
           scrollBehavior: const WorkbenchScrollBehavior(),
           // Android 系统栏与应用导航表面同步，图标亮度跟随主题。
           builder: (context, child) {
@@ -104,13 +164,26 @@ class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp> {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          home: controller.loading
+          home: _retryingInitialization
+              ? InitializationErrorView(
+                  message: _lastInitializationError ?? '工作台数据暂时无法载入。',
+                  onRetry: _retryInitialization,
+                  retrying: true,
+                )
+              : _unhandledInitializationError != null
+              ? InitializationErrorView(
+                  message: _unhandledInitializationError!,
+                  onRetry: _retryInitialization,
+                  retryAttempted: _initializationRetryAttempted,
+                )
+              : controller.loading
               ? const _LaunchView()
               : controller.error == null
               ? WorkbenchShell(controller: controller)
-              : _InitializationErrorView(
+              : InitializationErrorView(
                   message: controller.error!,
-                  onRetry: controller.initialize,
+                  onRetry: _retryInitialization,
+                  retryAttempted: _initializationRetryAttempted,
                 ),
         );
       },
@@ -119,6 +192,7 @@ class _PersonalWorkbenchAppState extends State<PersonalWorkbenchApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     controller.dispose();
     super.dispose();
   }
@@ -243,46 +317,170 @@ class WorkbenchScrollBehavior extends MaterialScrollBehavior {
   }
 }
 
-class _InitializationErrorView extends StatelessWidget {
-  const _InitializationErrorView({
+class InitializationErrorView extends StatelessWidget {
+  const InitializationErrorView({
+    super.key,
     required this.message,
     required this.onRetry,
+    this.retrying = false,
+    this.retryAttempted = false,
   });
 
   final String message;
   final VoidCallback onRetry;
+  final bool retrying;
+  final bool retryAttempted;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.tokens;
+    final clay = context.accents.clay;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final reason = message.contains('迁移失败')
+        ? '本地数据升级未完成。请重新启动应用后重试；若问题持续，可查看下方错误详情。'
+        : '暂时无法载入工作台数据。请确认本地数据目录可访问，然后重试。';
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 40,
-                  color: Theme.of(context).colorScheme.error,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.pageCompact),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: SolidPanel(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: clay.container,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.card,
+                                  ),
+                                ),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.build_outlined,
+                                      size: AppIconSize.lg,
+                                      color: clay.color,
+                                    ),
+                                    Positioned(
+                                      right: 3,
+                                      bottom: 3,
+                                      child: Icon(
+                                        Icons.error_outline,
+                                        size: AppIconSize.xs,
+                                        color: theme.colorScheme.error,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Spacer(),
+                              const JadeBotanicalEdge(
+                                width: 66,
+                                height: 42,
+                                compact: true,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            '工作台初始化失败',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontSize: 22,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            reason,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontSize: 15,
+                              color: tokens.mutedText,
+                            ),
+                          ),
+                          if (retryAttempted) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                '重试仍未成功。工作台数据未更改，可展开错误详情排查。',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: AppSpacing.lg),
+                          ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            childrenPadding: EdgeInsets.zero,
+                            expansionAnimationStyle: AnimationStyle(
+                              duration: reducedMotion
+                                  ? Duration.zero
+                                  : AppMotion.standard,
+                              reverseDuration: reducedMotion
+                                  ? Duration.zero
+                                  : AppMotion.standard,
+                            ),
+                            title: const Text('查看错误详情'),
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(AppSpacing.md),
+                                decoration: BoxDecoration(
+                                  color: tokens.subtle,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.control,
+                                  ),
+                                ),
+                                child: SelectableText(
+                                  message,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontFamily: AppFonts.numeric,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: FilledButton.icon(
+                              onPressed: retrying ? null : onRetry,
+                              icon: retrying
+                                  ? reducedMotion
+                                        ? const Icon(Icons.hourglass_top)
+                                        : SizedBox.square(
+                                            dimension: AppIconSize.sm,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: tokens.mutedText,
+                                            ),
+                                          )
+                                  : const Icon(Icons.refresh),
+                              label: Text(retrying ? '正在重试' : '重试载入'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  '工作台初始化失败',
-                  style: Theme.of(context).textTheme.titleLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                SelectableText(message, textAlign: TextAlign.center),
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: onRetry,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('重试'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

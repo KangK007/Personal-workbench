@@ -164,6 +164,13 @@ class _AccountRemote implements WorkspaceSyncRemote {
   }
 }
 
+class _LocalSignOutSyncService extends SupabaseSyncService {
+  _LocalSignOutSyncService() : super(null);
+
+  @override
+  Future<void> signOut() async {}
+}
+
 WorkbenchController _databaseController(AppDatabase database, DateTime now) =>
     WorkbenchController(
       database: database,
@@ -214,9 +221,36 @@ void main() {
       await controller.syncNow();
 
       expect(controller.allRecords, isEmpty);
+      expect(controller.lastSuccessfulSyncAt, now);
       expect(remoteB.uploaded, isEmpty);
       await database.activateAccount('account-a');
       expect((await database.loadRecords()).single.title, accountARecord.title);
+    },
+  );
+
+  test(
+    'recent searches are cleared when the active account signs out',
+    () async {
+      final database = AppDatabase(
+        factory: databaseFactoryFfi,
+        overridePath: inMemoryDatabasePath,
+      );
+      final controller = WorkbenchController(
+        database: database,
+        backupService: BackupService(),
+        searchService: SearchService(),
+        focusService: FocusService(),
+        notificationService: NotificationService(),
+        shareCaptureService: ShareCaptureService(),
+        syncService: _LocalSignOutSyncService(),
+      );
+      addTearDown(controller.dispose);
+      controller.rememberSearchQuery('private term');
+      expect(controller.recentSearchQueries, ['private term']);
+
+      await controller.signOut();
+
+      expect(controller.recentSearchQueries, isEmpty);
     },
   );
 
@@ -1275,6 +1309,14 @@ void main() {
       controller.projectsForTask(current).map((project) => project.id),
       containsAll([primary.id, related.id]),
     );
+    var summary = controller.taskContextSummary(current);
+    expect(summary.primaryProjectTitle, 'primary');
+    expect(summary.projectTitles, ['primary', 'related']);
+    expect(summary.additionalProjectCount, 1);
+    await controller.updateRecord(primary.copyWith(title: 'renamed primary'));
+    summary = controller.taskContextSummary(current);
+    expect(summary.primaryProjectTitle, 'renamed primary');
+    expect(summary.projectTitles, ['renamed primary', 'related']);
   });
 
   test('period review updates one primary record and keeps versions', () async {

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:personal_workbench/core/models/workspace_record.dart';
 import 'package:personal_workbench/core/theme/app_theme.dart';
 import 'package:personal_workbench/data/app_database.dart';
@@ -19,7 +22,7 @@ import 'package:personal_workbench/ui/widgets/task_row.dart';
 class _MemoryAppDatabase extends AppDatabase {
   _MemoryAppDatabase({this.failSaves = false});
 
-  final bool failSaves;
+  bool failSaves;
   final Map<String, WorkspaceRecord> savedRecords = {};
 
   @override
@@ -35,7 +38,10 @@ class _MemoryAppDatabase extends AppDatabase {
   Future<void> close() async {}
 }
 
-WorkbenchController _newController({AppDatabase? database}) {
+WorkbenchController _newController({
+  AppDatabase? database,
+  DateTime Function()? now,
+}) {
   return WorkbenchController(
     database: database ?? _MemoryAppDatabase(),
     backupService: BackupService(),
@@ -44,6 +50,7 @@ WorkbenchController _newController({AppDatabase? database}) {
     notificationService: NotificationService(),
     shareCaptureService: ShareCaptureService(),
     syncService: SupabaseSyncService(null),
+    now: now,
   );
 }
 
@@ -144,6 +151,234 @@ Future<void> _pumpHabitsPage(
 }
 
 void main() {
+  setUpAll(() => initializeDateFormatting('zh_CN'));
+  final reducedMotion = ValueVariant<bool>({false, true});
+  testWidgets(
+    'large CTDP group builds visible rows and keeps the last unit reachable',
+    (tester) async {
+      final controller = _newController();
+      addTearDown(controller.dispose);
+      tester.view.physicalSize = const Size(390, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final group = WorkspaceRecord.create(
+        kind: RecordKind.task,
+        title: '长任务组',
+        data: const {'protocol': 'ctdp', 'ctdpUnitType': 'group'},
+      );
+      await controller.addRecord(group);
+      for (var index = 0; index < 96; index++) {
+        await controller.addRecord(
+          WorkspaceRecord.create(
+            kind: RecordKind.task,
+            parentId: group.id,
+            title: 'CTDP 子项 ${index.toString().padLeft(3, '0')}',
+            data: const {'protocol': 'ctdp', 'ctdpTrigger': '打开文档'},
+          ),
+        );
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: ProtocolsPage(controller: controller)),
+        ),
+      );
+      await _pumpAnimation(tester);
+      expect(find.text('长任务组'), findsOneWidget);
+      expect(find.textContaining('96 个单元'), findsOneWidget);
+      expect(find.text('CTDP 子项 095'), findsNothing);
+      final protocolList = find.byType(ListView).first;
+      await tester.scrollUntilVisible(
+        find.text('CTDP 子项 095'),
+        700,
+        scrollable: find.descendant(
+          of: protocolList,
+          matching: find.byType(Scrollable),
+        ),
+        maxScrolls: 80,
+      );
+      expect(find.text('CTDP 子项 095'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('protocol stages follow saved reservation and daily settlement', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 10, 12, 10);
+    final controller = _newController(now: () => now);
+    addTearDown(controller.dispose);
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final task = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '协议阶段核查',
+      data: const {'protocol': 'ctdp', 'ctdpTrigger': '打开论文'},
+    );
+    final habit = WorkspaceRecord.create(
+      kind: RecordKind.habit,
+      title: '每天阅读摘要',
+      data: const {'protocol': 'rsip', 'rsipMinimumAction': '阅读一段'},
+    );
+    await controller.addRecord(task);
+    await controller.addRecord(habit);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: const TextScaler.linear(2),
+            disableAnimations: reducedMotion.currentValue!,
+          ),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) =>
+                ProtocolsPage(controller: controller, showHeader: false),
+          ),
+        ),
+      ),
+    );
+    await _pumpAnimation(tester);
+    final pageScroll = find
+        .descendant(
+          of: find.byType(ListView).first,
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.byKey(ValueKey('protocol-stage-${task.id}')),
+      160,
+      scrollable: pageScroll,
+    );
+    String currentStage(WorkspaceRecord record) => tester
+        .widget<Semantics>(
+          find
+              .descendant(
+                of: find.byKey(ValueKey('protocol-stage-${record.id}')),
+                matching: find.byType(Semantics),
+              )
+              .first,
+        )
+        .properties
+        .value!;
+    expect(currentStage(task), contains('当前：等待触发'));
+    await controller.startCtdpReservation(task);
+    await tester.pump();
+    expect(currentStage(task), contains('当前：预约缓冲中'));
+    await controller.confirmCtdpTrigger(task);
+    await tester.pump();
+    expect(currentStage(task), contains('当前：等待触发'));
+
+    await tester.ensureVisible(find.byTooltip('CTDP 链操作'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('CTDP 链操作'));
+    await _pumpAnimation(tester);
+    await tester.tap(find.text('编辑 / 移动'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+    final editor = find.byType(RecordEditorDialog);
+    final route = ModalRoute.of(tester.element(editor));
+    expect(route!.transitionDuration, AppMotion.standard);
+    final entrance = find.ancestor(
+      of: editor,
+      matching: find.byType(FadeTransition),
+    );
+    if (reducedMotion.currentValue!) {
+      expect(entrance, findsNothing);
+    } else {
+      expect(
+        tester.widget<FadeTransition>(entrance.first).opacity.value,
+        inExclusiveRange(0, 1),
+      );
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _pumpAnimation(tester);
+    expect(editor, findsNothing);
+
+    final tabs = find
+        .descendant(of: find.byType(TabBar), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(find.text('行为协议'), 120, scrollable: tabs);
+    await tester.tap(find.text('行为协议'));
+    await _pumpAnimation(tester);
+    final stage = find.byKey(ValueKey('protocol-stage-${habit.id}'));
+    await tester.scrollUntilVisible(
+      stage,
+      160,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView).first,
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pump();
+    expect(currentStage(habit), contains('当前：最小行动'));
+    final yesterday = WorkspaceRecord.create(
+      kind: RecordKind.habitLog,
+      title: habit.title,
+      parentId: habit.id,
+      scheduledFor: now.subtract(const Duration(days: 1)),
+      status: WorkStatus.done,
+    );
+    await controller.addRecord(yesterday);
+    await tester.pump();
+    expect(currentStage(habit), contains('当前：最小行动'));
+    await controller.logHabit(habit, now, WorkStatus.done);
+    await tester.pump();
+    expect(currentStage(habit), contains('当前：今日已结算'));
+    await controller.updateRecord(
+      controller.latestRecordById(habit).withData('rsipFrozen', true),
+    );
+    await tester.pump();
+    expect(currentStage(habit), contains('当前：水密隔舱'));
+    expect(tester.takeException(), isNull);
+  }, variant: reducedMotion);
+
+  testWidgets('empty protocol groups stay in execution after they start', (
+    tester,
+  ) async {
+    final controller = _newController();
+    addTearDown(controller.dispose);
+    final group = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '无成员任务组',
+      data: const {'protocol': 'ctdp', 'ctdpUnitType': 'group'},
+    );
+    await controller.addRecord(group);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) => ProtocolsPage(controller: controller),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final stage = find.byKey(ValueKey('protocol-stage-${group.id}'));
+    String currentStage() => tester
+        .widget<Semantics>(
+          find.descendant(of: stage, matching: find.byType(Semantics)).first,
+        )
+        .properties
+        .value!;
+    expect(currentStage(), contains('当前：待启动'));
+    await controller.startCtdpGroup(group);
+    await tester.pump();
+    expect(currentStage(), contains('当前：单元执行'));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('new task editor starts with an empty estimate', (tester) async {
     final controller = _newController();
     addTearDown(controller.dispose);
@@ -317,6 +552,8 @@ void main() {
     await controller.addRecord(task);
 
     await _pumpTaskRow(tester, controller, task);
+    await tester.tap(find.byTooltip('展开任务详情'));
+    await _pumpAnimation(tester);
     expect(find.text('CTDP 主 #4 · 辅 #2'), findsOneWidget);
     await tester.tap(find.byTooltip('更多操作'));
     await _pumpAnimation(tester);
@@ -551,5 +788,474 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('移动端协议任务'), findsOneWidget);
     expect(find.text('执行协议'), findsOneWidget);
+  });
+
+  testWidgets(
+    'protocol roots group by type and keep orphaned records visible',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final controller = _newController();
+      addTearDown(controller.dispose);
+      await controller.addRecord(
+        WorkspaceRecord.create(
+          kind: RecordKind.task,
+          title: '实验任务组',
+          data: const {'protocol': 'ctdp', 'ctdpUnitType': 'group'},
+        ),
+      );
+      await controller.addRecord(
+        WorkspaceRecord.create(
+          kind: RecordKind.task,
+          title: '孤立执行链',
+          parentId: 'missing-task',
+          data: const {'protocol': 'ctdp', 'ctdpTrigger': '打开文档'},
+        ),
+      );
+      for (final group in const ['科研组', '生活组']) {
+        await controller.addRecord(
+          WorkspaceRecord.create(
+            kind: RecordKind.habit,
+            title: '$group 节点',
+            parentId: group == '生活组' ? 'missing-habit' : null,
+            data: {'protocol': 'rsip', 'rsipGroup': group},
+          ),
+        );
+      }
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: ProtocolsPage(controller: controller, showHeader: false),
+          ),
+        ),
+      );
+      await _pumpAnimation(tester);
+      expect(find.text('任务组'), findsOneWidget);
+      expect(find.text('执行链'), findsOneWidget);
+      expect(find.text('实验任务组'), findsOneWidget);
+      expect(find.text('孤立执行链'), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(of: find.byType(TabBar), matching: find.text('行为协议')),
+      );
+      await _pumpAnimation(tester);
+      expect(find.text('科研组'), findsOneWidget);
+      expect(find.text('生活组'), findsOneWidget);
+      expect(find.text('生活组 节点'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('protocol tabs stay reachable in a narrow Android window', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      debugDefaultTargetPlatformOverride = null;
+    });
+    final controller = _newController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(
+            body: ProtocolsPage(controller: controller, showHeader: false),
+          ),
+        ),
+      ),
+    );
+    await _pumpAnimation(tester);
+    expect(tester.takeException(), isNull);
+
+    await tester.drag(find.byType(TabBar), const Offset(-400, 0));
+    await _pumpAnimation(tester);
+    await tester.tap(find.text('分析'));
+    await _pumpAnimation(tester);
+    expect(find.text('协议事件'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('execution protocol lists only its linked focus sessions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _newController();
+    addTearDown(controller.dispose);
+    final task = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '关联协议任务',
+      data: const {'protocol': 'ctdp', 'ctdpTrigger': '打开文档'},
+    );
+    await controller.addRecord(task);
+    await controller.addRecord(
+      WorkspaceRecord.create(
+        kind: RecordKind.focusSession,
+        title: '无关专注',
+        status: WorkStatus.done,
+        scheduledFor: DateTime(2026, 8, 10, 8),
+        data: const {'seconds': 900},
+      ),
+    );
+
+    Widget page() => MaterialApp(
+      theme: AppTheme.light(),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: const TextScaler.linear(2)),
+        child: child!,
+      ),
+      home: Scaffold(
+        body: ProtocolsPage(controller: controller, showHeader: false),
+      ),
+    );
+    await tester.pumpWidget(page());
+    await tester.pumpAndSettle();
+    final pageScroll = find
+        .descendant(
+          of: find.byType(ListView).first,
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('关联专注'),
+      180,
+      scrollable: pageScroll,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('尚无关联专注。可从上方执行协议启动一轮。'), findsOneWidget);
+    expect(find.text('无关专注'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await controller.addRecord(
+      WorkspaceRecord.create(
+        kind: RecordKind.focusSession,
+        title: '论文聚焦',
+        parentId: task.id,
+        status: WorkStatus.done,
+        scheduledFor: DateTime(2026, 8, 10, 9, 30),
+        data: const {'seconds': 1500},
+      ),
+    );
+    await tester.pumpWidget(page());
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('论文聚焦'),
+      180,
+      scrollable: pageScroll,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('关联任务：关联协议任务'), findsOneWidget);
+    expect(find.text('25:00'), findsOneWidget);
+    expect(find.text('无关专注'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'rule editor retains input after failure and updates a precedent',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final database = _MemoryAppDatabase();
+      final controller = _newController(database: database);
+      addTearDown(controller.dispose);
+      await controller.addRecord(
+        WorkspaceRecord.create(
+          kind: RecordKind.task,
+          title: '论文专注链',
+          data: const {'protocol': 'ctdp', 'ctdpTrigger': '打开文档'},
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: ProtocolsPage(
+              controller: controller,
+              initialTab: ProtocolTab.rules,
+              showHeader: false,
+            ),
+          ),
+        ),
+      );
+      await _pumpAnimation(tester);
+      await tester.tap(find.text('新建判例'));
+      await _pumpAnimation(tester);
+      await tester.tap(find.widgetWithText(FilledButton, '创建'));
+      await _pumpAnimation(tester);
+      expect(find.text('判例名称不能为空'), findsOneWidget);
+
+      await tester.enterText(_textFieldWithLabel('判例名称'), '仪器报警可暂停');
+      await tester.enterText(_textFieldWithLabel('适用条件'), '设备发出安全警报时允许暂停');
+      database.failSaves = true;
+      await tester.tap(find.widgetWithText(FilledButton, '创建'));
+      await _pumpAnimation(tester);
+      expect(find.text('保存失败，请重试；输入已保留。'), findsOneWidget);
+      expect(_textFieldWithLabel('判例名称'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(_textFieldWithLabel('判例名称')).controller?.text,
+        '仪器报警可暂停',
+      );
+      expect(controller.exceptionRules, isEmpty);
+
+      database.failSaves = false;
+      await tester.tap(find.widgetWithText(FilledButton, '创建'));
+      await _pumpUntil(tester, () => controller.exceptionRules.length == 1);
+      await _pumpAnimation(tester);
+      expect(find.text('仪器报警可暂停'), findsOneWidget);
+      expect(find.text('生效中 · 可引用'), findsOneWidget);
+      expect(find.text('作用范围：所有 CTDP 链'), findsOneWidget);
+
+      await tester.tap(find.text('提前完成 0'));
+      await _pumpAnimation(tester);
+      expect(find.text('没有符合条件的判例'), findsOneWidget);
+      await tester.tap(find.text('暂停 1'));
+      await _pumpAnimation(tester);
+      expect(find.text('仪器报警可暂停'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('判例操作：仪器报警可暂停'));
+      await _pumpAnimation(tester);
+      await tester.tap(find.text('编辑判例'));
+      await _pumpAnimation(tester);
+      await tester.enterText(_textFieldWithLabel('判例名称'), '更新后的安全判例');
+      await tester.tap(_dropdownWithLabel('作用范围'));
+      await _pumpAnimation(tester);
+      await tester.tap(find.text('指定 CTDP 链').last);
+      await _pumpAnimation(tester);
+      await tester.tap(_dropdownWithLabel('适用任务'));
+      await _pumpAnimation(tester);
+      await tester.tap(find.text('论文专注链').last);
+      await _pumpAnimation(tester);
+      await tester.tap(find.widgetWithText(FilledButton, '保存'));
+      await _pumpUntil(
+        tester,
+        () => controller.exceptionRules.single.title == '更新后的安全判例',
+      );
+      await _pumpAnimation(tester);
+      expect(find.text('更新后的安全判例'), findsOneWidget);
+      expect(find.text('作用范围：论文专注链'), findsOneWidget);
+      expect(
+        controller.exceptionRules.single.parentId,
+        controller.ctdpTasks.single.id,
+      );
+
+      database.failSaves = true;
+      await tester.tap(find.byTooltip('判例操作：更新后的安全判例'));
+      await _pumpAnimation(tester);
+      await tester.tap(find.text('归档判例'));
+      await _pumpAnimation(tester);
+      expect(find.text('归档判例失败，请重试。'), findsOneWidget);
+      expect(controller.exceptionRules.single.data['archived'], isFalse);
+      database.failSaves = false;
+      await tester.tap(find.byTooltip('判例操作：更新后的安全判例'));
+      await _pumpAnimation(tester);
+      await tester.tap(find.text('归档判例'));
+      await _pumpUntil(
+        tester,
+        () => controller.exceptionRules.single.data['archived'] == true,
+      );
+      expect(find.text('已归档 · 不可引用'), findsOneWidget);
+      await tester.tap(find.byTooltip('判例操作：更新后的安全判例'));
+      await _pumpAnimation(tester);
+      await tester.tap(find.text('编辑判例'));
+      await _pumpAnimation(tester);
+      await tester.enterText(_textFieldWithLabel('判例名称'), '丢弃的修改');
+      await tester.tap(find.text('取消'));
+      await _pumpAnimation(tester);
+      expect(find.text('放弃未保存的判例？'), findsOneWidget);
+      await tester.tap(find.text('继续编辑'));
+      await _pumpAnimation(tester);
+      expect(
+        tester.widget<TextField>(_textFieldWithLabel('判例名称')).controller?.text,
+        '丢弃的修改',
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await _pumpAnimation(tester);
+      await tester.tap(find.text('放弃更改'));
+      await _pumpAnimation(tester);
+      expect(controller.exceptionRules.single.title, '更新后的安全判例');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('rule cards and editor reflow at 320dp with 200% text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _newController();
+    addTearDown(controller.dispose);
+    final task = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '很长的实验室论文图表复核专注链',
+      data: const {'protocol': 'ctdp', 'ctdpTrigger': '打开文档'},
+    );
+    await controller.addRecord(task);
+    await controller.createExceptionRule(
+      name: '安全警报暂停规则',
+      description:
+          '只有设备持续发出安全警报，而且现场人员确认需要停止记录时才允许暂停本轮专注；恢复之前必须登记设备编号、值班人员和处理结果。',
+      ruleType: 'pause',
+      scope: 'chain',
+      chainId: task.id,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: ProtocolsPage(
+            controller: controller,
+            initialTab: ProtocolTab.rules,
+            showHeader: false,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final rulesList = find
+        .ancestor(of: find.text('新建判例'), matching: find.byType(ListView))
+        .first;
+    final pageScroll = find
+        .descendant(of: rulesList, matching: find.byType(Scrollable))
+        .first;
+    final position = tester.state<ScrollableState>(pageScroll).position;
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('展开详情'));
+    await tester.pumpAndSettle();
+    expect(find.text('收起详情'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    position.jumpTo(0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('新建判例'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.widgetWithText(FilledButton, '创建'));
+    await tester.pumpAndSettle();
+    expect(find.text('判例名称不能为空'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('protocol analytics distinguishes no outcomes from a zero rate', (
+    tester,
+  ) async {
+    final controller = _newController();
+    addTearDown(controller.dispose);
+    final task = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '论文复核专注链',
+      data: const {'protocol': 'ctdp'},
+    );
+    await controller.addRecord(task);
+    await controller.addProtocolEvent(
+      protocol: 'ctdp',
+      action: 'reservation_started',
+      subject: task,
+    );
+    Widget page() => MaterialApp(
+      theme: AppTheme.light(),
+      home: Scaffold(
+        body: ProtocolsPage(
+          controller: controller,
+          initialTab: ProtocolTab.analytics,
+          showHeader: false,
+        ),
+      ),
+    );
+    await tester.pumpWidget(page());
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.textContaining('暂无可判定结算。完成或失败'), findsOneWidget);
+    expect(find.text('近 7 日暂无可判定结算。'), findsOneWidget);
+    expect(find.textContaining('0.0%'), findsNothing);
+
+    await controller.addProtocolEvent(
+      protocol: 'ctdp',
+      action: 'main_failed',
+      subject: task,
+      successful: false,
+    );
+    await tester.pumpWidget(page());
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('0.0% · 1 次有效结算'), findsOneWidget);
+    expect(find.text('近 7 日暂无可判定结算。'), findsNothing);
+
+    await controller.addProtocolEvent(
+      protocol: 'ctdp',
+      action: 'round_completed',
+      subject: task,
+    );
+    await controller.addRecord(
+      WorkspaceRecord.create(
+        kind: RecordKind.protocolEvent,
+        title: '每日规则 · 已执行',
+        scheduledFor: controller.currentTime(),
+        data: const {
+          'protocol': 'rsip',
+          'recordType': 'rsipExecution',
+          'action': 'node_settled',
+          'executionStatus': 'executed',
+        },
+      ),
+    );
+    await controller.addRecord(
+      WorkspaceRecord.create(
+        kind: RecordKind.protocolEvent,
+        title: '每日规则 · 跳过',
+        scheduledFor: controller.currentTime(),
+        data: const {
+          'protocol': 'rsip',
+          'recordType': 'rsipExecution',
+          'action': 'node_settled',
+          'executionStatus': 'skipped',
+        },
+      ),
+    );
+    await tester.pumpWidget(page());
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('66.7% · 3 次有效结算'), findsOneWidget);
+    final todayBar = tester.getSize(
+      find.byKey(const ValueKey('protocol-outcome-bar-6')),
+    );
+    expect(todayBar.width, greaterThan(0));
+    expect(todayBar.height, greaterThan(0));
+    final paintedBar = tester.getSize(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('protocol-outcome-bar-6')),
+            matching: find.byType(ColoredBox),
+          )
+          .first,
+    );
+    expect(paintedBar.width, greaterThan(0));
+    expect(paintedBar.height, greaterThan(0));
+    await tester.tap(find.text('30 日'));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.textContaining('每格汇总 5 日'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
