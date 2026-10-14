@@ -12,7 +12,7 @@
 | `dist/apk/PersonalWorkbench_0.2.2_8_debug-armeabi-v7a.apk` | `F007A3A135B07FBF158D8D1CE7B00D9C2A70C366FD74B329B835813E078F53FF` | ARM32 Debug APK；只含 ARM32 Flutter 引擎库，插件仍含多 ABI 库 |
 | `dist/apk/PersonalWorkbench_0.2.2_8_debug-x86_64.apk` | `614781E5BBCA0D96EB318CAE5519AC6D754F28404BF081587EC04BE522554C72` | x86_64 Debug APK；只含 x86_64 Flutter 引擎库，插件仍含多 ABI 库 |
 
-**正式 Android Release 尚未打包：**当前机器没有原有发布 keystore 和 `android/key.properties`。新建密钥会使已安装旧版无法原位升级，需先取得旧密钥或明确接受更换签名。Windows ZIP 使用本机自签证书，目标机器若未信任该证书，会显示发布者未受信任；本次校验未把该证书加入当前用户的受信任根库。
+**个人使用打包决定（2026-10-14）：**用户选择暂不配置 Android 发布签名，使用上表已构建并验签的 Debug APK；本轮不生成 Android Release APK，也不创建新发布密钥。当前机器没有原有发布 keystore 和 `android/key.properties`。以后若需要覆盖安装旧版 Release，须使用原发布密钥。Windows ZIP 使用本机自签证书，目标机器若未信任该证书，会显示发布者未受信任；本次校验未把该证书加入当前用户的受信任根库。
 
 以下为 2026-09-20 的历史检查记录，其版本和分支描述不代表上述当前产物。
 
