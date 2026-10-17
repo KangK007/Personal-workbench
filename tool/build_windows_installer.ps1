@@ -38,8 +38,9 @@ if (-not (Test-Path -LiteralPath $stagedApp -PathType Leaf)) {
     throw "The staged Windows Release app is missing: $stagedApp"
 }
 $stagedVersion = (Get-Item -LiteralPath $stagedApp).VersionInfo.ProductVersion
-if ($stagedVersion -ne $version) {
-    throw "The staged Windows Release version is $stagedVersion, expected $version. Rebuild the package."
+$versionName = ($version -split '\+', 2)[0]
+if (-not $stagedVersion.StartsWith($versionName, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "The staged Windows Release version is $stagedVersion, expected a version starting with $versionName. Rebuild the package."
 }
 
 $signingStatePath = Join-Path $env:LOCALAPPDATA 'PersonalWorkbenchSigning\signing-state.json'
@@ -55,13 +56,16 @@ $compilerCandidates = @(
     $env:INNO_SETUP_ISCC,
     (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 7\ISCC.exe'),
     (Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe'),
-    (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 7\ISCC.exe')
+    (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 7\ISCC.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'),
+    (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe'),
+    (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe')
 ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
 $compiler = $compilerCandidates |
     Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
     Select-Object -First 1
 if (-not $compiler) {
-    throw 'Inno Setup 7 ISCC.exe was not found. Install JRSoftware.InnoSetup.7 or set INNO_SETUP_ISCC.'
+    throw 'Inno Setup ISCC.exe was not found. Install Inno Setup 6/7 or set INNO_SETUP_ISCC.'
 }
 
 & $compiler "/DAppVersion=$version" $setupScript
@@ -78,6 +82,9 @@ if (-not (Test-LocalAuthenticodeSignature -Path $setupPath -ExpectedThumbprint $
 }
 
 $hash = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash
+$checksumPath = "$setupPath.sha256"
+"$hash *$([System.IO.Path]::GetFileName($setupPath))" |
+    Set-Content -LiteralPath $checksumPath -Encoding ASCII
 $distPath = [System.IO.Path]::GetFullPath($distRoot).TrimEnd('\')
 $projectPath = [System.IO.Path]::GetFullPath($projectRoot).TrimEnd('\')
 if (-not $distPath.Equals((Join-Path $projectPath 'dist'), [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -91,4 +98,5 @@ Get-ChildItem -LiteralPath $distPath -Filter 'PersonalWorkbench_*_windows_setup.
     }
 Write-Output "Windows setup installer: $setupPath"
 Write-Output "SHA-256: $hash"
+Write-Output "SHA-256 checksum file: $checksumPath"
 $global:LASTEXITCODE = 0

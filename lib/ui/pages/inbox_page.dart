@@ -253,7 +253,7 @@ class _InboxPageState extends State<InboxPage> {
           children: [
             if (widget.showHeader)
               PageHeader(
-                maxWidth: AppLayout.formMax,
+                maxWidth: AppLayout.workspaceMax,
                 title: '收集箱',
                 subtitle: '先记录，再决定它属于哪一天或哪个项目',
                 actions: [
@@ -318,7 +318,7 @@ class _InboxPageState extends State<InboxPage> {
                   : Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(
-                          maxWidth: AppLayout.formMax,
+                          maxWidth: AppLayout.workspaceMax,
                         ),
                         child: ListView.separated(
                           padding: const EdgeInsets.fromLTRB(

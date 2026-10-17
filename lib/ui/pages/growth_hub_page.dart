@@ -111,8 +111,16 @@ class _GrowthHubPageState extends State<GrowthHubPage>
           child: TabBarView(
             controller: tabController,
             children: [
-              GoalsPage(controller: widget.controller, showHeader: false),
-              HabitsPage(controller: widget.controller, showHeader: false),
+              GoalsPage(
+                controller: widget.controller,
+                showHeader: false,
+                showCreateAction: true,
+              ),
+              HabitsPage(
+                controller: widget.controller,
+                showHeader: false,
+                showCreateAction: true,
+              ),
               BehaviorPage(
                 controller: widget.controller,
                 showHeader: false,

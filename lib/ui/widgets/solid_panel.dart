@@ -8,7 +8,7 @@ import '../../core/theme/app_theme.dart';
 /// - [elevated] 为 `false` 时只使用 1px 中性边框；
 ///   为 `true` 时使用 raisedShadow（blur 16 / y+6），用于菜单等浮层。
 /// - [radius] 为 0 的布局面（例如页头）不额外投影，避免与内容面叠加成阴影带。
-/// - [selected] 时左缘绘制 3px 航迹色，边框转 route@40%。
+/// - [selected] 使用主题选中底色与 1px 强调边缘。
 /// - [accent] 保留 LogSurface 的左侧强调条语义（自定义色）。
 class SolidPanel extends StatelessWidget {
   const SolidPanel({
@@ -35,7 +35,7 @@ class SolidPanel extends StatelessWidget {
   /// 是否为浮层（对话框/弹层/菜单）——使用更深的投影。
   final bool elevated;
 
-  /// 选中态：左缘 3px 实心 primary 条 + 边框转 primary@40%。
+  /// 选中态：主题底色、强调边缘和调用方的选中语义共同表达。
   final bool selected;
 
   /// 面板底色，默认 tokens.panel。
@@ -61,7 +61,7 @@ class SolidPanel extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color ?? tokens.panel,
+        color: color ?? (selected ? tokens.subtle : tokens.panel),
         borderRadius: BorderRadius.circular(r),
         border: Border.all(color: effectiveBorder),
         boxShadow: r == 0 || !elevated
@@ -84,7 +84,7 @@ class SolidPanel extends StatelessWidget {
             children: [
               Padding(
                 padding: EdgeInsetsDirectional.only(
-                  start: effectiveAccent == null ? 0 : 3,
+                  start: effectiveAccent == null ? 0 : 1,
                 ),
                 child: Padding(padding: padding, child: child),
               ),
@@ -94,7 +94,7 @@ class SolidPanel extends StatelessWidget {
                   top: 0,
                   bottom: 0,
                   child: Container(
-                    width: 3,
+                    width: 1,
                     decoration: BoxDecoration(
                       color: effectiveAccent,
                       borderRadius: BorderRadiusDirectional.horizontal(

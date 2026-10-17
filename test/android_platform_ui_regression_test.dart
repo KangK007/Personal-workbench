@@ -70,8 +70,16 @@ void main() {
 
     await tester.pumpWidget(_host(SettingsPage(controller: controller)));
     await tester.pump();
-    await tester.drag(find.byType(ListView).first, const Offset(0, -1600));
+    final settingsScroll = find.descendant(
+      of: find.byType(SettingsPage),
+      matching: find.byType(Scrollable),
+    ).first;
+    await tester.drag(settingsScroll, const Offset(0, -1600));
     await tester.pump();
+    expect(
+      tester.state<ScrollableState>(settingsScroll).position.pixels,
+      greaterThan(0),
+    );
 
     expect(find.text('前台应用检测'), findsNothing);
     expect(find.text('定时专注显示工作台'), findsNothing);

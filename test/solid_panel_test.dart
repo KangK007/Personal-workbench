@@ -80,7 +80,9 @@ void main() {
     expect(shadow.offset, const Offset(0, 6));
   });
 
-  testWidgets('selected panel draws 3px primary accent bar', (tester) async {
+  testWidgets('selected panel uses a tinted surface and a fine accent', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _host(
         const SolidPanel(
@@ -92,12 +94,16 @@ void main() {
     final containers = tester
         .widgetList<Container>(find.byType(Container))
         .toList();
-    // 左缘强调条是一个 3px 宽的 Container。
+    final box = tester.widget<DecoratedBox>(find.byType(DecoratedBox).first);
+    expect(
+      (box.decoration as BoxDecoration).color,
+      AppTheme.light().extension<WorkbenchTokens>()!.subtle,
+    );
     final accentBar = containers.any((c) {
       final constraints = c.constraints;
       return constraints is BoxConstraints &&
-          constraints.minWidth == 3 &&
-          constraints.maxWidth == 3;
+          constraints.minWidth == 1 &&
+          constraints.maxWidth == 1;
     });
     expect(accentBar, isTrue);
   });

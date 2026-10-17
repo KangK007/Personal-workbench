@@ -243,6 +243,12 @@ class _ReviewPageState extends State<ReviewPage> {
     if (await _confirmLeaveDraft() && mounted) widget.onBackToProject?.call();
   }
 
+  String get _libraryActionLabel => libraryPreview != null
+      ? '返回回顾库'
+      : libraryVisible
+      ? '返回编辑'
+      : '回顾库';
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -261,20 +267,18 @@ class _ReviewPageState extends State<ReviewPage> {
           ),
         if (widget.showHeader)
           PageHeader(
-            maxWidth: AppLayout.formMax,
+            maxWidth: AppLayout.workspaceMax,
             title: '回顾',
             subtitle: '先核对期间事实，再记录判断与下一步',
             actions: [
               OutlinedButton.icon(
                 onPressed: _toggleLibrary,
                 icon: Icon(
-                  libraryVisible || libraryPreview != null
+                  libraryVisible && libraryPreview == null
                       ? Icons.edit_note_outlined
                       : Icons.library_books_outlined,
                 ),
-                label: Text(
-                  libraryVisible || libraryPreview != null ? '返回编辑' : '回顾库',
-                ),
+                label: Text(_libraryActionLabel),
               ),
               FilledButton.icon(
                 onPressed: _addReview,
@@ -293,11 +297,9 @@ class _ReviewPageState extends State<ReviewPage> {
                 children: [
                   IconButton(
                     onPressed: _toggleLibrary,
-                    tooltip: libraryVisible || libraryPreview != null
-                        ? '返回编辑'
-                        : '回顾库',
+                    tooltip: _libraryActionLabel,
                     icon: Icon(
-                      libraryVisible || libraryPreview != null
+                      libraryVisible && libraryPreview == null
                           ? Icons.edit_note_outlined
                           : Icons.library_books_outlined,
                     ),
@@ -331,7 +333,7 @@ class _ReviewPageState extends State<ReviewPage> {
         existing != null && controller.reviewStatisticsChanged(existing!);
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: AppLayout.formMax),
+        constraints: const BoxConstraints(maxWidth: AppLayout.workspaceMax),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
             20,
@@ -346,7 +348,7 @@ class _ReviewPageState extends State<ReviewPage> {
                 period: currentPeriod,
                 onTypeChanged: _selectType,
                 onPrevious: () => _movePeriod(-1),
-                onNext: () => _movePeriod(1),
+                onNext: editable ? null : () => _movePeriod(1),
                 onToday: _goCurrent,
               )
             else
@@ -360,6 +362,30 @@ class _ReviewPageState extends State<ReviewPage> {
                   ),
                 ),
               ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                StatusPill(
+                  label: editable ? '本期 · 可编辑' : '历史 · 只读',
+                  icon: editable ? Icons.edit_outlined : Icons.lock_outline,
+                ),
+                if (existing != null)
+                  StatusPill(
+                    label: existing!.data['reviewSkipped'] == true
+                        ? '已跳过'
+                        : existing!.data['draft'] == true
+                        ? '草稿待完成'
+                        : '已保存',
+                    icon: existing!.data['reviewSkipped'] == true
+                        ? Icons.skip_next_outlined
+                        : existing!.data['draft'] == true
+                        ? Icons.edit_note_outlined
+                        : Icons.check_circle_outline,
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
             _PeriodEvidence(period: currentPeriod, snapshot: snapshot),
             const SizedBox(height: 12),
@@ -505,7 +531,7 @@ class _ReviewPageState extends State<ReviewPage> {
                   segments: [
                     ButtonSegment(
                       value: false,
-                      label: const Text('编辑'),
+                      label: Text(editable ? '编辑' : '正文'),
                       icon: compactMode
                           ? null
                           : const Icon(Icons.edit_outlined),
@@ -596,8 +622,10 @@ class _ReviewPageState extends State<ReviewPage> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 if (editable && existing?.data['draft'] == true) ...[
                   TextButton.icon(
@@ -605,7 +633,6 @@ class _ReviewPageState extends State<ReviewPage> {
                     icon: const Icon(Icons.skip_next_outlined),
                     label: const Text('跳过本期'),
                   ),
-                  const SizedBox(width: 8),
                 ],
                 if (editable)
                   FilledButton.icon(
@@ -662,26 +689,26 @@ class _ReviewPageState extends State<ReviewPage> {
         newestLegacyByDay[key] = diary;
       }
     }
+    final allRecords = <WorkspaceRecord>[
+      ...controller.periodReviews,
+      ...newestLegacyByDay.values,
+    ];
     final records =
-        <WorkspaceRecord>[
-            ...controller.periodReviews,
-            ...newestLegacyByDay.values,
-          ].where((review) {
-            final periodType = review.kind == RecordKind.diary
-                ? 'daily'
-                : review.data['periodType']?.toString() ?? 'daily';
-            if (libraryFilter != 'all' && periodType != libraryFilter) {
-              return false;
-            }
-            if (query.isEmpty) return true;
-            return review.title.toLowerCase().contains(query) ||
-                review.body.toLowerCase().contains(query);
-          }).toList()
-          ..sort(
-            (a, b) => (b.scheduledFor ?? b.updatedAt).compareTo(
-              a.scheduledFor ?? a.updatedAt,
-            ),
-          );
+        allRecords.where((review) {
+          final periodType = review.kind == RecordKind.diary
+              ? 'daily'
+              : review.data['periodType']?.toString() ?? 'daily';
+          if (libraryFilter != 'all' && periodType != libraryFilter) {
+            return false;
+          }
+          if (query.isEmpty) return true;
+          return review.title.toLowerCase().contains(query) ||
+              review.body.toLowerCase().contains(query);
+        }).toList()..sort(
+          (a, b) => (b.scheduledFor ?? b.updatedAt).compareTo(
+            a.scheduledFor ?? a.updatedAt,
+          ),
+        );
     return Column(
       children: [
         Padding(
@@ -692,8 +719,15 @@ class _ReviewPageState extends State<ReviewPage> {
                 label: '搜索标题或正文',
                 child: TextField(
                   controller: searchController,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: '清除回顾搜索',
+                            onPressed: searchController.clear,
+                            icon: const Icon(Icons.close),
+                          ),
                   ),
                 ),
               );
@@ -727,10 +761,26 @@ class _ReviewPageState extends State<ReviewPage> {
         ),
         Expanded(
           child: records.isEmpty
-              ? const EmptyState(
+              ? EmptyState(
                   icon: Icons.library_books_outlined,
-                  title: '没有符合条件的回顾',
-                  message: '调整期间筛选或搜索内容。',
+                  title: allRecords.isEmpty ? '还没有回顾' : '没有符合条件的回顾',
+                  message: allRecords.isEmpty
+                      ? '从本期回顾开始，记录判断与下一步。'
+                      : '调整期间筛选或搜索内容。',
+                  action: OutlinedButton.icon(
+                    onPressed: allRecords.isEmpty
+                        ? _toggleLibrary
+                        : () {
+                            searchController.clear();
+                            setState(() => libraryFilter = 'all');
+                          },
+                    icon: Icon(
+                      allRecords.isEmpty
+                          ? Icons.edit_note_outlined
+                          : Icons.filter_alt_off_outlined,
+                    ),
+                    label: Text(allRecords.isEmpty ? '写本期回顾' : '显示全部回顾'),
+                  ),
                 )
               : ListView.separated(
                   key: const PageStorageKey('review-library'),
@@ -1162,7 +1212,9 @@ class _ReviewPageState extends State<ReviewPage> {
                         context: context,
                         initialDate: selectedDate,
                         firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
+                        lastDate: controller.growthService.logicalDay(
+                          controller.currentTime(),
+                        ),
                       );
                       if (picked != null) {
                         setDialogState(() => selectedDate = picked);
@@ -1697,7 +1749,7 @@ class _PeriodToolbar extends StatelessWidget {
   final ReviewPeriod period;
   final ValueChanged<ReviewPeriodType> onTypeChanged;
   final VoidCallback onPrevious;
-  final VoidCallback onNext;
+  final VoidCallback? onNext;
   final VoidCallback onToday;
 
   @override

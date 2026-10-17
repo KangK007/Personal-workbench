@@ -81,6 +81,16 @@ class _FailingDatabase extends AppDatabase {
   Future<void> close() async {}
 }
 
+class _FailingBatchDatabase extends _MemoryDatabase {
+  @override
+  Future<void> saveRecords(
+    Iterable<WorkspaceRecord> records, {
+    bool markDirty = true,
+  }) async {
+    throw StateError('batch write failed');
+  }
+}
+
 WorkbenchController _controller(
   _MemoryDatabase database, {
   AttachmentService? attachmentService,
@@ -98,6 +108,36 @@ WorkbenchController _controller(
 );
 
 void main() {
+  test(
+    'task creation is atomic and repeated records stay idempotent',
+    () async {
+      final database = _FailingBatchDatabase();
+      final controller = _controller(database);
+      addTearDown(controller.dispose);
+
+      final task = WorkspaceRecord.create(
+        kind: RecordKind.task,
+        title: 'Atomic task',
+      );
+      await expectLater(controller.addRecord(task), throwsStateError);
+      expect(database.records, isEmpty);
+      expect(controller.allRecords, isEmpty);
+
+      final note = WorkspaceRecord.create(
+        kind: RecordKind.note,
+        title: 'Repeated note',
+      );
+      await controller.addRecord(note);
+      await controller.addRecord(note);
+      expect(
+        controller.allRecords.where(
+          (record) => record.id == note.id && record.kind == note.kind,
+        ),
+        hasLength(1),
+      );
+    },
+  );
+
   test('initialization failures leave a retryable error state', () async {
     final controller = WorkbenchController(
       database: _FailingDatabase(),

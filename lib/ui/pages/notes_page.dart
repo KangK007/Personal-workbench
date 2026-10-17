@@ -17,10 +17,12 @@ class NotesPage extends StatefulWidget {
     super.key,
     required this.controller,
     this.showHeader = true,
+    this.onBackHandlerChanged,
   });
 
   final WorkbenchController controller;
   final bool showHeader;
+  final ValueChanged<VoidCallback?>? onBackHandlerChanged;
 
   @override
   State<NotesPage> createState() => _NotesPageState();
@@ -31,9 +33,28 @@ class _NotesPageState extends State<NotesPage> {
   String query = '';
   bool mobileReading = false;
   final TextEditingController searchController = TextEditingController();
+  VoidCallback? _reportedBackHandler;
+  bool _backReportQueued = false;
+  late final VoidCallback _backToIndexHandler = _returnToIndex;
+
+  void _returnToIndex() => setState(() => mobileReading = false);
+
+  void _reportBackHandler(bool reading) {
+    final handler = reading ? _backToIndexHandler : null;
+    if (_reportedBackHandler == handler) return;
+    _reportedBackHandler = handler;
+    if (_backReportQueued) return;
+    _backReportQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _backReportQueued = false;
+      if (mounted) widget.onBackHandlerChanged?.call(_reportedBackHandler);
+    });
+  }
 
   @override
   void dispose() {
+    final report = widget.onBackHandlerChanged;
+    WidgetsBinding.instance.addPostFrameCallback((_) => report?.call(null));
     searchController.dispose();
     super.dispose();
   }
@@ -59,181 +80,199 @@ class _NotesPageState extends State<NotesPage> {
     final selected =
         visibleNotes.where((note) => note.id == selectedId).firstOrNull ??
         visibleNotes.firstOrNull;
-    return Column(
-      children: [
-        if (widget.showHeader)
-          PageHeader(
-            maxWidth: AppLayout.formMax,
-            title: '笔记',
-            subtitle:
-                '${notes.length.toString().padLeft(2, '0')} 条记录 · 标题 / 正文 / 标签',
-            actions: [
-              FilledButton.icon(
-                onPressed: () =>
-                    showMarkdownNoteEditor(context, widget.controller),
-                icon: const Icon(Icons.add),
-                label: const Text('新建笔记'),
-              ),
-            ],
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                onPressed: () =>
-                    showMarkdownNoteEditor(context, widget.controller),
-                tooltip: '新建笔记',
-                icon: const Icon(Icons.add),
-              ),
-            ),
-          ),
-        if (notes.isNotEmpty && !mobileReading)
-          WorkbenchContentFrame(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-              child: SearchBar(
-                controller: searchController,
-                hintText: '查找标题、正文或标签',
-                leading: const Icon(Icons.search),
-                trailing: query.isEmpty
-                    ? null
-                    : [
-                        IconButton(
-                          tooltip: '清除笔记搜索',
-                          onPressed: () {
-                            searchController.clear();
-                            setState(() => query = '');
-                          },
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
-                onChanged: (value) => setState(() => query = value),
-              ),
-            ),
-          ),
-        Expanded(
-          child: notes.isEmpty
-              ? Center(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        EmptyState(
-                          icon: Icons.note_alt_outlined,
-                          title: '还没有笔记',
-                          message: '从顶部新增入口开始记录资料、思路或项目上下文。',
-                          action: FilledButton.icon(
-                            onPressed: () => showMarkdownNoteEditor(
-                              context,
-                              widget.controller,
-                            ),
-                            icon: const Icon(Icons.add),
-                            label: const Text('新建笔记'),
-                          ),
-                        ),
-                      ],
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final desktop =
+            constraints.maxWidth >=
+            AppLayout.masterDetailMin * textScale.clamp(1, 1.5);
+        final reading = mobileReading && !desktop;
+        _reportBackHandler(reading && selected != null);
+        return Column(
+          children: [
+            if (widget.showHeader)
+              PageHeader(
+                maxWidth: AppLayout.workspaceMax,
+                title: '笔记',
+                subtitle:
+                    '${notes.length.toString().padLeft(2, '0')} 条记录 · 标题 / 正文 / 标签',
+                actions: [
+                  FilledButton.icon(
+                    onPressed: () =>
+                        showMarkdownNoteEditor(context, widget.controller),
+                    icon: const Icon(Icons.add),
+                    label: const Text('新建笔记'),
                   ),
-                )
-              : visibleNotes.isEmpty
-              ? const EmptyState(
-                  icon: Icons.manage_search_outlined,
-                  title: '没有匹配的笔记',
-                  message: '试试标题、正文中的其他词，或清除搜索条件。',
-                )
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    final textScale =
-                        MediaQuery.textScalerOf(context).scale(14) / 14;
-                    final desktop =
-                        constraints.maxWidth >=
-                        AppLayout.masterDetailMin * textScale.clamp(1, 1.5);
-                    if (!desktop) {
-                      if (mobileReading && selected != null) {
-                        return AnimatedSwitcher(
-                          duration: MediaQuery.disableAnimationsOf(context)
-                              ? Duration.zero
-                              : const Duration(milliseconds: 180),
-                          child: _NoteReader(
-                            key: ValueKey(selected.id),
-                            note: selected,
-                            controller: widget.controller,
-                            onBack: () => setState(() => mobileReading = false),
-                            onEdit: () => _editNote(selected),
-                            onDelete: () => _moveNoteToTrash(selected, notes),
-                          ),
-                        );
-                      }
-                      return _NoteIndex(
-                        notes: visibleNotes,
-                        totalCount: notes.length,
-                        favoriteCount: notes
-                            .where((note) => note.favorite)
-                            .length,
-                        linkedCount: notes
-                            .where((note) => _noteProjectIds(note).isNotEmpty)
-                            .length,
-                        selectedId: selected?.id,
-                        onSelected: (note) => setState(() {
-                          selectedId = note.id;
-                          mobileReading = true;
-                        }),
-                        onEdit: _editNote,
-                        onDelete: (note) => _moveNoteToTrash(note, notes),
-                      );
-                    }
-                    return WorkbenchContentFrame(
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: (constraints.maxWidth * 0.28).clamp(
-                              280.0,
-                              320.0,
+                ],
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    onPressed: () =>
+                        showMarkdownNoteEditor(context, widget.controller),
+                    tooltip: '新建笔记',
+                    icon: const Icon(Icons.add),
+                  ),
+                ),
+              ),
+            if (notes.isNotEmpty && !reading)
+              WorkbenchContentFrame(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                  child: SearchBar(
+                    controller: searchController,
+                    hintText: '查找标题、正文或标签',
+                    leading: const Icon(Icons.search),
+                    trailing: query.isEmpty
+                        ? null
+                        : [
+                            IconButton(
+                              tooltip: '清除笔记搜索',
+                              onPressed: _clearSearch,
+                              icon: const Icon(Icons.close),
                             ),
-                            child: _NoteIndex(
-                              notes: visibleNotes,
-                              totalCount: notes.length,
-                              favoriteCount: notes
-                                  .where((note) => note.favorite)
-                                  .length,
-                              linkedCount: notes
-                                  .where(
-                                    (note) => _noteProjectIds(note).isNotEmpty,
-                                  )
-                                  .length,
-                              selectedId: selected?.id,
-                              onSelected: (note) =>
-                                  setState(() => selectedId = note.id),
-                              onEdit: _editNote,
-                              onDelete: (note) => _moveNoteToTrash(note, notes),
+                          ],
+                    onChanged: (value) => setState(() => query = value),
+                  ),
+                ),
+              ),
+            Expanded(
+              child: notes.isEmpty
+                  ? Center(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            EmptyState(
+                              icon: Icons.note_alt_outlined,
+                              title: '还没有笔记',
+                              message: '从顶部新增入口开始记录资料、思路或项目上下文。',
+                              action: FilledButton.icon(
+                                onPressed: () => showMarkdownNoteEditor(
+                                  context,
+                                  widget.controller,
+                                ),
+                                icon: const Icon(Icons.add),
+                                label: const Text('新建笔记'),
+                              ),
                             ),
-                          ),
-                          const VerticalDivider(),
-                          Expanded(
-                            child: AnimatedSwitcher(
+                          ],
+                        ),
+                      ),
+                    )
+                  : visibleNotes.isEmpty
+                  ? EmptyState(
+                      icon: Icons.manage_search_outlined,
+                      title: '没有匹配的笔记',
+                      message: '试试标题、正文中的其他词，或清除搜索条件。',
+                      action: OutlinedButton.icon(
+                        onPressed: _clearSearch,
+                        icon: const Icon(Icons.filter_alt_off_outlined),
+                        label: const Text('显示全部笔记'),
+                      ),
+                    )
+                  : Builder(
+                      builder: (context) {
+                        if (!desktop) {
+                          if (mobileReading && selected != null) {
+                            return AnimatedSwitcher(
                               duration: MediaQuery.disableAnimationsOf(context)
                                   ? Duration.zero
                                   : const Duration(milliseconds: 180),
                               child: _NoteReader(
-                                key: ValueKey(selected!.id),
+                                key: ValueKey(selected.id),
                                 note: selected,
                                 controller: widget.controller,
+                                onBack: _returnToIndex,
                                 onEdit: () => _editNote(selected),
                                 onDelete: () =>
                                     _moveNoteToTrash(selected, notes),
                               ),
-                            ),
+                            );
+                          }
+                          return _NoteIndex(
+                            notes: visibleNotes,
+                            totalCount: notes.length,
+                            favoriteCount: notes
+                                .where((note) => note.favorite)
+                                .length,
+                            linkedCount: notes
+                                .where(
+                                  (note) => _noteProjectIds(note).isNotEmpty,
+                                )
+                                .length,
+                            selectedId: selected?.id,
+                            onSelected: (note) => setState(() {
+                              selectedId = note.id;
+                              mobileReading = true;
+                            }),
+                            onEdit: _editNote,
+                            onDelete: (note) => _moveNoteToTrash(note, notes),
+                          );
+                        }
+                        return WorkbenchContentFrame(
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: (constraints.maxWidth * 0.28).clamp(
+                                  280.0,
+                                  320.0,
+                                ),
+                                child: _NoteIndex(
+                                  notes: visibleNotes,
+                                  totalCount: notes.length,
+                                  favoriteCount: notes
+                                      .where((note) => note.favorite)
+                                      .length,
+                                  linkedCount: notes
+                                      .where(
+                                        (note) =>
+                                            _noteProjectIds(note).isNotEmpty,
+                                      )
+                                      .length,
+                                  selectedId: selected?.id,
+                                  onSelected: (note) =>
+                                      setState(() => selectedId = note.id),
+                                  onEdit: _editNote,
+                                  onDelete: (note) =>
+                                      _moveNoteToTrash(note, notes),
+                                ),
+                              ),
+                              const VerticalDivider(),
+                              Expanded(
+                                child: AnimatedSwitcher(
+                                  duration:
+                                      MediaQuery.disableAnimationsOf(context)
+                                      ? Duration.zero
+                                      : const Duration(milliseconds: 180),
+                                  child: _NoteReader(
+                                    key: ValueKey(selected!.id),
+                                    note: selected,
+                                    controller: widget.controller,
+                                    onEdit: () => _editNote(selected),
+                                    onDelete: () =>
+                                        _moveNoteToTrash(selected, notes),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  void _clearSearch() {
+    searchController.clear();
+    setState(() => query = '');
   }
 
   Future<void> _editNote(WorkspaceRecord note) async {
@@ -368,9 +407,12 @@ class _NoteIndex extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        '知识索引',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          '知识索引',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
                     ),
                     const WorkbenchIllustration(
@@ -414,7 +456,7 @@ class _NoteIndex extends StatelessWidget {
             border: Border(
               left: BorderSide(
                 color: selected ? clay.color : Colors.transparent,
-                width: 2,
+                width: 1,
               ),
             ),
           ),
@@ -546,9 +588,12 @@ class _NoteReader extends StatelessWidget {
         ),
       ],
     );
-    final title = Text(
-      note.title,
-      style: theme.textTheme.titleLarge?.copyWith(fontSize: 20),
+    final title = Semantics(
+      header: true,
+      child: Text(
+        note.title,
+        style: theme.textTheme.titleLarge?.copyWith(fontSize: 20),
+      ),
     );
     final readingStyle = workbenchMarkdownStyle(context);
     return Center(

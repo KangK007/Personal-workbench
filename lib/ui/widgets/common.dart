@@ -151,6 +151,8 @@ class WorkbenchTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeController = controller ?? DefaultTabController.of(context);
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final direction = Directionality.of(context) == TextDirection.rtl ? -1 : 1;
     return Focus(
       key: const ValueKey('workbench-tab-bar-focus'),
       autofocus: autofocus,
@@ -158,17 +160,29 @@ class WorkbenchTabBar extends StatelessWidget {
         if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
           return KeyEventResult.ignored;
         }
+        if (activeController.length == 0) return KeyEventResult.ignored;
         final delta = switch (event.logicalKey) {
-          LogicalKeyboardKey.arrowLeft => -1,
-          LogicalKeyboardKey.arrowRight => 1,
+          LogicalKeyboardKey.arrowLeft => -direction,
+          LogicalKeyboardKey.arrowRight => direction,
           _ => 0,
         };
-        if (delta == 0) return KeyEventResult.ignored;
-        final next = (activeController.index + delta)
-            .clamp(0, activeController.length - 1)
-            .toInt();
+        final next = switch (event.logicalKey) {
+          LogicalKeyboardKey.home => 0,
+          LogicalKeyboardKey.end => activeController.length - 1,
+          _ when delta != 0 =>
+            (activeController.index + delta)
+                .clamp(0, activeController.length - 1)
+                .toInt(),
+          _ => null,
+        };
+        if (next == null) {
+          return KeyEventResult.ignored;
+        }
         if (next != activeController.index) {
-          activeController.animateTo(next);
+          activeController.animateTo(
+            next,
+            duration: reducedMotion ? Duration.zero : AppMotion.standard,
+          );
         }
         return KeyEventResult.handled;
       },
@@ -227,7 +241,9 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
     useRootNavigator: useRootNavigator,
     routeSettings: routeSettings,
     anchorPoint: anchorPoint,
-    transitionDuration: AppMotion.standard,
+    transitionDuration: MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : AppMotion.standard,
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       if (MediaQuery.disableAnimationsOf(context)) return child;
       final curved = CurvedAnimation(
@@ -246,7 +262,7 @@ Future<T?> showWorkbenchDialog<T extends Object?>({
   );
 }
 
-/// 统一底部弹层入口：实色 raised 底 + 顶部 8px 圆角 + 拖拽把手。
+/// 统一底部弹层入口：实色 raised 底、主题圆角与系统动效偏好。
 Future<T?> showWorkbenchSheet<T extends Object?>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -285,6 +301,12 @@ Future<T?> showWorkbenchSheet<T extends Object?>({
     useRootNavigator: useRootNavigator,
     routeSettings: routeSettings,
     transitionAnimationController: transitionAnimationController,
+    sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
+        ? AnimationStyle.noAnimation
+        : const AnimationStyle(
+            duration: AppMotion.standard,
+            reverseDuration: AppMotion.exit,
+          ),
     anchorPoint: anchorPoint,
   );
 }
@@ -706,17 +728,20 @@ class PageHeader extends StatelessWidget {
                           fontFeatures: _numericFeaturesIfUseful(kicker!),
                         ),
                       ),
-                    Text(
-                      title,
-                      maxLines: compact ? 2 : 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: displayTitle
-                          ? theme.textTheme.displayLarge?.copyWith(
-                              fontSize: compact ? 24 : 28,
-                            )
-                          : theme.textTheme.headlineMedium?.copyWith(
-                              fontSize: compact ? 24 : 26,
-                            ),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        title,
+                        maxLines: compact ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: displayTitle
+                            ? theme.textTheme.displayLarge?.copyWith(
+                                fontSize: compact ? 24 : 28,
+                              )
+                            : theme.textTheme.headlineMedium?.copyWith(
+                                fontSize: compact ? 24 : 26,
+                              ),
+                      ),
                     ),
                     if (subtitle != null)
                       Text(
@@ -798,11 +823,14 @@ class SectionHeading extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface,
+            Semantics(
+              header: true,
+              child: Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
             ),
             if (scale != null)
@@ -836,17 +864,20 @@ class SectionHeading extends StatelessWidget {
             child: Row(
               children: [
                 Flexible(
-                  child: Text(
-                    title,
-                    maxLines: compact ? 2 : 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: compact
-                        // 手机正文为 16px，分区标题至少与正文同级。
-                        ? theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurface,
-                          )
-                        : theme.textTheme.titleLarge,
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      title,
+                      maxLines: compact ? 2 : 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: compact
+                          // 手机正文为 16px，分区标题至少与正文同级。
+                          ? theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            )
+                          : theme.textTheme.titleLarge,
+                    ),
                   ),
                 ),
                 if (scale != null) ...[
@@ -1262,61 +1293,7 @@ class EmptyState extends StatelessWidget {
       ),
     );
 
-    if (MediaQuery.disableAnimationsOf(context)) {
-      return scrollable(content);
-    }
-
-    // 入场编排：徽章 320ms 缩放淡入；文案延迟 80ms 淡入跟随。
-    return scrollable(
-      TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: AppMotion.emphasized,
-        curve: Curves.easeOutCubic,
-        builder: (context, t, child) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Opacity(
-                opacity: t.clamp(0.0, 1.0),
-                child: Transform.scale(
-                  scale: 0.8 + 0.2 * t.clamp(0.0, 1.0),
-                  child: badge,
-                ),
-              ),
-              Opacity(
-                opacity: ((t - 0.25) / 0.75).clamp(0.0, 1.0),
-                child: child,
-              ),
-            ],
-          );
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              message,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: context.tokens.mutedText,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (action != null) ...[
-              const SizedBox(height: AppSpacing.xl),
-              PressScale(child: action!),
-            ],
-          ],
-        ),
-      ),
-    );
+    return scrollable(content);
   }
 }
 

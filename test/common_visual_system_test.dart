@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_workbench/core/theme/app_theme.dart';
 import 'package:personal_workbench/ui/widgets/common.dart';
@@ -9,6 +10,80 @@ Widget _host(ThemeData theme, Widget child) => MaterialApp(
 );
 
 void main() {
+  testWidgets(
+    'tabs follow reading direction and finish immediately with reduced motion',
+    (tester) async {
+      late TabController controller;
+      await tester.pumpWidget(
+        _host(
+          AppTheme.light(),
+          MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: DefaultTabController(
+                length: 3,
+                child: Builder(
+                  builder: (context) {
+                    controller = DefaultTabController.of(context);
+                    return const WorkbenchTabBar(
+                      autofocus: true,
+                      tabs: [
+                        Tab(text: '今日'),
+                        Tab(text: '本周'),
+                        Tab(text: '全部'),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pump();
+      expect(controller.index, 1);
+      expect(controller.animation!.value, 1);
+      await tester.sendKeyEvent(LogicalKeyboardKey.end);
+      await tester.pump();
+      expect(controller.animation!.value, 2);
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+      await tester.pump();
+      expect(controller.animation!.value, 0);
+    },
+  );
+
+  testWidgets('reduced motion sheet opens without a sliding transition', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        AppTheme.light(),
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showWorkbenchSheet<void>(
+                context: context,
+                builder: (_) =>
+                    const SizedBox(height: 180, child: Text('快速收集')),
+              ),
+              child: const Text('打开收集'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('打开收集'));
+    await tester.pump();
+    final top = tester.getTopLeft(find.byType(BottomSheet));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.byType(BottomSheet)), top);
+    expect(find.text('快速收集'), findsOneWidget);
+  });
+
   for (final entry in {
     'light': AppTheme.light(),
     'dark': AppTheme.dark(),

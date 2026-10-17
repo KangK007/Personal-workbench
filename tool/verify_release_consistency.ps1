@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$ProjectRoot,
+    [string]$InstallDirectory,
     [switch]$RequireInstalled,
     [switch]$SkipInstalled,
     [switch]$CleanStaleArtifacts
@@ -26,8 +27,17 @@ $parts = $version -split '\+', 2
 $versionName = $parts[0]
 $versionCode = if ($parts.Count -eq 2) { $parts[1] } else { '1' }
 
-$installation = Get-PersonalWorkbenchInstall
-$installedExe = $installation.Executable
+if ([string]::IsNullOrWhiteSpace($InstallDirectory)) {
+    $installation = Get-PersonalWorkbenchInstall
+    $installedExe = $installation.Executable
+} else {
+    $InstallDirectory = [System.IO.Path]::GetFullPath($InstallDirectory)
+    $installation = [pscustomobject]@{
+        ManagedByInstaller = $true
+        Executable = Join-Path $InstallDirectory 'personal_workbench.exe'
+    }
+    $installedExe = $installation.Executable
+}
 $shell = New-Object -ComObject WScript.Shell
 
 function Assert-ShortcutTarget([string]$Path) {

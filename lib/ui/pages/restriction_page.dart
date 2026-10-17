@@ -379,7 +379,10 @@ class RestrictionSection extends StatelessWidget {
   }
 
   Widget _buildEvents(BuildContext context) {
-    return _RestrictionEvents(events: controller.restrictionEvents);
+    return _RestrictionEvents(
+      events: controller.restrictionEvents,
+      now: controller.currentTime(),
+    );
   }
 
   Widget _buildProtectionSummary(
@@ -2294,8 +2297,9 @@ class _Metric extends StatelessWidget {
 }
 
 class _RestrictionEvents extends StatefulWidget {
-  const _RestrictionEvents({required this.events});
+  const _RestrictionEvents({required this.events, required this.now});
   final List<WorkspaceRecord> events;
+  final DateTime now;
 
   @override
   State<_RestrictionEvents> createState() => _RestrictionEventsState();
@@ -2420,6 +2424,12 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
                       ),
                     ),
                   ),
+                  if (_hasFilters)
+                    TextButton.icon(
+                      onPressed: _clearFilters,
+                      icon: const Icon(Icons.filter_alt_off_outlined),
+                      label: const Text('清除筛选'),
+                    ),
                 ],
               );
             },
@@ -2450,7 +2460,7 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
       return false;
     }
     final at = event.scheduledFor ?? event.createdAt;
-    final now = DateTime.now();
+    final now = widget.now;
     if (_period == 'today' &&
         (at.year != now.year || at.month != now.month || at.day != now.day)) {
       return false;
@@ -2460,6 +2470,21 @@ class _RestrictionEventsState extends State<_RestrictionEvents> {
       return false;
     }
     return true;
+  }
+
+  bool get _hasFilters =>
+      _process.text.trim().isNotEmpty ||
+      _period != 'all' ||
+      _reason != 'all' ||
+      _action != 'all';
+
+  void _clearFilters() {
+    _process.clear();
+    setState(() {
+      _period = 'all';
+      _reason = 'all';
+      _action = 'all';
+    });
   }
 }
 

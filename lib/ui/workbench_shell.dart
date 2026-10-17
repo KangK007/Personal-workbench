@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 
@@ -130,6 +129,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   final Set<WorkbenchSection> _visitedSections = {WorkbenchSection.today};
   final _pageStackKey = GlobalKey(debugLabel: 'workbench-pages');
   final List<WorkbenchSection> _mobileHistory = [];
+  VoidCallback? _notesBackHandler;
   final Map<WorkbenchSection, WorkbenchSection> _lastMobileChild = {
     WorkbenchSection.tasksAll: WorkbenchSection.tasksAll,
     WorkbenchSection.protocols: WorkbenchSection.protocols,
@@ -241,6 +241,11 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           size.height < AppBreakpoints.compactHeight);
 
   bool _popMobileHistory() {
+    final notesBack = _notesBackHandler;
+    if (section == WorkbenchSection.notes && notesBack != null) {
+      notesBack();
+      return true;
+    }
     if (_mobileHistory.isEmpty) return false;
     final previous = _mobileHistory.removeLast();
     setState(() {
@@ -252,6 +257,11 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       _visitedSections.add(previous);
     });
     return true;
+  }
+
+  void _registerNotesBackHandler(VoidCallback? handler) {
+    if (!mounted || handler == _notesBackHandler) return;
+    setState(() => _notesBackHandler = handler);
   }
 
   Widget _desktopLayout({required bool compactNavigation}) {
@@ -388,7 +398,9 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     final theme = Theme.of(context);
     final tokens = context.tokens;
     return PopScope(
-      canPop: _mobileHistory.isEmpty,
+      canPop:
+          _mobileHistory.isEmpty &&
+          !(section == WorkbenchSection.notes && _notesBackHandler != null),
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         _popMobileHistory();
@@ -400,7 +412,10 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           titleSpacing: isTodayDestination ? AppSpacing.pageCompact : 8,
           // 方案 C 的移动页头左起就是日期与标题，没有品牌块。
           automaticallyImplyLeading: false,
-          leading: _mobileHistory.isEmpty
+          leading:
+              _mobileHistory.isEmpty &&
+                  !(section == WorkbenchSection.notes &&
+                      _notesBackHandler != null)
               ? IconButton(
                   onPressed: () => _openMobileNavigation(context),
                   tooltip: '导航',
@@ -408,6 +423,12 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                 )
               : IconButton(
                   onPressed: () {
+                    final notesBack = _notesBackHandler;
+                    if (section == WorkbenchSection.notes &&
+                        notesBack != null) {
+                      notesBack();
+                      return;
+                    }
                     setState(() {
                       _mobileHistory.clear();
                       section = WorkbenchSection.today;
@@ -699,7 +720,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
       onOpenInbox: () => _select(WorkbenchSection.tasksInbox),
       onOpenReview: () => _select(WorkbenchSection.reviewDaily),
       onOpenHabits: () => _select(WorkbenchSection.habits),
-      onOpenFocus: () => _select(WorkbenchSection.focus),
     ),
     WorkbenchSection.tasksAll => _planPage(value, PlanTab.all),
     WorkbenchSection.tasksInbox => InboxPage(
@@ -737,6 +757,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     WorkbenchSection.notes => NotesPage(
       controller: widget.controller,
       showHeader: _showPageHeader,
+      onBackHandlerChanged: _registerNotesBackHandler,
     ),
     WorkbenchSection.diary => _reviewPage(value, ReviewTab.diary),
     WorkbenchSection.reviewDaily => _reviewPage(value, ReviewTab.diary),
@@ -1193,7 +1214,7 @@ class _DesktopNavigation extends StatelessWidget {
             Expanded(
               child: ListView(
                 key: const ValueKey('desktop-navigation-scroll'),
-                scrollCacheExtent: const ScrollCacheExtent.pixels(10000),
+                cacheExtent: 10000,
                 padding: EdgeInsets.fromLTRB(
                   collapsed
                       ? 7

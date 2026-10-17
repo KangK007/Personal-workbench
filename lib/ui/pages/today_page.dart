@@ -13,6 +13,7 @@ import '../../state/workbench_controller.dart';
 import '../platform_feedback.dart';
 import '../widgets/celebration.dart';
 import '../widgets/common.dart';
+import '../widgets/global_search_dialog.dart';
 import '../widgets/jade_botanical_edge.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
@@ -29,7 +30,6 @@ class TodayPage extends StatelessWidget {
     this.onOpenInbox,
     this.onOpenReview,
     this.onOpenHabits,
-    this.onOpenFocus,
   });
 
   final WorkbenchController controller;
@@ -39,7 +39,6 @@ class TodayPage extends StatelessWidget {
   final VoidCallback? onOpenInbox;
   final VoidCallback? onOpenReview;
   final VoidCallback? onOpenHabits;
-  final VoidCallback? onOpenFocus;
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +83,6 @@ class TodayPage extends StatelessWidget {
             onOpenInbox: onOpenInbox,
             onOpenReview: onOpenReview,
             onOpenHabits: onOpenHabits,
-            onOpenFocus: onOpenFocus,
           ),
         ),
       ],
@@ -361,7 +359,6 @@ class _TodayContent extends StatelessWidget {
     this.onOpenInbox,
     this.onOpenReview,
     this.onOpenHabits,
-    this.onOpenFocus,
   });
 
   final WorkbenchController controller;
@@ -371,7 +368,8 @@ class _TodayContent extends StatelessWidget {
   final VoidCallback? onOpenInbox;
   final VoidCallback? onOpenReview;
   final VoidCallback? onOpenHabits;
-  final VoidCallback? onOpenFocus;
+
+  static const _desktopTopCardHeight = 72.0;
 
   @override
   Widget build(BuildContext context) {
@@ -394,6 +392,10 @@ class _TodayContent extends StatelessWidget {
     final nextStep = _NextStepPanel(
       controller: controller,
       date: date,
+      dense: wide ||
+          (textScale >= 1.6 &&
+              WorkbenchViewport.sizeOf(context).height < 600 &&
+              pageWidth >= AppBreakpoints.compact),
       onOpenPlan: onOpenPlan,
       onOpenInbox: onOpenInbox,
       onOpenReview: onOpenReview,
@@ -529,7 +531,7 @@ class _TodayContent extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.pageWide,
-            0,
+            AppSpacing.md,
             AppSpacing.pageWide,
             AppSpacing.pageWide,
           ),
@@ -543,17 +545,40 @@ class _TodayContent extends StatelessWidget {
                   key: const PageStorageKey('today-main-column'),
                   padding: const EdgeInsets.only(bottom: 72),
                   children: [
-                    _TodayScene(
-                      controller: controller,
-                      date: date,
-                      showHeader: showHeader,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: _desktopTopCardHeight,
+                            child: _TodayScene(
+                              controller: controller,
+                              date: date,
+                              showHeader: showHeader,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        SizedBox(
+                          width: 308,
+                          height: _desktopTopCardHeight,
+                          child: _TodayOverviewCard(
+                            remaining: today.length,
+                            completed: settled
+                                .where((task) => task.isDone)
+                                .length,
+                            focus: controller.todayFocusDuration,
+                            dense: true,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.md),
+                    nextStep,
                     ...commitmentSection,
                     if (controller.todayStarted) todayRestSection,
                     overdueSection,
                     if (settledRest.isNotEmpty) settledSection,
-                    nextStep,
                     ExpansionTile(
                       key: const PageStorageKey('today-desktop-details'),
                       tilePadding: EdgeInsets.zero,
@@ -567,42 +592,17 @@ class _TodayContent extends StatelessWidget {
               const SizedBox(width: AppLayout.columnGap),
               SizedBox(
                 width: sideWidth,
-                child: Column(
+                child: ListView(
+                  key: const PageStorageKey('today-side-column'),
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
                   children: [
-                    Expanded(
-                      child: ListView(
-                        key: const PageStorageKey('today-side-column'),
-                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                        children: [
-                          ...timeline,
-                          const SizedBox(height: AppSpacing.lg),
-                          _TodayOverviewCard(
-                            remaining: today.length,
-                            completed: settled
-                                .where((task) => task.isDone)
-                                .length,
-                            focus: controller.todayFocusDuration,
-                            dense: true,
-                          ),
-                          if (controller.advancedFeaturesEnabled) ...[
-                            const SectionHeading(title: '成长进度'),
-                            _CompactGrowth(controller: controller),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (onOpenFocus != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.sm),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: onOpenFocus,
-                            icon: const Icon(Icons.timer_outlined),
-                            label: const Text('开始专注'),
-                          ),
-                        ),
-                      ),
+                    ...timeline,
+                    const SizedBox(height: AppSpacing.lg),
+                    _TodayUtilities(controller: controller),
+                    if (controller.advancedFeaturesEnabled) ...[
+                      const SectionHeading(title: '成长进度'),
+                      _CompactGrowth(controller: controller),
+                    ],
                   ],
                 ),
               ),
@@ -632,14 +632,6 @@ class _TodayContent extends StatelessWidget {
           completed: settled.where((task) => task.isDone).length,
           focus: controller.todayFocusDuration,
         ),
-        if (onOpenFocus != null) ...[
-          const SizedBox(height: AppSpacing.md),
-          FilledButton.icon(
-            onPressed: onOpenFocus,
-            icon: const Icon(Icons.timer_outlined),
-            label: const Text('开始专注'),
-          ),
-        ],
         nextStep,
         // 空白天仍保留「今日」分区（给出「今天还没有待处理任务」的明示），
         // 只有当内容**整体搬进「今日重点」**时才省略整段。
@@ -1623,6 +1615,7 @@ class _NextStepPanel extends StatelessWidget {
   const _NextStepPanel({
     required this.controller,
     required this.date,
+    this.dense = false,
     this.onOpenPlan,
     this.onOpenInbox,
     this.onOpenReview,
@@ -1630,6 +1623,7 @@ class _NextStepPanel extends StatelessWidget {
 
   final WorkbenchController controller;
   final DateTime date;
+  final bool dense;
   final VoidCallback? onOpenPlan;
   final VoidCallback? onOpenInbox;
   final VoidCallback? onOpenReview;
@@ -1702,57 +1696,80 @@ class _NextStepPanel extends StatelessWidget {
     };
     final compact =
         WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final tight = compact && textScale >= 1.6;
+    final hideMessage = dense &&
+        textScale >= 1.6 &&
+        WorkbenchViewport.sizeOf(context).height < 600;
+    final copy = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          maxLines: dense ? 2 : null,
+          overflow: dense ? TextOverflow.ellipsis : null,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (!hideMessage) ...[
+          const SizedBox(height: 5),
+          Text(
+            message,
+            maxLines: tight ? 1 : null,
+            overflow: tight ? TextOverflow.ellipsis : null,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: context.tokens.mutedText),
+          ),
+        ],
+      ],
+    );
+    final action = SizedBox(
+      width: compact ? double.infinity : null,
+      height: compact ? 52 : null,
+      child: FilledButton.icon(
+        onPressed: () => _act(context, nextTask),
+        style: compact
+            ? FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                ),
+              )
+            : null,
+        icon: Icon(icon),
+        label: Text(label),
+      ),
+    );
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      padding: EdgeInsets.only(top: dense ? 0 : AppSpacing.lg),
       child: SolidPanel(
-        // 方案 C 的卡片档是 16，不是工作面档 20。
         radius: AppRadius.card,
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: dense ? AppSpacing.md : AppSpacing.lg,
+        ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: dense
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
           children: [
             Icon(icon, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+              child: dense
+                  ? Row(
+                      children: [
+                        Expanded(child: copy),
+                        const SizedBox(width: AppSpacing.lg),
+                        action,
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [copy, const SizedBox(height: 14), action],
                     ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    message,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.tokens.mutedText,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    // 方案 C 的主操作是 52 高、圆角 16 的通栏按钮。
-                    // 移动端对齐这一档；桌面保持默认高度，避免纵向臃肿。
-                    width: compact ? double.infinity : null,
-                    height: compact ? 52 : null,
-                    child: FilledButton.icon(
-                      onPressed: () => _act(context, nextTask),
-                      style: compact
-                          ? FilledButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.card,
-                                ),
-                              ),
-                            )
-                          : null,
-                      icon: Icon(icon),
-                      label: Text(label),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -2918,7 +2935,12 @@ class _TodayScene extends StatelessWidget {
             !showHeader ||
             WorkbenchViewport.sizeOf(context).height >= 500 ||
             textScale < 1.6;
-        final state = controller.todayClosed
+        final overdueCount = controller.overdueTasks.length;
+        final state = controller.syncPhase == SyncPhase.error
+            ? '同步遇到问题，本地记录仍可使用'
+            : overdueCount > 0
+            ? '$overdueCount 项逾期任务待结算'
+            : controller.todayClosed
             ? '今日已收尾，留下完成的证据'
             : controller.todayStarted
             ? '沿着重点任务，稳步推进'
@@ -2990,6 +3012,57 @@ class _TodayScene extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _TodayUtilities extends StatelessWidget {
+  const _TodayUtilities({required this.controller});
+
+  final WorkbenchController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, icon) = switch (controller.syncPhase) {
+      SyncPhase.localOnly => ('本地数据已就绪', Icons.storage_outlined),
+      SyncPhase.signedOut => ('云端未登录 · 本地可用', Icons.cloud_off_outlined),
+      SyncPhase.idle => ('云端已连接 · 本地可用', Icons.cloud_queue_outlined),
+      SyncPhase.syncing => ('正在同步 · 本地可用', Icons.cloud_sync_outlined),
+      SyncPhase.success => ('同步完成 · 本地可用', Icons.cloud_done_outlined),
+      SyncPhase.error => ('同步失败 · 本地可用', Icons.cloud_off_outlined),
+    };
+    return Column(
+      key: const ValueKey('today-utilities'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(
+              icon,
+              size: AppIconSize.xs,
+              color: controller.syncPhase == SyncPhase.error
+                  ? context.tokens.signal
+                  : context.tokens.info,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.tokens.mutedText,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        OutlinedButton.icon(
+          key: const ValueKey('today-search-action'),
+          onPressed: () => showGlobalSearch(context, controller),
+          icon: const Icon(Icons.search),
+          label: const Text('搜索任务、项目与笔记'),
+        ),
+      ],
     );
   }
 }

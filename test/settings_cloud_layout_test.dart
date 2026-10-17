@@ -84,6 +84,86 @@ class _SignedInPreviewController extends WorkbenchController {
 }
 
 void main() {
+  testWidgets(
+    'desktop settings index jumps to data and preserves account draft',
+    (tester) async {
+      final controller = _controller();
+      addTearDown(controller.dispose);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: SettingsPage(controller: controller)),
+        ),
+      );
+
+      expect(find.text('设置目录'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('settings-index:1')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'kept@example.com');
+      await tester.enterText(find.byType(TextField).at(1), 'kept-password');
+
+      await tester.tap(find.byKey(const ValueKey('settings-index:3')));
+      await tester.pumpAndSettle();
+      final backup = find.text('创建加密备份');
+      expect(tester.getTopLeft(backup).dy, greaterThan(0));
+      expect(tester.getBottomLeft(backup).dy, lessThan(900));
+      expect(find.text('导入文件'), findsOneWidget);
+
+      tester.view.physicalSize = const Size(390, 844);
+      await tester.pumpAndSettle();
+      expect(find.text('设置目录'), findsNothing);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
+        'kept@example.com',
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField).at(1)).controller!.text,
+        'kept-password',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('data actions leave readable copy at 200 percent text', (
+    tester,
+  ) async {
+    final controller = _controller();
+    addTearDown(controller.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: MediaQuery(
+            data: const MediaQueryData(
+              textScaler: TextScaler.linear(2),
+              disableAnimations: true,
+            ),
+            child: SettingsPage(controller: controller, showHeader: false),
+          ),
+        ),
+      ),
+    );
+    final backup = find.text('备份');
+    await tester.ensureVisible(backup);
+    await tester.pumpAndSettle();
+    final title = tester.getRect(find.text('创建加密备份'));
+    final explanation = tester.getRect(find.text('保存全部本地内容，密码至少 8 个字符'));
+    final action = tester.getRect(backup);
+    expect(title.width, greaterThan(160));
+    expect(action.top, greaterThan(explanation.bottom));
+    expect(action.bottom, lessThan(568));
+    expect(find.text('设置目录'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('auth form keeps fields and actions reachable with a keyboard', (
     tester,
   ) async {

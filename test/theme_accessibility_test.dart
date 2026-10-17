@@ -22,6 +22,10 @@ void main() {
       final theme = entry.value;
       final scheme = theme.colorScheme;
       final pairs = {
+        'placeholder/input surface': (
+          theme.inputDecorationTheme.hintStyle!.color!,
+          theme.inputDecorationTheme.fillColor!,
+        ),
         'onSurface/surface': (scheme.onSurface, scheme.surface),
         'onSurfaceVariant/surface': (scheme.onSurfaceVariant, scheme.surface),
         'primary/surface': (scheme.primary, scheme.surface),

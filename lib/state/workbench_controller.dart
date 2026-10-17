@@ -1489,17 +1489,15 @@ class WorkbenchController extends WorkbenchControllerBase
           ),
         },
       );
-      await database.saveRecord(definition);
-      await database.saveRecord(instance);
-      _records
-        ..add(definition)
-        ..add(instance);
+      await database.saveRecords([definition, instance]);
+      _upsertRecordInMemory(definition);
+      _upsertRecordInMemory(instance);
       await ensureTaskInstancesThrough(
         growthService.logicalDay(currentTime()).add(const Duration(days: 90)),
       );
     } else {
       await database.saveRecord(record);
-      _records.add(record);
+      _upsertRecordInMemory(record);
     }
     _projectIndex = null;
     notifyListeners();
@@ -1591,9 +1589,7 @@ class WorkbenchController extends WorkbenchControllerBase
       }
     }
     if (created.isEmpty) return 0;
-    for (final record in created) {
-      await database.saveRecord(record);
-    }
+    await database.saveRecords(created);
     _records.addAll(created);
     _projectIndex = null;
     notifyListeners();
@@ -1650,6 +1646,12 @@ class WorkbenchController extends WorkbenchControllerBase
   Future<void> updateRecord(WorkspaceRecord record) async {
     record = normalizeRsipRecord(record);
     await database.saveRecord(record);
+    _upsertRecordInMemory(record);
+    _projectIndex = null;
+    notifyListeners();
+  }
+
+  void _upsertRecordInMemory(WorkspaceRecord record) {
     final index = _records.indexWhere(
       (value) => value.id == record.id && value.kind == record.kind,
     );
@@ -1658,8 +1660,6 @@ class WorkbenchController extends WorkbenchControllerBase
     } else {
       _records[index] = record;
     }
-    _projectIndex = null;
-    notifyListeners();
   }
 
   WorkspaceRecord? taskDefinitionFor(WorkspaceRecord task) {
@@ -1682,7 +1682,7 @@ class WorkbenchController extends WorkbenchControllerBase
     }
 
     final stableData = _stableTaskData(updated.data);
-    await updateRecord(
+    final updates = <WorkspaceRecord>[
       definition.copyWith(
         title: updated.title,
         body: updated.body,
@@ -1696,7 +1696,7 @@ class WorkbenchController extends WorkbenchControllerBase
           'recordType': 'taskDefinition',
         },
       ),
-    );
+    ];
 
     final threshold = original.scheduledFor ?? original.createdAt;
     final instances = tasks
@@ -1728,8 +1728,9 @@ class WorkbenchController extends WorkbenchControllerBase
                 'occurrenceKey': task.data['occurrenceKey'],
               },
             );
-      await updateRecord(next);
+      updates.add(next);
     }
+    await _saveRecordsBatch(updates);
     await ensureTaskInstancesThrough(
       growthService.logicalDay(currentTime()).add(const Duration(days: 90)),
     );

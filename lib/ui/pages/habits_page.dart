@@ -13,12 +13,14 @@ class HabitsPage extends StatelessWidget {
     this.showHeader = true,
     this.protocolSection,
     this.includeRsip = true,
+    this.showCreateAction = false,
   });
 
   final WorkbenchController controller;
   final bool showHeader;
   final Widget? protocolSection;
   final bool includeRsip;
+  final bool showCreateAction;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +80,19 @@ class HabitsPage extends StatelessWidget {
                     AppSpacing.bottomNavClearance,
                   ),
                   children: [
+                    if (!showHeader && showCreateAction)
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: TextButton.icon(
+                          onPressed: () => showRecordEditor(
+                            context,
+                            controller,
+                            kind: RecordKind.habit,
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: const Text('新建习惯'),
+                        ),
+                      ),
                     _HabitOverview(habits: habits, controller: controller),
                     SectionHeading(
                       title: '近期记录',
@@ -126,6 +141,9 @@ class _HabitOverview extends StatelessWidget {
               WorkStatus.done,
         )
         .length;
+    final recorded = habits
+        .where((habit) => controller.habitLogForDay(habit.id, today) != null)
+        .length;
     final tokens = context.tokens;
     final moss = context.accents.moss;
     return LogSurface(
@@ -150,15 +168,18 @@ class _HabitOverview extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
             value: habits.isEmpty ? 0 : completed / habits.length,
+            semanticsLabel: '今日习惯完成进度',
+            semanticsValue:
+                '已完成 $completed 项，已记录 $recorded 项，共 ${habits.length} 项',
             minHeight: 6,
             color: moss.color,
             backgroundColor: moss.container,
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            completed == habits.length
+            recorded == habits.length
                 ? '今日已全部记录'
-                : '尚有 ${habits.length - completed} 项待记录',
+                : '尚有 ${habits.length - recorded} 项待记录',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: tokens.mutedText),
@@ -422,7 +443,15 @@ class _HabitMonthStripState extends State<_HabitMonthStrip> {
       ),
     );
     if (status != null) {
-      await widget.controller.setHabitCalendarDayStatus(widget.habit, status);
+      try {
+        await widget.controller.setHabitCalendarDayStatus(widget.habit, status);
+      } on FormatException catch (error) {
+        if (!context.mounted) return;
+        showWorkbenchFeedback(context, error.message);
+      } catch (_) {
+        if (!context.mounted) return;
+        showWorkbenchFeedback(context, '打卡保存失败，请重试。');
+      }
     }
   }
 }
@@ -459,6 +488,9 @@ class _TodayHabitButton extends StatelessWidget {
                   context,
                   SnackBar(content: Text(error.message)),
                 );
+              } catch (_) {
+                if (!context.mounted) return;
+                showWorkbenchFeedback(context, '打卡保存失败，请重试。');
               }
             },
       icon: Icon(checked ? Icons.undo_outlined : Icons.check),
@@ -543,32 +575,66 @@ class _HabitLabel extends StatelessWidget {
               ),
             ),
           ),
-          if (habit.hasRsipProtocol)
-            PopupMenuButton<String>(
-              tooltip: 'RSIP 节点操作',
-              onSelected: (value) async {
-                if (value == 'fail') {
-                  await controller.logHabit(
-                    habit,
-                    controller.growthService.logicalDay(
-                      controller.currentTime(),
-                    ),
-                    WorkStatus.failed,
-                  );
-                } else if (value == 'reactivate') {
-                  await controller.reactivateRsipHabit(habit);
-                }
+          PopupMenuButton<String>(
+            tooltip: habit.hasRsipProtocol ? 'RSIP 节点操作' : '习惯操作',
+            onSelected: (value) async {
+              if (value == 'edit') {
+                await showRecordEditor(
+                  context,
+                  controller,
+                  kind: RecordKind.habit,
+                  record: habit,
+                );
+              } else if (value == 'trash') {
+                await controller.moveToTrash(habit);
                 if (!context.mounted) return;
                 showWorkbenchSnackBar(
                   context,
                   SnackBar(
-                    content: Text(
-                      value == 'fail' ? '当前节点及其子节点已熄灭' : 'RSIP 节点已重新启用',
+                    content: const Text('习惯已移入回收站'),
+                    action: SnackBarAction(
+                      label: '撤销',
+                      onPressed: () => controller.restoreFromTrash(habit),
                     ),
                   ),
                 );
-              },
-              itemBuilder: (context) => [
+              } else if (value == 'fail') {
+                await controller.logHabit(
+                  habit,
+                  controller.growthService.logicalDay(controller.currentTime()),
+                  WorkStatus.failed,
+                );
+              } else if (value == 'reactivate') {
+                await controller.reactivateRsipHabit(habit);
+              }
+              if (!context.mounted || value == 'edit' || value == 'trash') {
+                return;
+              }
+              showWorkbenchSnackBar(
+                context,
+                SnackBar(
+                  content: Text(
+                    value == 'fail' ? '当前节点及其子节点已熄灭' : 'RSIP 节点已重新启用',
+                  ),
+                ),
+              );
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: ListTile(
+                  leading: Icon(Icons.edit_outlined),
+                  title: Text('编辑习惯'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'trash',
+                child: ListTile(
+                  leading: Icon(Icons.delete_outline),
+                  title: Text('移入回收站'),
+                ),
+              ),
+              if (habit.hasRsipProtocol)
                 if (habit.rsipActive)
                   const PopupMenuItem(
                     value: 'fail',
@@ -585,9 +651,9 @@ class _HabitLabel extends StatelessWidget {
                       title: Text('重新启用节点'),
                     ),
                   ),
-              ],
-              icon: const Icon(Icons.more_horiz),
-            ),
+            ],
+            icon: const Icon(Icons.more_horiz),
+          ),
         ],
       ),
     );

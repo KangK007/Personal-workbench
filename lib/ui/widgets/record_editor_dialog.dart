@@ -22,6 +22,8 @@ Future<WorkspaceRecord?> showRecordEditor(
   String? initialParentId,
   DateTime? initialScheduledFor,
   String? initialStatus,
+  String? protocolMode,
+  String? editorTitle,
 }) {
   return showWorkbenchDialog<WorkspaceRecord>(
     context: context,
@@ -35,6 +37,8 @@ Future<WorkspaceRecord?> showRecordEditor(
       initialParentId: initialParentId,
       initialScheduledFor: initialScheduledFor,
       initialStatus: initialStatus,
+      protocolMode: protocolMode,
+      editorTitle: editorTitle,
     ),
   );
 }
@@ -51,6 +55,8 @@ class RecordEditorDialog extends StatefulWidget {
     this.initialParentId,
     this.initialScheduledFor,
     this.initialStatus,
+    this.protocolMode,
+    this.editorTitle,
   });
 
   final WorkbenchController controller;
@@ -62,6 +68,8 @@ class RecordEditorDialog extends StatefulWidget {
   final String? initialParentId;
   final DateTime? initialScheduledFor;
   final String? initialStatus;
+  final String? protocolMode;
+  final String? editorTitle;
 
   @override
   State<RecordEditorDialog> createState() => _RecordEditorDialogState();
@@ -244,7 +252,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
               : isHabit
               ? record.hasRsipProtocol
               : false)
-        : false;
+        : widget.protocolMode != null;
     ctdpDurationless = record?.ctdpIsDurationless ?? false;
     ctdpUnitType = record?.ctdpUnitType ?? 'unit';
     rsipUseTimer = record?.rsipUseTimer ?? false;
@@ -279,8 +287,10 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
         : null;
     final existingProtocol = protocolEnabled;
     showMoreOptions =
-        record != null &&
-        !(existingProtocol && !widget.controller.advancedFeaturesEnabled);
+        widget.protocolMode != null ||
+        (isTask && record == null) ||
+        (record != null &&
+            !(existingProtocol && !widget.controller.advancedFeaturesEnabled));
     _initialSnapshot = _snapshot();
   }
 
@@ -398,9 +408,11 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
       }
     }
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
-    final editorTitle = widget.record == null
-        ? '新建${widget.kind.label}'
-        : '编辑${widget.kind.label}';
+    final editorTitle =
+        widget.editorTitle ??
+        (widget.record == null
+            ? '新建${widget.kind.label}'
+            : '编辑${widget.kind.label}');
     final editorContent = SingleChildScrollView(
       padding: compact
           ? const EdgeInsets.fromLTRB(16, 12, 16, 24)
@@ -496,7 +508,8 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
           ],
           if (isTask || isHabit) ...[
             const SizedBox(height: 8),
-            if (showMoreOptions &&
+            if (widget.protocolMode == null &&
+                showMoreOptions &&
                 (widget.controller.advancedFeaturesEnabled ||
                     (widget.record != null &&
                         (widget.record!.hasCtdpProtocol ||
@@ -513,7 +526,7 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
                   formError = null;
                 }),
               ),
-            if (!showMoreOptions)
+            if (!showMoreOptions && !(isTask && widget.record == null))
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
@@ -1151,7 +1164,15 @@ class _RecordEditorDialogState extends State<RecordEditorDialog> {
               dimension: 18,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : Text(widget.record == null ? '创建${widget.kind.label}' : '保存修改'),
+          : Text(
+              widget.record == null
+                  ? switch (widget.protocolMode) {
+                      'ctdp' => '创建链条',
+                      'rsip' => '创建国策',
+                      _ => '创建${widget.kind.label}',
+                    }
+                  : '保存修改',
+            ),
     );
     final heading = Text(editorTitle);
     if (compact) {

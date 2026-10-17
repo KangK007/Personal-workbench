@@ -34,7 +34,7 @@ class FocusHubPage extends StatelessWidget {
       children: [
         if (showHeader)
           PageHeader(
-            maxWidth: AppLayout.formMax,
+            maxWidth: AppLayout.workspaceMax,
             title: '专注',
             displayTitle: true,
             subtitle: '预设与任务关联的计时会话 · 自律规则与拦截日志',
@@ -102,7 +102,7 @@ class _FocusTab extends StatelessWidget {
     final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: AppLayout.formMax),
+        constraints: const BoxConstraints(maxWidth: AppLayout.workspaceMax),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
             20,
@@ -111,7 +111,6 @@ class _FocusTab extends StatelessWidget {
             AppSpacing.bottomNavClearance,
           ),
           children: [
-            _FocusNext(task: candidates.firstOrNull, controller: controller),
             if (pendingPresets.isNotEmpty) ...[
               const SectionHeading(title: '待确认启动'),
               _PendingFocusPresets(
@@ -119,6 +118,7 @@ class _FocusTab extends StatelessWidget {
                 controller: controller,
               ),
             ],
+            _FocusNext(task: candidates.firstOrNull, controller: controller),
             _FocusRhythm(sessions: sessions, now: controller.currentTime()),
             if (presets.length == 1 && textScale <= 1.35)
               Center(
@@ -1502,6 +1502,23 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
   DateTime? foregroundStartedAt;
   String? lastWarnedApplication;
 
+  Duration get _selectedDisplayDuration {
+    if (service.elapsed > Duration.zero || service.running) {
+      return service.displayDuration;
+    }
+    return switch (selectedMode) {
+      FocusMode.stopwatch => Duration.zero,
+      FocusMode.pomodoro25 => const Duration(minutes: 25),
+      FocusMode.pomodoro50 => const Duration(minutes: 50),
+      FocusMode.custom => Duration(
+        minutes:
+            (widget.preset?.data['minutes'] as num?)?.toInt().clamp(1, 720) ??
+            widget.task?.ctdpSessionMinutes.clamp(1, 720) ??
+            25,
+      ),
+    };
+  }
+
   FocusService get service => widget.controller.focusService;
 
   @override
@@ -1585,7 +1602,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
         );
         final dial = _FocusProgressDial(
           size: dialSize,
-          duration: service.displayDuration,
+          duration: _selectedDisplayDuration,
           progress: service.mode == FocusMode.stopwatch ? 0 : service.progress,
           running: service.running,
           elapsed: service.elapsed,

@@ -84,8 +84,8 @@ class _BatchTaskToolbarState extends State<BatchTaskToolbar> {
       color: theme.colorScheme.surfaceContainerHighest,
       child: SafeArea(
         bottom: false,
-        child: SizedBox(
-          height: 58,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 58),
           child: Row(
             children: [
               IconButton(
@@ -93,14 +93,36 @@ class _BatchTaskToolbarState extends State<BatchTaskToolbar> {
                 onPressed: busy ? null : widget.onExit,
                 icon: const Icon(Icons.close),
               ),
-              Checkbox(
-                value: widget.selectedTasks.isEmpty
-                    ? false
-                    : (allSelected ? true : null),
-                tristate: true,
-                onChanged: busy ? null : (value) => _toggleAll(value == true),
+              Semantics(
+                label: '选择全部可见任务',
+                child: Checkbox(
+                  value: widget.selectedTasks.isEmpty
+                      ? false
+                      : (allSelected ? true : null),
+                  tristate: true,
+                  onChanged: busy ? null : (value) => _toggleAll(value == true),
+                ),
               ),
-              Text('${widget.selectedTasks.length} 项'),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 112),
+                child: Semantics(
+                  liveRegion: true,
+                  label: busy
+                      ? '正在处理已选任务'
+                      : '已选 ${widget.selectedTasks.length} 项任务',
+                  child: ExcludeSemantics(
+                    child: busy
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : Text('${widget.selectedTasks.length} 项'),
+                  ),
+                ),
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: SingleChildScrollView(

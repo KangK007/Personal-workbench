@@ -12,10 +12,12 @@ class GoalsPage extends StatelessWidget {
     super.key,
     required this.controller,
     this.showHeader = true,
+    this.showCreateAction = false,
   });
 
   final WorkbenchController controller;
   final bool showHeader;
+  final bool showCreateAction;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +30,7 @@ class GoalsPage extends StatelessWidget {
       children: [
         if (showHeader)
           PageHeader(
-            maxWidth: AppLayout.formMax,
+            maxWidth: AppLayout.workspaceMax,
             title: '目标',
             subtitle: '结果协议 → 里程碑 → 关联项目',
             actions: [
@@ -45,6 +47,7 @@ class GoalsPage extends StatelessWidget {
           ),
         Expanded(
           child: WorkbenchContentFrame(
+            maxWidth: AppLayout.formMax,
             child: goals.isEmpty
                 ? EmptyState(
                     icon: Icons.flag_outlined,
@@ -67,6 +70,19 @@ class GoalsPage extends StatelessWidget {
                       AppSpacing.bottomNavClearance,
                     ),
                     children: [
+                      if (!showHeader && showCreateAction)
+                        Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: TextButton.icon(
+                            onPressed: () => showRecordEditor(
+                              context,
+                              controller,
+                              kind: RecordKind.goal,
+                            ),
+                            icon: const Icon(Icons.add),
+                            label: const Text('新建目标'),
+                          ),
+                        ),
                       _GoalOverviewBand(goals: goals, controller: controller),
                       SectionHeading(
                         title: '目标树',
@@ -123,10 +139,16 @@ class _GoalOverviewBand extends StatelessWidget {
       for (final goal in goals) ...controller.milestonesForGoal(goal.id),
     ];
     final completed = milestones.where((item) => item.isDone).length;
-    final active = goals.where((item) => !item.isDone).length;
+    final active = goals
+        .where((item) => !WorkStatus.terminal.contains(item.status))
+        .length;
     final upcoming =
         goals
-            .where((item) => !item.isDone && item.dueAt != null)
+            .where(
+              (item) =>
+                  !WorkStatus.terminal.contains(item.status) &&
+                  item.dueAt != null,
+            )
             .map((item) => item.dueAt!)
             .toList()
           ..sort();
@@ -138,16 +160,13 @@ class _GoalOverviewBand extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Icon(Icons.alt_route_outlined, color: moss.color),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  '目标路径',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
+              Text('目标路径', style: Theme.of(context).textTheme.titleMedium),
               Text(
                 '$completed / ${milestones.length} 里程碑',
                 style: Theme.of(
@@ -159,6 +178,8 @@ class _GoalOverviewBand extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
             value: milestones.isEmpty ? 0 : completed / milestones.length,
+            semanticsLabel: '目标里程碑完成进度',
+            semanticsValue: '已完成 $completed 项，共 ${milestones.length} 项',
             minHeight: 6,
             color: moss.color,
             backgroundColor: moss.container,

@@ -1052,7 +1052,7 @@ void main() {
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );
 
-  testWidgets('task editor progressively reveals optional fields', (
+  testWidgets('new task editor shows optional fields directly', (
     tester,
   ) async {
     final basic = _fixture();
@@ -1081,13 +1081,10 @@ void main() {
     expect(find.text('说明'), findsOneWidget);
     expect(find.text('安排日期'), findsOneWidget);
     expect(find.text('8月10日'), findsOneWidget);
-    expect(find.text('补充更多信息'), findsOneWidget);
-    expect(find.text('状态'), findsNothing);
+    expect(find.text('补充更多信息'), findsNothing);
+    expect(find.text('状态'), findsOneWidget);
     expect(find.text('启用 CTDP 任务协议'), findsNothing);
 
-    await tester.tap(find.text('补充更多信息'));
-    await tester.pump();
-    expect(find.text('状态'), findsOneWidget);
     expect(find.text('优先级'), findsOneWidget);
     expect(find.text('启用 CTDP 任务协议'), findsNothing);
 
@@ -1101,9 +1098,8 @@ void main() {
         kind: RecordKind.task,
       ),
     );
-    expect(find.text('启用 CTDP 任务协议'), findsNothing);
-    await tester.tap(find.text('补充更多信息'));
-    await tester.pump();
+    expect(find.text('补充更多信息'), findsNothing);
+    expect(find.text('状态'), findsOneWidget);
     expect(find.text('启用 CTDP 任务协议'), findsOneWidget);
   });
 

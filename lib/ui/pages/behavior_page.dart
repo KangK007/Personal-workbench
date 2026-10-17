@@ -236,6 +236,7 @@ class _BehaviorPageState extends State<BehaviorPage>
                     controller: widget.controller,
                     showHeader: false,
                     includeRsip: false,
+                    showCreateAction: false,
                   ),
                 ),
                 TickerMode(

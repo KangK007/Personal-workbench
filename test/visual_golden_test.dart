@@ -839,8 +839,6 @@ void main() {
       RecordEditorDialog(controller: fixture.controller, kind: RecordKind.task),
       fileName: 'create_ctdp_task',
       fill: () async {
-        await tester.tap(find.text('补充更多信息'));
-        await tester.pump(const Duration(milliseconds: 300));
         await tester.tap(find.text('启用 CTDP 任务协议'));
         await tester.pump(const Duration(milliseconds: 300));
         await tester.enterText(_textFieldWithLabel('标题'), '整理衍射实验数据并记录误差来源');

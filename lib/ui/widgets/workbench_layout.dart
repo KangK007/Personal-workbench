@@ -40,7 +40,7 @@ class WorkbenchContentFrame extends StatelessWidget {
   const WorkbenchContentFrame({
     super.key,
     required this.child,
-    this.maxWidth = AppLayout.formMax,
+    this.maxWidth = AppLayout.workspaceMax,
   });
 
   final Widget child;

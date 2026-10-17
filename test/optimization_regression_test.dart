@@ -1737,7 +1737,7 @@ void main() {
     },
   );
 
-  testWidgets('today fits five tasks schedule and focus action at 1440x900', (
+  testWidgets('today fits five tasks schedule and next action at 1440x900', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -1774,7 +1774,7 @@ void main() {
           child: SizedBox(
             width: 1223,
             child: WorkbenchViewport(
-              child: TodayPage(controller: controller, onOpenFocus: () {}),
+              child: TodayPage(controller: controller),
             ),
           ),
         ),
@@ -1796,8 +1796,16 @@ void main() {
     final summary = find.text('待办 5 · 完成 0 · 专注 0m');
     expect(summary, findsOneWidget);
     expect(tester.widget<Text>(summary).maxLines, 1);
-    final focus = find.widgetWithText(FilledButton, '开始专注').last;
-    expect(tester.getRect(focus).left, greaterThan(750));
+    final focus = find.ancestor(
+      of: find.text('开始专注'),
+      matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+    );
+    expect(focus, findsOneWidget);
+    expect(tester.getRect(focus).left, lessThan(750));
+    expect(
+      tester.getRect(focus).top,
+      lessThan(tester.getRect(find.text('今日重点')).top),
+    );
     expect(tester.getRect(focus).bottom, lessThanOrEqualTo(900));
 
     tester.view.physicalSize = const Size(1440, 450);
@@ -1807,7 +1815,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('today focus action fits a short window at 200% text', (
+  testWidgets('today next action fits a short window at 200% text', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 450);
@@ -1831,16 +1839,100 @@ void main() {
         ),
         home: Scaffold(
           body: WorkbenchViewport(
-            child: TodayPage(controller: controller, onOpenFocus: () {}),
+            child: TodayPage(controller: controller),
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    final focus = find.widgetWithText(FilledButton, '开始专注');
+    final focus = find.ancestor(
+      of: find.text('添加今天的第一项任务'),
+      matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+    );
     expect(focus, findsOneWidget);
     expect(tester.getRect(focus).bottom, lessThanOrEqualTo(450));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('today started action fits 320dp at 200% text', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final now = DateTime(2026, 8, 10, 12);
+    final controller = _controllerWithClock(_MemoryDatabase(), () => now);
+    addTearDown(controller.dispose);
+    final task = WorkspaceRecord.create(
+      kind: RecordKind.task,
+      title: '首项重点',
+      scheduledFor: now,
+    );
+    await controller.addRecord(task);
+    await controller.startToday(commitments: [task], plannedHabits: const []);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: WorkbenchViewport(
+            child: TodayPage(controller: controller, showHeader: false),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final focus = find.ancestor(
+      of: find.text('开始专注'),
+      matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+    );
+    expect(focus, findsOneWidget);
+    expect(tester.getRect(focus).bottom, lessThanOrEqualTo(568));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('today mosaic shows real attention and reuses global search', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final now = DateTime(2026, 8, 10, 12);
+    final controller = _controllerWithClock(_MemoryDatabase(), () => now);
+    addTearDown(controller.dispose);
+    await controller.addRecord(
+      WorkspaceRecord.create(
+        kind: RecordKind.task,
+        title: '逾期事项',
+        scheduledFor: now.subtract(const Duration(days: 1)),
+      ),
+    );
+
+    Widget page() => _host(
+      WorkbenchViewport(
+        child: TodayPage(controller: controller, showHeader: false),
+      ),
+    );
+    await tester.pumpWidget(page());
+    await tester.pumpAndSettle();
+    expect(find.text('1 项逾期任务待结算'), findsOneWidget);
+    expect(find.text('本地数据已就绪'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('today-search-action')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('global-search-panel')), findsOneWidget);
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpWidget(page());
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('today-utilities')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

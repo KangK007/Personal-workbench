@@ -305,6 +305,15 @@ class AppDatabase {
     Iterable<WorkspaceRecord> records, {
     bool markDirty = true,
   }) async {
+    // Test and platform adapters can provide saveRecord without exposing a
+    // transaction. Keep those adapters usable while the real database gets
+    // atomic batch semantics below.
+    if (runtimeType != AppDatabase) {
+      for (final record in records) {
+        await saveRecord(record, markDirty: markDirty);
+      }
+      return;
+    }
     final db = await database;
     await db.transaction((txn) async {
       final batch = txn.batch();

@@ -112,7 +112,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // 应用退到后台时暂停秒级重建，回到前台立即恢复。
     if (state == AppLifecycleState.resumed) {
-      if (TickerMode.valuesOf(context).enabled) _startTicker();
+      if (TickerMode.of(context)) _startTicker();
     } else if (state != AppLifecycleState.inactive) {
       _stopTicker();
     }
@@ -122,7 +122,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
   Widget build(BuildContext context) {
     // 页面不在前台 Section（IndexedStack 非激活页）时暂停秒级重建，
     // 修复「页面不可见时 Timer 仍每秒重建」的性能问题。
-    final visible = TickerMode.valuesOf(context).enabled;
+    final visible = TickerMode.of(context);
     if (visible && !_tickerActive) {
       _startTicker();
     } else if (!visible && _tickerActive) {
@@ -132,7 +132,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
     final compact =
         WorkbenchViewport.sizeOf(context).width < AppBreakpoints.compact;
     return WorkbenchContentFrame(
-      maxWidth: AppLayout.formMax,
+      maxWidth: AppLayout.workspaceMax,
       child: Column(
         children: [
           if (widget.showHeader)
@@ -144,7 +144,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
                   FilledButton.icon(
                     onPressed: _createForCurrentTab,
                     icon: const Icon(Icons.add),
-                    label: const Text('新建执行协议'),
+                    label: const Text('新增链条'),
                   ),
               ],
             ),
@@ -263,6 +263,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
 
   Future<void> _createForCurrentTab() {
     final current = _activeTabs[tabController.index];
+    if (current == ProtocolTab.execution) return _showCtdpEditor();
     return showRecordEditor(
       context,
       widget.controller,
@@ -272,6 +273,18 @@ class _ProtocolsPageState extends State<ProtocolsPage>
         _ => RecordKind.task,
       },
     );
+  }
+
+  Future<void> _showCtdpEditor({WorkspaceRecord? existing}) async {
+    await showRecordEditor(
+      context,
+      widget.controller,
+      kind: RecordKind.task,
+      record: existing,
+      protocolMode: 'ctdp',
+      editorTitle: existing == null ? '新建 CTDP 执行链' : '编辑 CTDP 执行链',
+    );
+    if (mounted) setState(() {});
   }
 
   Widget _ctdpView() {
@@ -317,6 +330,18 @@ class _ProtocolsPageState extends State<ProtocolsPage>
       ),
     );
     rows.add((_) => const SizedBox(height: 18));
+    rows.add(
+      (_) => Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: FilledButton.icon(
+          key: const ValueKey('ctdp-create-chain'),
+          onPressed: _showCtdpEditor,
+          icon: const Icon(Icons.add),
+          label: const Text('新增链条'),
+        ),
+      ),
+    );
+    rows.add((_) => const SizedBox(height: 12));
     void appendTree(WorkspaceRecord task, int depth) {
       final children = childrenByParent[task.id] ?? const <WorkspaceRecord>[];
       rows.add(
@@ -351,14 +376,6 @@ class _ProtocolsPageState extends State<ProtocolsPage>
           icon: Icons.link_off_outlined,
           title: '还没有 CTDP 链',
           message: '创建任务并定义触发标志、预约缓冲和完成时长。',
-          action: FilledButton(
-            onPressed: () => showRecordEditor(
-              context,
-              widget.controller,
-              kind: RecordKind.task,
-            ),
-            child: const Text('创建第一条链'),
-          ),
         ),
       );
     } else {
@@ -550,12 +567,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
           await widget.controller.duplicateCtdpTask(task);
         case 'edit':
           if (!mounted) return;
-          await showRecordEditor(
-            context,
-            widget.controller,
-            kind: RecordKind.task,
-            record: task,
-          );
+          await _showCtdpEditor(existing: task);
         case 'trash':
           await widget.controller.moveToTrash(task);
       }
@@ -618,6 +630,8 @@ class _ProtocolsPageState extends State<ProtocolsPage>
               context,
               widget.controller,
               kind: RecordKind.habit,
+              protocolMode: 'rsip',
+              editorTitle: '新建 RSIP 国策',
             ),
             icon: const Icon(Icons.add),
             label: const Text('新增国策'),
@@ -714,6 +728,8 @@ class _ProtocolsPageState extends State<ProtocolsPage>
             widget.controller,
             kind: RecordKind.habit,
             initialParentId: node.id,
+            protocolMode: 'rsip',
+            editorTitle: '新建 RSIP 国策',
           );
         case 'edit':
           if (!mounted) return;
@@ -722,7 +738,24 @@ class _ProtocolsPageState extends State<ProtocolsPage>
             widget.controller,
             kind: RecordKind.habit,
             record: node,
+            protocolMode: 'rsip',
+            editorTitle: '编辑 RSIP 国策',
           );
+        case 'trash':
+          await widget.controller.moveToTrash(node);
+          if (mounted) {
+            setState(() {});
+            showWorkbenchSnackBar(
+              context,
+              SnackBar(
+                content: const Text('国策已移入回收站'),
+                action: SnackBarAction(
+                  label: '撤销',
+                  onPressed: () => widget.controller.restoreFromTrash(node),
+                ),
+              ),
+            );
+          }
       }
     } on FormatException catch (error) {
       if (!mounted) return;
@@ -887,6 +920,23 @@ class _ProtocolsPageState extends State<ProtocolsPage>
                       await _showRuleEditor(rule: rule);
                       return;
                     }
+                    if (action == 'trash') {
+                      await widget.controller.moveToTrash(rule);
+                      if (!mounted) return;
+                      setState(() {});
+                      showWorkbenchSnackBar(
+                        context,
+                        SnackBar(
+                          content: const Text('判例已移入回收站'),
+                          action: SnackBarAction(
+                            label: '撤销',
+                            onPressed: () =>
+                                widget.controller.restoreFromTrash(rule),
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     try {
                       await widget.controller.archiveExceptionRule(
                         rule,
@@ -911,6 +961,7 @@ class _ProtocolsPageState extends State<ProtocolsPage>
                       value: 'archive',
                       child: Text(archived ? '恢复判例' : '归档判例'),
                     ),
+                    const PopupMenuItem(value: 'trash', child: Text('移入回收站')),
                   ],
                 ),
               ],
@@ -1076,7 +1127,10 @@ class _ProtocolsPageState extends State<ProtocolsPage>
                   index < events.length && index < 30;
                   index++
                 ) ...[
-                  _EventTile(event: events[index]),
+                  _EventTile(
+                    event: events[index],
+                    onDelete: () => _deleteProtocolEvent(events[index]),
+                  ),
                   if (index < events.length - 1 && index < 29) const Divider(),
                 ],
               ],
@@ -1093,6 +1147,22 @@ class _ProtocolsPageState extends State<ProtocolsPage>
           _RuleEditorDialog(controller: widget.controller, rule: rule),
     );
     if (saved == true && mounted) setState(() {});
+  }
+
+  Future<void> _deleteProtocolEvent(WorkspaceRecord event) async {
+    await widget.controller.moveToTrash(event);
+    if (!mounted) return;
+    setState(() {});
+    showWorkbenchSnackBar(
+      context,
+      SnackBar(
+        content: const Text('协议记录已移入回收站'),
+        action: SnackBarAction(
+          label: '撤销',
+          onPressed: () => widget.controller.restoreFromTrash(event),
+        ),
+      ),
+    );
   }
 
   Future<void> _recordVictory() async {
@@ -1802,6 +1872,7 @@ class _RsipCard extends StatelessWidget {
                   const PopupMenuDivider(),
                   const PopupMenuItem(value: 'child', child: Text('新增子国策')),
                   const PopupMenuItem(value: 'edit', child: Text('编辑国策')),
+                  const PopupMenuItem(value: 'trash', child: Text('移入回收站')),
                 ],
               ),
             ],
@@ -2367,9 +2438,10 @@ class _ChainBadge extends StatelessWidget {
 }
 
 class _EventTile extends StatelessWidget {
-  const _EventTile({required this.event});
+  const _EventTile({required this.event, required this.onDelete});
 
   final WorkspaceRecord event;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -2399,7 +2471,17 @@ class _EventTile extends StatelessWidget {
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: compact ? null : Text(at),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!compact) Text(at),
+          IconButton(
+            tooltip: '删除记录',
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
+      ),
     );
   }
 }

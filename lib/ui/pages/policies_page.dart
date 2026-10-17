@@ -605,6 +605,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
                     value: 'archive',
                     child: Text('主动结束并归档…'),
                   ),
+                  const PopupMenuItem(value: 'trash', child: Text('移入回收站')),
                 ],
               ),
             ],
@@ -782,8 +783,11 @@ class _PoliciesPageState extends State<PoliciesPage> {
               overflow: TextOverflow.ellipsis,
             ),
             isThreeLine: true,
-            trailing: isArchived
-                ? compactActions
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isArchived)
+                  compactActions
                       ? IconButton(
                           tooltip: '恢复 ${node.record.title}',
                           onPressed: () => _restoreNode(node.record),
@@ -794,7 +798,8 @@ class _PoliciesPageState extends State<PoliciesPage> {
                           icon: const Icon(Icons.restore_outlined),
                           label: const Text('恢复'),
                         )
-                : Builder(
+                else
+                  Builder(
                     builder: (tabContext) => compactActions
                         ? IconButton(
                             tooltip: '在树中查看 ${node.record.title}',
@@ -810,6 +815,13 @@ class _PoliciesPageState extends State<PoliciesPage> {
                             child: const Text('查看树'),
                           ),
                   ),
+                IconButton(
+                  tooltip: '移入回收站 ${node.record.title}',
+                  onPressed: () => _trashNode(node.record),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -1415,7 +1427,26 @@ class _PoliciesPageState extends State<PoliciesPage> {
       case 'archive':
         await _archive(record);
         break;
+      case 'trash':
+        await _trashNode(record);
+        break;
     }
+  }
+
+  Future<void> _trashNode(WorkspaceRecord record) async {
+    await widget.controller.moveToTrash(record);
+    if (!mounted) return;
+    setState(() {});
+    showWorkbenchSnackBar(
+      context,
+      SnackBar(
+        content: const Text('国策已移入回收站'),
+        action: SnackBarAction(
+          label: '撤销',
+          onPressed: () => widget.controller.restoreFromTrash(record),
+        ),
+      ),
+    );
   }
 
   Future<void> _showNodeEditor({WorkspaceRecord? existing}) async {
@@ -1436,7 +1467,7 @@ class _PoliciesPageState extends State<PoliciesPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(existing == null ? '添加国策节点' : '编辑国策节点'),
+          title: Text(existing == null ? '新建 RSIP 国策' : '编辑 RSIP 国策'),
           content: SizedBox(
             width: 620,
             child: SingleChildScrollView(

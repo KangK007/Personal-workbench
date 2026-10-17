@@ -11,7 +11,6 @@ import '../widgets/quick_capture_sheet.dart';
 import '../widgets/record_editor_dialog.dart';
 import '../widgets/task_row.dart';
 import '../widgets/task_group_editor_dialog.dart';
-import '../widgets/jade_botanical_edge.dart';
 import '../widgets/jade_icon.dart';
 import '../widgets/task_hierarchy.dart';
 import '../widgets/task_hierarchy_navigation.dart';
@@ -60,12 +59,9 @@ class _ProjectsPageState extends State<ProjectsPage>
   int _groupRevealVersion = 0;
   final Map<String, GlobalKey> _groupCardKeys = {};
   final Map<String, GlobalKey> _groupRowKeys = {};
+  final GlobalKey _taskPanelKey = GlobalKey();
   Timer? _groupHighlightTimer;
-  late final AnimationController _projectSwitchOpacity = AnimationController(
-    vsync: this,
-    duration: AppMotion.standard,
-    value: 1,
-  );
+  late final AnimationController _projectSwitchOpacity;
 
   WorkbenchController get controller => widget.controller;
 
@@ -260,6 +256,11 @@ class _ProjectsPageState extends State<ProjectsPage>
   @override
   void initState() {
     super.initState();
+    _projectSwitchOpacity = AnimationController(
+      vsync: this,
+      duration: AppMotion.standard,
+      value: 1,
+    );
     selectedProjectId = widget.selectedProjectId;
     // Shell routes use the existing detail panels as stable anchors. This
     // keeps the public ProjectDetailTab routes distinct without changing the
@@ -308,6 +309,22 @@ class _ProjectsPageState extends State<ProjectsPage>
     }
   }
 
+  void _openTasks() {
+    setState(() => expandedPanel = 'tasks');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final taskContext = _taskPanelKey.currentContext;
+      if (taskContext == null) return;
+      Scrollable.ensureVisible(
+        taskContext,
+        alignment: 0,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : AppMotion.standard,
+      );
+    });
+  }
+
   Widget _selectedProjectDetail(
     BuildContext context,
     WorkspaceRecord project,
@@ -326,9 +343,6 @@ class _ProjectsPageState extends State<ProjectsPage>
             .firstOrNull ??
         projects.firstOrNull;
     final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-    final desktop =
-        WorkbenchViewport.sizeOf(context).width >=
-        AppLayout.masterDetailMin * textScale.clamp(1, 1.5);
     return Column(
       children: [
         if (widget.showHeader)
@@ -364,49 +378,54 @@ class _ProjectsPageState extends State<ProjectsPage>
             ),
           ),
         Expanded(
-          child: projects.isEmpty
-              ? SingleChildScrollView(
-                  padding: const EdgeInsets.only(
-                    bottom: AppSpacing.bottomNavClearance,
-                  ),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: AppSpacing.xl),
-                      EmptyState(
-                        icon: Icons.folder_open_outlined,
-                        title: '还没有项目',
-                        message: '项目用于组织相关任务、里程碑、笔记和资料链接。',
-                        action: FilledButton(
-                          onPressed: () => showRecordEditor(
-                            context,
-                            controller,
-                            kind: RecordKind.project,
+          child: LayoutBuilder(
+            builder: (context, constraints) => projects.isEmpty
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.only(
+                      bottom: AppSpacing.bottomNavClearance,
+                    ),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: AppSpacing.xl),
+                        EmptyState(
+                          icon: Icons.folder_open_outlined,
+                          title: '还没有项目',
+                          message: '项目用于组织相关任务、里程碑、笔记和资料链接。',
+                          action: FilledButton(
+                            onPressed: () => showRecordEditor(
+                              context,
+                              controller,
+                              kind: RecordKind.project,
+                            ),
+                            child: const Text('创建第一个项目'),
                           ),
-                          child: const Text('创建第一个项目'),
+                        ),
+                      ],
+                    ),
+                  )
+                : constraints.maxWidth >=
+                      AppLayout.masterDetailMin * textScale.clamp(1, 1.5)
+                ? Row(
+                    children: [
+                      SizedBox(
+                        width: 260,
+                        child: _ProjectList(
+                          projects: projects,
+                          controller: controller,
+                          selectedId: selected!.id,
+                          onSelected: _selectProject,
+                          onEdit: _editProject,
+                          onDelete: _moveProjectToTrash,
                         ),
                       ),
-                    ],
-                  ),
-                )
-              : desktop
-              ? Row(
-                  children: [
-                    SizedBox(
-                      width: 260,
-                      child: _ProjectList(
-                        projects: projects,
-                        controller: controller,
-                        selectedId: selected!.id,
-                        onSelected: _selectProject,
-                        onEdit: _editProject,
-                        onDelete: _moveProjectToTrash,
+                      const VerticalDivider(),
+                      Expanded(
+                        child: _selectedProjectDetail(context, selected),
                       ),
-                    ),
-                    const VerticalDivider(),
-                    Expanded(child: _selectedProjectDetail(context, selected)),
-                  ],
-                )
-              : _mobileBody(context, projects, selected!),
+                    ],
+                  )
+                : _mobileBody(context, projects, selected!),
+          ),
         ),
       ],
     );
@@ -488,7 +507,7 @@ class _ProjectsPageState extends State<ProjectsPage>
       required int count,
       required Widget child,
     }) {
-      return ExpansionTile(
+      final tile = ExpansionTile(
         key: ValueKey('${project.id}-$id-${expandedPanel == id}'),
         initiallyExpanded: expandedPanel == id,
         onExpansionChanged: (value) => setState(() {
@@ -506,6 +525,9 @@ class _ProjectsPageState extends State<ProjectsPage>
         ),
         children: [child],
       );
+      return id == 'tasks'
+          ? KeyedSubtree(key: _taskPanelKey, child: tile)
+          : tile;
     }
 
     return ListView(
@@ -516,6 +538,9 @@ class _ProjectsPageState extends State<ProjectsPage>
           child: LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 600;
+              final showViewSwitch =
+                  widget.initialTab == ProjectDetailTab.overview ||
+                  widget.initialTab == ProjectDetailTab.tasks;
               final title = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -530,9 +555,7 @@ class _ProjectsPageState extends State<ProjectsPage>
                       Expanded(
                         child: Text(
                           project.title,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.titleLarge?.copyWith(fontSize: 22),
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
                     ],
@@ -627,14 +650,18 @@ class _ProjectsPageState extends State<ProjectsPage>
                         title,
                         const SizedBox(height: AppSpacing.sm),
                         Row(
-                          children: [compactViewSwitch, const Spacer(), menu],
+                          children: [
+                            if (showViewSwitch) compactViewSwitch,
+                            const Spacer(),
+                            menu,
+                          ],
                         ),
                       ],
                     )
                   : Row(
                       children: [
                         Expanded(child: title),
-                        viewSwitch,
+                        if (showViewSwitch) viewSwitch,
                         menu,
                       ],
                     );
@@ -671,7 +698,7 @@ class _ProjectsPageState extends State<ProjectsPage>
                   tasks: tasks,
                   milestones: milestones,
                   notes: documents,
-                  onOpenTasks: () => setState(() => expandedPanel = 'tasks'),
+                  onOpenTasks: _openTasks,
                 ),
                 const SizedBox(height: AppSpacing.md),
               ],
@@ -687,24 +714,6 @@ class _ProjectsPageState extends State<ProjectsPage>
                       child: Wrap(
                         spacing: 8,
                         children: [
-                          SegmentedButton<ProjectViewMode>(
-                            showSelectedIcon: false,
-                            segments: const [
-                              ButtonSegment(
-                                value: ProjectViewMode.list,
-                                icon: Icon(Icons.view_list),
-                                label: Text('清单'),
-                              ),
-                              ButtonSegment(
-                                value: ProjectViewMode.board,
-                                icon: Icon(Icons.view_kanban_outlined),
-                                label: Text('看板'),
-                              ),
-                            ],
-                            selected: {mode},
-                            onSelectionChanged: (value) =>
-                                setState(() => mode = value.first),
-                          ),
                           FilledButton.icon(
                             onPressed: () => showQuickCapture(
                               context,
@@ -1492,10 +1501,14 @@ class _ProjectMilestoneTimelineState extends State<_ProjectMilestoneTimeline> {
     final theme = Theme.of(context);
     final moss = context.accents.moss;
     final overdue =
-        !milestone.isDone &&
+        !WorkStatus.terminal.contains(milestone.status) &&
         milestone.dueAt != null &&
         milestone.dueAt!.isBefore(widget.controller.currentTime());
-    final nodeColor = overdue ? context.tokens.signal : moss.color;
+    final nodeColor = overdue
+        ? context.tokens.signal
+        : WorkStatus.terminal.contains(milestone.status) && !milestone.isDone
+        ? context.tokens.mutedText
+        : moss.color;
     final completion = milestone.isDone ? 1.0 : 0.0;
     final expanded = _expandedDescriptionIds.contains(milestone.id);
     final dateLabel = milestone.dueAt == null
@@ -1579,6 +1592,10 @@ class _ProjectMilestoneTimelineState extends State<_ProjectMilestoneTimeline> {
                               Text(
                                 milestone.isDone
                                     ? '已达成'
+                                    : WorkStatus.terminal.contains(
+                                        milestone.status,
+                                      )
+                                    ? statusLabel(milestone.status)
                                     : overdue
                                     ? '已逾期'
                                     : '待到达',
@@ -1686,7 +1703,11 @@ class _ProjectMilestoneTimelineState extends State<_ProjectMilestoneTimeline> {
         });
     final selected =
         ordered.where((milestone) => milestone.id == _selectedId).firstOrNull ??
-        ordered.where((milestone) => !milestone.isDone).firstOrNull ??
+        ordered
+            .where(
+              (milestone) => !WorkStatus.terminal.contains(milestone.status),
+            )
+            .firstOrNull ??
         ordered.first;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1796,15 +1817,18 @@ class _ProjectSectionSignal extends StatelessWidget {
         )
         .length;
     final doneMilestones = milestones.where((item) => item.isDone).length;
-    final pendingMilestones = milestones.where((item) => !item.isDone).toList()
-      ..sort((a, b) {
-        final aDate = a.dueAt;
-        final bDate = b.dueAt;
-        if (aDate == null && bDate == null) return 0;
-        if (aDate == null) return 1;
-        if (bDate == null) return -1;
-        return aDate.compareTo(bDate);
-      });
+    final pendingMilestones =
+        milestones
+            .where((item) => !WorkStatus.terminal.contains(item.status))
+            .toList()
+          ..sort((a, b) {
+            final aDate = a.dueAt;
+            final bDate = b.dueAt;
+            if (aDate == null && bDate == null) return 0;
+            if (aDate == null) return 1;
+            if (bDate == null) return -1;
+            return aDate.compareTo(bDate);
+          });
     final recentRecords = [...notes, ...reviews]
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     late final IconData icon;
@@ -2028,69 +2052,42 @@ class _ProjectOverview extends StatelessWidget {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final compact = constraints.maxWidth < 500;
-              final showArt = MediaQuery.textScalerOf(context).scale(1) < 1.6;
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [tokens.heroStart, tokens.heroEnd],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(tokens.cardRadius),
-                ),
-                child: Row(
+              final textScale = MediaQuery.textScalerOf(context).scale(1);
+              final compact = constraints.maxWidth < 500 * textScale;
+              final nextStep = Text(
+                nextTask?.title ??
+                    (tasks.isEmpty
+                        ? '从第一步开始搭起项目路径'
+                        : completed == tasks.length
+                        ? '当前任务已完成'
+                        : '当前没有待办任务'),
+                maxLines: compact ? 4 : 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium,
+              );
+              final action = TextButton.icon(
+                key: const ValueKey('project-overview-open-tasks'),
+                onPressed: onOpenTasks,
+                icon: const Icon(Icons.arrow_forward, size: AppIconSize.xs),
+                label: const Text('查看任务'),
+              );
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            nextTask == null ? '项目进展' : '当前下一步',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: tokens.mutedText,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            nextTask?.title ??
-                                (tasks.isEmpty ? '从第一步开始搭起项目路径' : '当前任务已完成'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (showArt) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      JadeBotanicalEdge(
-                        width: compact ? 32 : 56,
-                        height: compact ? 28 : 42,
-                        compact: compact,
-                      ),
-                    ],
-                    if (compact)
-                      IconButton(
-                        onPressed: onOpenTasks,
-                        tooltip: '查看任务',
-                        icon: const Icon(Icons.arrow_forward),
-                      )
-                    else
-                      TextButton.icon(
-                        onPressed: onOpenTasks,
-                        icon: const Icon(
-                          Icons.arrow_forward,
-                          size: AppIconSize.xs,
-                        ),
-                        label: const Text('查看任务'),
-                      ),
+                    nextStep,
+                    const SizedBox(height: AppSpacing.sm),
+                    action,
                   ],
-                ),
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: nextStep),
+                  const SizedBox(width: AppSpacing.lg),
+                  action,
+                ],
               );
             },
           ),
@@ -2106,6 +2103,8 @@ class _ProjectOverview extends StatelessWidget {
               curve: Curves.easeOutCubic,
               builder: (context, value, child) => LinearProgressIndicator(
                 value: value,
+                semanticsLabel: '项目任务完成进度',
+                semanticsValue: '已完成 $completed 项，共 ${tasks.length} 项',
                 minHeight: 7,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 backgroundColor: tokens.subtle,
@@ -2154,19 +2153,19 @@ class _ProjectOverview extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium,
                       ),
+                      if (summaryMilestone.dueAt case final date?) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          formatShortDate(date),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: tokens.mutedText,
+                            fontFamily: AppFonts.numeric,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                if (summaryMilestone.dueAt case final date?) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    formatShortDate(date),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: tokens.mutedText,
-                      fontFamily: AppFonts.numeric,
-                    ),
-                  ),
-                ],
               ],
             ),
           ],

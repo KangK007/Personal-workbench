@@ -869,6 +869,28 @@ abstract final class AppTheme {
       focusColor: scheme.primary.withValues(alpha: 0.1),
       hoverColor: scheme.primary.withValues(alpha: 0.06),
       highlightColor: scheme.primary.withValues(alpha: 0.08),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: scheme.primary,
+        selectionColor: scheme.primary.withValues(alpha: 0.24),
+        selectionHandleColor: scheme.primary,
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        thickness: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.dragged)
+              ? 8
+              : 6,
+        ),
+        radius: const Radius.circular(AppRadius.xs),
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.dragged)
+              ? scheme.primary
+              : states.contains(WidgetState.hovered)
+              ? tokens.mutedText
+              : tokens.borderStrong,
+        ),
+      ),
 
       // ─── AppBar：稳定实色工作面 ───
       appBarTheme: AppBarTheme(
@@ -952,9 +974,7 @@ abstract final class AppTheme {
         ),
         helperStyle: textTheme.bodySmall?.copyWith(color: tokens.mutedText),
         errorStyle: textTheme.bodySmall?.copyWith(color: scheme.error),
-        hintStyle: TextStyle(
-          color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-        ),
+        hintStyle: textTheme.bodyMedium?.copyWith(color: tokens.mutedText),
       ),
 
       // ─── SearchBar ───
@@ -1195,8 +1215,8 @@ abstract final class AppTheme {
         ),
         labelColor: scheme.primary,
         unselectedLabelColor: scheme.onSurfaceVariant,
-        labelStyle: textTheme.labelLarge,
-        unselectedLabelStyle: textTheme.labelMedium,
+        labelStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+        unselectedLabelStyle: textTheme.labelLarge,
       ),
 
       // ─── Divider ───

@@ -129,6 +129,11 @@ class _AuditSignedInController extends WorkbenchController {
 
 final _auditNow = DateTime(2026, 8, 9, 10);
 
+Finder _filledButtonWithText(String label) => find.ancestor(
+  of: find.text(label),
+  matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+);
+
 Future<void> _loadAuditFonts() async {
   final materialIcons = FontLoader('MaterialIcons')
     ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
@@ -893,7 +898,6 @@ List<_AuditSurface> _auditSurfaces(WorkbenchController controller) => [
     (size) => TodayPage(
       controller: controller,
       showHeader: size.width >= AppBreakpoints.compact,
-      onOpenFocus: () {},
     ),
   ),
   for (final tab in PlanTab.values)
@@ -1099,7 +1103,10 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 220));
     expect(tester.widget<CircularProgressIndicator>(ring).value, 1);
-    final action = find.widgetWithText(FilledButton, '返回专注中心');
+    final action = find.ancestor(
+      of: find.text('返回专注中心'),
+      matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+    );
     expect(tester.getRect(action).bottom, lessThanOrEqualTo(568));
     await tester.pump(const Duration(seconds: 2));
     expect(action, findsOneWidget);
@@ -1244,7 +1251,6 @@ void main() {
           TodayPage(
             controller: controller,
             showHeader: false,
-            onOpenFocus: () {},
           ),
           textScaler: const TextScaler.linear(2),
         ),
@@ -1254,7 +1260,10 @@ void main() {
       final title = find.text('还剩 1 件事');
       final facts = find.textContaining('已完成 0 项\n专注');
       final ring = find.byKey(const ValueKey('today-progress-ring'));
-      final focus = find.widgetWithText(FilledButton, '开始专注');
+      final nextAction = find.ancestor(
+        of: find.text('开始今天'),
+        matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+      );
       expect(title, findsOneWidget);
       expect(tester.widget<Text>(title).overflow, TextOverflow.clip);
       expect(
@@ -1266,7 +1275,7 @@ void main() {
         greaterThan(tester.getRect(facts).right),
       );
       expect(tester.getSize(facts).width, greaterThan(150));
-      expect(tester.getRect(focus).bottom, lessThanOrEqualTo(568));
+      expect(tester.getRect(nextAction).bottom, lessThanOrEqualTo(568));
       expect(tester.takeException(), isNull);
     },
   );
@@ -1712,8 +1721,14 @@ void main() {
           );
           await tester.pumpAndSettle();
           for (final action in [
-            find.widgetWithText(FilledButton, '开始专注'),
-            find.widgetWithText(OutlinedButton, '完成本次专注'),
+            find.ancestor(
+              of: find.text('开始专注'),
+              matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+            ),
+            find.ancestor(
+              of: find.text('完成本次专注'),
+              matching: find.byWidgetPredicate((widget) => widget is OutlinedButton),
+            ),
           ]) {
             expect(action, findsOneWidget);
             expect(
@@ -3402,10 +3417,9 @@ void main() {
     expect(retries, 1);
     await tester.pumpWidget(errorView(retrying: true));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(
-      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-      isNull,
-    );
+    final retryButton = _filledButtonWithText('正在重试');
+    expect(retryButton, findsOneWidget);
+    expect(tester.widget<FilledButton>(retryButton).onPressed, isNull);
     await tester.pumpWidget(errorView(retried: true));
     await tester.pumpAndSettle();
     expect(find.textContaining('重试仍未成功'), findsOneWidget);
@@ -3561,11 +3575,14 @@ void main() {
       ]) {
         tester.view.physicalSize = size;
         await tester.pumpAndSettle();
-        final save = find.widgetWithText(FilledButton, '保存');
+        final save = _filledButtonWithText('保存');
+        await tester.ensureVisible(save);
         expect(save.hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
       }
-      await tester.tap(find.widgetWithText(FilledButton, '保存'));
+      final save = _filledButtonWithText('保存');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
       await tester.pumpAndSettle();
       final saved = controller
           .recordsOf(RecordKind.note)
@@ -3889,7 +3906,9 @@ void main() {
         final suffix =
             '${brightness.name}_${size.width.toInt()}x${size.height.toInt()}';
         if (size.width < 700) {
-          await tester.tap(find.widgetWithText(FilledButton, '保存'));
+          final save = _filledButtonWithText('保存');
+          await tester.ensureVisible(save);
+          await tester.tap(save);
           await tester.pump();
           expect(find.text('请填写笔记标题。'), findsOneWidget);
           await expectLater(
@@ -4579,7 +4598,7 @@ void main() {
     await _capture(
       tester,
       'today_mobile',
-      TodayPage(controller: controller, onOpenFocus: () {}),
+      TodayPage(controller: controller),
       size: const Size(412, 915),
     );
     for (final brightness in [Brightness.light, Brightness.dark]) {
